@@ -42,7 +42,11 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
     guard let folder else { return [] }
 
     let fm = FileManager.default
-    let allowed = ["jpg", "jpeg", "png", "heic", "arw", "orf", "rw2"]
+    let allowed = ["jpg", "jpeg", "png", "heic", "tiff", "tif", "arw", "orf", "rw2",
+                   "cr2", "cr3", "crw", "nef", "nrw", "srf", "sr2", "raw", "raf",
+                   "pef", "ptx", "dng", "3fr", "fff", "iiq", "mef", "mos", "x3f",
+                   "srw", "dcr", "kdc", "k25", "kc2", "mrw", "erf", "bay", "ndd",
+                   "sti", "rwl", "r3d"]
 
     let files = (try? fm.contentsOfDirectory(
         at: folder.url,
