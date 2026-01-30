@@ -51,10 +51,10 @@ struct ThumbCell: View {
                 .padding(5)
                 .background(
                     Capsule()
-                        .fill(photo.isApproved ? Color.green : Color.clear)
-                        .opacity(photo.isApproved ? 0.8 : 0)
+                        .fill(photo.xmp?.label == "Approved" ? Color.green : Color.clear)
+                        .opacity(photo.xmp?.label == "Approved" ? 1 : 0)
                 )
-                .foregroundColor(photo.isApproved ? .white : .primary)
+                .foregroundColor(photo.xmp?.label == "Approved" ? .white : .primary)
                 .frame(height: 30)
 
             Spacer()

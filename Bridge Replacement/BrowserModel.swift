@@ -1,6 +1,6 @@
 //
 //  BrowserModel.swift
-//  Imagin Bridge
+//  Bridge Replacement
 //
 //  Created by Cristian Baluta on 30.01.2026.
 //
@@ -72,8 +72,12 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
         .map { imageFile in
             let baseName = imageFile.deletingPathExtension().lastPathComponent
-            let xmpContent = xmpLookup[baseName]
-            return PhotoItem(path: imageFile.path, xmpContent: xmpContent)
+            if let xmpContent = xmpLookup[baseName] {
+                let xmp = XmpParser.parseMetadata(from: xmpContent)
+                return PhotoItem(path: imageFile.path, xmp: xmp)
+            } else {
+                return PhotoItem(path: imageFile.path, xmp: nil)
+            }
         }
 }
 

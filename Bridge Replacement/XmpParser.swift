@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct XmpMetadata {
+struct XmpMetadata: Equatable, Hashable {
     let label: String?
     let creator: String?
     let rights: String?
@@ -20,15 +20,6 @@ struct XmpMetadata {
     let shutterSpeed: String?
     let iso: String?
     let exposureBias: String?
-    
-    // Computed properties for easier access
-    var isApproved: Bool {
-        return label?.lowercased() == "approved"
-    }
-    
-    var isRejected: Bool {
-        return label?.lowercased() == "rejected"
-    }
 }
 
 class XmpParser {
@@ -160,21 +151,5 @@ class XmpParser {
         }
         
         return nil
-    }
-}
-
-// MARK: - Convenience Extensions
-extension PhotoItem {
-    var xmpMetadata: XmpMetadata? {
-        guard let xmpContent = xmpContent else { return nil }
-        return XmpParser.parseMetadata(from: xmpContent)
-    }
-    
-    var isApproved: Bool {
-        return xmpMetadata?.isApproved == true
-    }
-    
-    var isRejected: Bool {
-        return xmpMetadata?.isRejected == true
     }
 }
