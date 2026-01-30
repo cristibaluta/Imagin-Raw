@@ -16,8 +16,7 @@ struct ContentView: View {
             SidebarView(model: model)
         } content: {
             // Middle: thumbnails
-            let photos = loadPhotos(in: model.selectedFolder)
-            ThumbGridView(photos: photos, model: model)
+            ThumbGridView(photos: model.photos, model: model)
         } detail: {
             // Right: large preview
             if let photo = model.selectedPhoto {
