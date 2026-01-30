@@ -54,10 +54,27 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
         options: [.skipsHiddenFiles]
     )) ?? []
 
-    return files
-        .filter { allowed.contains($0.pathExtension.lowercased()) }
+    // Separate image files from XMP files
+    let imageFiles = files.filter { allowed.contains($0.pathExtension.lowercased()) }
+    let xmpFiles = files.filter { $0.pathExtension.lowercased() == "xmp" }
+
+    // Create a dictionary for XMP lookup by base filename
+    var xmpLookup: [String: String] = [:]
+    for xmpFile in xmpFiles {
+        let baseName = xmpFile.deletingPathExtension().lastPathComponent
+        if let xmpContent = try? String(contentsOf: xmpFile, encoding: .utf8) {
+            xmpLookup[baseName] = xmpContent
+        }
+    }
+
+    // Create PhotoItems with matched XMP content
+    return imageFiles
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
-        .map { PhotoItem(path: $0.path) }
+        .map { imageFile in
+            let baseName = imageFile.deletingPathExtension().lastPathComponent
+            let xmpContent = xmpLookup[baseName]
+            return PhotoItem(path: imageFile.path, xmpContent: xmpContent)
+        }
 }
 
 

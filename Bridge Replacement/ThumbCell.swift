@@ -7,34 +7,30 @@
 import SwiftUI
 
 struct ThumbCell: View {
-    let path: String
+    let photo: PhotoItem
     let isSelected: Bool
     let size: CGFloat = 100
-    @State private var image: NSImage? = nil
+    @State private var thumbnailImage: NSImage?
     @State private var isLoading = false
-    @State private var hasAttemptedLoad = false
-    
-    // Cache filename to avoid repeated string operations
+
     private var filename: String {
-        path.split(separator: "/").last.map(String.init) ?? ""
+        URL(fileURLWithPath: photo.path).lastPathComponent
     }
 
     var body: some View {
-        VStack(spacing: 6) {
-            // Thumbnail square
+        VStack(spacing: 4) {
             ZStack {
                 Rectangle()
                     .fill(Color(.black))
 
-                if let image {
+                if let image = thumbnailImage {
                     Image(nsImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                 } else if isLoading {
                     ProgressView()
-                        .scaleEffect(0.6)
+                        .scaleEffect(0.5)
                 } else {
-                    // Show placeholder when not loading
                     Image(systemName: "photo")
                         .foregroundColor(.gray)
                 }
@@ -48,13 +44,18 @@ struct ThumbCell: View {
                 loadThumbnail()
             }
 
-            // Filename - cached to avoid repeated string operations
+            // Filename with green pill background for approved photos
             Text(filename)
-                .font(.system(size: 10))
-                .foregroundColor(.secondary)
+                .font(.callout)
                 .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(width: size)
+                .padding(5)
+                .background(
+                    Capsule()
+                        .fill(photo.isApproved ? Color.green : Color.clear)
+                        .opacity(photo.isApproved ? 0.8 : 0)
+                )
+                .foregroundColor(photo.isApproved ? .white : .primary)
+                .frame(height: 30)
 
             Spacer()
         }
@@ -62,18 +63,18 @@ struct ThumbCell: View {
 
     private func loadThumbnail() {
         // Check if already cached in memory
-        if let cachedImage = ThumbsManager.shared.getCachedThumbnail(for: path) {
-            self.image = cachedImage
+        if let cachedImage = ThumbsManager.shared.getCachedThumbnail(for: photo.path) {
+            self.thumbnailImage = cachedImage
             return
         }
 
         // Load asynchronously (from disk cache or generate new)
         isLoading = true
-        ThumbsManager.shared.loadThumbnail(for: path) { [path] image in
-            // Ensure we're updating the right cell (path might have changed)
-            guard self.path == path else { return }
+        ThumbsManager.shared.loadThumbnail(for: photo.path) { [photo] image in
+            // Ensure we're updating the right cell
+            guard self.photo.path == photo.path else { return }
 
-            self.image = image
+            self.thumbnailImage = image
             self.isLoading = false
         }
     }
