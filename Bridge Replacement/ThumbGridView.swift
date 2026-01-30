@@ -6,15 +6,19 @@ struct ThumbGridView: View {
     @FocusState private var isFocused: Bool
     @State private var lastScrolledRow: Int = -1
 
-    let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+    let columns = [
+        GridItem(.fixed(108), spacing: 8),
+        GridItem(.fixed(108), spacing: 8),
+        GridItem(.fixed(108), spacing: 8)
+    ]
     private let columnsCount = 3
 
     var body: some View {
         ScrollViewReader { proxy in
             GeometryReader { geometry in
-                ScrollView {
+                ScrollView(.vertical, showsIndicators: true) {
                     LazyVGrid(columns: columns, spacing: 8) {
-                        ForEach(photos) { photo in
+                        ForEach(photos, id: \.id) { photo in
                             ThumbCell(path: photo.path, isSelected: model.selectedPhoto?.id == photo.id)
                                 .frame(width: 100, height: 150)
                                 .id(photo.id)
@@ -23,9 +27,11 @@ struct ThumbGridView: View {
                                 }
                         }
                     }
-                    .padding()
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
                 }
-                .frame(width: 300+60)
+                .scrollContentBackground(.hidden)
+                .frame(width: 380) // Fixed width for better performance
                 .focusable()
                 .focusEffectDisabled()
                 .focused($isFocused)
