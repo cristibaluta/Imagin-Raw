@@ -18,6 +18,7 @@ struct LargePreviewView: View {
                 Image(nsImage: nsImage)
                     .resizable()
                     .scaledToFit()
+                    .padding()
             } else {
                 ProgressView()
                     .onAppear() {
@@ -32,5 +33,6 @@ struct LargePreviewView: View {
                     }
             }
         }
+//        .background(Rectangle().fill(Color.black).opacity(0.8))
     }
 }

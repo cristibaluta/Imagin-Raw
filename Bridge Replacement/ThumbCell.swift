@@ -46,15 +46,15 @@ struct ThumbCell: View {
 
             // Filename with green pill background for approved photos
             Text(filename)
-                .font(.callout)
+                .font(.system(size: 11))
                 .lineLimit(1)
-                .padding(5)
+                .padding(4)
                 .background(
-                    Capsule()
-                        .fill(photo.xmp?.label == "Approved" ? Color.green : Color.clear)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(photo.xmp?.label == "Approved" ? Color(red: 133/255, green: 199/255, blue: 102/255) : Color.clear)
                         .opacity(photo.xmp?.label == "Approved" ? 1 : 0)
                 )
-                .foregroundColor(photo.xmp?.label == "Approved" ? .white : .primary)
+                .foregroundColor(photo.xmp?.label == "Approved" ? .black : .primary)
                 .frame(height: 30)
 
             Spacer()

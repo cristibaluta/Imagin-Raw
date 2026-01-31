@@ -45,14 +45,16 @@ struct FolderRowView: View {
                     )
                 }
             } label: {
-                Label(folder.url.lastPathComponent, systemImage: "folder")
+                Label(folder.url.lastPathComponent, systemImage: "folder.fill")
+                    .tint(Color.blue)
                     .tag(folder)
                     .onTapGesture {
                         selectedFolder = folder
                     }
             }
         } else {
-            Label(folder.url.lastPathComponent, systemImage: "folder")
+            Label(folder.url.lastPathComponent, systemImage: "folder.fill")
+                .tint(Color(red: 139/255, green: 206/255, blue: 248/255))
                 .tag(folder)
                 .onTapGesture {
                     selectedFolder = folder

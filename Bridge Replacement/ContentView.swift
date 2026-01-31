@@ -23,7 +23,6 @@ struct ContentView: View {
                 LargePreviewView(photo: photo)
                     .id(photo.id)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding()
             } else {
                 Text("Select a photo")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -32,5 +31,6 @@ struct ContentView: View {
         }
         .frame(minWidth: 1200, minHeight: 700)
         .preferredColorScheme(.dark)
+        .background(Rectangle().fill(Color(red: 0.05, green: 0.05, blue: 0.06)).opacity(0.5))
     }
 }
