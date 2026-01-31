@@ -54,6 +54,7 @@ struct ContentView: View {
                     .foregroundColor(.secondary)
             }
         }
+        .navigationTitle(model.selectedFolder?.url.path ?? "No Folder Selected")
         .onChange(of: columnVisibilityStorage) { _, newValue in
             // Update our tracked state when the column visibility changes
             isSidebarCollapsed = (newValue == "doubleColumn")
