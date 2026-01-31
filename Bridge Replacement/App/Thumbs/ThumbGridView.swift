@@ -31,7 +31,6 @@ struct ThumbGridView: View {
                     .padding(.vertical, 4)
                 }
                 .scrollContentBackground(.hidden)
-//                .frame(width: 400) // Fixed width for better performance
                 .focusable()
                 .focusEffectDisabled()
                 .focused($isFocused)
