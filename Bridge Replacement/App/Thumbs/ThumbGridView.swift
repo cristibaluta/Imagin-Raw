@@ -131,6 +131,27 @@ struct ThumbGridView: View {
         let xmpFileName = "\(photoName).xmp"
         let xmpFileURL = photoDirectory.appendingPathComponent(xmpFileName)
 
+        // Read existing XMP file to check current label state
+        var currentLabel: String? = nil
+        if FileManager.default.fileExists(atPath: xmpFileURL.path) {
+            do {
+                let existingXmpContent = try String(contentsOf: xmpFileURL, encoding: .utf8)
+                if let existingMetadata = XmpParser.parseMetadata(from: existingXmpContent) {
+                    currentLabel = existingMetadata.label
+                    print("📖 Read existing XMP: Current label = \(currentLabel ?? "None")")
+                }
+            } catch {
+                print("⚠️ Failed to read existing XMP file: \(error)")
+            }
+        } else {
+            print("📄 No existing XMP file found, will create new one")
+        }
+
+        // Toggle the label: if currently "Approved", remove it; otherwise set to "Approved"
+        let newLabel: String? = (currentLabel == "Approved") ? nil : "Approved"
+        let labelAction = (newLabel == "Approved") ? "Setting" : "Removing"
+        print("🔄 \(labelAction) Approved label")
+
         // Get current date for metadata
         let currentDate = Date()
         let dateFormatter = ISO8601DateFormatter()
@@ -140,6 +161,9 @@ struct ThumbGridView: View {
         // Generate unique instance ID
         let instanceID = UUID().uuidString.lowercased()
 
+        // Create XMP content with or without the label attribute
+        let labelAttribute = newLabel != nil ? "   xmp:Label=\"\(newLabel!)\"\n" : ""
+
         let xmpContent = """
 <?xml version="1.0" encoding="UTF-8"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 7.0-c000 1.000000, 0000/00/00-00:00:00        ">
@@ -148,8 +172,7 @@ struct ThumbGridView: View {
     xmlns:xmp="http://ns.adobe.com/xap/1.0/"
     xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/"
     xmlns:stEvt="http://ns.adobe.com/xap/1.0/sType/ResourceEvent#"
-   xmp:Label="Approved"
-   xmp:MetadataDate="\(currentDateString)"
+\(labelAttribute)   xmp:MetadataDate="\(currentDateString)"
    xmpMM:InstanceID="xmp.iid:\(instanceID)">
    <xmpMM:History>
     <rdf:Seq>
@@ -168,9 +191,9 @@ struct ThumbGridView: View {
 
         do {
             try xmpContent.write(to: xmpFileURL, atomically: true, encoding: .utf8)
-            print("✅ XMP file created: \(xmpFileName)")
+            print("✅ XMP file saved: \(xmpFileName)")
             print("📁 Location: \(photoDirectory.path)")
-            print("🏷️ Label: Approved")
+            print("🏷️ Label: \(newLabel ?? "None")")
 
             // Parse the XMP content we just saved
             if let parsedMetadata = XmpParser.parseMetadata(from: xmpContent) {
@@ -183,7 +206,7 @@ struct ThumbGridView: View {
             }
 
         } catch {
-            print("❌ Failed to create XMP file for \(photo.path): \(error)")
+            print("❌ Failed to save XMP file for \(photo.path): \(error)")
         }
     }
 
