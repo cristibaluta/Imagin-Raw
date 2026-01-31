@@ -49,7 +49,7 @@ class ThumbsManager: ObservableObject {
         diskQueue.async { [weak self] in
             guard let self = self else { return }
 
-            if let diskImage = self.loadFromDisk(cacheKey: cacheKey) {
+            if let diskImage = self.loadFromDisk(cacheKey: cacheKey, forPath: path) {
                 self.setCachedImage(diskImage, for: cacheKey)
                 DispatchQueue.main.async {
                     completion(diskImage)
@@ -87,7 +87,20 @@ class ThumbsManager: ObservableObject {
     // MARK: - Private Methods
 
     private func cacheKey(for path: String) -> String {
+        // Use original filename as cache key
         return URL(fileURLWithPath: path).lastPathComponent
+    }
+
+    private func cacheSubdirectory(for path: String) -> URL {
+        let url = URL(fileURLWithPath: path)
+        let directoryPath = url.deletingLastPathComponent().path
+
+        // Create folder name: originalFolderName_hash
+        let lastComponent = url.deletingLastPathComponent().lastPathComponent
+        let directoryHash = abs(directoryPath.hashValue)
+        let safeFolderName = "\(lastComponent)_\(directoryHash)"
+
+        return cacheDirectory.appendingPathComponent(safeFolderName)
     }
 
     private func getCachedImage(for cacheKey: String) -> NSImage? {
@@ -102,8 +115,10 @@ class ThumbsManager: ObservableObject {
         }
     }
 
-    private func loadFromDisk(cacheKey: String) -> NSImage? {
-        let diskPath = cacheDirectory.appendingPathComponent("\(cacheKey).jpg")
+    private func loadFromDisk(cacheKey: String, forPath path: String) -> NSImage? {
+        let cacheSubdir = cacheSubdirectory(for: path)
+        let diskPath = cacheSubdir.appendingPathComponent("\(cacheKey).jpg")
+
         guard FileManager.default.fileExists(atPath: diskPath.path),
               let data = try? Data(contentsOf: diskPath),
               let image = NSImage(data: data) else {
@@ -112,14 +127,19 @@ class ThumbsManager: ObservableObject {
         return image
     }
 
-    private func saveToDisk(_ image: NSImage, cacheKey: String) {
+    private func saveToDisk(_ image: NSImage, cacheKey: String, forPath path: String) {
         guard let tiffData = image.tiffRepresentation,
               let bitmap = NSBitmapImageRep(data: tiffData),
               let jpegData = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) else {
             return
         }
 
-        let diskPath = cacheDirectory.appendingPathComponent("\(cacheKey).jpg")
+        let cacheSubdir = cacheSubdirectory(for: path)
+
+        // Create subdirectory if it doesn't exist
+        try? FileManager.default.createDirectory(at: cacheSubdir, withIntermediateDirectories: true)
+
+        let diskPath = cacheSubdir.appendingPathComponent("\(cacheKey).jpg")
         try? jpegData.write(to: diskPath)
     }
 
@@ -164,7 +184,7 @@ class ThumbsManager: ObservableObject {
         setCachedImage(thumbnail, for: cacheKey)
 
         // Save to disk
-        saveToDisk(thumbnail, cacheKey: cacheKey)
+        saveToDisk(thumbnail, cacheKey: cacheKey, forPath: path)
 
         // Return result
         DispatchQueue.main.async {

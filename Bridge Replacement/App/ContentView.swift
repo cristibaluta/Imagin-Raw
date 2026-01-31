@@ -10,11 +10,34 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var model = BrowserModel()
     @State private var selectedApp: ExternalApp = .photoshop
+    @SceneStorage("columnVisibility") private var columnVisibilityStorage: String = "all"
+    @State private var showFolderPopover = false
+    @State private var isSidebarCollapsed = false
 
     private let selectedAppKey = "SelectedExternalApp"
 
+    private var columnVisibility: Binding<NavigationSplitViewVisibility> {
+        Binding(
+            get: {
+                switch columnVisibilityStorage {
+                case "doubleColumn": return .doubleColumn
+                case "detailOnly": return .detailOnly
+                default: return .all
+                }
+            },
+            set: {
+                switch $0 {
+                case .all: columnVisibilityStorage = "all"
+                case .doubleColumn: columnVisibilityStorage = "doubleColumn"
+                case .detailOnly: columnVisibilityStorage = "detailOnly"
+                default: columnVisibilityStorage = "all"
+                }
+            }
+        )
+    }
+
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: columnVisibility) {
             // Left sidebar: folders
             SidebarView(model: model)
         } content: {
@@ -31,7 +54,29 @@ struct ContentView: View {
                     .foregroundColor(.secondary)
             }
         }
+        .navigationTitle(model.selectedFolder?.url.path ?? "No Folder Selected")
+        .onChange(of: columnVisibilityStorage) { _, newValue in
+            // Update our tracked state when the column visibility changes
+            isSidebarCollapsed = (newValue == "doubleColumn")
+        }
         .toolbar {
+            ToolbarItemGroup(placement: .navigation) {
+                // Show folder selection button when sidebar is collapsed
+                if isSidebarCollapsed {
+                    Button(action: {
+                        showFolderPopover = true
+                    }) {
+                        Image(systemName: "folder")
+                            .foregroundColor(.primary)
+                    }
+                    .help("Select Folder")
+                    .popover(isPresented: $showFolderPopover) {
+                        FolderSelectionPopoverView(model: model)
+                            .frame(width: 300, height: 400)
+                    }
+                }
+            }
+
             ToolbarItemGroup(placement: .primaryAction) {
                 // Button to open in selected app
                 Button(action: {
@@ -75,6 +120,9 @@ struct ContentView: View {
         }
         .onAppear {
             loadSelectedApp()
+
+            // Set initial sidebar collapsed state based on restored column visibility
+            isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
         }
         .frame(minWidth: 1200, minHeight: 700)
         .preferredColorScheme(.dark)

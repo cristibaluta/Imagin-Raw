@@ -13,5 +13,7 @@ struct BridgeReplacementApp: App {
         WindowGroup {
             ContentView()
         }
+        .windowToolbarStyle(.unified)
+        .windowResizability(.contentSize)
     }
 }
