@@ -13,19 +13,11 @@ struct PhotoItem: Identifiable, Hashable {
     let xmp: XmpMetadata?
     let dateCreated: Date
 
-    init(path: String, xmp: XmpMetadata? = nil) {
+    init(path: String, xmp: XmpMetadata? = nil, dateCreated: Date) {
         self.id = UUID()
         self.path = path
         self.xmp = xmp
-        
-        // Get file creation date from filesystem
-        if let attributes = try? FileManager.default.attributesOfItem(atPath: path),
-           let creationDate = attributes[.creationDate] as? Date {
-            self.dateCreated = creationDate
-        } else {
-            // Fallback to current date if file attributes can't be read
-            self.dateCreated = Date()
-        }
+        self.dateCreated = dateCreated
     }
 
     // Initializer that preserves the existing ID when updating XMP metadata

@@ -52,7 +52,7 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
 
     let files = (try? fm.contentsOfDirectory(
         at: folder.url,
-        includingPropertiesForKeys: nil,
+        includingPropertiesForKeys: [.creationDateKey],
         options: [.skipsHiddenFiles]
     )) ?? []
 
@@ -74,11 +74,15 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
         .map { imageFile in
             let baseName = imageFile.deletingPathExtension().lastPathComponent
+
+            // Get creation date from the file attributes we already retrieved
+            let creationDate = (try? imageFile.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date()
+
             if let xmpContent = xmpLookup[baseName] {
                 let xmp = XmpParser.parseMetadata(from: xmpContent)
-                return PhotoItem(path: imageFile.path, xmp: xmp)
+                return PhotoItem(path: imageFile.path, xmp: xmp, dateCreated: creationDate)
             } else {
-                return PhotoItem(path: imageFile.path, xmp: nil)
+                return PhotoItem(path: imageFile.path, xmp: nil, dateCreated: creationDate)
             }
         }
 }
@@ -102,6 +106,7 @@ final class BrowserModel: ObservableObject {
         ).first!
 
         self.rootFolder = loadFolderTree(at: pictures)
+
     }
 
     private func loadPhotosForSelectedFolder() {
