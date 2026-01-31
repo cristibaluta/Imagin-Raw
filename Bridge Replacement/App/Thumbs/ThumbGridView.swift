@@ -27,11 +27,11 @@ struct ThumbGridView: View {
                                 }
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 4)
                 }
                 .scrollContentBackground(.hidden)
-                .frame(width: 380) // Fixed width for better performance
+//                .frame(width: 400) // Fixed width for better performance
                 .focusable()
                 .focusEffectDisabled()
                 .focused($isFocused)
@@ -270,16 +270,27 @@ struct ThumbGridView: View {
     }
 
     private func updatePhotoWithXmpMetadata(photo: PhotoItem, xmpMetadata: XmpMetadata) {
-        // Instead of updating the model directly, let's just log the change
-        // The PhotoItem struct is immutable and changing it would change the ID
-        // We'll rely on the app naturally reloading XMP data when needed
-        print("🔄 XMP metadata updated for photo")
-        print("   Path: \(photo.path)")
-        print("   Label: \(xmpMetadata.label ?? "None")")
-        print("   Note: PhotoItem will be updated when folder is refreshed")
+        // Find the current photo index in the model's photos array
+        if let photoIndex = model.photos.firstIndex(where: { $0.path == photo.path }) {
+            // Create a new PhotoItem with the updated XMP metadata but preserve the original ID
+            let updatedPhoto = PhotoItem(id: photo.id, path: photo.path, xmp: xmpMetadata)
 
-        // The XMP file has been saved to disk, so the metadata is preserved
-        // When the user navigates or refreshes, the updated XMP will be loaded
+            // Update the photos array directly (since BrowserModel is @Published)
+            model.photos[photoIndex] = updatedPhoto
+
+            // Update selectedPhoto if it's the one being modified
+            if model.selectedPhoto?.path == photo.path {
+                model.selectedPhoto = updatedPhoto
+            }
+
+            print("🔄 PhotoItem updated in model with XMP metadata")
+            print("   Path: \(photo.path)")
+            print("   Label: \(xmpMetadata.label ?? "None")")
+            print("   Index: \(photoIndex)")
+            print("   ID preserved: \(photo.id)")
+        } else {
+            print("⚠️ Photo not found in model: \(photo.path)")
+        }
     }
 
     private func openInExternalApp(photo: PhotoItem) {
