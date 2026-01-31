@@ -6,13 +6,15 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "RawPhoto.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
 @interface RawWrapper : NSObject
 
 + (instancetype)shared;
-- (nullable NSData *)extractEmbeddedJPEG:(NSString *)path;
+- (nullable RawPhoto *)extractRawPhoto:(NSString *)path;
+- (nullable NSData *)extractEmbeddedJPEG:(NSString *)path; // Keep for backward compatibility
 
 @end
 
