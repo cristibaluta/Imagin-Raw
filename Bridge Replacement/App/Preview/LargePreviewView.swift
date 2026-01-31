@@ -219,41 +219,49 @@ struct CompactExifOverlayView: View {
     let exifData: [String: Any]
 
     var body: some View {
-        HStack(spacing: 12) {
-            // ISO
-            if let iso = exifData["ISO"] as? NSNumber {
-                Text("ISO \(iso)")
-                    .font(.caption)
-                    .foregroundColor(.white)
-            }
+        // LEFT PANEL
+        VStack(alignment: .leading, spacing: 10) {
 
-            // Aperture
-            if let aperture = exifData["Aperture"] as? NSNumber {
-                Text("f/\(String(format: "%.1f", aperture.doubleValue))")
-                    .font(.caption)
-                    .foregroundColor(.white)
+            HStack(spacing: 16) {
+                // Aperture
+                if let aperture = exifData["Aperture"] as? NSNumber {
+                    Text("ƒ/\(String(format: "%.1f", aperture.doubleValue))")
+                }
+                // Shutter speed
+                if let shutter = exifData["ShutterSpeed"] as? NSNumber {
+                    let shutterValue = shutter.doubleValue
+                    if shutterValue < 1 {
+                        Text("1/\(Int(round(1/shutterValue)))s")
+                    } else {
+                        Text("\(String(format: "%.1f", shutterValue))s")
+                    }
+                }
             }
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(.white)
 
-            // Shutter Speed
-            if let shutter = exifData["ShutterSpeed"] as? NSNumber {
-                let shutterValue = shutter.doubleValue
-                if shutterValue < 1 {
-                    Text("1/\(Int(round(1/shutterValue)))s")
-                        .font(.caption)
-                        .foregroundColor(.white)
-                } else {
-                    Text("\(String(format: "%.1f", shutterValue))s")
-                        .font(.caption)
+            HStack(spacing: 10) {
+
+                // Focal Length
+                if let focal = exifData["FocalLength"] as? NSNumber {
+                    Text("\(String(format: "%.0f", focal.doubleValue))mm")
+                        .font(.system(size: 12, weight: .semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color.gray.opacity(0.6), lineWidth: 1)
+                        )
+                }
+
+                // ISO
+                if let iso = exifData["ISO"] as? NSNumber {
+                    Text("ISO \(iso)")
+                        .font(.system(size: 14))
                         .foregroundColor(.white)
                 }
             }
-
-            // Focal Length
-            if let focal = exifData["FocalLength"] as? NSNumber {
-                Text("\(String(format: "%.0f", focal.doubleValue))mm")
-                    .font(.caption)
-                    .foregroundColor(.white)
-            }
+            .foregroundColor(.gray)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
