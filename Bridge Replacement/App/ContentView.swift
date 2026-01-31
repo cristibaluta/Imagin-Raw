@@ -129,8 +129,6 @@ struct ContentView: View {
                         saveSelectedApp()
                     }
                 } label: {
-                    Image(systemName: "chevron.down")
-                        .foregroundColor(.primary)
                 }
                 .help("Select external app")
             }
