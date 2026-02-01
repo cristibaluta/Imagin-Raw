@@ -260,11 +260,19 @@ struct ThumbGridView: View {
                 targetLabel = "Review"
             case "0":
                 targetLabel = "To Do"
+            case "-":
+                // Remove any label (clear label)
+                if let selectedPhoto = model.selectedPhoto {
+                    removeAnyLabel(for: selectedPhoto)
+                } else {
+                    print("DEBUG: No photo selected")
+                }
+                return .handled
             default:
                 return .ignored
             }
 
-            // Handle both direct key press and Command+key combinations
+            // Handle both direct key press and Command+key combinations for label keys
             if labelKey == "6" || labelKey == "7" || labelKey == "8" || labelKey == "9" || labelKey == "0" ||
                (keyPress.modifiers.contains(.command) && (labelKey == "6" || labelKey == "7" || labelKey == "8" || labelKey == "9" || labelKey == "0")) {
 
@@ -320,6 +328,54 @@ struct ThumbGridView: View {
         }
 
         return .ignored
+    }
+
+    private func removeAnyLabel(for photo: PhotoItem) {
+        let photoURL = URL(fileURLWithPath: photo.path)
+        let photoDirectory = photoURL.deletingLastPathComponent()
+        let photoName = photoURL.deletingPathExtension().lastPathComponent
+        let xmpFileName = "\(photoName).xmp"
+        let xmpFileURL = photoDirectory.appendingPathComponent(xmpFileName)
+
+        var xmpContent: String
+
+        // Read existing XMP file if it exists
+        if FileManager.default.fileExists(atPath: xmpFileURL.path) {
+            do {
+                xmpContent = try String(contentsOf: xmpFileURL, encoding: .utf8)
+                print("📖 Read existing XMP file for label removal")
+
+                // Remove the label by setting it to empty
+                xmpContent = updateXmpLabel(in: xmpContent, newLabel: nil)
+                print("🗑️ Removing any existing label")
+
+            } catch {
+                print("⚠️ Failed to read existing XMP file: \(error)")
+                return
+            }
+        } else {
+            print("📄 No XMP file exists - photo already has no label")
+            return
+        }
+
+        // Save the updated XMP content
+        do {
+            try xmpContent.write(to: xmpFileURL, atomically: true, encoding: .utf8)
+            print("✅ XMP file updated: Label removed")
+
+            // Parse the updated XMP content to get the new metadata
+            if let parsedMetadata = XmpParser.parseMetadata(from: xmpContent) {
+                print("🏷️ Label after removal: \(parsedMetadata.label ?? "None")")
+
+                // Update the photo item with the updated XMP metadata
+                updatePhotoWithXmpMetadata(photo: photo, xmpMetadata: parsedMetadata)
+            } else {
+                print("⚠️ Failed to parse updated XMP metadata")
+            }
+
+        } catch {
+            print("❌ Failed to save XMP file for \(photo.path): \(error)")
+        }
     }
 
     private func createAndSaveXmpFile(for photo: PhotoItem, targetLabel: String) {
