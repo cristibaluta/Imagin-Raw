@@ -23,7 +23,33 @@ struct XmpMetadata: Equatable, Hashable {
 }
 
 class XmpParser {
-    
+
+    let xmpTemplate = """
+        <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 7.0-c000 1.000000, 0000/00/00-00:00:00">
+         <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+          <rdf:Description rdf:about=""
+            xmlns:xmp="http://ns.adobe.com/xap/1.0/"
+            xmlns:tiff="http://ns.adobe.com/tiff/1.0/"
+            xmlns:exif="http://ns.adobe.com/exif/1.0/"
+            xmlns:dc="http://purl.org/dc/elements/1.1/"
+            xmlns:aux="http://ns.adobe.com/exif/1.0/aux/"
+            xmlns:exifEX="http://cipa.jp/exif/1.0/"
+            xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/"
+            xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/"
+            xmlns:stEvt="http://ns.adobe.com/xap/1.0/sType/ResourceEvent#"
+            xmlns:crd="http://ns.adobe.com/camera-raw-defaults/1.0/"
+            xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
+           xmp:Rating="0"
+           xmp:CreatorTool="ILCE-7M3 v3.00"
+           xmp:ModifyDate="2025-11-02T13:35:36+03:00"
+           xmp:CreateDate="2025-11-02T13:35:36+03:00"
+           xmp:MetadataDate="2026-02-02T00:43:19+02:00"
+           xmp:Label="Approved">
+          </rdf:Description>
+         </rdf:RDF>
+        </x:xmpmeta>
+        """
+
     /// Parse XMP content and extract metadata
     static func parseMetadata(from xmpContent: String) -> XmpMetadata? {
         guard !xmpContent.isEmpty else { return nil }

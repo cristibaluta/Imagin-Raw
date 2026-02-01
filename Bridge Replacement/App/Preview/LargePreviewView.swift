@@ -184,7 +184,7 @@ struct Exif1View: View {
     let exifData: [String: Any]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
 
             HStack(spacing: 16) {
                 // Aperture
@@ -242,18 +242,19 @@ struct Exif2View: View {
                 // Focal Length
                 if let focal = exifData["FocalLength"] as? NSNumber {
                     Text("\(String(format: "%.0f", focal.doubleValue))mm")
+                        .foregroundColor(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .overlay(
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.gray.opacity(0.6))
+                                .fill(Color.black.opacity(0.7))
                         )
                 }
             }
         }
         .font(.system(size: 14))
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .stroke(Color.black.opacity(0.7), lineWidth: 2)
