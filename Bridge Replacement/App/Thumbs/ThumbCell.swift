@@ -45,6 +45,17 @@ struct ThumbCell: View {
                         lineWidth: 2
                     )
             )
+            .overlay(
+                // Trash icon overlay for photos marked for deletion
+                Group {
+                    if photo.toDelete {
+                        Image(systemName: "trash")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(.orange)
+                            .shadow(color: .black, radius: 2, x: 1, y: 1)
+                    }
+                }
+            )
             .onTapGesture {
                 clickCount += 1
 
