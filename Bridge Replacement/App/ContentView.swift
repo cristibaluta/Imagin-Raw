@@ -172,6 +172,21 @@ struct ContentView: View {
 
         // Menu to select app
         appSelectionMenu
+
+        Spacer().frame(width: 20)
+
+        // Sharing/Export button
+        Button(action: {
+            if let selectedPhoto = model.selectedPhoto {
+                sharePhoto(selectedPhoto)
+            }
+        }) {
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(model.selectedPhoto != nil ? .primary : .secondary)
+        }
+        .disabled(model.selectedPhoto == nil)
+        .help("Share photo")
     }
 
     private var appSelectionMenu: some View {
@@ -229,6 +244,27 @@ struct ContentView: View {
                 NSWorkspace.shared.open(url)
             }
             print("Opening \(urls.count) photos in default app")
+        }
+    }
+
+    private func sharePhoto(_ photo: PhotoItem) {
+        let url = URL(fileURLWithPath: photo.path)
+
+        // Use NSSharingService to show the native macOS sharing popover
+        let sharingService = NSSharingService(named: NSSharingService.Name.composeEmail)
+        let sharingServices = NSSharingService.sharingServices(forItems: [url])
+
+        // Create a sharing service picker to show all available sharing options
+        let sharingServicePicker = NSSharingServicePicker(items: [url])
+
+        // Find the main window to position the popover
+        if let window = NSApp.mainWindow,
+           let contentView = window.contentView {
+
+            // Create a rect for the button (approximate position - you might need to adjust this)
+            let rect = NSRect(x: contentView.bounds.maxX - 100, y: contentView.bounds.maxY - 50, width: 30, height: 30)
+
+            sharingServicePicker.show(relativeTo: rect, of: contentView, preferredEdge: .minY)
         }
     }
 
