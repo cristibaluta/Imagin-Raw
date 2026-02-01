@@ -144,6 +144,27 @@ final class BrowserModel: ObservableObject {
         ]
     }
 
+    func loadChildrenOnDemand(for folder: FolderItem) {
+        // Find the folder in our tree and update its children
+        updateFolderChildren(folder: folder, in: &rootFolders)
+    }
+
+    private func updateFolderChildren(folder: FolderItem, in folders: inout [FolderItem]) {
+        for i in 0..<folders.count {
+            if folders[i].url == folder.url {
+                // Found the folder, load its children
+                let updatedChildren = loadFolderChildren(for: folder)
+                folders[i] = FolderItem(url: folder.url, children: updatedChildren.isEmpty ? nil : updatedChildren)
+                return
+            } else if let children = folders[i].children {
+                // Recursively search in children
+                var mutableChildren = children
+                updateFolderChildren(folder: folder, in: &mutableChildren)
+                folders[i] = FolderItem(url: folders[i].url, children: mutableChildren)
+            }
+        }
+    }
+
     private func loadPhotosForSelectedFolder() {
         photos = loadPhotos(in: selectedFolder)
     }

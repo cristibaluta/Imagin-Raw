@@ -25,7 +25,8 @@ struct SidebarView: View {
                     saveExpandedState: saveExpandedState,
                     onDoubleClick: {
                         onDoubleClick?()
-                    }
+                    },
+                    model: model
                 )
             }
         }

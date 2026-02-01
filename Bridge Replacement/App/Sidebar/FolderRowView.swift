@@ -13,13 +13,21 @@ struct FolderRowView: View {
     @Binding var selectedFolder: FolderItem?
     let saveExpandedState: () -> Void
     let onDoubleClick: () -> Void
+    @ObservedObject var model: BrowserModel
 
     private var isExpanded: Bool {
         expandedFolders.contains(folder.url)
     }
 
     private var hasChildren: Bool {
-        folder.children?.isEmpty == false
+        // A folder is expandable if it has a children array (even if empty)
+        // nil means no children, [] means expandable but unloaded, [...] means loaded
+        return folder.children != nil
+    }
+
+    private var needsToLoadChildren: Bool {
+        // Check if this folder has an empty children array (placeholder for expandable but unloaded)
+        return folder.children?.isEmpty == true
     }
 
     var body: some View {
@@ -30,6 +38,11 @@ struct FolderRowView: View {
                     set: { newValue in
                         if newValue {
                             expandedFolders.insert(folder.url)
+                            // Trigger on-demand loading if this folder needs its children loaded
+                            if needsToLoadChildren {
+                                print("Loading children on demand for: \(folder.url.path)")
+                                model.loadChildrenOnDemand(for: folder)
+                            }
                         } else {
                             expandedFolders.remove(folder.url)
                         }
@@ -43,7 +56,8 @@ struct FolderRowView: View {
                         expandedFolders: $expandedFolders,
                         selectedFolder: $selectedFolder,
                         saveExpandedState: saveExpandedState,
-                        onDoubleClick: onDoubleClick
+                        onDoubleClick: onDoubleClick,
+                        model: model
                     )
                 }
             } label: {
