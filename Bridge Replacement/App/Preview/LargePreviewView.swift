@@ -56,9 +56,9 @@ struct LargePreviewView: View {
                         alignToTopLeft.toggle()
                         UserDefaults.standard.set(alignToTopLeft, forKey: "ImageAlignmentTopLeft")
                     }) {
-                        Image(systemName: alignToTopLeft ? "arrow.up.left.square.fill" : "arrow.up.left.square")
+                        Image(systemName: alignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
                             .font(.title2)
-                            .foregroundColor(.white)
+                            .foregroundColor(alignToTopLeft ? .white.opacity(0.4) : .white)
                             .padding()
                     }
                     .buttonStyle(PlainButtonStyle())
