@@ -50,7 +50,49 @@ struct ContentView: View {
         )
     }
 
+    private var navigationDocumentURL: URL? {
+        return model.selectedFolder?.url
+    }
+
     var body: some View {
+        navigationSplitView
+            .navigationTitle(navigationTitle)
+            .onChange(of: columnVisibilityStorage) { _, newValue in
+                // Update our tracked state when the column visibility changes
+                isSidebarCollapsed = (newValue == "doubleColumn")
+            }
+            .toolbar {
+                toolbarContent
+            }
+            .onAppear {
+                loadPhotoApps() // Load photo apps first
+                // loadSelectedApp is now called from within loadPhotoApps after discovery completes
+
+                // Set initial sidebar collapsed state based on restored column visibility
+                isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
+            }
+            .frame(minWidth: 1200, minHeight: 700)
+            .preferredColorScheme(.dark)
+    }
+
+    private var navigationTitle: String {
+        guard let url = navigationDocumentURL else {
+            return "Bridge Replacement"
+        }
+
+        // Create a breadcrumb-style path
+        let pathComponents = url.pathComponents.filter { $0 != "/" }
+        let breadcrumb = pathComponents.joined(separator: " › ")
+
+        // Debug output
+        print("Navigation URL: \(url.path)")
+        print("Path components: \(pathComponents)")
+        print("Breadcrumb: \(breadcrumb)")
+
+        return breadcrumb.isEmpty ? url.lastPathComponent : breadcrumb
+    }
+
+    private var navigationSplitView: some View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             // Left sidebar: folders
             SidebarView(model: model) {
@@ -63,7 +105,12 @@ struct ContentView: View {
                 openMultiplePhotosInExternalApp(photos: photos)
             })
         } detail: {
-            // Right: large preview
+            detailView
+        }
+    }
+
+    private var detailView: some View {
+        Group {
             if let photo = model.selectedPhoto {
                 LargePreviewView(photo: photo)
                     .id(photo.id)
@@ -73,83 +120,85 @@ struct ContentView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .navigationTitle(model.selectedFolder?.url.path ?? "No Folder Selected")
-        .onChange(of: columnVisibilityStorage) { _, newValue in
-            // Update our tracked state when the column visibility changes
-            isSidebarCollapsed = (newValue == "doubleColumn")
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigation) {
+            navigationToolbarItems
         }
-        .toolbar {
-            ToolbarItemGroup(placement: .navigation) {
-                // Show folder selection button when sidebar is collapsed
-                if isSidebarCollapsed {
-                    Button(action: {
-                        showFolderPopover = true
-                    }) {
-                        Image(systemName: "folder")
-                            .foregroundColor(.primary)
-                    }
-                    .help("Select Folder")
-                    .popover(isPresented: $showFolderPopover) {
-                        FolderSelectionPopoverView(model: model)
-                            .frame(width: 300, height: 500)
-                    }
-                }
+
+        ToolbarItemGroup(placement: .primaryAction) {
+            primaryActionToolbarItems
+        }
+    }
+
+    @ViewBuilder
+    private var navigationToolbarItems: some View {
+        // Show folder selection button when sidebar is collapsed
+        if isSidebarCollapsed {
+            Button(action: {
+                showFolderPopover = true
+            }) {
+                Image(systemName: "folder")
+                    .foregroundColor(.primary)
             }
+            .help("Select Folder")
+            .popover(isPresented: $showFolderPopover) {
+                FolderSelectionPopoverView(model: model)
+                    .frame(width: 300, height: 500)
+            }
+        }
+    }
 
-            ToolbarItemGroup(placement: .primaryAction) {
-                // Button to open in selected app
+    @ViewBuilder
+    private var primaryActionToolbarItems: some View {
+        // Button to open in selected app
+        Button(action: {
+            if let selectedPhoto = model.selectedPhoto {
+                // For now, always open single photo - will be enhanced
+                openInExternalApp(photo: selectedPhoto)
+            }
+        }) {
+            Text(selectedApp?.displayName ?? "Select App")
+                .foregroundColor(model.selectedPhoto != nil ? .primary : .secondary)
+        }
+        .disabled(model.selectedPhoto == nil)
+        .help("Open in \(selectedApp?.displayName ?? "external app")")
+
+        // Menu to select app
+        appSelectionMenu
+    }
+
+    private var appSelectionMenu: some View {
+        Menu {
+            // Discovered photo apps section
+            ForEach(discoveredPhotoApps) { photoApp in
                 Button(action: {
-                    if let selectedPhoto = model.selectedPhoto {
-                        // For now, always open single photo - will be enhanced
-                        openInExternalApp(photo: selectedPhoto)
-                    }
+                    selectedApp = photoApp
+                    saveSelectedApp()
                 }) {
-                    Text(selectedApp?.displayName ?? "Select App")
-                        .foregroundColor(model.selectedPhoto != nil ? .primary : .secondary)
-                }
-                .disabled(model.selectedPhoto == nil)
-                .help("Open in \(selectedApp?.displayName ?? "external app")")
-
-                // Menu to select app
-                Menu {
-                    // Discovered photo apps section
-                    ForEach(discoveredPhotoApps) { photoApp in
-                        Button(action: {
-                            selectedApp = photoApp
-                            saveSelectedApp()
-                        }) {
-                            HStack {
-                                Text(photoApp.displayName)
-                                if selectedApp?.id == photoApp.id {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
-                                }
-                            }
+                    HStack {
+                        Text(photoApp.displayName)
+                        if selectedApp?.id == photoApp.id {
+                            Spacer()
+                            Image(systemName: "checkmark")
                         }
                     }
-
-                    if !discoveredPhotoApps.isEmpty {
-                        Divider()
-                    }
-
-                    Button("Default App") {
-                        selectedApp = nil
-                        saveSelectedApp()
-                    }
-                } label: {
                 }
-                .help("Select external app")
             }
-        }
-        .onAppear {
-            loadPhotoApps() // Load photo apps first
-            // loadSelectedApp is now called from within loadPhotoApps after discovery completes
 
-            // Set initial sidebar collapsed state based on restored column visibility
-            isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
+            if !discoveredPhotoApps.isEmpty {
+                Divider()
+            }
+
+            Button("Default App") {
+                selectedApp = nil
+                saveSelectedApp()
+            }
+        } label: {
         }
-        .frame(minWidth: 1200, minHeight: 700)
-        .preferredColorScheme(.dark)
+        .help("Select external app")
     }
 
     private func openMultiplePhotosInExternalApp(photos: [PhotoItem]) {

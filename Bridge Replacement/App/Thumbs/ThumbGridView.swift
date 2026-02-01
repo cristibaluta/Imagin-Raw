@@ -223,12 +223,6 @@ struct ThumbGridView: View {
                         .stroke(Color.gray.opacity(0.5), lineWidth: 1)
                 )
 
-                if !selectedLabels.isEmpty {
-                    Text("\(filteredPhotos.count) of \(photos.count) photos")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
                 Spacer()
 
                 // Show selection count when multiple photos are selected
