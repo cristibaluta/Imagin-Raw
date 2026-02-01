@@ -170,6 +170,10 @@ struct ThumbGridView: View {
                         isFocused = true
                         if model.selectedPhoto == nil && !filteredPhotos.isEmpty {
                             model.selectedPhoto = filteredPhotos.first
+                            selectedPhotos.removeAll()
+                            if let firstPhoto = filteredPhotos.first {
+                                selectedPhotos.insert(firstPhoto.id)
+                            }
                         }
                         loadSortOption() // Load the saved sort option
                     }
@@ -389,7 +393,12 @@ struct ThumbGridView: View {
         }
 
         if newIndex != currentIndex {
+            // Clear multi-selection when navigating with arrow keys
+            selectedPhotos.removeAll()
+            selectedPhotos.insert(photos[newIndex].id)
+
             model.selectedPhoto = photos[newIndex]
+            lastSelectedIndex = newIndex
 
             // Auto-scroll only when moving vertically and reaching visible edges
             if keyPress.key == .upArrow || keyPress.key == .downArrow {
