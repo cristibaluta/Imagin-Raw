@@ -245,15 +245,37 @@ struct ThumbGridView: View {
         case .downArrow:
             newIndex = min(photos.count - 1, currentIndex + columnsCount)
         default:
-            // Check for "8" key to toggle XMP label
-            if keyPress.characters == "8" || (keyPress.characters == "8" && keyPress.modifiers.contains(.command)) {
-                if let selectedPhoto = model.selectedPhoto {
-                    createAndSaveXmpFile(for: selectedPhoto)
+            // Handle label keys (6-0 for different labels)
+            let labelKey = keyPress.characters
+            var targetLabel: String? = nil
+
+            switch labelKey {
+            case "6":
+                targetLabel = "Select"
+            case "7":
+                targetLabel = "Second"
+            case "8":
+                targetLabel = "Approved"
+            case "9":
+                targetLabel = "Review"
+            case "0":
+                targetLabel = "To Do"
+            default:
+                return .ignored
+            }
+
+            // Handle both direct key press and Command+key combinations
+            if labelKey == "6" || labelKey == "7" || labelKey == "8" || labelKey == "9" || labelKey == "0" ||
+               (keyPress.modifiers.contains(.command) && (labelKey == "6" || labelKey == "7" || labelKey == "8" || labelKey == "9" || labelKey == "0")) {
+
+                if let selectedPhoto = model.selectedPhoto, let label = targetLabel {
+                    createAndSaveXmpFile(for: selectedPhoto, targetLabel: label)
                 } else {
                     print("DEBUG: No photo selected")
                 }
                 return .handled
             }
+
             return .ignored
         }
 
@@ -300,7 +322,7 @@ struct ThumbGridView: View {
         return .ignored
     }
 
-    private func createAndSaveXmpFile(for photo: PhotoItem) {
+    private func createAndSaveXmpFile(for photo: PhotoItem, targetLabel: String) {
         let photoURL = URL(fileURLWithPath: photo.path)
         let photoDirectory = photoURL.deletingLastPathComponent()
         let photoName = photoURL.deletingPathExtension().lastPathComponent
@@ -321,10 +343,10 @@ struct ThumbGridView: View {
                     print("📖 Read existing XMP: Current label = \(currentLabel ?? "None")")
                 }
 
-                // Toggle the label: if currently "Approved", set to none; otherwise set to "Approved"
-                let newLabel: String? = (currentLabel == "Approved") ? nil : "Approved"
-                let labelAction = (newLabel == "Approved") ? "Setting" : "Removing"
-                print("🔄 \(labelAction) Approved label")
+                // Toggle the label: if currently matches targetLabel, set to none; otherwise set to targetLabel
+                let newLabel: String? = (currentLabel == targetLabel) ? nil : targetLabel
+                let labelAction = (newLabel == targetLabel) ? "Setting" : "Removing"
+                print("🔄 \(labelAction) \(targetLabel) label")
 
                 // Update only the xmp:Label attribute in the existing XMP content
                 xmpContent = updateXmpLabel(in: xmpContent, newLabel: newLabel)
@@ -336,7 +358,7 @@ struct ThumbGridView: View {
         } else {
             print("📄 No existing XMP file found, will create new one")
 
-            // Create minimal XMP file with Approved label
+            // Create minimal XMP file with the target label
             let currentDate = Date()
             let dateFormatter = ISO8601DateFormatter()
             dateFormatter.formatOptions = [.withInternetDateTime, .withTimeZone]
@@ -351,7 +373,7 @@ struct ThumbGridView: View {
     xmlns:xmp="http://ns.adobe.com/xap/1.0/"
     xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/"
     xmlns:stEvt="http://ns.adobe.com/xap/1.0/sType/ResourceEvent#"
-   xmp:Label="Approved"
+   xmp:Label="\(targetLabel)"
    xmp:MetadataDate="\(currentDateString)"
    xmpMM:InstanceID="xmp.iid:\(instanceID)">
    <xmpMM:History>
@@ -368,7 +390,7 @@ struct ThumbGridView: View {
  </rdf:RDF>
 </x:xmpmeta>
 """
-            print("🔄 Setting Approved label")
+            print("🔄 Setting \(targetLabel) label")
         }
 
         // Save the updated XMP content
