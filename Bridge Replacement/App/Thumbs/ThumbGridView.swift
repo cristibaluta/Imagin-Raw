@@ -60,6 +60,54 @@ struct ThumbGridView: View {
     ]
     private let columnsCount = 3
 
+    // Get available labels from current photos
+    private var availableLabels: [String] {
+        var labelSet = Set<String>()
+        var hasNoLabel = false
+
+        for photo in photos {
+            if let label = photo.xmp?.label, !label.isEmpty {
+                labelSet.insert(label)
+            } else {
+                hasNoLabel = true
+            }
+        }
+
+        var result: [String] = []
+        if hasNoLabel {
+            result.append("No Label")
+        }
+
+        // Add labels in the standard order if they exist in photos
+        let standardOrder = ["Select", "Second", "Approved", "Review", "To Do"]
+        for label in standardOrder {
+            if labelSet.contains(label) {
+                result.append(label)
+            }
+        }
+
+        return result
+    }
+
+    private func getColorForLabel(_ label: String) -> Color {
+        switch label {
+        case "No Label":
+            return .secondary
+        case "Select":
+            return .red
+        case "Second":
+            return .yellow
+        case "Approved":
+            return .green
+        case "Review":
+            return .blue
+        case "To Do":
+            return .purple
+        default:
+            return .secondary
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Main thumbnail grid
@@ -102,26 +150,57 @@ struct ThumbGridView: View {
             }
 
             // Filter and Sort bar
-            HStack {
-                Button(action: {
-                    showFilterPopover.toggle()
-                }) {
-                    Text("Filter")
-                        .font(.caption)
-                        .foregroundColor(.primary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.clear)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.gray, lineWidth: 1)
-                        )
+            HStack(spacing: 12) {
+                // Filter section with unified rounded rectangle
+                HStack(spacing: 8) {
+                    // Filter button (existing functionality)
+                    Button(action: {
+                        showFilterPopover.toggle()
+                    }) {
+                        Text("Filter")
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .popover(isPresented: $showFilterPopover) {
+                        FilterPopoverView(selectedLabels: $selectedLabels)
+                    }
+
+                    // Horizontal filter checkmarks for available labels
+                    ForEach(availableLabels, id: \.self) { label in
+                        Button(action: {
+                            if selectedLabels.contains(label) {
+                                selectedLabels.remove(label)
+                            } else {
+                                selectedLabels.insert(label)
+                            }
+                        }) {
+                            Image(systemName: selectedLabels.contains(label) ? "checkmark.square.fill" : "square")
+                                .foregroundColor(getColorForLabel(label))
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .help(label) // Tooltip shows the label name on hover
+                    }
                 }
-                .buttonStyle(PlainButtonStyle())
-                .popover(isPresented: $showFilterPopover) {
-                    FilterPopoverView(selectedLabels: $selectedLabels)
+                .padding(.horizontal, 4)
+                .background(Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                )
+
+                if !selectedLabels.isEmpty {
+                    Text("\(filteredPhotos.count) of \(photos.count) photos")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
 
+                Spacer()
+
+                // Sort button
                 Button(action: {
                     showSortPopover.toggle()
                 }) {
@@ -132,7 +211,7 @@ struct ThumbGridView: View {
                         .padding(.vertical, 2)
                         .background(Color.clear)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 6)
+                            RoundedRectangle(cornerRadius: 3)
                                 .stroke(Color.gray, lineWidth: 1)
                         )
                 }
@@ -142,14 +221,6 @@ struct ThumbGridView: View {
                 }
                 .onChange(of: sortOption) { _, newValue in
                     saveSortOption(newValue)
-                }
-
-                Spacer()
-
-                if !selectedLabels.isEmpty {
-                    Text("\(filteredPhotos.count) of \(photos.count) photos")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
             }
             .padding(.horizontal, 16)
