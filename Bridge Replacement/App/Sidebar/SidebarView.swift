@@ -10,6 +10,7 @@ import SwiftUI
 struct SidebarView: View {
     @ObservedObject var model: BrowserModel
     @State private var expandedFolders: Set<URL> = []
+    let onDoubleClick: (() -> Void)?
 
     private let expandedFoldersKey = "ExpandedFolders"
     private let selectedFolderKey = "SelectedFolder"
@@ -20,7 +21,10 @@ struct SidebarView: View {
                 folder: model.rootFolder,
                 expandedFolders: $expandedFolders,
                 selectedFolder: $model.selectedFolder,
-                saveExpandedState: saveExpandedState
+                saveExpandedState: saveExpandedState,
+                onDoubleClick: {
+                    onDoubleClick?()
+                }
             )
         }
         .listStyle(.sidebar)

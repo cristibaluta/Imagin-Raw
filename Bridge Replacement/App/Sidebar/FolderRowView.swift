@@ -12,15 +12,16 @@ struct FolderRowView: View {
     @Binding var expandedFolders: Set<URL>
     @Binding var selectedFolder: FolderItem?
     let saveExpandedState: () -> Void
-    
+    let onDoubleClick: () -> Void
+
     private var isExpanded: Bool {
         expandedFolders.contains(folder.url)
     }
-    
+
     private var hasChildren: Bool {
         folder.children?.isEmpty == false
     }
-    
+
     var body: some View {
         if hasChildren {
             DisclosureGroup(
@@ -41,7 +42,8 @@ struct FolderRowView: View {
                         folder: childFolder,
                         expandedFolders: $expandedFolders,
                         selectedFolder: $selectedFolder,
-                        saveExpandedState: saveExpandedState
+                        saveExpandedState: saveExpandedState,
+                        onDoubleClick: onDoubleClick
                     )
                 }
             } label: {
@@ -51,6 +53,9 @@ struct FolderRowView: View {
                     .onTapGesture {
                         selectedFolder = folder
                     }
+                    .onDoubleClick {
+                        onDoubleClick()
+                    }
             }
         } else {
             Label(folder.url.lastPathComponent, systemImage: "folder.fill")
@@ -58,6 +63,9 @@ struct FolderRowView: View {
                 .tag(folder)
                 .onTapGesture {
                     selectedFolder = folder
+                }
+                .onDoubleClick {
+                    onDoubleClick()
                 }
         }
     }

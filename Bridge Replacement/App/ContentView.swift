@@ -51,7 +51,10 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             // Left sidebar: folders
-            SidebarView(model: model)
+            SidebarView(model: model) {
+                // Double-click callback: collapse sidebar to double column view
+                columnVisibilityStorage = "doubleColumn"
+            }
         } content: {
             // Middle: thumbnails
             ThumbGridView(photos: model.photos, model: model)
@@ -142,7 +145,6 @@ struct ContentView: View {
         }
         .frame(minWidth: 1200, minHeight: 700)
         .preferredColorScheme(.dark)
-//        .background(Rectangle().fill(Color(red: 0.05, green: 0.05, blue: 0.06)).opacity(0.5))
     }
 
     private func openInExternalApp(photo: PhotoItem) {
