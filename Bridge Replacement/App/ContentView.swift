@@ -54,6 +54,11 @@ struct ContentView: View {
         return model.selectedFolder?.url
     }
 
+    private var shareablePhoto: URL? {
+        guard let selectedPhoto = model.selectedPhoto else { return nil }
+        return URL(fileURLWithPath: selectedPhoto.path)
+    }
+
     var body: some View {
         navigationSplitView
             .navigationTitle(navigationTitle)
@@ -176,17 +181,22 @@ struct ContentView: View {
         Spacer().frame(width: 20)
 
         // Sharing/Export button
-        Button(action: {
-            if let selectedPhoto = model.selectedPhoto {
-                sharePhoto(selectedPhoto)
+        if let photoURL = shareablePhoto {
+            ShareLink(item: photoURL) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.primary)
             }
-        }) {
-            Image(systemName: "square.and.arrow.up")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(model.selectedPhoto != nil ? .primary : .secondary)
+            .help("Share photo")
+        } else {
+            Button(action: {}) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+            .disabled(true)
+            .help("Share photo")
         }
-        .disabled(model.selectedPhoto == nil)
-        .help("Share photo")
     }
 
     private var appSelectionMenu: some View {
