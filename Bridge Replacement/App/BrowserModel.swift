@@ -90,7 +90,7 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
 
 @MainActor
 final class BrowserModel: ObservableObject {
-    @Published var rootFolder: FolderItem
+    @Published var rootFolders: [FolderItem]
     @Published var selectedFolder: FolderItem? {
         didSet {
             loadPhotosForSelectedFolder()
@@ -100,10 +100,13 @@ final class BrowserModel: ObservableObject {
     @Published var photos: [PhotoItem] = []
 
     init() {
+        let volumesURL = URL(fileURLWithPath: "/Volumes")
         let homeURL = FileManager.default.homeDirectoryForCurrentUser
-//        let volumesURL = URL(fileURLWithPath: "/Volumes")
 
-        self.rootFolder = loadFolderTree(at: homeURL)
+        self.rootFolders = [
+            loadFolderTree(at: volumesURL),
+            loadFolderTree(at: homeURL)
+        ]
     }
 
     private func loadPhotosForSelectedFolder() {

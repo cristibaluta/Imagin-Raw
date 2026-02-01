@@ -17,15 +17,17 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: $model.selectedFolder) {
-            FolderRowView(
-                folder: model.rootFolder,
-                expandedFolders: $expandedFolders,
-                selectedFolder: $model.selectedFolder,
-                saveExpandedState: saveExpandedState,
-                onDoubleClick: {
-                    onDoubleClick?()
-                }
-            )
+            ForEach(model.rootFolders) { rootFolder in
+                FolderRowView(
+                    folder: rootFolder,
+                    expandedFolders: $expandedFolders,
+                    selectedFolder: $model.selectedFolder,
+                    saveExpandedState: saveExpandedState,
+                    onDoubleClick: {
+                        onDoubleClick?()
+                    }
+                )
+            }
         }
         .listStyle(.sidebar)
         .focusable(false)
@@ -55,9 +57,12 @@ struct SidebarView: View {
     private func loadSelectedFolder() {
         if let data = UserDefaults.standard.data(forKey: selectedFolderKey),
            let url = try? JSONDecoder().decode(URL.self, from: data) {
-            // Find the folder in the model that matches the saved URL
-            if let folder = findFolder(url: url, in: model.rootFolder) {
-                model.selectedFolder = folder
+            // Find the folder in any of the root folders that matches the saved URL
+            for rootFolder in model.rootFolders {
+                if let folder = findFolder(url: url, in: rootFolder) {
+                    model.selectedFolder = folder
+                    return
+                }
             }
         }
     }
