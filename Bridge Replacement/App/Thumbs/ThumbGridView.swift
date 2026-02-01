@@ -117,16 +117,19 @@ struct ThumbGridView: View {
                     ScrollView(.vertical, showsIndicators: true) {
                         LazyVGrid(columns: columns, spacing: 8) {
                             ForEach(filteredPhotos, id: \.id) { photo in
-                                ThumbCell(photo: photo, isSelected: model.selectedPhoto?.id == photo.id)
-                                    .frame(width: 100, height: 150)
-                                    .id(photo.id)
-                                    .onTapGesture {
+                                ThumbCell(
+                                    photo: photo,
+                                    isSelected: model.selectedPhoto?.id == photo.id,
+                                    onTap: {
                                         model.selectedPhoto = photo
-                                    }
-                                    .onDoubleClick {
+                                    },
+                                    onDoubleClick: {
                                         model.selectedPhoto = photo
                                         openInExternalApp(photo: photo)
                                     }
+                                )
+                                .frame(width: 100, height: 150)
+                                .id(photo.id)
                             }
                         }
                         .padding(.horizontal, 4)

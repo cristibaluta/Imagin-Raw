@@ -9,9 +9,13 @@ import SwiftUI
 struct ThumbCell: View {
     let photo: PhotoItem
     let isSelected: Bool
+    let onTap: () -> Void
+    let onDoubleClick: () -> Void
     let size: CGFloat = 100
     @State private var thumbnailImage: NSImage?
     @State private var isLoading = false
+    @State private var clickCount = 0
+    @State private var clickTimer: Timer?
 
     private var filename: String {
         URL(fileURLWithPath: photo.path).lastPathComponent
@@ -37,6 +41,25 @@ struct ThumbCell: View {
                 Rectangle()
                     .stroke(isSelected ? Color.blue : .clear, lineWidth: 2)
             )
+            .onTapGesture {
+                clickCount += 1
+
+                if clickCount == 1 {
+                    // Immediate single-click action
+                    onTap()
+
+                    // Start timer to detect if second click comes
+                    clickTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { _ in
+                        // Timer expired - it was just a single click
+                        clickCount = 0
+                    }
+                } else if clickCount == 2 {
+                    // Double-click detected
+                    clickTimer?.invalidate()
+                    clickCount = 0
+                    onDoubleClick()
+                }
+            }
             .onAppear {
                 loadThumbnail()
             }

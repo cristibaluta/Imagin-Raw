@@ -25,7 +25,7 @@ extension View {
 
 struct DoubleClickHandler: ViewModifier {
     let handler: () -> Void
-    
+
     func body(content: Content) -> some View {
         content.overlay {
             DoubleClickListeningViewRepresentable(handler: handler)
@@ -35,11 +35,11 @@ struct DoubleClickHandler: ViewModifier {
 
 struct DoubleClickListeningViewRepresentable: NSViewRepresentable {
     let handler: () -> Void
-    
+
     func makeNSView(context: Context) -> DoubleClickListeningView {
         DoubleClickListeningView(handler: handler)
     }
-    
+
     func updateNSView(_ nsView: DoubleClickListeningView, context: Context) {}
 }
 
@@ -56,9 +56,11 @@ class DoubleClickListeningView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        super.mouseDown(with: event)
         if event.clickCount == 2 {
             handler()
+        } else {
+            // Pass single clicks to the superview so SwiftUI gestures can handle them
+            super.mouseDown(with: event)
         }
     }
 }
