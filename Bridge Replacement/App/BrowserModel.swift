@@ -100,13 +100,10 @@ final class BrowserModel: ObservableObject {
     @Published var photos: [PhotoItem] = []
 
     init() {
-        let pictures = FileManager.default.urls(
-            for: .picturesDirectory,
-            in: .userDomainMask
-        ).first!
+        let homeURL = FileManager.default.homeDirectoryForCurrentUser
+//        let volumesURL = URL(fileURLWithPath: "/Volumes")
 
-        self.rootFolder = loadFolderTree(at: pictures)
-
+        self.rootFolder = loadFolderTree(at: homeURL)
     }
 
     private func loadPhotosForSelectedFolder() {
