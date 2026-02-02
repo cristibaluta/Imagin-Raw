@@ -132,55 +132,92 @@ struct ThumbGridView: View {
             // Main thumbnail grid
             ScrollViewReader { proxy in
                 GeometryReader { geometry in
-                    ScrollView(.vertical, showsIndicators: true) {
-                        LazyVGrid(columns: columns, spacing: 8) {
-                            ForEach(filteredPhotos, id: \.id) { photo in
-                                ThumbCell(
-                                    photo: photo,
-                                    isSelected: model.selectedPhoto?.id == photo.id,
-                                    isMultiSelected: selectedPhotos.contains(photo.id),
-                                    onTap: { modifiers in
-                                        handlePhotoTap(photo: photo, modifiers: modifiers)
-                                    },
-                                    onDoubleClick: {
-                                        model.selectedPhoto = photo
-                                        // If multiple photos are selected, open all of them
-                                        if selectedPhotos.count > 1 {
-                                            openSelectedPhotosInExternalApp()
-                                        } else {
-                                            openInExternalApp(photo: photo)
+                    if filteredPhotos.isEmpty {
+                        // Show message when no photos are available
+                        VStack(spacing: 16) {
+                            Spacer()
+
+                            Image(systemName: "photo.on.rectangle")
+                                .font(.system(size: 48))
+                                .foregroundColor(.secondary)
+
+                            VStack(spacing: 8) {
+                                Text(photos.isEmpty ? "No Supported Photos Found" : "No Photos Match Current Filter")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+
+                                if photos.isEmpty {
+                                    Text("This folder doesn't contain any supported image formats.")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .multilineTextAlignment(.center)
+
+                                    Text("Supported formats: RAW files (CR2, NEF, ARW, etc.), JPEG, PNG, TIFF")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .multilineTextAlignment(.center)
+                                } else {
+                                    Text("Try adjusting your filter settings to see more photos.")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .multilineTextAlignment(.center)
+                                }
+                            }
+
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView(.vertical, showsIndicators: true) {
+                            LazyVGrid(columns: columns, spacing: 8) {
+                                ForEach(filteredPhotos, id: \.id) { photo in
+                                    ThumbCell(
+                                        photo: photo,
+                                        isSelected: model.selectedPhoto?.id == photo.id,
+                                        isMultiSelected: selectedPhotos.contains(photo.id),
+                                        onTap: { modifiers in
+                                            handlePhotoTap(photo: photo, modifiers: modifiers)
+                                        },
+                                        onDoubleClick: {
+                                            model.selectedPhoto = photo
+                                            // If multiple photos are selected, open all of them
+                                            if selectedPhotos.count > 1 {
+                                                openSelectedPhotosInExternalApp()
+                                            } else {
+                                                openInExternalApp(photo: photo)
+                                            }
                                         }
-                                    }
-                                )
-                                .frame(width: 100, height: 150)
-                                .id(photo.id)
+                                    )
+                                    .frame(width: 100, height: 150)
+                                    .id(photo.id)
+                                }
                             }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 4)
                         }
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 4)
-                    }
-                    .scrollContentBackground(.hidden)
-                    .focusable()
-                    .focusEffectDisabled()
-                    .focused($isFocused)
-                    .onKeyPress { keyPress in
-                        handleKeyPress(keyPress, proxy: proxy, viewportHeight: geometry.size.height)
-                    }
-                    .onAppear {
-                        isFocused = true
-                        if model.selectedPhoto == nil && !filteredPhotos.isEmpty {
-                            model.selectedPhoto = filteredPhotos.first
-                            selectedPhotos.removeAll()
-                            if let firstPhoto = filteredPhotos.first {
-                                selectedPhotos.insert(firstPhoto.id)
+                        .scrollContentBackground(.hidden)
+                        .focusable()
+                        .focusEffectDisabled()
+                        .focused($isFocused)
+                        .onKeyPress { keyPress in
+                            handleKeyPress(keyPress, proxy: proxy, viewportHeight: geometry.size.height)
+                        }
+                        .onAppear {
+                            isFocused = true
+                            if model.selectedPhoto == nil && !filteredPhotos.isEmpty {
+                                model.selectedPhoto = filteredPhotos.first
+                                selectedPhotos.removeAll()
+                                if let firstPhoto = filteredPhotos.first {
+                                    selectedPhotos.insert(firstPhoto.id)
+                                }
                             }
+                            loadSortOption() // Load the saved sort option
                         }
-                        loadSortOption() // Load the saved sort option
-                    }
-                    .onChange(of: photos) { _, newPhotos in
-                        // Only select the first photo if there's no current selection
-                        if model.selectedPhoto == nil && !newPhotos.isEmpty {
-                            model.selectedPhoto = newPhotos.first
+                        .onChange(of: photos) { _, newPhotos in
+                            // Only select the first photo if there's no current selection
+                            if model.selectedPhoto == nil && !newPhotos.isEmpty {
+                                model.selectedPhoto = newPhotos.first
+                            }
                         }
                     }
                 }
