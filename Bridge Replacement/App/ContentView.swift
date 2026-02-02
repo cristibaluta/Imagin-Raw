@@ -27,6 +27,7 @@ struct ContentView: View {
     @State private var isSidebarCollapsed = false
     @State private var selectedPhotosCount = 0
     @State private var openSelectedPhotosCallback: (() -> Void)?
+    @State private var isReviewModeActive = false
 
     private let selectedAppKey = "SelectedExternalApp"
 
@@ -60,31 +61,80 @@ struct ContentView: View {
     }
 
     var body: some View {
-        // Show splash screen if no folders are added
-        if model.rootFolders.isEmpty {
-            SplashScreenView(model: model)
-                .frame(minWidth: 800, minHeight: 600)
-                .preferredColorScheme(.dark)
-        } else {
-            // Normal app interface when folders exist
-            navigationSplitView
-                .navigationTitle(navigationTitle)
-                .onChange(of: columnVisibilityStorage) { _, newValue in
-                    // Update our tracked state when the column visibility changes
-                    isSidebarCollapsed = (newValue == "doubleColumn")
-                }
-                .toolbar {
-                    toolbarContent
-                }
-                .onAppear {
-                    loadPhotoApps() // Load photo apps first
-                    // loadSelectedApp is now called from within loadPhotoApps after discovery completes
+        ZStack {
+            // Main app content
+            Group {
+                // Show splash screen if no folders are added
+                if model.rootFolders.isEmpty {
+                    SplashScreenView(model: model)
+                        .frame(minWidth: 800, minHeight: 600)
+                        .preferredColorScheme(.dark)
+                } else {
+                    // Normal app interface when folders exist
+                    navigationSplitView
+                        .navigationTitle(navigationTitle)
+                        .onChange(of: columnVisibilityStorage) { _, newValue in
+                            // Update our tracked state when the column visibility changes
+                            isSidebarCollapsed = (newValue == "doubleColumn")
+                        }
+                        .toolbar {
+                            toolbarContent
+                        }
+                        .onAppear {
+                            loadPhotoApps() // Load photo apps first
+                            // loadSelectedApp is now called from within loadPhotoApps after discovery completes
 
-                    // Set initial sidebar collapsed state based on restored column visibility
-                    isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
+                            // Set initial sidebar collapsed state based on restored column visibility
+                            isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
+                        }
+                        .frame(minWidth: 1200, minHeight: 700)
+                        .preferredColorScheme(.dark)
+                        .focusable()
+                        .onKeyPress { keyPress in
+                            handleKeyPress(keyPress)
+                        }
+                        .onChange(of: isReviewModeActive) { _, newValue in
+                            // Hide/show navigation elements based on review mode state
+                            DispatchQueue.main.async {
+                                if let window = NSApplication.shared.keyWindow {
+                                    if newValue {
+                                        // Entering review mode - hide navigation
+                                        window.titlebarAppearsTransparent = true
+                                        window.titleVisibility = .hidden
+                                        window.toolbar?.isVisible = false
+                                    } else {
+                                        // Exiting review mode - show navigation
+                                        window.titlebarAppearsTransparent = false
+                                        window.titleVisibility = .visible
+                                        window.toolbar?.isVisible = true
+                                    }
+                                }
+                            }
+                        }
                 }
-                .frame(minWidth: 1200, minHeight: 700)
-                .preferredColorScheme(.dark)
+            }
+
+            // Full-screen review mode overlay
+            if isReviewModeActive {
+                ReviewModeView(
+                    photos: model.photos.filter { photo in
+                        // Apply same filtering logic as ThumbGridView
+                        return true // For now, use all photos - we'll need to get filtered photos from ThumbGridView
+                    },
+                    selectedPhoto: $model.selectedPhoto,
+                    model: model,
+                    onExit: {
+                        isReviewModeActive = false
+                    },
+                    onUpdatePhoto: { photo, xmpMetadata in
+                        updatePhotoWithXmpMetadata(photo: photo, xmpMetadata: xmpMetadata)
+                    },
+                    onToggleDelete: { photo in
+                        toggleToDeleteState(for: photo)
+                    }
+                )
+                .zIndex(1000)
+            }
         }
     }
 
@@ -116,6 +166,8 @@ struct ContentView: View {
             // Middle: thumbnails
             ThumbGridView(photos: model.photos, model: model, selectedApp: selectedApp, onOpenSelectedPhotos: { photos in
                 openMultiplePhotosInExternalApp(photos: photos)
+            }, onEnterReviewMode: {
+                isReviewModeActive = true
             })
         } detail: {
             detailView
@@ -419,6 +471,75 @@ struct ContentView: View {
         } catch {
             print("Failed to open \(url.lastPathComponent) with \(app.displayName): \(error)")
             return false
+        }
+    }
+
+    // MARK: - Review Mode Helper Methods
+
+    private func handleKeyPress(_ keyPress: KeyPress) -> KeyPress.Result {
+        switch keyPress.key {
+        case .space:
+            // Enter review mode if a photo is selected
+            if model.selectedPhoto != nil && !model.photos.isEmpty {
+                isReviewModeActive = true
+                return .handled
+            }
+            return .ignored
+        default:
+            return .ignored
+        }
+    }
+
+    private func updatePhotoWithXmpMetadata(photo: PhotoItem, xmpMetadata: XmpMetadata) {
+        // Find the current photo index in the model's photos array
+        if let photoIndex = model.photos.firstIndex(where: { $0.path == photo.path }) {
+            let currentPhoto = model.photos[photoIndex]
+
+            // Create a new PhotoItem with the updated XMP metadata but preserve the original ID, dateCreated, and toDelete state
+            let updatedPhoto = PhotoItem(
+                id: photo.id,
+                path: photo.path,
+                xmp: xmpMetadata,
+                dateCreated: photo.dateCreated,
+                toDelete: currentPhoto.toDelete
+            )
+
+            // Update the photos array directly (since BrowserModel is @Published)
+            model.photos[photoIndex] = updatedPhoto
+
+            // Update selectedPhoto to point to the new updated photo instance (same photo, just updated)
+            model.selectedPhoto = updatedPhoto
+
+            print("🔄 PhotoItem updated in model with XMP metadata")
+        } else {
+            print("⚠️ Photo not found in model: \(photo.path)")
+        }
+    }
+
+    private func toggleToDeleteState(for photo: PhotoItem) {
+        // Find the current photo index in the model's photos array
+        if let photoIndex = model.photos.firstIndex(where: { $0.path == photo.path }) {
+            let currentPhoto = model.photos[photoIndex]
+
+            // Create a new PhotoItem with toggled toDelete state, preserving all other properties
+            let updatedPhoto = PhotoItem(
+                id: currentPhoto.id,
+                path: currentPhoto.path,
+                xmp: currentPhoto.xmp,
+                dateCreated: currentPhoto.dateCreated,
+                toDelete: !currentPhoto.toDelete
+            )
+
+            // Update the photos array directly
+            model.photos[photoIndex] = updatedPhoto
+
+            // Always update selectedPhoto to point to the new updated photo instance (same photo, just updated)
+            model.selectedPhoto = updatedPhoto
+
+            let action = updatedPhoto.toDelete ? "Marked" : "Unmarked"
+            print("🗑️ \(action) photo for deletion: \(photo.path)")
+        } else {
+            print("⚠️ Photo not found in model: \(photo.path)")
         }
     }
 }

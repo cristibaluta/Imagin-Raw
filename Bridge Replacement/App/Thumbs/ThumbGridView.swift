@@ -5,6 +5,7 @@ struct ThumbGridView: View {
     @ObservedObject var model: BrowserModel
     let selectedApp: PhotoApp?
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
+    let onEnterReviewMode: (() -> Void)?
     @FocusState private var isFocused: Bool
     @State private var lastScrolledRow: Int = -1
     @State private var showFilterPopover = false
@@ -363,6 +364,12 @@ struct ThumbGridView: View {
                 openSelectedPhotosInExternalApp()
             } else if let selectedPhoto = model.selectedPhoto {
                 openInExternalApp(photo: selectedPhoto)
+            }
+            return .handled
+        case .space:
+            // Space key: Enter review mode
+            if model.selectedPhoto != nil && !filteredPhotos.isEmpty {
+                onEnterReviewMode?()
             }
             return .handled
         default:
