@@ -128,9 +128,8 @@ struct ContentView: View {
                 LargePreviewView(photo: photo)
                     .id(photo.id)
             } else {
-                Text("Select a photo")
+                ShortcutsHelpView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .foregroundColor(.secondary)
             }
         }
     }
