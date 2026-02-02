@@ -57,7 +57,7 @@ struct SidebarView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
 
-                    Spacer().frame(height: 100)
+                    Spacer().frame(height: 10)
 
                     Spacer()
                 }
@@ -74,7 +74,8 @@ struct SidebarView: View {
                             onDoubleClick: {
                                 onDoubleClick?()
                             },
-                            model: model
+                            model: model,
+                            isRootFolder: true
                         )
                     }
                     .onDelete(perform: deleteFolders)

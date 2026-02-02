@@ -14,6 +14,7 @@ struct FolderRowView: View {
     let saveExpandedState: () -> Void
     let onDoubleClick: () -> Void
     @ObservedObject var model: BrowserModel
+    let isRootFolder: Bool
 
     private var isExpanded: Bool {
         expandedFolders.contains(folder.url)
@@ -23,6 +24,19 @@ struct FolderRowView: View {
         // A folder is expandable if it has a children array (even if empty)
         // nil means no children, [] means expandable but unloaded, [...] means loaded
         return folder.children != nil
+    }
+
+    private var folderColor: Color {
+        if isRootFolder {
+            // Dark purple for root folders (user-added folders)
+            return Color(red: 0.4, green: 0.2, blue: 0.7)
+        } else if hasChildren {
+            // Regular blue for subfolders with children
+            return Color.blue
+        } else {
+            // Light blue for leaf subfolders
+            return Color(red: 139/255, green: 206/255, blue: 248/255)
+        }
     }
 
     private var needsToLoadChildren: Bool {
@@ -57,12 +71,13 @@ struct FolderRowView: View {
                         selectedFolder: $selectedFolder,
                         saveExpandedState: saveExpandedState,
                         onDoubleClick: onDoubleClick,
-                        model: model
+                        model: model,
+                        isRootFolder: false // Child folders are never root folders
                     )
                 }
             } label: {
                 Label(folder.url.lastPathComponent, systemImage: "folder.fill")
-                    .tint(Color.blue)
+                    .tint(folderColor)
                     .tag(folder)
                     .onTapGesture {
                         selectedFolder = folder
@@ -73,7 +88,7 @@ struct FolderRowView: View {
             }
         } else {
             Label(folder.url.lastPathComponent, systemImage: "folder.fill")
-                .tint(Color(red: 139/255, green: 206/255, blue: 248/255))
+                .tint(folderColor)
                 .tag(folder)
                 .onTapGesture {
                     selectedFolder = folder
