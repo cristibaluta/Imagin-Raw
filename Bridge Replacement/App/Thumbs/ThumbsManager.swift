@@ -22,25 +22,27 @@ struct ThumbnailRequest: Comparable {
     let cacheKey: String
     let priority: Priority
     let timestamp: Date = Date()
+    let requestOrder: Int // Order in which request was made
     let completion: (NSImage?) -> Void
-    
+
     enum Priority: Int, Comparable {
         case high = 3    // Currently visible
         case medium = 2  // Near viewport
         case low = 1     // Background/prefetch
-        
+
         static func < (lhs: Priority, rhs: Priority) -> Bool {
             return lhs.rawValue < rhs.rawValue
         }
     }
-    
+
     static func < (lhs: ThumbnailRequest, rhs: ThumbnailRequest) -> Bool {
         if lhs.priority == rhs.priority {
-            return lhs.timestamp < rhs.timestamp
+            // For same priority, prefer more recent requests (higher requestOrder)
+            return lhs.requestOrder < rhs.requestOrder
         }
         return lhs.priority > rhs.priority // Higher priority first
     }
-    
+
     static func == (lhs: ThumbnailRequest, rhs: ThumbnailRequest) -> Bool {
         return lhs.id == rhs.id
     }
@@ -48,24 +50,25 @@ struct ThumbnailRequest: Comparable {
 
 struct PriorityQueue<Element: Comparable> {
     private var elements: [Element] = []
-    
+
     var isEmpty: Bool {
         return elements.isEmpty
     }
-    
+
     var count: Int {
         return elements.count
     }
-    
+
     mutating func enqueue(_ element: Element) {
         elements.append(element)
-        elements.sort() // Simple sort for now, could be optimized with heap
+        // Sort in descending order so the highest priority/most recent comes first
+        elements.sort { $0 > $1 }
     }
-    
+
     mutating func dequeue() -> Element? {
-        return elements.isEmpty ? nil : elements.removeLast()
+        return elements.isEmpty ? nil : elements.removeFirst()
     }
-    
+
     mutating func removeAll() {
         elements.removeAll()
     }
@@ -80,12 +83,13 @@ class ThumbsManager: ObservableObject {
     private let maxMemoryCacheSize = 200 // Maximum number of images in memory
     private let cacheQueue = DispatchQueue(label: "ro.imagin.thumbs.cache", attributes: .concurrent)
     private let diskQueue = DispatchQueue(label: "r.imagin.thumbs.disk", qos: .userInitiated)
-    
+
     // Priority queue for thumbnail generation
     private var pendingRequests: [String: ThumbnailRequest] = [:]
     private var priorityQueue = PriorityQueue<ThumbnailRequest>()
     private let requestQueue = DispatchQueue(label: "ro.imagin.thumbs.requests")
     private var isProcessingQueue = false
+    private var requestCounter = 0 // Counter to track request order
 
     // Cache directory
     private let cacheDirectory: URL
@@ -119,28 +123,37 @@ class ThumbsManager: ObservableObject {
         // 2. Check if request is already pending
         requestQueue.async { [weak self] in
             guard let self = self else { return }
-            
-            // Cancel existing request with lower priority
+
+            // Increment request counter for ordering
+            self.requestCounter += 1
+            let currentRequestOrder = self.requestCounter
+
+            // Check if there's already a pending request for this image
             if let existingRequest = self.pendingRequests[cacheKey] {
-                if existingRequest.priority.rawValue < priority.rawValue {
+                // If new request has higher or equal priority, replace the old one
+                // This automatically prioritizes more recent requests
+                if priority.rawValue >= existingRequest.priority.rawValue {
                     self.pendingRequests.removeValue(forKey: cacheKey)
+                    // Rebuild the priority queue to remove the old request
+                    self.rebuildQueue()
                 } else {
-                    // Higher or equal priority request already exists
+                    // Lower priority request - ignore it
                     return
                 }
             }
-            
-            // Create new request
+
+            // Create new request with current order
             let request = ThumbnailRequest(
                 path: path,
                 cacheKey: cacheKey,
                 priority: priority,
+                requestOrder: currentRequestOrder,
                 completion: completion
             )
-            
+
             self.pendingRequests[cacheKey] = request
             self.priorityQueue.enqueue(request)
-            
+
             self.processQueue()
         }
     }
@@ -154,25 +167,6 @@ class ThumbsManager: ObservableObject {
     func getCachedThumbnail(for path: String) -> NSImage? {
         let cacheKey = cacheKey(for: path)
         return getCachedImage(for: cacheKey)
-    }
-    
-    /// Cancel pending requests for paths no longer visible
-    func cancelRequests(for paths: [String]) {
-        requestQueue.async { [weak self] in
-            guard let self = self else { return }
-            
-            for path in paths {
-                let cacheKey = self.cacheKey(for: path)
-                self.pendingRequests.removeValue(forKey: cacheKey)
-            }
-            
-            // Rebuild priority queue without cancelled requests
-            var newQueue = PriorityQueue<ThumbnailRequest>()
-            for request in self.pendingRequests.values {
-                newQueue.enqueue(request)
-            }
-            self.priorityQueue = newQueue
-        }
     }
 
     /// Clear memory cache
@@ -221,10 +215,10 @@ class ThumbsManager: ObservableObject {
     private func getCachedImage(for cacheKey: String) -> NSImage? {
         return cacheQueue.sync {
             guard let entry = memoryCache[cacheKey] else { return nil }
-            
+
             // Update access order for LRU
             updateAccessOrder(for: cacheKey)
-            
+
             return entry.image
         }
     }
@@ -232,11 +226,11 @@ class ThumbsManager: ObservableObject {
     private func setCachedImage(_ image: NSImage, for cacheKey: String) {
         cacheQueue.async(flags: .barrier) { [weak self] in
             guard let self = self else { return }
-            
+
             let entry = CacheEntry(image: image, lastAccessed: Date())
             self.memoryCache[cacheKey] = entry
             self.updateAccessOrder(for: cacheKey)
-            
+
             // Enforce cache size limit with LRU eviction
             self.evictIfNeeded()
         }
@@ -259,33 +253,48 @@ class ThumbsManager: ObservableObject {
     private func processQueue() {
         guard !isProcessingQueue else { return }
         isProcessingQueue = true
-        
-        requestQueue.async { [weak self] in
-            self?.processNextRequest()
+
+        diskQueue.async { [weak self] in
+            self?.processAllRequests()
         }
     }
 
-    private func processNextRequest() {
-        requestQueue.async { [weak self] in
-            guard let self = self else { return }
-            
-            while let request = self.priorityQueue.dequeue() {
-                // Check if request is still valid (not cancelled)
-                guard self.pendingRequests[request.cacheKey]?.id == request.id else {
-                    continue
-                }
-                
-                // Remove from pending requests
-                self.pendingRequests.removeValue(forKey: request.cacheKey)
-                
-                // Process the request
-                self.processRequest(request)
-                
-                // Small delay to prevent overwhelming the system during fast scrolling
-                Thread.sleep(forTimeInterval: 0.01)
+    private func processAllRequests() {
+        while true {
+            var request: ThumbnailRequest?
+
+            // Get next request from queue
+            requestQueue.sync {
+                request = self.priorityQueue.dequeue()
             }
-            
-            self.isProcessingQueue = false
+
+            guard let currentRequest = request else {
+                // No more requests
+                break
+            }
+
+            // Check if request is still valid (not replaced by newer request)
+            let isValid = requestQueue.sync {
+                if let pendingRequest = self.pendingRequests[currentRequest.cacheKey] {
+                    if pendingRequest.id == currentRequest.id {
+                        self.pendingRequests.removeValue(forKey: currentRequest.cacheKey)
+                        return true
+                    }
+                }
+                return false
+            }
+
+            if !isValid {
+                // This request was replaced by a newer one, skip it
+                continue
+            }
+
+            // Process the request
+            self.processRequest(currentRequest)
+        }
+
+        requestQueue.async { [weak self] in
+            self?.isProcessingQueue = false
         }
     }
 
@@ -307,7 +316,7 @@ class ThumbsManager: ObservableObject {
                 }
                 return
             }
-            
+
             self?.setCachedImage(image, for: request.cacheKey)
             DispatchQueue.main.async {
                 request.completion(image)
@@ -381,6 +390,15 @@ class ThumbsManager: ObservableObject {
 
         // Return result
         completion(thumbnail)
+    }
+
+    private func rebuildQueue() {
+        // Rebuild priority queue with current pending requests
+        var newQueue = PriorityQueue<ThumbnailRequest>()
+        for request in pendingRequests.values {
+            newQueue.enqueue(request)
+        }
+        priorityQueue = newQueue
     }
 }
 

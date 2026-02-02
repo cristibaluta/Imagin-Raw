@@ -13,8 +13,6 @@ struct ThumbGridView: View {
     @State private var sortOption: SortOption = .name
     @State private var selectedPhotos: Set<UUID> = []
     @State private var lastSelectedIndex: Int?
-    @State private var visibleRange: Range<Int> = 0..<0
-    @State private var lastVisibleRange: Range<Int> = 0..<0
 
     private let sortOptionKey = "SelectedSortOption"
 
@@ -136,7 +134,7 @@ struct ThumbGridView: View {
                 GeometryReader { geometry in
                     ScrollView(.vertical, showsIndicators: true) {
                         LazyVGrid(columns: columns, spacing: 8) {
-                            ForEach(Array(filteredPhotos.enumerated()), id: \.element.id) { index, photo in
+                            ForEach(filteredPhotos, id: \.id) { photo in
                                 ThumbCell(
                                     photo: photo,
                                     isSelected: model.selectedPhoto?.id == photo.id,
@@ -156,14 +154,6 @@ struct ThumbGridView: View {
                                 )
                                 .frame(width: 100, height: 150)
                                 .id(photo.id)
-                                .onAppear {
-                                    // Track when items become visible
-                                    updateVisibleRange(adding: index, geometry: geometry)
-                                }
-                                .onDisappear {
-                                    // Track when items become invisible
-                                    updateVisibleRange(removing: index, geometry: geometry)
-                                }
                             }
                         }
                         .padding(.horizontal, 4)
@@ -283,57 +273,6 @@ struct ThumbGridView: View {
             .padding(.vertical, 12)
             .background(Color(NSColor.controlBackgroundColor))
         }
-    }
-
-    // MARK: - Viewport Management
-
-    private func updateVisibleRange(adding index: Int, geometry: GeometryProxy) {
-        // Track visible items and manage thumbnail priorities
-        DispatchQueue.main.async {
-            let newRange = calculateVisibleRange(geometry: geometry)
-            if newRange != visibleRange {
-                let previousRange = visibleRange
-                visibleRange = newRange
-
-                // Cancel requests for items that are no longer visible
-                let noLongerVisible = previousRange.filter { !newRange.contains($0) }
-                if !noLongerVisible.isEmpty {
-                    let pathsToCancel = noLongerVisible.compactMap { index in
-                        index < filteredPhotos.count ? filteredPhotos[index].path : nil
-                    }
-                    ThumbsManager.shared.cancelRequests(for: pathsToCancel)
-                }
-            }
-        }
-    }
-
-    private func updateVisibleRange(removing index: Int, geometry: GeometryProxy) {
-        // Update visible range when items disappear
-        DispatchQueue.main.async {
-            let newRange = calculateVisibleRange(geometry: geometry)
-            if newRange != visibleRange {
-                visibleRange = newRange
-            }
-        }
-    }
-
-    private func calculateVisibleRange(geometry: GeometryProxy) -> Range<Int> {
-        let viewHeight = geometry.size.height
-        let itemHeight: CGFloat = 150 + 8 // thumbnail height + spacing
-        let itemsPerRow = columnsCount
-
-        // Calculate approximate visible rows with buffer
-        let visibleRowsCount = Int(ceil(viewHeight / itemHeight)) + 2 // Add buffer
-        let totalItems = filteredPhotos.count
-        let totalRows = (totalItems + itemsPerRow - 1) / itemsPerRow
-
-        // For now, we'll use a simple approach - track a reasonable visible range
-        // In a more sophisticated implementation, we'd track actual scroll position
-        let bufferSize = visibleRowsCount * itemsPerRow
-        let startIndex = max(0, 0) // This would be calculated from scroll position
-        let endIndex = min(totalItems, startIndex + bufferSize)
-
-        return startIndex..<endIndex
     }
 
     private func handlePhotoTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {

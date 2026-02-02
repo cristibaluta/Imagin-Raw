@@ -106,12 +106,12 @@ struct ThumbCell: View {
             return
         }
 
-        // Load asynchronously with high priority (since cell is visible)
+        // Load asynchronously with medium priority (let the queue system handle prioritization)
         isLoading = true
         let photoId = photo.id // Capture the ID to avoid memory issues
         let photoPath = photo.path // Capture the path
 
-        ThumbsManager.shared.loadThumbnail(for: photoPath, priority: .high) { image in
+        ThumbsManager.shared.loadThumbnail(for: photoPath, priority: .medium) { image in
             // Use DispatchQueue.main.async to ensure UI updates happen on main thread
             // and check that this is still the correct cell by comparing photo ID
             DispatchQueue.main.async {
