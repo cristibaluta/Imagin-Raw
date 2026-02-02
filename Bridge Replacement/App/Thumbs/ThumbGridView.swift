@@ -410,6 +410,14 @@ struct ThumbGridView: View {
                     print("DEBUG: No photo selected")
                 }
                 return .handled
+            case "d", "D": // 'd' key for marking for deletion
+                // Toggle "To Delete" state
+                if let selectedPhoto = model.selectedPhoto {
+                    toggleToDeleteState(for: selectedPhoto)
+                } else {
+                    print("DEBUG: No photo selected")
+                }
+                return .handled
             default:
                 return .ignored
             }
