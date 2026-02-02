@@ -401,9 +401,7 @@ struct ThumbGridView: View {
             lastSelectedIndex = newIndex
 
             // Auto-scroll to keep selected photo visible
-            withAnimation(.easeInOut(duration: 0.3)) {
-                proxy.scrollTo(filteredPhotos[newIndex].id, anchor: .center)
-            }
+            proxy.scrollTo(filteredPhotos[newIndex].id, anchor: .center)
 
             return .handled
         }
