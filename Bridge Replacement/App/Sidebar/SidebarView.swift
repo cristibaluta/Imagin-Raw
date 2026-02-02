@@ -78,15 +78,6 @@ struct SidebarView: View {
                             model: model,
                             isRootFolder: true
                         )
-                        .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
-
-                        // Add spacer between root folders (but not after the last one)
-                        if index < model.rootFolders.count - 1 {
-                            Spacer()
-                                .frame(height: 2)
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                        }
                     }
                     .onDelete(perform: deleteFolders)
                 }
