@@ -10,7 +10,7 @@ import SwiftUI
 struct ReviewModeView: View {
     let photos: [PhotoItem]
     @Binding var selectedPhoto: PhotoItem?
-    @ObservedObject var model: BrowserModel
+    @EnvironmentObject var filesModel: FilesModel
     @State private var currentIndex: Int
     @State private var isExiting = false
     @FocusState private var isFocused: Bool
@@ -19,10 +19,9 @@ struct ReviewModeView: View {
     let onUpdatePhoto: (PhotoItem, XmpMetadata) -> Void
     let onToggleDelete: (PhotoItem) -> Void
 
-    init(photos: [PhotoItem], selectedPhoto: Binding<PhotoItem?>, model: BrowserModel, onExit: @escaping () -> Void, onUpdatePhoto: @escaping (PhotoItem, XmpMetadata) -> Void, onToggleDelete: @escaping (PhotoItem) -> Void) {
+    init(photos: [PhotoItem], selectedPhoto: Binding<PhotoItem?>, onExit: @escaping () -> Void, onUpdatePhoto: @escaping (PhotoItem, XmpMetadata) -> Void, onToggleDelete: @escaping (PhotoItem) -> Void) {
         self.photos = photos
         self._selectedPhoto = selectedPhoto
-        self.model = model
         self.onExit = onExit
         self.onUpdatePhoto = onUpdatePhoto
         self.onToggleDelete = onToggleDelete

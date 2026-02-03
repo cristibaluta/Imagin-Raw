@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct FolderSelectionPopoverView: View {
-    @ObservedObject var model: BrowserModel
+    @EnvironmentObject var filesModel: FilesModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -33,7 +33,7 @@ struct FolderSelectionPopoverView: View {
                 .padding(.top, 8)
 
             // Reuse the existing SidebarView
-            SidebarView(model: model, onDoubleClick: nil)
+            SidebarView(onDoubleClick: nil)
                 .padding(.top, 8)
         }
         .frame(width: 300, height: 400)

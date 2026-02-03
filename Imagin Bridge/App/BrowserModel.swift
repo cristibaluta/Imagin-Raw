@@ -124,7 +124,7 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
 
 
 @MainActor
-final class BrowserModel: ObservableObject {
+final class FilesModel: ObservableObject {
     @Published var rootFolders: [FolderItem] = []
     @Published var selectedFolder: FolderItem? {
         didSet {

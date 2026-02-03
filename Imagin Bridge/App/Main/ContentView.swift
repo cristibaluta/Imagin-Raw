@@ -19,7 +19,7 @@ struct PhotoApp: Identifiable, Hashable {
 }
 
 struct ContentView: View {
-    @StateObject private var model = BrowserModel()
+    @StateObject private var filesModel = FilesModel()
     @State private var selectedApp: PhotoApp?
     @State private var discoveredPhotoApps: [PhotoApp] = []
     @SceneStorage("columnVisibility") private var columnVisibilityStorage: String = "all"
@@ -52,11 +52,11 @@ struct ContentView: View {
     }
 
     private var navigationDocumentURL: URL? {
-        return model.selectedFolder?.url
+        return filesModel.selectedFolder?.url
     }
 
     private var shareablePhoto: URL? {
-        guard let selectedPhoto = model.selectedPhoto else { return nil }
+        guard let selectedPhoto = filesModel.selectedPhoto else { return nil }
         return URL(fileURLWithPath: selectedPhoto.path)
     }
 
@@ -65,8 +65,8 @@ struct ContentView: View {
             // Main app content
             Group {
                 // Show splash screen if no folders are added
-                if model.rootFolders.isEmpty {
-                    SplashScreenView(model: model)
+                if filesModel.rootFolders.isEmpty {
+                    SplashScreenView()
                         .frame(minWidth: 800, minHeight: 600)
                         .preferredColorScheme(.dark)
                 } else {
@@ -117,12 +117,11 @@ struct ContentView: View {
             // Full-screen review mode overlay
             if isReviewModeActive {
                 ReviewModeView(
-                    photos: model.photos.filter { photo in
+                    photos: filesModel.photos.filter { photo in
                         // Apply same filtering logic as ThumbGridView
                         return true // For now, use all photos - we'll need to get filtered photos from ThumbGridView
                     },
-                    selectedPhoto: $model.selectedPhoto,
-                    model: model,
+                    selectedPhoto: $filesModel.selectedPhoto,
                     onExit: {
                         isReviewModeActive = false
                     },
@@ -158,13 +157,13 @@ struct ContentView: View {
     private var navigationSplitView: some View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             // Left sidebar: folders
-            SidebarView(model: model) {
+            SidebarView {
                 // Double-click callback: collapse sidebar to double column view
                 columnVisibilityStorage = "doubleColumn"
             }
         } content: {
             // Middle: thumbnails
-            ThumbGridView(photos: model.photos, model: model, selectedApp: selectedApp, onOpenSelectedPhotos: { photos in
+            ThumbGridView(photos: filesModel.photos, selectedApp: selectedApp, onOpenSelectedPhotos: { photos in
                 openMultiplePhotosInExternalApp(photos: photos)
             }, onEnterReviewMode: {
                 isReviewModeActive = true
@@ -172,11 +171,12 @@ struct ContentView: View {
         } detail: {
             detailView
         }
+        .environmentObject(filesModel)
     }
 
     private var detailView: some View {
         Group {
-            if let photo = model.selectedPhoto {
+            if let photo = filesModel.selectedPhoto {
                 LargePreviewView(photo: photo)
                     .id(photo.id)
             } else {
@@ -209,7 +209,7 @@ struct ContentView: View {
             }
             .help("Select Folder")
             .popover(isPresented: $showFolderPopover) {
-                FolderSelectionPopoverView(model: model)
+                FolderSelectionPopoverView()
                     .frame(width: 300, height: 500)
             }
         }
@@ -219,7 +219,7 @@ struct ContentView: View {
     private var primaryActionToolbarItems: some View {
         // Button to open in selected app
         Button(action: {
-            if let selectedPhoto = model.selectedPhoto {
+            if let selectedPhoto = filesModel.selectedPhoto {
                 // For now, always open single photo - will be enhanced
                 openInExternalApp(photo: selectedPhoto)
             }
@@ -229,9 +229,9 @@ struct ContentView: View {
                     .font(.system(size: 12, weight: .medium))
                 Text(selectedApp?.displayName ?? "Default App")
             }
-            .foregroundColor(model.selectedPhoto != nil ? .primary : .secondary)
+            .foregroundColor(filesModel.selectedPhoto != nil ? .primary : .secondary)
         }
-        .disabled(model.selectedPhoto == nil)
+        .disabled(filesModel.selectedPhoto == nil)
         .help("Open in \(selectedApp?.displayName ?? "external app")")
 
         // Menu to select app
@@ -480,7 +480,7 @@ struct ContentView: View {
         switch keyPress.key {
         case .space:
             // Enter review mode if a photo is selected
-            if model.selectedPhoto != nil && !model.photos.isEmpty {
+            if filesModel.selectedPhoto != nil && !filesModel.photos.isEmpty {
                 isReviewModeActive = true
                 return .handled
             }
@@ -491,9 +491,9 @@ struct ContentView: View {
     }
 
     private func updatePhotoWithXmpMetadata(photo: PhotoItem, xmpMetadata: XmpMetadata) {
-        // Find the current photo index in the model's photos array
-        if let photoIndex = model.photos.firstIndex(where: { $0.path == photo.path }) {
-            let currentPhoto = model.photos[photoIndex]
+        // Find the current photo index in the filesModel's photos array
+        if let photoIndex = filesModel.photos.firstIndex(where: { $0.path == photo.path }) {
+            let currentPhoto = filesModel.photos[photoIndex]
 
             // Create a new PhotoItem with the updated XMP metadata but preserve the original ID, dateCreated, and toDelete state
             let updatedPhoto = PhotoItem(
@@ -505,21 +505,21 @@ struct ContentView: View {
             )
 
             // Update the photos array directly (since BrowserModel is @Published)
-            model.photos[photoIndex] = updatedPhoto
+            filesModel.photos[photoIndex] = updatedPhoto
 
             // Update selectedPhoto to point to the new updated photo instance (same photo, just updated)
-            model.selectedPhoto = updatedPhoto
+            filesModel.selectedPhoto = updatedPhoto
 
-            print("🔄 PhotoItem updated in model with XMP metadata")
+            print("🔄 PhotoItem updated in filesModel with XMP metadata")
         } else {
-            print("⚠️ Photo not found in model: \(photo.path)")
+            print("⚠️ Photo not found in filesModel: \(photo.path)")
         }
     }
 
     private func toggleToDeleteState(for photo: PhotoItem) {
-        // Find the current photo index in the model's photos array
-        if let photoIndex = model.photos.firstIndex(where: { $0.path == photo.path }) {
-            let currentPhoto = model.photos[photoIndex]
+        // Find the current photo index in the filesModel's photos array
+        if let photoIndex = filesModel.photos.firstIndex(where: { $0.path == photo.path }) {
+            let currentPhoto = filesModel.photos[photoIndex]
 
             // Create a new PhotoItem with toggled toDelete state, preserving all other properties
             let updatedPhoto = PhotoItem(
@@ -531,15 +531,15 @@ struct ContentView: View {
             )
 
             // Update the photos array directly
-            model.photos[photoIndex] = updatedPhoto
+            filesModel.photos[photoIndex] = updatedPhoto
 
             // Always update selectedPhoto to point to the new updated photo instance (same photo, just updated)
-            model.selectedPhoto = updatedPhoto
+            filesModel.selectedPhoto = updatedPhoto
 
             let action = updatedPhoto.toDelete ? "Marked" : "Unmarked"
             print("🗑️ \(action) photo for deletion: \(photo.path)")
         } else {
-            print("⚠️ Photo not found in model: \(photo.path)")
+            print("⚠️ Photo not found in filesModel: \(photo.path)")
         }
     }
 }

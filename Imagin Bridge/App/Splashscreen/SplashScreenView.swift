@@ -8,31 +8,31 @@
 import SwiftUI
 
 struct SplashScreenView: View {
-    @ObservedObject var model: BrowserModel
+    @EnvironmentObject var filesModel: FilesModel
     @State private var showingFolderPicker = false
-    
+
     var body: some View {
         VStack(spacing: 40) {
             Spacer()
-            
+
             // App icon/logo area
             VStack(spacing: 20) {
                 Image("Logo")
                     .font(.system(size: 80, weight: .light))
                     .foregroundColor(.accentColor)
-                
+
                 VStack(spacing: 8) {
                     Text("Bridge")
                         .font(.largeTitle)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
-                    
+
                     Text("Photo Browser & Organizer")
                         .font(.title3)
                         .foregroundColor(.secondary)
                 }
             }
-            
+
             // Welcome content
             VStack(spacing: 24) {
                 VStack(spacing: 8) {
@@ -41,7 +41,7 @@ struct SplashScreenView: View {
                         .foregroundColor(.secondary)
                 }
                 .multilineTextAlignment(.center)
-                
+
                 // Call to action button
                 Button(action: {
                     showingFolderPicker = true
@@ -67,15 +67,15 @@ struct SplashScreenView: View {
                     }
                 }
             }
-            
+
             Spacer()
-            
+
             // Footer
             Text("Tip: You can add multiple photo folders or directly your Photos root folder")
                 .font(.caption)
                 .foregroundColor(.primary)
             .multilineTextAlignment(.center)
-            
+
             Spacer().frame(height: 40)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -88,7 +88,7 @@ struct SplashScreenView: View {
             switch result {
             case .success(let urls):
                 if let url = urls.first {
-                    model.addFolder(at: url)
+                    filesModel.addFolder(at: url)
                 }
             case .failure(let error):
                 print("Failed to select folder: \(error)")

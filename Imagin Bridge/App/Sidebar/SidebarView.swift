@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SidebarView: View {
-    @ObservedObject var model: BrowserModel
+    @EnvironmentObject var filesModel: FilesModel
     @State private var expandedFolders: Set<URL> = []
     @State private var showingFolderPicker = false
     @State private var showingAddPopover = false
@@ -20,7 +20,7 @@ struct SidebarView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Main folder list or welcome screen
-            if model.rootFolders.isEmpty {
+            if filesModel.rootFolders.isEmpty {
                 // Welcome screen when no folders are added
                 VStack(spacing: 16) {
                     Spacer()
@@ -65,17 +65,16 @@ struct SidebarView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // Normal folder list
-                List(selection: $model.selectedFolder) {
-                    ForEach(Array(model.rootFolders.enumerated()), id: \.element.id) { index, rootFolder in
+                List(selection: $filesModel.selectedFolder) {
+                    ForEach(Array(filesModel.rootFolders.enumerated()), id: \.element.id) { index, rootFolder in
                         FolderRowView(
                             folder: rootFolder,
                             expandedFolders: $expandedFolders,
-                            selectedFolder: $model.selectedFolder,
+                            selectedFolder: $filesModel.selectedFolder,
                             saveExpandedState: saveExpandedState,
                             onDoubleClick: {
                                 onDoubleClick?()
                             },
-                            model: model,
                             isRootFolder: true
                         )
                     }
@@ -102,7 +101,6 @@ struct SidebarView: View {
                 .help("Add folder")
                 .popover(isPresented: $showingAddPopover) {
                     AddFolderPopover(
-                        model: model,
                         onAddVolumes: {
                             showingAddPopover = false
                             addVolumesFolder()
@@ -115,10 +113,10 @@ struct SidebarView: View {
                 }
 
                 Button(action: {
-                    if let selectedFolder = model.selectedFolder {
+                    if let selectedFolder = filesModel.selectedFolder {
                         // Only remove if the selected folder is a root folder
                         if isRootFolder(selectedFolder.url) {
-                            model.removeFolder(at: selectedFolder.url)
+                            filesModel.removeFolder(at: selectedFolder.url)
                         }
                     }
                 }) {
@@ -136,7 +134,7 @@ struct SidebarView: View {
 
                 Spacer()
 
-                Text("\(model.rootFolders.count) folders")
+                Text("\(filesModel.rootFolders.count) folders")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -148,7 +146,7 @@ struct SidebarView: View {
             loadExpandedState()
             loadSelectedFolder()
         }
-        .onChange(of: model.selectedFolder) { _, newValue in
+        .onChange(of: filesModel.selectedFolder) { _, newValue in
             saveSelectedFolder(newValue)
         }
         .fileImporter(
@@ -159,7 +157,7 @@ struct SidebarView: View {
             switch result {
             case .success(let urls):
                 if let url = urls.first {
-                    model.addFolder(at: url)
+                    filesModel.addFolder(at: url)
                 }
             case .failure(let error):
                 print("Failed to select folder: \(error)")
@@ -185,9 +183,9 @@ struct SidebarView: View {
         if let data = UserDefaults.standard.data(forKey: selectedFolderKey),
            let url = try? JSONDecoder().decode(URL.self, from: data) {
             // Find the folder in any of the root folders that matches the saved URL
-            for rootFolder in model.rootFolders {
+            for rootFolder in filesModel.rootFolders {
                 if let folder = findFolder(url: url, in: rootFolder) {
-                    model.selectedFolder = folder
+                    filesModel.selectedFolder = folder
                     return
                 }
             }
@@ -219,8 +217,8 @@ struct SidebarView: View {
 
     private func deleteFolders(offsets: IndexSet) {
         for index in offsets {
-            let folder = model.rootFolders[index]
-            model.removeFolder(at: folder.url)
+            let folder = filesModel.rootFolders[index]
+            filesModel.removeFolder(at: folder.url)
         }
     }
 
@@ -236,16 +234,16 @@ struct SidebarView: View {
     }
 
     private func isRootFolder(_ url: URL) -> Bool {
-        return model.rootFolders.contains { $0.url == url }
+        return filesModel.rootFolders.contains { $0.url == url }
     }
 
     private func isRootFolderSelected() -> Bool {
-        guard let selectedFolder = model.selectedFolder else { return false }
+        guard let selectedFolder = filesModel.selectedFolder else { return false }
         return isRootFolder(selectedFolder.url)
     }
 
     private func addVolumesFolder() {
         let volumesURL = URL(fileURLWithPath: "/Volumes")
-        model.addFolder(at: volumesURL)
+        filesModel.addFolder(at: volumesURL)
     }
 }

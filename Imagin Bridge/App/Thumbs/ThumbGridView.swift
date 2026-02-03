@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ThumbGridView: View {
     let photos: [PhotoItem]
-    @ObservedObject var model: BrowserModel
+    @EnvironmentObject var filesModel: FilesModel
     let selectedApp: PhotoApp?
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
     let onEnterReviewMode: (() -> Void)?
@@ -174,13 +174,13 @@ struct ThumbGridView: View {
                                 ForEach(filteredPhotos, id: \.id) { photo in
                                     ThumbCell(
                                         photo: photo,
-                                        isSelected: model.selectedPhoto?.id == photo.id,
+                                        isSelected: filesModel.selectedPhoto?.id == photo.id,
                                         isMultiSelected: selectedPhotos.contains(photo.id),
                                         onTap: { modifiers in
                                             handlePhotoTap(photo: photo, modifiers: modifiers)
                                         },
                                         onDoubleClick: {
-                                            model.selectedPhoto = photo
+                                            filesModel.selectedPhoto = photo
                                             // If multiple photos are selected, open all of them
                                             if selectedPhotos.count > 1 {
                                                 openSelectedPhotosInExternalApp()
@@ -208,8 +208,8 @@ struct ThumbGridView: View {
                         }
                         .onAppear {
                             isFocused = true
-                            if model.selectedPhoto == nil && !filteredPhotos.isEmpty {
-                                model.selectedPhoto = filteredPhotos.first
+                            if filesModel.selectedPhoto == nil && !filteredPhotos.isEmpty {
+                                filesModel.selectedPhoto = filteredPhotos.first
                                 selectedPhotos.removeAll()
                                 if let firstPhoto = filteredPhotos.first {
                                     selectedPhotos.insert(firstPhoto.id)
@@ -219,8 +219,8 @@ struct ThumbGridView: View {
                         }
                         .onChange(of: photos) { _, newPhotos in
                             // Only select the first photo if there's no current selection
-                            if model.selectedPhoto == nil && !newPhotos.isEmpty {
-                                model.selectedPhoto = newPhotos.first
+                            if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
+                                filesModel.selectedPhoto = newPhotos.first
                             }
                         }
                     }
@@ -327,7 +327,7 @@ struct ThumbGridView: View {
                 selectedPhotos.remove(photo.id)
             } else {
                 selectedPhotos.insert(photo.id)
-                model.selectedPhoto = photo
+                filesModel.selectedPhoto = photo
                 lastSelectedIndex = photoIndex
             }
         } else if modifiers.contains(.shift) && lastSelectedIndex != nil {
@@ -338,12 +338,12 @@ struct ThumbGridView: View {
             for index in startIndex...endIndex {
                 selectedPhotos.insert(filteredPhotos[index].id)
             }
-            model.selectedPhoto = photo
+            filesModel.selectedPhoto = photo
         } else {
             // Regular click: Clear selection and select single photo
             selectedPhotos.removeAll()
             selectedPhotos.insert(photo.id)
-            model.selectedPhoto = photo
+            filesModel.selectedPhoto = photo
             lastSelectedIndex = photoIndex
         }
     }
@@ -351,7 +351,7 @@ struct ThumbGridView: View {
     private func handleKeyPress(_ keyPress: KeyPress, proxy: ScrollViewProxy, viewportHeight: CGFloat) -> KeyPress.Result {
         guard !filteredPhotos.isEmpty else { return .ignored }
 
-        let currentIndex = filteredPhotos.firstIndex { $0.id == model.selectedPhoto?.id } ?? 0
+        let currentIndex = filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
         var newIndex = currentIndex
 
         switch keyPress.key {
@@ -367,13 +367,13 @@ struct ThumbGridView: View {
             // Enter key: Open selected photos in external app
             if selectedPhotos.count > 1 {
                 openSelectedPhotosInExternalApp()
-            } else if let selectedPhoto = model.selectedPhoto {
+            } else if let selectedPhoto = filesModel.selectedPhoto {
                 openInExternalApp(photo: selectedPhoto)
             }
             return .handled
         case .space:
             // Space key: Enter review mode
-            if model.selectedPhoto != nil && !filteredPhotos.isEmpty {
+            if filesModel.selectedPhoto != nil && !filteredPhotos.isEmpty {
                 onEnterReviewMode?()
             }
             return .handled
@@ -385,7 +385,7 @@ struct ThumbGridView: View {
                     selectedPhotos.insert(photo.id)
                 }
                 if let firstPhoto = filteredPhotos.first {
-                    model.selectedPhoto = firstPhoto
+                    filesModel.selectedPhoto = firstPhoto
                     lastSelectedIndex = 0
                 }
                 return .handled
@@ -398,31 +398,31 @@ struct ThumbGridView: View {
             switch labelKey {
             case "1":
                 // Rating key: Set 1 star
-                if let selectedPhoto = model.selectedPhoto {
+                if let selectedPhoto = filesModel.selectedPhoto {
                     setPhotoRating(photo: selectedPhoto, rating: 1)
                 }
                 return .handled
             case "2":
                 // Rating key: Set 2 stars
-                if let selectedPhoto = model.selectedPhoto {
+                if let selectedPhoto = filesModel.selectedPhoto {
                     setPhotoRating(photo: selectedPhoto, rating: 2)
                 }
                 return .handled
             case "3":
                 // Rating key: Set 3 stars
-                if let selectedPhoto = model.selectedPhoto {
+                if let selectedPhoto = filesModel.selectedPhoto {
                     setPhotoRating(photo: selectedPhoto, rating: 3)
                 }
                 return .handled
             case "4":
                 // Rating key: Set 4 stars
-                if let selectedPhoto = model.selectedPhoto {
+                if let selectedPhoto = filesModel.selectedPhoto {
                     setPhotoRating(photo: selectedPhoto, rating: 4)
                 }
                 return .handled
             case "5":
                 // Rating key: Set 5 stars
-                if let selectedPhoto = model.selectedPhoto {
+                if let selectedPhoto = filesModel.selectedPhoto {
                     setPhotoRating(photo: selectedPhoto, rating: 5)
                 }
                 return .handled
@@ -438,7 +438,7 @@ struct ThumbGridView: View {
                 targetLabel = "To Do"
             case "-":
                 // Remove any label (clear label)
-                if let selectedPhoto = model.selectedPhoto {
+                if let selectedPhoto = filesModel.selectedPhoto {
                     removeAnyLabel(for: selectedPhoto)
                 } else {
                     print("DEBUG: No photo selected")
@@ -446,7 +446,7 @@ struct ThumbGridView: View {
                 return .handled
             case "\u{7F}": // Delete key (backspace character)
                 // Toggle "To Delete" state
-                if let selectedPhoto = model.selectedPhoto {
+                if let selectedPhoto = filesModel.selectedPhoto {
                     toggleToDeleteState(for: selectedPhoto)
                 } else {
                     print("DEBUG: No photo selected")
@@ -454,7 +454,7 @@ struct ThumbGridView: View {
                 return .handled
             case "d", "D": // 'd' key for marking for deletion
                 // Toggle "To Delete" state
-                if let selectedPhoto = model.selectedPhoto {
+                if let selectedPhoto = filesModel.selectedPhoto {
                     toggleToDeleteState(for: selectedPhoto)
                 } else {
                     print("DEBUG: No photo selected")
@@ -468,7 +468,7 @@ struct ThumbGridView: View {
             if labelKey == "6" || labelKey == "7" || labelKey == "8" || labelKey == "9" || labelKey == "0" ||
                (keyPress.modifiers.contains(.command) && (labelKey == "6" || labelKey == "7" || labelKey == "8" || labelKey == "9" || labelKey == "0")) {
 
-                if let selectedPhoto = model.selectedPhoto, let label = targetLabel {
+                if let selectedPhoto = filesModel.selectedPhoto, let label = targetLabel {
                     createAndSaveXmpFile(for: selectedPhoto, targetLabel: label)
                 } else {
                     print("DEBUG: No photo selected")
@@ -484,7 +484,7 @@ struct ThumbGridView: View {
             selectedPhotos.removeAll()
             selectedPhotos.insert(filteredPhotos[newIndex].id)
 
-            model.selectedPhoto = filteredPhotos[newIndex]
+            filesModel.selectedPhoto = filteredPhotos[newIndex]
             lastSelectedIndex = newIndex
 
             // Auto-scroll to keep selected photo visible
@@ -660,9 +660,9 @@ struct ThumbGridView: View {
     }
 
     private func toggleToDeleteState(for photo: PhotoItem) {
-        // Find the current photo index in the model's photos array
-        if let photoIndex = model.photos.firstIndex(where: { $0.path == photo.path }) {
-            let currentPhoto = model.photos[photoIndex]
+        // Find the current photo index in the filesModel's photos array
+        if let photoIndex = filesModel.photos.firstIndex(where: { $0.path == photo.path }) {
+            let currentPhoto = filesModel.photos[photoIndex]
 
             // Create a new PhotoItem with toggled toDelete state, preserving all other properties
             let updatedPhoto = PhotoItem(
@@ -674,22 +674,22 @@ struct ThumbGridView: View {
             )
 
             // Update the photos array directly
-            model.photos[photoIndex] = updatedPhoto
+            filesModel.photos[photoIndex] = updatedPhoto
 
             // Always update selectedPhoto to point to the new updated photo instance (same photo, just updated)
-            model.selectedPhoto = updatedPhoto
+            filesModel.selectedPhoto = updatedPhoto
 
             let action = updatedPhoto.toDelete ? "Marked" : "Unmarked"
             print("🗑️ \(action) photo for deletion: \(photo.path)")
         } else {
-            print("⚠️ Photo not found in model: \(photo.path)")
+            print("⚠️ Photo not found in filesModel: \(photo.path)")
         }
     }
 
     private func updatePhotoWithXmpMetadata(photo: PhotoItem, xmpMetadata: XmpMetadata) {
-        // Find the current photo index in the model's photos array
-        if let photoIndex = model.photos.firstIndex(where: { $0.path == photo.path }) {
-            let currentPhoto = model.photos[photoIndex]
+        // Find the current photo index in the filesModel's photos array
+        if let photoIndex = filesModel.photos.firstIndex(where: { $0.path == photo.path }) {
+            let currentPhoto = filesModel.photos[photoIndex]
 
             // Create a new PhotoItem with the updated XMP metadata but preserve the original ID, dateCreated, and toDelete state
             let updatedPhoto = PhotoItem(
@@ -701,19 +701,19 @@ struct ThumbGridView: View {
             )
 
             // Update the photos array directly (since BrowserModel is @Published)
-            model.photos[photoIndex] = updatedPhoto
+            filesModel.photos[photoIndex] = updatedPhoto
 
             // Update selectedPhoto to point to the new updated photo instance (same photo, just updated)
-            model.selectedPhoto = updatedPhoto
+            filesModel.selectedPhoto = updatedPhoto
 
-            print("🔄 PhotoItem updated in model with XMP metadata")
+            print("🔄 PhotoItem updated in filesModel with XMP metadata")
             print("   Path: \(photo.path)")
             print("   Label: \(xmpMetadata.label ?? "None")")
             print("   To Delete: \(updatedPhoto.toDelete)")
             print("   Index: \(photoIndex)")
             print("   ID preserved: \(photo.id)")
         } else {
-            print("⚠️ Photo not found in model: \(photo.path)")
+            print("⚠️ Photo not found in filesModel: \(photo.path)")
         }
     }
 

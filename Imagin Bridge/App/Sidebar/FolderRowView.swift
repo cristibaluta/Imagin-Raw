@@ -13,7 +13,7 @@ struct FolderRowView: View {
     @Binding var selectedFolder: FolderItem?
     let saveExpandedState: () -> Void
     let onDoubleClick: () -> Void
-    @ObservedObject var model: BrowserModel
+    @EnvironmentObject var filesModel: FilesModel
     let isRootFolder: Bool
 
     private var isExpanded: Bool {
@@ -55,7 +55,7 @@ struct FolderRowView: View {
                             // Trigger on-demand loading if this folder needs its children loaded
                             if needsToLoadChildren {
                                 print("Loading children on demand for: \(folder.url.path)")
-                                model.loadChildrenOnDemand(for: folder)
+                                filesModel.loadChildrenOnDemand(for: folder)
                             }
                         } else {
                             expandedFolders.remove(folder.url)
@@ -71,7 +71,6 @@ struct FolderRowView: View {
                         selectedFolder: $selectedFolder,
                         saveExpandedState: saveExpandedState,
                         onDoubleClick: onDoubleClick,
-                        model: model,
                         isRootFolder: false // Child folders are never root folders
                     )
                 }

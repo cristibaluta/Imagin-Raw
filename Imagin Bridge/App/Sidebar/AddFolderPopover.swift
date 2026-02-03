@@ -8,15 +8,15 @@
 import SwiftUI
 
 struct AddFolderPopover: View {
-    @ObservedObject var model: BrowserModel
+    @EnvironmentObject var filesModel: FilesModel
     let onAddVolumes: () -> Void
     let onAddCustomFolder: () -> Void
-    
+
     private var volumesAlreadyAdded: Bool {
         let volumesURL = URL(fileURLWithPath: "/Volumes")
-        return model.rootFolders.contains { $0.url == volumesURL }
+        return filesModel.rootFolders.contains { $0.url == volumesURL }
     }
-    
+
     var body: some View {
         VStack(spacing: 6) {
             VStack(spacing: 4) {
@@ -27,19 +27,19 @@ struct AddFolderPopover: View {
                             .font(.system(size: 16))
                             .foregroundColor(.accentColor)
                             .frame(width: 24)
-                        
+
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Enable Volumes")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.primary)
-                            
+
                             Text("External drives and network volumes")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        
+
                         Spacer()
-                        
+
                         if volumesAlreadyAdded {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 16))
@@ -54,9 +54,9 @@ struct AddFolderPopover: View {
                 .buttonStyle(PlainButtonStyle())
                 .disabled(volumesAlreadyAdded)
                 .opacity(volumesAlreadyAdded ? 0.6 : 1.0)
-                
+
                 Divider()
-                
+
                 // Custom folder option
                 Button(action: onAddCustomFolder) {
                     HStack(spacing: 12) {
@@ -64,17 +64,17 @@ struct AddFolderPopover: View {
                             .font(.system(size: 16))
                             .foregroundColor(.accentColor)
                             .frame(width: 24)
-                        
+
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Choose Folder...")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.primary)
-                            
+
                             Text("Browse and select any folder")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        
+
                         Spacer()
                     }
                     .padding(.horizontal, 12)
@@ -84,17 +84,9 @@ struct AddFolderPopover: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             }
-            
+
             Spacer().frame(height: 4)
         }
         .frame(width: 250)
     }
-}
-
-#Preview {
-    AddFolderPopover(
-        model: BrowserModel(),
-        onAddVolumes: {},
-        onAddCustomFolder: {}
-    )
 }
