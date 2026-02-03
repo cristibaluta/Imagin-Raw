@@ -220,6 +220,21 @@ struct ReviewModeView: View {
             let characters = keyPress.characters
 
             switch characters {
+            case "1":
+                handleRatingKey(1, for: photo)
+                return .handled
+            case "2":
+                handleRatingKey(2, for: photo)
+                return .handled
+            case "3":
+                handleRatingKey(3, for: photo)
+                return .handled
+            case "4":
+                handleRatingKey(4, for: photo)
+                return .handled
+            case "5":
+                handleRatingKey(5, for: photo)
+                return .handled
             case "6":
                 handleLabelKey(.red, for: photo)
                 return .handled
@@ -232,7 +247,7 @@ struct ReviewModeView: View {
             case "9":
                 handleLabelKey(.blue, for: photo)
                 return .handled
-            case "5":
+            case "0":
                 handleLabelKey(.purple, for: photo)
                 return .handled
             case "-":
@@ -251,17 +266,18 @@ struct ReviewModeView: View {
         // Create updated XMP metadata
         let updatedXmp = XmpMetadata(
             label: labelKey.rawValue,
-            creator: nil,
-            rights: nil,
-            createDate: nil,
-            modifyDate: nil,
-            cameraModel: nil,
-            lens: nil,
-            focalLength: nil,
-            aperture: nil,
-            shutterSpeed: nil,
-            iso: nil,
-            exposureBias: nil
+            rating: photo.xmp?.rating, // Preserve existing rating
+            creator: photo.xmp?.creator,
+            rights: photo.xmp?.rights,
+            createDate: photo.xmp?.createDate,
+            modifyDate: photo.xmp?.modifyDate,
+            cameraModel: photo.xmp?.cameraModel,
+            lens: photo.xmp?.lens,
+            focalLength: photo.xmp?.focalLength,
+            aperture: photo.xmp?.aperture,
+            shutterSpeed: photo.xmp?.shutterSpeed,
+            iso: photo.xmp?.iso,
+            exposureBias: photo.xmp?.exposureBias
         )
 
         // Call the update callback
@@ -271,19 +287,42 @@ struct ReviewModeView: View {
     private func removeLabelFromPhoto(_ photo: PhotoItem) {
         let updatedXmp = XmpMetadata(
             label: nil,
-            creator: nil,
-            rights: nil,
-            createDate: nil,
-            modifyDate: nil,
-            cameraModel: nil,
-            lens: nil,
-            focalLength: nil,
-            aperture: nil,
-            shutterSpeed: nil,
-            iso: nil,
-            exposureBias: nil
+            rating: photo.xmp?.rating, // Preserve existing rating
+            creator: photo.xmp?.creator,
+            rights: photo.xmp?.rights,
+            createDate: photo.xmp?.createDate,
+            modifyDate: photo.xmp?.modifyDate,
+            cameraModel: photo.xmp?.cameraModel,
+            lens: photo.xmp?.lens,
+            focalLength: photo.xmp?.focalLength,
+            aperture: photo.xmp?.aperture,
+            shutterSpeed: photo.xmp?.shutterSpeed,
+            iso: photo.xmp?.iso,
+            exposureBias: photo.xmp?.exposureBias
         )
 
+        onUpdatePhoto(photo, updatedXmp)
+    }
+
+    private func handleRatingKey(_ rating: Int, for photo: PhotoItem) {
+        // Create updated XMP metadata with new rating
+        let updatedXmp = XmpMetadata(
+            label: photo.xmp?.label, // Preserve existing label
+            rating: rating,
+            creator: photo.xmp?.creator,
+            rights: photo.xmp?.rights,
+            createDate: photo.xmp?.createDate,
+            modifyDate: photo.xmp?.modifyDate,
+            cameraModel: photo.xmp?.cameraModel,
+            lens: photo.xmp?.lens,
+            focalLength: photo.xmp?.focalLength,
+            aperture: photo.xmp?.aperture,
+            shutterSpeed: photo.xmp?.shutterSpeed,
+            iso: photo.xmp?.iso,
+            exposureBias: photo.xmp?.exposureBias
+        )
+
+        // Call the update callback
         onUpdatePhoto(photo, updatedXmp)
     }
 

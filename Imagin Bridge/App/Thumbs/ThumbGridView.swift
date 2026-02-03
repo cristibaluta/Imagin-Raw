@@ -187,6 +187,9 @@ struct ThumbGridView: View {
                                             } else {
                                                 openInExternalApp(photo: photo)
                                             }
+                                        },
+                                        onRatingChanged: { rating in
+                                            setPhotoRating(photo: photo, rating: rating)
                                         }
                                     )
                                     .frame(width: 100, height: 150)
@@ -393,6 +396,36 @@ struct ThumbGridView: View {
             var targetLabel: String? = nil
 
             switch labelKey {
+            case "1":
+                // Rating key: Set 1 star
+                if let selectedPhoto = model.selectedPhoto {
+                    setPhotoRating(photo: selectedPhoto, rating: 1)
+                }
+                return .handled
+            case "2":
+                // Rating key: Set 2 stars
+                if let selectedPhoto = model.selectedPhoto {
+                    setPhotoRating(photo: selectedPhoto, rating: 2)
+                }
+                return .handled
+            case "3":
+                // Rating key: Set 3 stars
+                if let selectedPhoto = model.selectedPhoto {
+                    setPhotoRating(photo: selectedPhoto, rating: 3)
+                }
+                return .handled
+            case "4":
+                // Rating key: Set 4 stars
+                if let selectedPhoto = model.selectedPhoto {
+                    setPhotoRating(photo: selectedPhoto, rating: 4)
+                }
+                return .handled
+            case "5":
+                // Rating key: Set 5 stars
+                if let selectedPhoto = model.selectedPhoto {
+                    setPhotoRating(photo: selectedPhoto, rating: 5)
+                }
+                return .handled
             case "6":
                 targetLabel = "Select"
             case "7":
@@ -711,6 +744,59 @@ struct ThumbGridView: View {
             print("   ID preserved: \(photo.id)")
         } else {
             print("⚠️ Photo not found in model: \(photo.path)")
+        }
+    }
+
+    private func setPhotoRating(photo: PhotoItem, rating: Int) {
+        let photoURL = URL(fileURLWithPath: photo.path)
+        let photoDirectory = photoURL.deletingLastPathComponent()
+        let photoName = photoURL.deletingPathExtension().lastPathComponent
+        let xmpFileName = "\(photoName).xmp"
+        let xmpFileURL = photoDirectory.appendingPathComponent(xmpFileName)
+
+        var xmpContent: String
+
+        // Read existing XMP file if it exists
+        if FileManager.default.fileExists(atPath: xmpFileURL.path) {
+            do {
+                xmpContent = try String(contentsOf: xmpFileURL, encoding: .utf8)
+                print("📖 Read existing XMP file for rating update")
+
+                // Update the rating in the existing XMP content
+                xmpContent = XmpParser.updateRating(in: xmpContent, rating: rating)
+                print("⭐ Setting rating to \(rating) stars")
+
+            } catch {
+                print("⚠️ Failed to read existing XMP file: \(error)")
+                return
+            }
+        } else {
+            print("📄 No existing XMP file found, will create new one with rating")
+
+            // Create new XMP file with the rating
+            xmpContent = XmpParser.createXmpContent(rating: rating, label: photo.xmp?.label)
+            print("⭐ Creating new XMP file with \(rating) stars")
+        }
+
+        // Save the updated XMP content
+        do {
+            try xmpContent.write(to: xmpFileURL, atomically: true, encoding: .utf8)
+            print("✅ XMP file saved with rating: \(rating)")
+            print("📁 Location: \(photoDirectory.path)")
+
+            // Parse the updated XMP content to get the new metadata
+            if let parsedMetadata = XmpParser.parseMetadata(from: xmpContent) {
+                print("⭐ Rating: \(parsedMetadata.rating ?? 0)")
+                print("📋 Parsed XMP metadata: Rating = \(parsedMetadata.rating ?? 0)")
+
+                // Update the photo item with the new XMP metadata
+                updatePhotoWithXmpMetadata(photo: photo, xmpMetadata: parsedMetadata)
+            } else {
+                print("⚠️ Failed to parse updated XMP metadata")
+            }
+
+        } catch {
+            print("❌ Failed to save XMP file for \(photo.path): \(error)")
         }
     }
 

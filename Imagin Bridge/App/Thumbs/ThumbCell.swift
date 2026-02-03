@@ -12,14 +12,20 @@ struct ThumbCell: View {
     let isMultiSelected: Bool
     let onTap: (NSEvent.ModifierFlags) -> Void
     let onDoubleClick: () -> Void
+    let onRatingChanged: (Int) -> Void
     let size: CGFloat = 100
     @State private var thumbnailImage: NSImage?
     @State private var isLoading = false
     @State private var clickCount = 0
     @State private var clickTimer: Timer?
+    @State private var isHovering = false
 
     private var filename: String {
         URL(fileURLWithPath: photo.path).lastPathComponent
+    }
+
+    private var currentRating: Int {
+        return photo.xmp?.rating ?? 0
     }
 
     var body: some View {
@@ -78,6 +84,9 @@ struct ThumbCell: View {
                     onDoubleClick()
                 }
             }
+            .onHover { hovering in
+                isHovering = hovering
+            }
             .onAppear {
                 loadThumbnail()
             }
@@ -94,6 +103,17 @@ struct ThumbCell: View {
                 )
                 .foregroundColor(getLabelTextColor())
                 .frame(height: 30)
+
+            // Star rating - show when hovering or when photo has rating
+            if isHovering || currentRating > 0 {
+                StarRatingView(
+                    rating: currentRating,
+                    maxRating: 5,
+                    starSize: 12,
+                    onRatingChanged: onRatingChanged
+                )
+                .padding(.top, 2)
+            }
 
             Spacer()
         }
