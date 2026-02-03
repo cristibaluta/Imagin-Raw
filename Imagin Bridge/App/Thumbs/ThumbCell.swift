@@ -84,9 +84,6 @@ struct ThumbCell: View {
                     onDoubleClick()
                 }
             }
-            .onHover { hovering in
-                isHovering = hovering
-            }
             .onAppear {
                 loadThumbnail()
             }
@@ -124,6 +121,9 @@ struct ThumbCell: View {
             .frame(height: 36) // Fixed height container to prevent jumping
 
             Spacer()
+        }
+        .onHover { hovering in
+            isHovering = hovering
         }
     }
 
