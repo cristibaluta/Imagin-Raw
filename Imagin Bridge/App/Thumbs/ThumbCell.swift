@@ -91,29 +91,37 @@ struct ThumbCell: View {
                 loadThumbnail()
             }
 
-            // Filename with colored pill background based on label
-            Text(filename)
-                .font(.system(size: 11))
-                .lineLimit(1)
-                .padding(4)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(getLabelBackgroundColor())
-                        .opacity(hasLabel() ? 1 : 0)
-                )
-                .foregroundColor(getLabelTextColor())
-                .frame(height: 30)
+            // Fixed-height container for filename and stars to prevent jumping
+            VStack(spacing: isHovering || currentRating > 0 ? 0 : 2) { // Tighter spacing when stars show
+                // Filename with colored pill background based on label
+                Text(filename)
+                    .font(.system(size: 11)) // Keep consistent font size
+                    .lineLimit(1)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, isHovering || currentRating > 0 ? 2 : 4) // Tighter padding when stars show
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(getLabelBackgroundColor())
+                            .opacity(hasLabel() ? 1 : 0)
+                    )
+                    .foregroundColor(getLabelTextColor())
+                    .offset(y: isHovering || currentRating > 0 ? -2 : 0) // Move up 2px when stars show
 
-            // Star rating - show when hovering or when photo has rating
-            if isHovering || currentRating > 0 {
-                StarRatingView(
-                    rating: currentRating,
-                    maxRating: 5,
-                    starSize: 12,
-                    onRatingChanged: onRatingChanged
-                )
-                .padding(.top, 2)
+                // Star rating - show when hovering or when photo has rating
+                if isHovering || currentRating > 0 {
+                    StarRatingView(
+                        rating: currentRating,
+                        maxRating: 5,
+                        starSize: 10, // Slightly smaller stars
+                        onRatingChanged: onRatingChanged
+                    )
+                } else {
+                    // Invisible spacer to maintain consistent height
+                    Spacer()
+                        .frame(height: 14) // Height to match star rating view
+                }
             }
+            .frame(height: 36) // Fixed height container to prevent jumping
 
             Spacer()
         }
