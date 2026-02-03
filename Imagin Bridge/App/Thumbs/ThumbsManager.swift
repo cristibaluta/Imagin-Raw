@@ -1,6 +1,6 @@
 //
 //  ThumbsManager.swift
-//  Bridge Replacement
+//  Imagin Bridge
 //
 //  Created by Cristian Baluta on 30.01.2026.
 //

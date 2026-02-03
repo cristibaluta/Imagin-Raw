@@ -140,7 +140,7 @@ struct ContentView: View {
 
     private var navigationTitle: String {
         guard let url = navigationDocumentURL else {
-            return "Bridge Replacement"
+            return "Imagin Bridge"
         }
 
         // Create a breadcrumb-style path

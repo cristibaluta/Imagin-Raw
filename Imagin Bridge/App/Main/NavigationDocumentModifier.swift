@@ -1,6 +1,6 @@
 //
 //  NavigationDocumentModifier.swift
-//  Bridge Replacement
+//  Imagin Bridge
 //
 //  Created by Cristian Baluta on 01.02.2026.
 //

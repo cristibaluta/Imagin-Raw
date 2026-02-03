@@ -1,6 +1,6 @@
 //
 //  AddFolderPopover.swift
-//  Bridge Replacement
+//  Imagin Bridge
 //
 //  Created by Cristian Baluta on 02.02.2026.
 //

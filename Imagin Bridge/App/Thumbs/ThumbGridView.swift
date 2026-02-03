@@ -224,92 +224,94 @@ struct ThumbGridView: View {
                 }
             }
 
-            // Filter and Sort bar
-            HStack(spacing: 12) {
-                // Sort button
-                Button(action: {
-                    showSortPopover.toggle()
-                }) {
-                    Text("Sort")
-                        .font(.caption)
-                        .foregroundColor(.primary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.clear)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3)
-                                .stroke(Color.gray.opacity(0.5), lineWidth: 1)
-                        )
-                }
-                .buttonStyle(PlainButtonStyle())
-                .popover(isPresented: $showSortPopover) {
-                    SortPopoverView(sortOption: $sortOption)
-                }
-                .onChange(of: sortOption) { _, newValue in
-                    saveSortOption(newValue)
-                }
-
-                // Filter section with unified rounded rectangle
-                HStack(spacing: 8) {
-                    // Filter button (existing functionality)
+            // Filter and Sort bar - only show when there are photos
+            if !photos.isEmpty {
+                HStack(spacing: 12) {
+                    // Sort button
                     Button(action: {
-                        showFilterPopover.toggle()
+                        showSortPopover.toggle()
                     }) {
-                        Text("Filter")
+                        Text("Sort")
                             .font(.caption)
                             .foregroundColor(.primary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
+                            .background(Color.clear)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 3)
+                                    .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                            )
                     }
                     .buttonStyle(PlainButtonStyle())
-                    .popover(isPresented: $showFilterPopover) {
-                        FilterPopoverView(selectedLabels: $selectedLabels, photos: photos)
+                    .popover(isPresented: $showSortPopover) {
+                        SortPopoverView(sortOption: $sortOption)
+                    }
+                    .onChange(of: sortOption) { _, newValue in
+                        saveSortOption(newValue)
                     }
 
-                    // Horizontal filter checkmarks for available labels
-                    ForEach(availableLabels, id: \.self) { label in
+                    // Filter section with unified rounded rectangle
+                    HStack(spacing: 8) {
+                        // Filter button (existing functionality)
                         Button(action: {
-                            if selectedLabels.contains(label) {
-                                selectedLabels.remove(label)
-                            } else {
-                                selectedLabels.insert(label)
-                            }
+                            showFilterPopover.toggle()
                         }) {
-                            Image(systemName: selectedLabels.contains(label) ? "checkmark.square.fill" : "square")
-                                .foregroundColor(getColorForLabel(label))
-                                .font(.system(size: 12, weight: .medium))
+                            Text("Filter")
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
                         }
                         .buttonStyle(PlainButtonStyle())
-                        .help(label) // Tooltip shows the label name on hover
+                        .popover(isPresented: $showFilterPopover) {
+                            FilterPopoverView(selectedLabels: $selectedLabels, photos: photos)
+                        }
+
+                        // Horizontal filter checkmarks for available labels
+                        ForEach(availableLabels, id: \.self) { label in
+                            Button(action: {
+                                if selectedLabels.contains(label) {
+                                    selectedLabels.remove(label)
+                                } else {
+                                    selectedLabels.insert(label)
+                                }
+                            }) {
+                                Image(systemName: selectedLabels.contains(label) ? "checkmark.square.fill" : "square")
+                                    .foregroundColor(getColorForLabel(label))
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .help(label) // Tooltip shows the label name on hover
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                    .background(Color.clear)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                    )
+
+                    Spacer()
+
+                    // Show selection count when multiple photos are selected
+                    if selectedPhotos.count > 1 {
+                        Text("\(selectedPhotos.count) of \(photos.count) selected")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    } else if selectedLabels.count > 0 {
+                        Text("\(filteredPhotos.count) of \(photos.count) photos")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("\(photos.count) photos")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
-                .padding(.horizontal, 4)
-                .background(Color.clear)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 3)
-                        .stroke(Color.gray.opacity(0.5), lineWidth: 1)
-                )
-
-                Spacer()
-
-                // Show selection count when multiple photos are selected
-                if selectedPhotos.count > 1 {
-                    Text("\(selectedPhotos.count) of \(photos.count) selected")
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                } else if selectedLabels.count > 0 {
-                    Text("\(filteredPhotos.count) of \(photos.count) photos")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else {
-                    Text("\(photos.count) photos")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(NSColor.controlBackgroundColor))
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color(NSColor.controlBackgroundColor))
         }
     }
 
@@ -569,7 +571,7 @@ struct ThumbGridView: View {
       stEvt:action="saved"
       stEvt:instanceID="xmp.iid:\(instanceID)"
       stEvt:when="\(currentDateString)"
-      stEvt:softwareAgent="Bridge Replacement"
+      stEvt:softwareAgent="Imagin Bridge"
       stEvt:changed="/metadata"/>
     </rdf:Seq>
    </xmpMM:History>
