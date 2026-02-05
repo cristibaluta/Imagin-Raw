@@ -248,7 +248,7 @@ struct ContentView: View {
             }
         }) {
             HStack(spacing: 6) {
-                Image(systemName: "arrow.up.forward.app")
+                Image(systemName: "rectangle.portrait.and.arrow.right")
                     .font(.system(size: 12, weight: .medium))
                 Text(selectedApp?.displayName ?? "Default App")
             }

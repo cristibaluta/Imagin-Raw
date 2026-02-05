@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ImageIO
 
 struct LargePreviewView: View {
     let photo: PhotoItem
@@ -153,9 +154,54 @@ struct LargePreviewView: View {
             return (NSImage(data: imageData), exifInfo)
         } else {
             // Load regular image file directly from disk
-            print("Loading image preview for: \(path)")
+            print("Loading image preview for: \(url)")
+            guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+                  let existingMetadata: CGImageMetadata = CGImageSourceCopyMetadataAtIndex(source, 0, nil) else {
+                return (NSImage(contentsOfFile: path), nil)
+            }
+
+            // 2. Get existing metadata or create a new mutable one
+            let metadata = CGImageMetadataCreateMutableCopy(existingMetadata) ?? CGImageMetadataCreateMutable()
+
+//            trySetLabel(url: url, label: "Select")
+
             return (NSImage(contentsOfFile: path), nil)
         }
+    }
+
+    func trySetLabel(url: URL, label: String) {
+        guard
+            let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+            let meta = CGImageSourceCopyMetadataAtIndex(src, 0, nil),
+            let mutable = CGImageMetadataCreateMutableCopy(meta)
+        else { return }
+
+        guard let tag = CGImageMetadataTagCreate(
+            "http://ns.adobe.com/xap/1.0/" as CFString,
+            "xmp" as CFString,
+            "Label" as CFString,
+            .string,
+            label as CFString
+        ) else { return }
+
+        CGImageMetadataSetTagWithPath(
+            mutable,
+            nil,
+            "xmp:Label" as CFString,
+            tag
+        )
+
+        let dest = CGImageDestinationCreateWithURL(
+            url as CFURL,
+            kUTTypeJPEG,
+            1,
+            nil
+        )!
+
+        CGImageDestinationAddImageFromSource(dest, src, 0, [
+            kCGImageDestinationMetadata as String: mutable
+        ] as CFDictionary)
+        CGImageDestinationFinalize(dest)
     }
 }
 
