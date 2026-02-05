@@ -125,6 +125,13 @@ struct ThumbCell: View {
         .onHover { hovering in
             isHovering = hovering
         }
+        .contextMenu {
+            Button(action: {
+                NSWorkspace.shared.selectFile(photo.path, inFileViewerRootedAtPath: "")
+            }) {
+                Label("Reveal in Finder", systemImage: "magnifyingglass")
+            }
+        }
     }
 
     private func loadThumbnail() {

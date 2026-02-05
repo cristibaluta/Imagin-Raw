@@ -84,6 +84,13 @@ struct FolderRowView: View {
                     .onDoubleClick {
                         onDoubleClick()
                     }
+                    .contextMenu {
+                        Button(action: {
+                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
+                        }) {
+                            Label("Reveal in Finder", systemImage: "magnifyingglass")
+                        }
+                    }
             }
         } else {
             Label(folder.url.lastPathComponent, systemImage: "folder.fill")
@@ -94,6 +101,13 @@ struct FolderRowView: View {
                 }
                 .onDoubleClick {
                     onDoubleClick()
+                }
+                .contextMenu {
+                    Button(action: {
+                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
+                    }) {
+                        Label("Reveal in Finder", systemImage: "magnifyingglass")
+                    }
                 }
         }
     }
