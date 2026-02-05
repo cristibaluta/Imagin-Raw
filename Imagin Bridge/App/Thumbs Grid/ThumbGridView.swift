@@ -5,6 +5,7 @@ struct ThumbGridView: View {
     @EnvironmentObject var filesModel: FilesModel
     let selectedApp: PhotoApp?
     @Binding var gridType: GridType // Accept as binding instead of state
+    @Binding var selectedPhotos: Set<UUID> // Changed from @State to @Binding
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
     let onEnterReviewMode: (() -> Void)?
     @FocusState private var isFocused: Bool
@@ -13,7 +14,6 @@ struct ThumbGridView: View {
     @State private var selectedLabels: Set<String> = []
     @State private var showSortPopover = false
     @State private var sortOption: SortOption = .name
-    @State private var selectedPhotos: Set<UUID> = []
     @State private var lastSelectedIndex: Int?
     @State private var showGridTypePopover = false
 
@@ -892,51 +892,11 @@ struct ThumbGridView: View {
     private func openSelectedPhotosInExternalApp() {
         // Get all selected photos
         let selectedPhotoItems = filteredPhotos.filter { selectedPhotos.contains($0.id) }
-        let urls = selectedPhotoItems.map { URL(fileURLWithPath: $0.path) }
-
-        guard !urls.isEmpty else { return }
-
-        if let app = selectedApp {
-            // Use the selected PhotoApp
-            do {
-                try NSWorkspace.shared.open(urls, withApplicationAt: app.url, options: [], configuration: [:])
-                print("Opening \(urls.count) photos with \(app.displayName)")
-            } catch {
-                print("Failed to open photos with \(app.displayName): \(error)")
-                // Fallback to default application
-                for url in urls {
-                    NSWorkspace.shared.open(url)
-                }
-                print("Opening \(urls.count) photos in default app (fallback)")
-            }
-        } else {
-            // Use system default application
-            for url in urls {
-                NSWorkspace.shared.open(url)
-            }
-            print("Opening \(urls.count) photos in default app")
-        }
+        ExternalAppManager.shared.openPhotos(selectedPhotoItems, with: selectedApp)
     }
 
     private func openInExternalApp(photo: PhotoItem) {
-        let url = URL(fileURLWithPath: photo.path)
-
-        if let app = selectedApp {
-            // Use the selected PhotoApp
-            do {
-                try NSWorkspace.shared.open([url], withApplicationAt: app.url, options: [], configuration: [:])
-                print("Opening \(url.lastPathComponent) with \(app.displayName)")
-            } catch {
-                print("Failed to open \(url.lastPathComponent) with \(app.displayName): \(error)")
-                // Fallback to default application
-                NSWorkspace.shared.open(url)
-                print("Opening \(url.lastPathComponent) in default app (fallback)")
-            }
-        } else {
-            // Use system default application
-            NSWorkspace.shared.open(url)
-            print("Opening \(url.lastPathComponent) in default app")
-        }
+        ExternalAppManager.shared.openPhoto(photo, with: selectedApp)
     }
 
     private func saveSortOption(_ option: SortOption) {
