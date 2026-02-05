@@ -7,7 +7,60 @@
 import Foundation
 import CoreServices
 
-func loadFolderTree(at url: URL, maxDepth: Int = 2, currentDepth: Int = 0) -> FolderItem {
+// MARK: - Security-Scoped Bookmark Management
+
+struct FolderBookmark: Codable {
+    let url: URL
+    let bookmarkData: Data
+
+    enum CodingKeys: String, CodingKey {
+        case url, bookmarkData
+    }
+}
+
+func createSecurityScopedBookmark(for url: URL) -> Data? {
+    do {
+        let bookmarkData = try url.bookmarkData(
+            options: [.withSecurityScope],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        return bookmarkData
+    } catch {
+        print("Failed to create bookmark for \(url): \(error)")
+        return nil
+    }
+}
+
+func restoreSecurityScopedAccess(from bookmarkData: Data) -> URL? {
+    var isStale = false
+    do {
+        let url = try URL(
+            resolvingBookmarkData: bookmarkData,
+            options: [.withSecurityScope, .withoutUI],
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
+        )
+
+        if isStale {
+            print("Bookmark data is stale for URL: \(url)")
+            // TODO: Handle stale bookmarks by re-requesting access
+        }
+
+        // Start accessing the security-scoped resource
+        guard url.startAccessingSecurityScopedResource() else {
+            print("Failed to start accessing security-scoped resource: \(url)")
+            return nil
+        }
+
+        return url
+    } catch {
+        print("Failed to resolve bookmark: \(error)")
+        return nil
+    }
+}
+
+func loadFolderTree(at url: URL, maxDepth: Int = 2, currentDepth: Int = 0, bookmarkData: Data? = nil) -> FolderItem {
     print("Load folder tree: \(url.path) currentDepth: \(currentDepth)")
     var children: [FolderItem] = []
 
@@ -45,7 +98,8 @@ func loadFolderTree(at url: URL, maxDepth: Int = 2, currentDepth: Int = 0) -> Fo
 
     return FolderItem(
         url: url,
-        children: children.isEmpty ? nil : children
+        children: children.isEmpty ? nil : children,
+        bookmarkData: bookmarkData
     )
 }
 
@@ -136,10 +190,18 @@ final class FilesModel: ObservableObject {
     @Published var selectedPhoto: PhotoItem?
     @Published var photos: [PhotoItem] = []
 
-    private let userFoldersKey = "UserManagedFolders"
+    private let userFoldersKey = "UserManagedFolderBookmarks"
+    private var accessedURLs: Set<URL> = []
 
     init() {
         loadUserFolders()
+    }
+
+    deinit {
+        // Stop accessing all security-scoped resources
+        for url in accessedURLs {
+            url.stopAccessingSecurityScopedResource()
+        }
     }
 
     func addFolder(at url: URL) {
@@ -148,8 +210,24 @@ final class FilesModel: ObservableObject {
             return
         }
 
+        // Start accessing the security-scoped resource first (this is crucial for fileImporter URLs)
+        guard url.startAccessingSecurityScopedResource() else {
+            print("Failed to start accessing security-scoped resource: \(url)")
+            return
+        }
+
+        // Create security-scoped bookmark for the selected folder
+        guard let bookmarkData = createSecurityScopedBookmark(for: url) else {
+            print("Failed to create bookmark for folder: \(url)")
+            // Stop accessing if bookmark creation fails
+            url.stopAccessingSecurityScopedResource()
+            return
+        }
+
+        accessedURLs.insert(url)
+
         // Load the folder tree and add to root folders
-        let newFolder = loadFolderTree(at: url, maxDepth: 2)
+        let newFolder = loadFolderTree(at: url, maxDepth: 2, currentDepth: 0, bookmarkData: bookmarkData)
         rootFolders.append(newFolder)
 
         // Save to UserDefaults
@@ -157,20 +235,37 @@ final class FilesModel: ObservableObject {
     }
 
     func removeFolder(at url: URL) {
+        // Stop accessing the security-scoped resource
+        if accessedURLs.contains(url) {
+            url.stopAccessingSecurityScopedResource()
+            accessedURLs.remove(url)
+        }
+
         rootFolders.removeAll { $0.url == url }
         saveUserFolders()
     }
 
     private func loadUserFolders() {
         if let data = UserDefaults.standard.data(forKey: userFoldersKey),
-           let urls = try? JSONDecoder().decode([URL].self, from: data) {
+           let folderBookmarks = try? JSONDecoder().decode([FolderBookmark].self, from: data) {
 
-            // Load folder trees for each saved URL
-            for url in urls {
-                // Verify the folder still exists before adding it
-                if FileManager.default.fileExists(atPath: url.path) {
-                    let folderTree = loadFolderTree(at: url, maxDepth: 2)
-                    rootFolders.append(folderTree)
+            // Restore folder trees from saved bookmarks
+            for bookmark in folderBookmarks {
+                // Restore access using the security-scoped bookmark
+                if let restoredURL = restoreSecurityScopedAccess(from: bookmark.bookmarkData) {
+                    accessedURLs.insert(restoredURL)
+
+                    // Verify the folder still exists before adding it
+                    if FileManager.default.fileExists(atPath: restoredURL.path) {
+                        let folderTree = loadFolderTree(at: restoredURL, maxDepth: 2, currentDepth: 0, bookmarkData: bookmark.bookmarkData)
+                        rootFolders.append(folderTree)
+                    } else {
+                        // Folder no longer exists, stop accessing the resource
+                        restoredURL.stopAccessingSecurityScopedResource()
+                        accessedURLs.remove(restoredURL)
+                    }
+                } else {
+                    print("Failed to restore access for bookmark: \(bookmark.url)")
                 }
             }
         }
@@ -178,8 +273,12 @@ final class FilesModel: ObservableObject {
     }
 
     private func saveUserFolders() {
-        let urls = rootFolders.map { $0.url }
-        if let data = try? JSONEncoder().encode(urls) {
+        let folderBookmarks = rootFolders.compactMap { folder -> FolderBookmark? in
+            guard let bookmarkData = folder.bookmarkData else { return nil }
+            return FolderBookmark(url: folder.url, bookmarkData: bookmarkData)
+        }
+
+        if let data = try? JSONEncoder().encode(folderBookmarks) {
             UserDefaults.standard.set(data, forKey: userFoldersKey)
         }
     }
@@ -194,13 +293,13 @@ final class FilesModel: ObservableObject {
             if folders[i].url == folder.url {
                 // Found the folder, load its children
                 let updatedChildren = loadFolderChildren(for: folder)
-                folders[i] = FolderItem(url: folder.url, children: updatedChildren.isEmpty ? nil : updatedChildren)
+                folders[i] = FolderItem(url: folder.url, children: updatedChildren.isEmpty ? nil : updatedChildren, bookmarkData: folder.bookmarkData)
                 return
             } else if let children = folders[i].children {
                 // Recursively search in children
                 var mutableChildren = children
                 updateFolderChildren(folder: folder, in: &mutableChildren)
-                folders[i] = FolderItem(url: folders[i].url, children: mutableChildren)
+                folders[i] = FolderItem(url: folders[i].url, children: mutableChildren, bookmarkData: folders[i].bookmarkData)
             }
         }
     }
