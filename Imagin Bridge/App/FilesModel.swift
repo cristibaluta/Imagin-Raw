@@ -146,19 +146,20 @@ class FileSystemMonitor {
         let pathString = url.path
         let isInMonitoredPath = monitoredPaths.contains { pathString.hasPrefix($0) }
 
-        // We're interested in directory creation, deletion, or content changes
-        let isDirectoryEvent = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemIsDir)) != 0
+        guard isInMonitoredPath else { return false }
+
+        // We're interested in any file system changes in monitored directories
         let isFileCreated = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated)) != 0
         let isFileRemoved = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRemoved)) != 0
         let isFileRenamed = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRenamed)) != 0
         let isFileModified = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemModified)) != 0
 
-        let isRelevant = isInMonitoredPath && (isDirectoryEvent || isFileCreated || isFileRemoved || isFileRenamed || isFileModified)
+        // Any change in a monitored folder is relevant
+        let isRelevant = isFileCreated || isFileRemoved || isFileRenamed || isFileModified
 
         if isRelevant {
             print("📁 File system change detected:")
             print("   Path: \(pathString)")
-            print("   Is Directory: \(isDirectoryEvent)")
             print("   Created: \(isFileCreated)")
             print("   Removed: \(isFileRemoved)")
             print("   Renamed: \(isFileRenamed)")
@@ -390,9 +391,20 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
         // Find and refresh the affected folder in our tree
         refreshFolderTree(for: url)
 
-        // If this is the currently selected folder, refresh the photos
-        if let selectedFolder = selectedFolder, selectedFolder.url == url {
-            loadPhotosForSelectedFolder()
+        // If this is the currently selected folder or a parent of it, refresh the photos and thumbnails
+        if let selectedFolder = selectedFolder {
+            if selectedFolder.url == url || url.path.hasPrefix(selectedFolder.url.path) {
+                print("Refreshing photos and thumbnails for selected folder")
+
+                // Stop any pending thumbnail requests
+                ThumbsManager.shared.stopQueue()
+
+                // Reload photos for the selected folder
+                loadPhotosForSelectedFolder()
+
+                // Trigger thumbnail regeneration for the new photo list
+                // This will happen automatically when the photos array is updated due to @Published
+            }
         }
     }
 
