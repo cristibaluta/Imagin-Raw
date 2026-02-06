@@ -3,12 +3,13 @@ import SwiftUI
 struct ThumbGridView: View {
     @EnvironmentObject var externalAppManager: ExternalAppManager
     @EnvironmentObject var filesModel: FilesModel
-    let photos: [PhotoItem]
+    var photos: [PhotoItem]
     let selectedApp: PhotoApp?
     @Binding var gridType: GridType // Accept as binding instead of state
     @Binding var selectedPhotos: Set<UUID> // Changed from @State to @Binding
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
     let onEnterReviewMode: (() -> Void)?
+    var filteredPhotos: [PhotoItem] = []
     @FocusState private var isFocused: Bool
     @State private var lastScrolledRow: Int = -1
     @State private var showFilterPopover = false
@@ -75,12 +76,12 @@ struct ThumbGridView: View {
     }
 
     // Computed property for filtered and sorted photos
-    private var filteredPhotos: [PhotoItem] {
-        var result = photos
+    private mutating func filterPhotos() {
+        var result: [PhotoItem] = []
 
         // Apply filtering
         if !selectedLabels.isEmpty {
-            result = result.filter { photo in
+            result = photos.filter { photo in
                 // Handle "To Delete" filter
                 if selectedLabels.contains("To Delete") && photo.toDelete {
                     return true
@@ -112,7 +113,7 @@ struct ThumbGridView: View {
             }
         }
 
-        return result
+        filteredPhotos = result
     }
 
     // Dynamic grid columns based on grid type
@@ -127,7 +128,7 @@ struct ThumbGridView: View {
         let columnCount = gridType.columnCount
         let thumbSize = gridType.thumbSize
         let spacing: CGFloat = 8
-        let horizontalPadding: CGFloat = 8 // 4px padding on each side
+        let horizontalPadding: CGFloat = 16
 
         // Width = (number of columns × thumb size) + (spacing between columns) + horizontal padding
         let totalSpacing = CGFloat(columnCount - 1) * spacing
@@ -400,6 +401,9 @@ struct ThumbGridView: View {
             }
         }
         .frame(width: gridWidth) // Apply exact width to fit thumbnail columns
+        .onAppear() {
+            self.filterPhotos()
+        }
     }
 
     private func handlePhotoTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
@@ -527,9 +531,7 @@ struct ThumbGridView: View {
             }
 
             // Handle both direct key press and Command+key combinations for label keys
-            if labelKey == "6" || labelKey == "7" || labelKey == "8" || labelKey == "9" || labelKey == "0" ||
-                (keyPress.modifiers.contains(.command) && (labelKey == "6" || labelKey == "7" || labelKey == "8" || labelKey == "9" || labelKey == "0")) {
-
+            if ["6", "7", "8", "9", "0"].contains(labelKey) {
                 if let label = targetLabel {
                     applyLabelToSelectedPhotos(label: label)
                 } else {
