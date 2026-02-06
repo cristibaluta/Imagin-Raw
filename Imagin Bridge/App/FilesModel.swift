@@ -148,9 +148,9 @@ class FileSystemMonitor {
 
         guard isInMonitoredPath else { return false }
 
-        // Ignore XMP files - these are metadata files we create and don't need to trigger reloads
+        // Ignore XMP and ACR files - these are metadata files we create and don't need to trigger reloads
         let fileExtension = URL(fileURLWithPath: pathString).pathExtension.lowercased()
-        if fileExtension == "xmp" {
+        if fileExtension == "xmp" || fileExtension == "acr" {
             return false
         }
 
@@ -341,11 +341,12 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
         options: [.skipsHiddenFiles]
     )) ?? []
 
-    // Separate image files from XMP files
+    // Separate image files from XMP and ACR files
     let imageFiles = files.filter { allowed.contains($0.pathExtension.lowercased()) }
     let xmpFiles = files.filter { $0.pathExtension.lowercased() == "xmp" }
+    let acrFiles = files.filter { $0.pathExtension.lowercased() == "acr" }
 
-    // Create a dictionary for XMP lookup by base filename
+    // Create dictionaries for XMP and ACR lookup by base filename
     var xmpLookup: [String: String] = [:]
     for xmpFile in xmpFiles {
         let baseName = xmpFile.deletingPathExtension().lastPathComponent
@@ -354,7 +355,13 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
         }
     }
 
-    // Create PhotoItems with matched XMP content
+    var acrLookup: Set<String> = Set()
+    for acrFile in acrFiles {
+        let baseName = acrFile.deletingPathExtension().lastPathComponent
+        acrLookup.insert(baseName)
+    }
+
+    // Create PhotoItems with matched XMP content and ACR detection
     return imageFiles
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
         .map { imageFile in
@@ -363,12 +370,17 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
             // Get creation date from the file attributes we already retrieved
             let creationDate = (try? imageFile.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date()
 
-            if let xmpContent = xmpLookup[baseName] {
-                let xmp = XmpParser.parseMetadata(from: xmpContent)
-                return PhotoItem(path: imageFile.path, xmp: xmp, dateCreated: creationDate)
+            // Check for XMP metadata
+            let xmp: XmpMetadata? = if let xmpContent = xmpLookup[baseName] {
+                XmpParser.parseMetadata(from: xmpContent)
             } else {
-                return PhotoItem(path: imageFile.path, xmp: nil, dateCreated: creationDate)
+                nil
             }
+
+            // Check for ACR file
+            let hasACR = acrLookup.contains(baseName)
+
+            return PhotoItem(path: imageFile.path, xmp: xmp, dateCreated: creationDate, hasACR: hasACR)
         }
 }
 

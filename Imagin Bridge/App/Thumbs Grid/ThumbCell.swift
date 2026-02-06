@@ -60,6 +60,25 @@ struct ThumbCell: View {
                             .foregroundColor(.orange)
                             .shadow(color: .black, radius: 2, x: 1, y: 1)
                     }
+                    if photo.hasACR {
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Image(systemName: "slider.horizontal.3")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 3, style: .circular)
+                                            .foregroundColor(Color.gray.opacity(0.8))
+                                            .frame(width: 20, height: 20)
+                                    )
+                                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                    .padding(.trailing, 4)
+                                    .padding(.top, 4)
+                            }
+                            Spacer()
+                        }
+                    }
                 }
             )
             .onTapGesture {
