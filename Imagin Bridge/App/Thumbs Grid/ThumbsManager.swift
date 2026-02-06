@@ -91,6 +91,10 @@ class ThumbsManager: ObservableObject {
     private var isProcessingQueue = false
     private var requestCounter = 0 // Counter to track request order
 
+    // Concurrent processing limiter to prevent memory overflow
+    private let processingLimit = 3 // Maximum number of concurrent thumbnail generations
+    private let processingSemaphore: DispatchSemaphore
+
     // Cache directory
     private let cacheDirectory: URL
 
@@ -100,6 +104,9 @@ class ThumbsManager: ObservableObject {
         // Create cache directory in Application Support
         let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         cacheDirectory = cachesDir.appendingPathComponent("ro.imagin.bridge/256")
+
+        // Initialize semaphore for concurrent processing limit
+        processingSemaphore = DispatchSemaphore(value: processingLimit)
 
         // Create directory if it doesn't exist
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
@@ -316,27 +323,38 @@ class ThumbsManager: ObservableObject {
     }
 
     private func processRequest(_ request: ThumbnailRequest) {
-        // First check disk cache
-        if let diskImage = loadFromDisk(cacheKey: request.cacheKey, forPath: request.path) {
-            setCachedImage(diskImage, for: request.cacheKey)
-            DispatchQueue.main.async {
-                request.completion(diskImage)
-            }
-            return
-        }
+        // Wait for a processing slot (limits concurrent thumbnail generation)
+        processingSemaphore.wait()
 
-        // Generate thumbnail from source
-        generateThumbnail(for: request.path, cacheKey: request.cacheKey) { [weak self] image in
-            guard let image = image else {
+        // Wrap in autoreleasepool to release temporary objects immediately
+        autoreleasepool {
+            // First check disk cache
+            if let diskImage = loadFromDisk(cacheKey: request.cacheKey, forPath: request.path) {
+                setCachedImage(diskImage, for: request.cacheKey)
                 DispatchQueue.main.async {
-                    request.completion(nil)
+                    request.completion(diskImage)
                 }
+                // Release semaphore slot
+                processingSemaphore.signal()
                 return
             }
 
-            self?.setCachedImage(image, for: request.cacheKey)
-            DispatchQueue.main.async {
-                request.completion(image)
+            // Generate thumbnail from source
+            generateThumbnail(for: request.path, cacheKey: request.cacheKey) { [weak self] image in
+                // Release semaphore slot when done
+                defer { self?.processingSemaphore.signal() }
+
+                guard let self = self, let image = image else {
+                    DispatchQueue.main.async {
+                        request.completion(nil)
+                    }
+                    return
+                }
+
+                self.setCachedImage(image, for: request.cacheKey)
+                DispatchQueue.main.async {
+                    request.completion(image)
+                }
             }
         }
     }
@@ -370,8 +388,10 @@ class ThumbsManager: ObservableObject {
     }
 
     private func generateThumbnail(for path: String, cacheKey: String, completion: @escaping (NSImage?) -> Void) {
+        let startTime = Date()
         let url = URL(fileURLWithPath: path)
         let fileExtension = url.pathExtension.lowercased()
+        let fileName = url.lastPathComponent
 
         // Define RAW file extensions
         let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
@@ -379,34 +399,86 @@ class ThumbsManager: ObservableObject {
                            "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
                            "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
 
-        var originalImage: NSImage?
+        // Wrap entire thumbnail generation in autoreleasepool
+        autoreleasepool {
+            var originalImage: NSImage?
 
-        if rawExtensions.contains(fileExtension) {
-            // Generate thumbnail from RAW file using RawWrapper
-            print("Generate RAW thumbnail for: \(path)")
-            guard let data = RawWrapper.shared().extractEmbeddedJPEG(path) else {
+            if rawExtensions.contains(fileExtension) {
+                // Generate thumbnail from RAW file using RawWrapper
+                let rawStartTime = Date()
+                print("🔄 [RAW] Starting extraction: \(fileName)")
+
+                guard let data = RawWrapper.shared().extractEmbeddedJPEG(path) else {
+                    let rawDuration = Date().timeIntervalSince(rawStartTime)
+                    print("❌ [RAW] Failed to extract: \(fileName) (\(String(format: "%.2f", rawDuration))s)")
+                    completion(nil)
+                    return
+                }
+
+                let rawDuration = Date().timeIntervalSince(rawStartTime)
+                print("✅ [RAW] Extracted JPEG: \(fileName) (\(String(format: "%.2f", rawDuration))s, \(data.count / 1024)KB)")
+
+                // Create image in its own autoreleasepool
+                autoreleasepool {
+                    originalImage = NSImage(data: data)
+                }
+
+                // Explicitly release the data
+                // (Swift should handle this, but we're being explicit)
+            } else {
+                // Load regular image file directly from disk
+                print("🔄 [IMG] Loading image: \(fileName)")
+                let imgStartTime = Date()
+
+                autoreleasepool {
+                    originalImage = NSImage(contentsOfFile: path)
+                }
+
+                let imgDuration = Date().timeIntervalSince(imgStartTime)
+                if originalImage != nil {
+                    print("✅ [IMG] Loaded: \(fileName) (\(String(format: "%.2f", imgDuration))s)")
+                } else {
+                    print("❌ [IMG] Failed to load: \(fileName) (\(String(format: "%.2f", imgDuration))s)")
+                }
+            }
+
+            guard let image = originalImage else {
+                let totalDuration = Date().timeIntervalSince(startTime)
+                print("❌ [THUMB] Failed: \(fileName) (\(String(format: "%.2f", totalDuration))s total)")
                 completion(nil)
                 return
             }
-            originalImage = NSImage(data: data)
-        } else {
-            // Load regular image file directly from disk
-            print("Generate thumbnail for image file: \(path)")
-            originalImage = NSImage(contentsOfFile: path)
+
+            // Resize in its own autoreleasepool to release the original image ASAP
+            let thumbnail: NSImage? = autoreleasepool {
+                let resizeStartTime = Date()
+                let resized = image.resized(maxSize: thumbSize)
+                let resizeDuration = Date().timeIntervalSince(resizeStartTime)
+                print("🔄 [RESIZE] \(fileName) (\(String(format: "%.3f", resizeDuration))s)")
+                return resized
+            }
+
+            // Original image should be released here
+            originalImage = nil
+
+            guard let finalThumbnail = thumbnail else {
+                let totalDuration = Date().timeIntervalSince(startTime)
+                print("❌ [THUMB] Resize failed: \(fileName) (\(String(format: "%.2f", totalDuration))s total)")
+                completion(nil)
+                return
+            }
+
+            // Save to disk
+            let saveStartTime = Date()
+            saveToDisk(finalThumbnail, cacheKey: cacheKey, forPath: path)
+            let saveDuration = Date().timeIntervalSince(saveStartTime)
+
+            let totalDuration = Date().timeIntervalSince(startTime)
+            print("✅ [THUMB] Complete: \(fileName) (\(String(format: "%.2f", totalDuration))s total, save: \(String(format: "%.3f", saveDuration))s)")
+
+            // Return result
+            completion(finalThumbnail)
         }
-
-        guard let image = originalImage else {
-            completion(nil)
-            return
-        }
-
-        let thumbnail = image.resized(maxSize: thumbSize)
-
-        // Save to disk
-        saveToDisk(thumbnail, cacheKey: cacheKey, forPath: path)
-
-        // Return result
-        completion(thumbnail)
     }
 
     private func rebuildQueue() {
