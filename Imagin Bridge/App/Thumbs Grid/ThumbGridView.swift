@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ThumbGridView: View {
+    @EnvironmentObject var externalAppManager: ExternalAppManager
     let photos: [PhotoItem]
     @EnvironmentObject var filesModel: FilesModel
     let selectedApp: PhotoApp?
@@ -893,11 +894,11 @@ struct ThumbGridView: View {
     private func openSelectedPhotosInExternalApp() {
         // Get all selected photos
         let selectedPhotoItems = filteredPhotos.filter { selectedPhotos.contains($0.id) }
-        ExternalAppManager.shared.openPhotos(selectedPhotoItems, with: selectedApp)
+        externalAppManager.openPhotos(selectedPhotoItems, with: selectedApp)
     }
 
     private func openInExternalApp(photo: PhotoItem) {
-        ExternalAppManager.shared.openPhoto(photo, with: selectedApp)
+        externalAppManager.openPhoto(photo, with: selectedApp)
     }
 
     private func saveSortOption(_ option: SortOption) {
