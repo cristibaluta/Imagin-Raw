@@ -11,23 +11,23 @@ struct ThumbGridView: View {
     @StateObject private var viewModel: ThumbGridViewModel
     @EnvironmentObject var externalAppManager: ExternalAppManager
     @EnvironmentObject var filesModel: FilesModel
-    
+
     let selectedApp: PhotoApp?
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
     let onEnterReviewMode: (() -> Void)?
-    
+
     @FocusState private var isFocused: Bool
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
     @State private var showGridTypePopover = false
-    
+
     init(filesModel: FilesModel, selectedApp: PhotoApp?, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?) {
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
         self.selectedApp = selectedApp
         self.onOpenSelectedPhotos = onOpenSelectedPhotos
         self.onEnterReviewMode = onEnterReviewMode
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Main thumbnail grid
@@ -40,7 +40,7 @@ struct ThumbGridView: View {
                     }
                 }
             }
-            
+
             // Filter and Sort bar
             if !viewModel.photos.isEmpty {
                 filterSortBar
@@ -50,28 +50,28 @@ struct ThumbGridView: View {
         .fixedSize(horizontal: true, vertical: false)
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth)
     }
-    
+
     // MARK: - View Components
-    
+
     private var emptyStateView: some View {
         VStack(spacing: 16) {
             Spacer()
-            
+
             Image(systemName: "photo.on.rectangle")
                 .font(.system(size: 48))
                 .foregroundColor(.secondary)
-            
+
             VStack(spacing: 8) {
                 Text(viewModel.photos.isEmpty ? "No Supported Photos Found" : "No Photos Match Current Filter")
                     .font(.headline)
                     .foregroundColor(.primary)
-                
+
                 if viewModel.photos.isEmpty {
                     Text("This folder doesn't contain any supported image formats.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-                    
+
                     Text("Supported formats: RAW files (CR2, NEF, ARW, etc.), JPEG, PNG, TIFF")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -83,12 +83,12 @@ struct ThumbGridView: View {
                         .multilineTextAlignment(.center)
                 }
             }
-            
+
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     private func photoGridView(proxy: ScrollViewProxy, geometry: GeometryProxy) -> some View {
         let content = ScrollView(.vertical, showsIndicators: true) {
             LazyVGrid(columns: viewModel.dynamicColumns, spacing: 8) {
@@ -99,7 +99,7 @@ struct ThumbGridView: View {
             .padding(.horizontal, 4)
             .padding(.vertical, 4)
         }
-        
+
         return content
             .background(scrollViewConfig)
             .focusable()
@@ -118,13 +118,20 @@ struct ThumbGridView: View {
                 }
             }
             .onChange(of: filesModel.selectedFolder) { _, newFolder in
-                // Scroll to top when folder changes
+                // Scroll to top and select first photo when folder changes
                 if let firstPhoto = viewModel.filteredPhotos.first {
+                    // Select the first photo
+                    filesModel.selectedPhoto = firstPhoto
+                    viewModel.selectedPhotos.removeAll()
+                    viewModel.selectedPhotos.insert(firstPhoto.id)
+                    viewModel.lastSelectedIndex = 0
+
+                    // Scroll to top without animation
                     proxy.scrollTo(firstPhoto.id, anchor: .top)
                 }
             }
     }
-    
+
     private func createThumbCell(for photo: PhotoItem) -> some View {
         ThumbCell(
             photo: photo,
@@ -143,7 +150,7 @@ struct ThumbGridView: View {
         .frame(width: viewModel.gridType.thumbSize, height: viewModel.gridType.cellHeight)
         .id(photo.id)
     }
-    
+
     private var scrollViewConfig: some View {
         GeometryReader { _ in
             Color.clear.onAppear {
@@ -151,7 +158,7 @@ struct ThumbGridView: View {
             }
         }
     }
-    
+
     private var filterSortBar: some View {
         HStack(spacing: 12) {
             // Grid Type button
@@ -164,7 +171,7 @@ struct ThumbGridView: View {
             }
             .buttonStyle(PlainButtonStyle())
             .padding(.leading, 8)
-            
+
             // Sort button
             Button(action: {
                 showSortPopover.toggle()
@@ -180,7 +187,7 @@ struct ThumbGridView: View {
             .onChange(of: viewModel.sortOption) { _, _ in
                 viewModel.saveSortOption()
             }
-            
+
             // Filter section
             HStack(spacing: 2) {
                 Button(action: {
@@ -197,7 +204,7 @@ struct ThumbGridView: View {
                 .popover(isPresented: $showFilterPopover) {
                     FilterPopoverView(selectedLabels: $viewModel.selectedLabels, photos: viewModel.photos)
                 }
-                
+
                 ForEach(viewModel.availableLabels, id: \.self) { label in
                     Button(action: {
                         viewModel.toggleLabelFilter(label)
@@ -216,16 +223,16 @@ struct ThumbGridView: View {
                     .stroke(Color.gray.opacity(0.5), lineWidth: 1)
             )
             .layoutPriority(1)
-            
+
             Spacer()
-            
+
             // Photo count
             photoCountText
         }
         .frame(height: 40)
         .background(Color(NSColor.controlBackgroundColor))
     }
-    
+
     private var photoCountText: some View {
         Group {
             if viewModel.selectedPhotos.count > 1 {
@@ -245,9 +252,9 @@ struct ThumbGridView: View {
         .lineLimit(1)
         .padding(.trailing, 8)
     }
-    
+
     // MARK: - Event Handlers
-    
+
     private func handleDoubleClick(photo: PhotoItem) {
         filesModel.selectedPhoto = photo
         if viewModel.selectedPhotos.count > 1 {
@@ -257,13 +264,13 @@ struct ThumbGridView: View {
             externalAppManager.openPhoto(photo, with: selectedApp)
         }
     }
-    
+
     private func handleKeyPress(_ keyPress: KeyPress, proxy: ScrollViewProxy, viewportHeight: CGFloat) -> KeyPress.Result {
         guard !viewModel.filteredPhotos.isEmpty else { return .ignored }
-        
+
         let currentIndex = viewModel.filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
         var newIndex = currentIndex
-        
+
         switch keyPress.key {
         case .leftArrow:
             newIndex = max(0, currentIndex - 1)
@@ -284,16 +291,16 @@ struct ThumbGridView: View {
         default:
             return handleOtherKeys(keyPress)
         }
-        
+
         if newIndex != currentIndex {
             viewModel.navigateToPhoto(at: newIndex)
             proxy.scrollTo(viewModel.filteredPhotos[newIndex].id, anchor: .center)
             return .handled
         }
-        
+
         return .ignored
     }
-    
+
     private func handleReturnKey() {
         if viewModel.selectedPhotos.count > 1 {
             let selectedPhotoItems = viewModel.filteredPhotos.filter { viewModel.selectedPhotos.contains($0.id) }
@@ -302,25 +309,25 @@ struct ThumbGridView: View {
             externalAppManager.openPhoto(selectedPhoto, with: selectedApp)
         }
     }
-    
+
     private func handleOtherKeys(_ keyPress: KeyPress) -> KeyPress.Result {
         let photos = viewModel.getSelectedPhotosForBulkAction()
         guard !photos.isEmpty else { return .ignored }
-        
+
         // Command+A for Select All
         if keyPress.modifiers.contains(.command) && keyPress.characters == "a" {
             viewModel.selectAll()
             return .handled
         }
-        
+
         let key = keyPress.characters
-        
+
         // Rating keys (1-5)
         if let rating = Int(key), rating >= 1 && rating <= 5 {
             viewModel.applyRating(rating, to: photos)
             return .handled
         }
-        
+
         // Label keys (6-0)
         let labelMap: [String: String] = [
             "6": "Select",
@@ -329,27 +336,27 @@ struct ThumbGridView: View {
             "9": "Review",
             "0": "To Do"
         ]
-        
+
         if let label = labelMap[key] {
             viewModel.applyLabel(label, to: photos)
             return .handled
         }
-        
+
         // Remove label
         if key == "-" {
             viewModel.removeLabels(from: photos)
             return .handled
         }
-        
+
         // Toggle delete state
         if key == "\u{7F}" || key == "d" || key == "D" {
             viewModel.toggleDeleteState(for: photos)
             return .handled
         }
-        
+
         return .ignored
     }
-    
+
     private func configureScrollView() {
         DispatchQueue.main.async {
             if let scrollView = NSApp.keyWindow?.contentView?.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView {
