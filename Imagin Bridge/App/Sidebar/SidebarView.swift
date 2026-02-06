@@ -255,8 +255,8 @@ struct SidebarView: View {
         // Instead of adding /Volumes directly (which won't work in sandboxed apps),
         // open a file picker at /Volumes to let user select which volume to add
         let openPanel = NSOpenPanel()
-        openPanel.message = "Select a volume or folder in /Volumes to access"
-        openPanel.prompt = "Add Folder"
+        openPanel.message = "Please allow access to this folder in order to see your external hard drives"
+        openPanel.prompt = "Allow Access"
         openPanel.canChooseFiles = false
         openPanel.canChooseDirectories = true
         openPanel.canCreateDirectories = false
