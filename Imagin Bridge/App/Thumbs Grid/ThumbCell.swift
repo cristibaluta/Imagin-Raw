@@ -9,7 +9,6 @@ import SwiftUI
 struct ThumbCell: View {
     let photo: PhotoItem
     let isSelected: Bool
-    let isMultiSelected: Bool
     let onTap: (NSEvent.ModifierFlags) -> Void
     let onDoubleClick: () -> Void
     let onRatingChanged: (Int) -> Void
@@ -46,10 +45,7 @@ struct ThumbCell: View {
             .frame(width: size, height: size)
             .overlay(
                 Rectangle()
-                    .stroke(
-                        (isSelected || isMultiSelected) ? Color.blue : .clear,
-                        lineWidth: 2
-                    )
+                    .stroke(isSelected ? Color.blue : .clear, lineWidth: 2)
             )
             .overlay(
                 // Trash icon overlay for photos marked for deletion

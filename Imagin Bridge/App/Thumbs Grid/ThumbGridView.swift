@@ -2,8 +2,8 @@ import SwiftUI
 
 struct ThumbGridView: View {
     @EnvironmentObject var externalAppManager: ExternalAppManager
-    let photos: [PhotoItem]
     @EnvironmentObject var filesModel: FilesModel
+    let photos: [PhotoItem]
     let selectedApp: PhotoApp?
     @Binding var gridType: GridType // Accept as binding instead of state
     @Binding var selectedPhotos: Set<UUID> // Changed from @State to @Binding
@@ -242,8 +242,7 @@ struct ThumbGridView: View {
                                 ForEach(filteredPhotos, id: \.id) { photo in
                                     ThumbCell(
                                         photo: photo,
-                                        isSelected: filesModel.selectedPhoto?.id == photo.id,
-                                        isMultiSelected: selectedPhotos.contains(photo.id),
+                                        isSelected: selectedPhotos.contains(photo.id),
                                         onTap: { modifiers in
                                             handlePhotoTap(photo: photo, modifiers: modifiers)
                                         },
@@ -539,11 +538,10 @@ struct ThumbGridView: View {
                 return .handled
             }
         }
+        print(">>>>> currentIndex \(currentIndex) newIndex \(newIndex)")
 
         if newIndex != currentIndex {
-            // Clear multi-selection when navigating with arrow keys
-            selectedPhotos.removeAll()
-            selectedPhotos.insert(filteredPhotos[newIndex].id)
+            selectedPhotos = [filteredPhotos[newIndex].id]
 
             filesModel.selectedPhoto = filteredPhotos[newIndex]
             lastSelectedIndex = newIndex
