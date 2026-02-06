@@ -424,6 +424,11 @@ struct ContentView: View {
                 ".on1.", "topaz", "nik", "hdr", "panorama", "preview"
             ]
 
+            // Bundle IDs to ignore from the photo apps list
+            let ignoredApps = [
+                "com.apple.PreviewShell"
+            ]
+
             var apps: [PhotoApp] = []
 
             for item in query.results {
@@ -432,6 +437,11 @@ struct ContentView: View {
                       let bundle = Bundle(path: path),
                       let bundleID = bundle.bundleIdentifier
                 else { continue }
+
+                // Skip ignored apps
+                if ignoredApps.contains(bundleID) {
+                    continue
+                }
 
                 let name = bundle.object(
                     forInfoDictionaryKey: "CFBundleDisplayName"
