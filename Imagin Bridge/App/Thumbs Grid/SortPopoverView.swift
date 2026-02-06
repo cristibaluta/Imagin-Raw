@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SortPopoverView: View {
     @Binding var sortOption: ThumbGridViewModel.SortOption
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -21,6 +22,7 @@ struct SortPopoverView: View {
                 ForEach(ThumbGridViewModel.SortOption.allCases, id: \.self) { option in
                     Button(action: {
                         sortOption = option
+                        dismiss()
                     }) {
                         HStack {
                             Image(systemName: sortOption == option ? "circle.fill" : "circle")

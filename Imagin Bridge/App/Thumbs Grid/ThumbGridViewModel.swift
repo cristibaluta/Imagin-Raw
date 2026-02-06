@@ -16,27 +16,27 @@ class ThumbGridViewModel: ObservableObject {
     @Published var sortOption: SortOption = .name
     @Published var gridType: GridType = .threeColumns
     @Published var lastSelectedIndex: Int?
-    
+
     // MARK: - Dependencies
     private let filesModel: FilesModel
-    
+
     // MARK: - Constants
     private let sortOptionKey = "SelectedSortOption"
     private let gridTypeKey = "SelectedGridType"
-    
+
     // MARK: - Enums
     enum SortOption: String, CaseIterable {
         case name = "Name"
         case dateCreated = "Date Created"
     }
-    
+
     enum GridType: String, CaseIterable, Identifiable {
         case twoColumns = "TwoColumns"
         case threeColumns = "ThreeColumns"
         case fourColumns = "FourColumns"
-        
+
         var id: String { self.rawValue }
-        
+
         var columnCount: Int {
             switch self {
             case .twoColumns: return 2
@@ -44,7 +44,7 @@ class ThumbGridViewModel: ObservableObject {
             case .fourColumns: return 4
             }
         }
-        
+
         var thumbSize: CGFloat {
             switch self {
             case .twoColumns: return 100
@@ -52,7 +52,7 @@ class ThumbGridViewModel: ObservableObject {
             case .fourColumns: return 200
             }
         }
-        
+
         var cellHeight: CGFloat {
             switch self {
             case .twoColumns: return 150
@@ -60,7 +60,7 @@ class ThumbGridViewModel: ObservableObject {
             case .fourColumns: return 250
             }
         }
-        
+
         var displayName: String {
             switch self {
             case .twoColumns: return "2 Columns (100px)"
@@ -68,7 +68,7 @@ class ThumbGridViewModel: ObservableObject {
             case .fourColumns: return "4 Columns (200px)"
             }
         }
-        
+
         var iconName: String {
             switch self {
             case .twoColumns: return "square.grid.2x2"
@@ -77,61 +77,61 @@ class ThumbGridViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Initialization
     init(filesModel: FilesModel) {
         self.filesModel = filesModel
         loadSortOption()
         loadGridType()
     }
-    
+
     // MARK: - Computed Properties
     var photos: [PhotoItem] {
         return filesModel.photos
     }
-    
+
     var filteredPhotos: [PhotoItem] {
         var result = photos
-        
+
         // Apply filtering
         if !selectedLabels.isEmpty {
             result = result.filter { photo in
                 if selectedLabels.contains("To Delete") && photo.toDelete {
                     return true
                 }
-                
+
                 let photoLabel = photo.xmp?.label ?? ""
-                
+
                 if selectedLabels.contains("No Label") && photoLabel.isEmpty && !photo.toDelete {
                     return true
                 }
-                
+
                 return selectedLabels.contains(photoLabel) && !photo.toDelete
             }
         }
-        
+
         // Apply sorting
         switch sortOption {
         case .name:
             result = result.sorted { photo1, photo2 in
                 let name1 = URL(fileURLWithPath: photo1.path).lastPathComponent
                 let name2 = URL(fileURLWithPath: photo2.path).lastPathComponent
-                return name1 < name2
+                return name1.localizedStandardCompare(name2) == .orderedAscending
             }
         case .dateCreated:
             result = result.sorted { photo1, photo2 in
                 return photo1.dateCreated < photo2.dateCreated
             }
         }
-        
+
         return result
     }
-    
+
     var availableLabels: [String] {
         var labelSet = Set<String>()
         var hasNoLabel = false
         var hasToDelete = false
-        
+
         for photo in photos {
             if photo.toDelete {
                 hasToDelete = true
@@ -141,32 +141,32 @@ class ThumbGridViewModel: ObservableObject {
                 hasNoLabel = true
             }
         }
-        
+
         var result: [String] = []
         if hasNoLabel {
             result.append("No Label")
         }
-        
+
         let standardOrder = ["Select", "Second", "Approved", "Review", "To Do"]
         for label in standardOrder {
             if labelSet.contains(label) {
                 result.append(label)
             }
         }
-        
+
         if hasToDelete {
             result.append("To Delete")
         }
-        
+
         return result
     }
-    
+
     var dynamicColumns: [GridItem] {
         let columnCount = gridType.columnCount
         let spacing: CGFloat = 8
         return Array(repeating: GridItem(.flexible(minimum: gridType.thumbSize), spacing: spacing), count: columnCount)
     }
-    
+
     var gridWidth: CGFloat {
         let columnCount = gridType.columnCount
         let thumbSize = gridType.thumbSize
@@ -175,11 +175,11 @@ class ThumbGridViewModel: ObservableObject {
         let totalSpacing = CGFloat(columnCount - 1) * spacing
         return (CGFloat(columnCount) * thumbSize) + totalSpacing + horizontalPadding
     }
-    
+
     // MARK: - Selection Management
     func handlePhotoTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
         let photoIndex = filteredPhotos.firstIndex(where: { $0.id == photo.id }) ?? 0
-        
+
         if modifiers.contains(.command) {
             if selectedPhotos.contains(photo.id) {
                 selectedPhotos.remove(photo.id)
@@ -191,7 +191,7 @@ class ThumbGridViewModel: ObservableObject {
         } else if modifiers.contains(.shift) && lastSelectedIndex != nil {
             let startIndex = min(lastSelectedIndex!, photoIndex)
             let endIndex = max(lastSelectedIndex!, photoIndex)
-            
+
             for index in startIndex...endIndex {
                 selectedPhotos.insert(filteredPhotos[index].id)
             }
@@ -203,7 +203,7 @@ class ThumbGridViewModel: ObservableObject {
             lastSelectedIndex = photoIndex
         }
     }
-    
+
     func selectAll() {
         selectedPhotos.removeAll()
         for photo in filteredPhotos {
@@ -214,16 +214,16 @@ class ThumbGridViewModel: ObservableObject {
             lastSelectedIndex = 0
         }
     }
-    
+
     func navigateToPhoto(at newIndex: Int) {
         guard newIndex >= 0 && newIndex < filteredPhotos.count else { return }
-        
+
         selectedPhotos.removeAll()
         selectedPhotos.insert(filteredPhotos[newIndex].id)
         filesModel.selectedPhoto = filteredPhotos[newIndex]
         lastSelectedIndex = newIndex
     }
-    
+
     func initializeSelection() {
         if filesModel.selectedPhoto == nil && !filteredPhotos.isEmpty {
             filesModel.selectedPhoto = filteredPhotos.first
@@ -233,7 +233,7 @@ class ThumbGridViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Rating & Label Management
     func applyRating(_ rating: Int, to photos: [PhotoItem]) {
         print("📊 Applying rating \(rating) to \(photos.count) selected photos")
@@ -241,28 +241,28 @@ class ThumbGridViewModel: ObservableObject {
             setPhotoRating(photo: photo, rating: rating)
         }
     }
-    
+
     func applyLabel(_ label: String, to photos: [PhotoItem]) {
         print("🏷️ Applying label '\(label)' to \(photos.count) selected photos")
         for photo in photos {
             createAndSaveXmpFile(for: photo, targetLabel: label)
         }
     }
-    
+
     func removeLabels(from photos: [PhotoItem]) {
         print("🗑️ Removing labels from \(photos.count) selected photos")
         for photo in photos {
             removeAnyLabel(for: photo)
         }
     }
-    
+
     func toggleDeleteState(for photos: [PhotoItem]) {
         print("🗑️ Toggling delete state for \(photos.count) selected photos")
         for photo in photos {
             toggleToDeleteState(for: photo)
         }
     }
-    
+
     func getSelectedPhotosForBulkAction() -> [PhotoItem] {
         if selectedPhotos.count > 1 {
             return filteredPhotos.filter { selectedPhotos.contains($0.id) }
@@ -273,35 +273,35 @@ class ThumbGridViewModel: ObservableObject {
             return []
         }
     }
-    
+
     // MARK: - Persistence
     func saveSortOption() {
         UserDefaults.standard.set(sortOption.rawValue, forKey: sortOptionKey)
     }
-    
+
     func loadSortOption() {
         if let savedOption = UserDefaults.standard.string(forKey: sortOptionKey),
            let option = SortOption(rawValue: savedOption) {
             sortOption = option
         }
     }
-    
+
     func saveGridType() {
         UserDefaults.standard.set(gridType.rawValue, forKey: gridTypeKey)
     }
-    
+
     func loadGridType() {
         if let savedType = UserDefaults.standard.string(forKey: gridTypeKey),
            let type = GridType(rawValue: savedType) {
             gridType = type
         }
     }
-    
+
     func toggleGridType() {
         gridType = (gridType == .threeColumns) ? .fourColumns : .threeColumns
         saveGridType()
     }
-    
+
     func toggleLabelFilter(_ label: String) {
         if selectedLabels.contains(label) {
             selectedLabels.remove(label)
@@ -309,7 +309,7 @@ class ThumbGridViewModel: ObservableObject {
             selectedLabels.insert(label)
         }
     }
-    
+
     func getColorForLabel(_ label: String) -> Color {
         switch label {
         case "No Label": return .secondary
@@ -322,7 +322,7 @@ class ThumbGridViewModel: ObservableObject {
         default: return .secondary
         }
     }
-    
+
     // MARK: - Private XMP Operations
     private func setPhotoRating(photo: PhotoItem, rating: Int) {
         let photoURL = URL(fileURLWithPath: photo.path)
@@ -330,9 +330,9 @@ class ThumbGridViewModel: ObservableObject {
         let photoName = photoURL.deletingPathExtension().lastPathComponent
         let xmpFileName = "\(photoName).xmp"
         let xmpFileURL = photoDirectory.appendingPathComponent(xmpFileName)
-        
+
         var xmpContent: String
-        
+
         if FileManager.default.fileExists(atPath: xmpFileURL.path) {
             do {
                 xmpContent = try String(contentsOf: xmpFileURL, encoding: .utf8)
@@ -344,7 +344,7 @@ class ThumbGridViewModel: ObservableObject {
         } else {
             xmpContent = XmpParser.createXmpContent(rating: rating, label: photo.xmp?.label)
         }
-        
+
         do {
             try xmpContent.write(to: xmpFileURL, atomically: true, encoding: .utf8)
             if let parsedMetadata = XmpParser.parseMetadata(from: xmpContent) {
@@ -354,25 +354,25 @@ class ThumbGridViewModel: ObservableObject {
             print("❌ Failed to save XMP file: \(error)")
         }
     }
-    
+
     private func createAndSaveXmpFile(for photo: PhotoItem, targetLabel: String) {
         let photoURL = URL(fileURLWithPath: photo.path)
         let photoDirectory = photoURL.deletingLastPathComponent()
         let photoName = photoURL.deletingPathExtension().lastPathComponent
         let xmpFileName = "\(photoName).xmp"
         let xmpFileURL = photoDirectory.appendingPathComponent(xmpFileName)
-        
+
         var xmpContent: String
         var currentLabel: String? = nil
-        
+
         if FileManager.default.fileExists(atPath: xmpFileURL.path) {
             do {
                 xmpContent = try String(contentsOf: xmpFileURL, encoding: .utf8)
-                
+
                 if let existingMetadata = XmpParser.parseMetadata(from: xmpContent) {
                     currentLabel = existingMetadata.label
                 }
-                
+
                 let newLabel: String? = (currentLabel == targetLabel) ? nil : targetLabel
                 xmpContent = updateXmpLabel(in: xmpContent, newLabel: newLabel)
             } catch {
@@ -382,7 +382,7 @@ class ThumbGridViewModel: ObservableObject {
         } else {
             xmpContent = XmpParser.createXmpContent(rating: photo.xmp?.rating ?? 0, label: targetLabel)
         }
-        
+
         do {
             try xmpContent.write(to: xmpFileURL, atomically: true, encoding: .utf8)
             if let parsedMetadata = XmpParser.parseMetadata(from: xmpContent) {
@@ -392,23 +392,23 @@ class ThumbGridViewModel: ObservableObject {
             print("❌ Failed to save XMP file: \(error)")
         }
     }
-    
+
     private func removeAnyLabel(for photo: PhotoItem) {
         let photoURL = URL(fileURLWithPath: photo.path)
         let photoDirectory = photoURL.deletingLastPathComponent()
         let photoName = photoURL.deletingPathExtension().lastPathComponent
         let xmpFileName = "\(photoName).xmp"
         let xmpFileURL = photoDirectory.appendingPathComponent(xmpFileName)
-        
+
         guard FileManager.default.fileExists(atPath: xmpFileURL.path) else {
             return
         }
-        
+
         do {
             var xmpContent = try String(contentsOf: xmpFileURL, encoding: .utf8)
             xmpContent = updateXmpLabel(in: xmpContent, newLabel: nil)
             try xmpContent.write(to: xmpFileURL, atomically: true, encoding: .utf8)
-            
+
             if let parsedMetadata = XmpParser.parseMetadata(from: xmpContent) {
                 updatePhotoWithXmpMetadata(photo: photo, xmpMetadata: parsedMetadata)
             }
@@ -416,11 +416,11 @@ class ThumbGridViewModel: ObservableObject {
             print("❌ Failed to remove label: \(error)")
         }
     }
-    
+
     private func updateXmpLabel(in xmpContent: String, newLabel: String?) -> String {
         var updatedContent = xmpContent
         let labelPattern = #"xmp:Label="[^"]*""#
-        
+
         if let range = updatedContent.range(of: labelPattern, options: .regularExpression) {
             if let newLabel = newLabel {
                 updatedContent.replaceSubrange(range, with: "xmp:Label=\"\(newLabel)\"")
@@ -435,13 +435,13 @@ class ThumbGridViewModel: ObservableObject {
                 updatedContent.insert(contentsOf: labelAttribute, at: insertPosition)
             }
         }
-        
+
         // Update MetadataDate
         let currentDate = Date()
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withTimeZone]
         let currentDateString = dateFormatter.string(from: currentDate)
-        
+
         let metadataDatePattern = #"xmp:MetadataDate="[^"]*""#
         if let range = updatedContent.range(of: metadataDatePattern, options: .regularExpression) {
             updatedContent.replaceSubrange(range, with: "xmp:MetadataDate=\"\(currentDateString)\"")
@@ -453,14 +453,14 @@ class ThumbGridViewModel: ObservableObject {
                 updatedContent.insert(contentsOf: metadataAttribute, at: insertPosition)
             }
         }
-        
+
         return updatedContent
     }
-    
+
     private func toggleToDeleteState(for photo: PhotoItem) {
         if let photoIndex = filesModel.photos.firstIndex(where: { $0.path == photo.path }) {
             let currentPhoto = filesModel.photos[photoIndex]
-            
+
             let updatedPhoto = PhotoItem(
                 id: currentPhoto.id,
                 path: currentPhoto.path,
@@ -468,16 +468,16 @@ class ThumbGridViewModel: ObservableObject {
                 dateCreated: currentPhoto.dateCreated,
                 toDelete: !currentPhoto.toDelete
             )
-            
+
             filesModel.photos[photoIndex] = updatedPhoto
             filesModel.selectedPhoto = updatedPhoto
         }
     }
-    
+
     private func updatePhotoWithXmpMetadata(photo: PhotoItem, xmpMetadata: XmpMetadata) {
         if let photoIndex = filesModel.photos.firstIndex(where: { $0.path == photo.path }) {
             let currentPhoto = filesModel.photos[photoIndex]
-            
+
             let updatedPhoto = PhotoItem(
                 id: photo.id,
                 path: photo.path,
@@ -485,7 +485,7 @@ class ThumbGridViewModel: ObservableObject {
                 dateCreated: photo.dateCreated,
                 toDelete: currentPhoto.toDelete
             )
-            
+
             filesModel.photos[photoIndex] = updatedPhoto
             filesModel.selectedPhoto = updatedPhoto
         }
