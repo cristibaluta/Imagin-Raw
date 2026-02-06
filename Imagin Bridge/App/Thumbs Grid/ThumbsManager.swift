@@ -99,7 +99,7 @@ class ThumbsManager: ObservableObject {
     private init() {
         // Create cache directory in Application Support
         let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        cacheDirectory = cachesDir.appendingPathComponent("ro.imagin.Bridge-Replacement/256")
+        cacheDirectory = cachesDir.appendingPathComponent("ro.imagin.bridge/256")
 
         // Create directory if it doesn't exist
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
