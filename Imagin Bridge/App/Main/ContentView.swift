@@ -27,6 +27,7 @@ struct ContentView: View {
     @State private var isSidebarCollapsed = false
     @State private var openSelectedPhotosCallback: (() -> Void)?
     @State private var isReviewModeActive = false
+    @State private var contentColumnWidth: CGFloat = 450
 
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
@@ -175,6 +176,14 @@ struct ContentView: View {
                 onEnterReviewMode: {
                     isReviewModeActive = true
                 }
+            )
+            .onPreferenceChange(GridWidthPreferenceKey.self) { width in
+                contentColumnWidth = width
+            }
+            .navigationSplitViewColumnWidth(
+                min: contentColumnWidth,
+                ideal: contentColumnWidth,
+                max: contentColumnWidth
             )
             .onAppear {
                 // Set up the callback for the toolbar button

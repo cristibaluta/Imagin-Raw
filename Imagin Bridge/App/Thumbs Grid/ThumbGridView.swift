@@ -47,6 +47,8 @@ struct ThumbGridView: View {
             }
         }
         .frame(width: viewModel.gridWidth)
+        .fixedSize(horizontal: true, vertical: false)
+        .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth)
     }
     
     // MARK: - View Components
@@ -358,5 +360,12 @@ struct ViewOffsetKey: PreferenceKey {
     static var defaultValue = CGFloat.zero
     static func reduce(value: inout Value, nextValue: () -> Value) {
         value += nextValue()
+    }
+}
+
+struct GridWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 450
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
