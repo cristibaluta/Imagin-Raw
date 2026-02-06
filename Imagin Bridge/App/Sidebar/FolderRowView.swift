@@ -44,6 +44,50 @@ struct FolderRowView: View {
         return folder.children?.isEmpty == true
     }
 
+    // Check if this folder is in /Volumes (external drive, network share, etc.)
+    private var isVolume: Bool {
+        return folder.url.path.hasPrefix("/Volumes/")
+    }
+
+    // Get the volume path (first component after /Volumes/)
+    private var volumePath: String? {
+        let path = folder.url.path
+        guard path.hasPrefix("/Volumes/") else { return nil }
+
+        // Extract volume name: /Volumes/MyDrive/... -> /Volumes/MyDrive
+        let components = path.components(separatedBy: "/")
+        if components.count >= 3 {
+            return "/Volumes/\(components[2])"
+        }
+        return nil
+    }
+
+    private func ejectVolume() {
+        guard let volumePath = volumePath else {
+            print("❌ Could not determine volume path for: \(folder.url.path)")
+            return
+        }
+
+        let volumeURL = URL(fileURLWithPath: volumePath)
+
+        // Try to unmount the volume
+        do {
+            try NSWorkspace.shared.unmountAndEjectDevice(at: volumeURL)
+            print("✅ Successfully ejected volume: \(volumePath)")
+        } catch {
+            print("❌ Failed to eject volume: \(error.localizedDescription)")
+            // Show alert to user
+            DispatchQueue.main.async {
+                let alert = NSAlert()
+                alert.messageText = "Failed to Eject"
+                alert.informativeText = "Could not eject '\(volumeURL.lastPathComponent)': \(error.localizedDescription)"
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        }
+    }
+
     var body: some View {
         if hasChildren {
             DisclosureGroup(
@@ -94,6 +138,16 @@ struct FolderRowView: View {
                     }) {
                         Label("Reveal in Finder", systemImage: "magnifyingglass")
                     }
+
+                    // Only show eject option for root folders in /Volumes
+                    if isVolume {
+                        Divider()
+                        Button(action: {
+                            ejectVolume()
+                        }) {
+                            Label("Eject", systemImage: "eject")
+                        }
+                    }
                 }
             }
         } else {
@@ -115,6 +169,16 @@ struct FolderRowView: View {
                     NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
                 }) {
                     Label("Reveal in Finder", systemImage: "magnifyingglass")
+                }
+
+                // Only show eject option for root folders in /Volumes
+                if isRootFolder && isVolume {
+                    Divider()
+                    Button(action: {
+                        ejectVolume()
+                    }) {
+                        Label("Eject", systemImage: "eject")
+                    }
                 }
             }
         }
