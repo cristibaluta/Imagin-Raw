@@ -117,6 +117,12 @@ struct ThumbGridView: View {
                     filesModel.selectedPhoto = newPhotos.first
                 }
             }
+            .onChange(of: filesModel.selectedFolder) { _, newFolder in
+                // Scroll to top when folder changes
+                if let firstPhoto = viewModel.filteredPhotos.first {
+                    proxy.scrollTo(firstPhoto.id, anchor: .top)
+                }
+            }
     }
     
     private func createThumbCell(for photo: PhotoItem) -> some View {
