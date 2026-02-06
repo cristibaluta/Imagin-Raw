@@ -328,11 +328,13 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
     guard let folder else { return [] }
 
     let fm = FileManager.default
-    let allowed = ["jpg", "jpeg", "png", "heic", "tiff", "tif", "arw", "orf", "rw2",
-                   "cr2", "cr3", "crw", "nef", "nrw", "srf", "sr2", "raw", "raf",
-                   "pef", "ptx", "dng", "3fr", "fff", "iiq", "mef", "mos", "x3f",
-                   "srw", "dcr", "kdc", "k25", "kc2", "mrw", "erf", "bay", "ndd",
-                   "sti", "rwl", "r3d"]
+    let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
+                         "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
+                         "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
+                         "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
+    let jpgExtensions = ["jpg", "jpeg"]
+    let otherExtensions = ["png", "heic", "tiff", "tif"]
+    let allowed = rawExtensions + jpgExtensions + otherExtensions
 
     let files = (try? fm.contentsOfDirectory(
         at: folder.url,
@@ -340,8 +342,24 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
         options: [.skipsHiddenFiles]
     )) ?? []
 
-    // Separate image files from XMP and ACR files
-    let imageFiles = files.filter { allowed.contains($0.pathExtension.lowercased()) }
+    // Create a set of base filenames that have RAW versions
+    let rawBaseNames = Set(files
+        .filter { rawExtensions.contains($0.pathExtension.lowercased()) }
+        .map { $0.deletingPathExtension().lastPathComponent })
+
+    // Separate image files from XMP and ACR files, filtering out JPGs with RAW counterparts
+    let imageFiles = files.filter { file in
+        let ext = file.pathExtension.lowercased()
+        guard allowed.contains(ext) else { return false }
+
+        // If it's a JPG and a RAW version exists, skip it
+        if jpgExtensions.contains(ext) {
+            let baseName = file.deletingPathExtension().lastPathComponent
+            return !rawBaseNames.contains(baseName)
+        }
+
+        return true
+    }
     let xmpFiles = files.filter { $0.pathExtension.lowercased() == "xmp" }
     let acrFiles = files.filter { $0.pathExtension.lowercased() == "acr" }
 
