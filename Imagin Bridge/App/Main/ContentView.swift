@@ -25,25 +25,9 @@ struct ContentView: View {
     @SceneStorage("columnVisibility") private var columnVisibilityStorage: String = "all"
     @State private var showFolderPopover = false
     @State private var isSidebarCollapsed = false
-    @State private var selectedPhotosCount = 0
-    @State private var selectedPhotos: Set<UUID> = [] // Track selected photos from ThumbGridView
     @State private var openSelectedPhotosCallback: (() -> Void)?
     @State private var isReviewModeActive = false
-    @State private var gridType: ThumbGridView.GridType = .threeColumns // Shared grid type state
 
-    private let gridTypeKey = "SelectedGridType"
-
-    // Calculate dynamic column width based on grid type
-    private var contentColumnWidth: CGFloat {
-        let columnCount = gridType.columnCount
-        let thumbSize = gridType.thumbSize
-        let spacing: CGFloat = 8
-        let horizontalPadding: CGFloat = 8
-
-        // Width = (number of columns × thumb size) + (spacing between columns) + horizontal padding
-        let totalSpacing = CGFloat(columnCount - 1) * spacing
-        return (CGFloat(columnCount) * thumbSize) + totalSpacing + horizontalPadding
-    }
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
         Binding(
@@ -100,13 +84,9 @@ struct ContentView: View {
                             externalAppManager.loadPhotoApps {
                                 selectedApp = externalAppManager.loadSelectedApp()
                             }
-                            loadGridType() // Load saved grid type
 
                             // Set initial sidebar collapsed state based on restored column visibility
                             isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
-                        }
-                        .onChange(of: gridType) { _, newValue in
-                            saveGridType(newValue) // Save grid type changes
                         }
                         .frame(minWidth: 1200, minHeight: 800)
                         .preferredColorScheme(.dark)
@@ -187,10 +167,8 @@ struct ContentView: View {
         } content: {
             // Middle: thumbnails
             ThumbGridView(
-                photos: filesModel.photos,
+                filesModel: filesModel,
                 selectedApp: selectedApp,
-                gridType: $gridType, // Pass the binding to share grid type
-                selectedPhotos: $selectedPhotos, // Pass binding for selected photos
                 onOpenSelectedPhotos: { photos in
                     openMultiplePhotosInExternalApp(photos: photos)
                 },
@@ -201,21 +179,12 @@ struct ContentView: View {
             .onAppear {
                 // Set up the callback for the toolbar button
                 openSelectedPhotosCallback = {
-                    if selectedPhotos.count > 1 {
-                        // Multiple photos selected - open all of them
-                        let selectedPhotoItems = filesModel.photos.filter { selectedPhotos.contains($0.id) }
-                        openMultiplePhotosInExternalApp(photos: selectedPhotoItems)
-                    } else if let selectedPhoto = filesModel.selectedPhoto {
-                        // Single photo selected - open just that one
+                    if let selectedPhoto = filesModel.selectedPhoto {
+                        // Open the selected photo
                         openInExternalApp(photo: selectedPhoto)
                     }
                 }
             }
-            .navigationSplitViewColumnWidth(
-                min: contentColumnWidth,
-                ideal: contentColumnWidth,
-                max: contentColumnWidth
-            ) // Dynamic width that prevents resizing
         } detail: {
             detailView
             .navigationSplitViewColumnWidth(min: 400, ideal: 600)
@@ -487,16 +456,6 @@ struct ContentView: View {
 
     // MARK: - Grid Type Persistence
 
-    private func saveGridType(_ type: ThumbGridView.GridType) {
-        UserDefaults.standard.set(type.rawValue, forKey: gridTypeKey)
-    }
-
-    private func loadGridType() {
-        if let savedType = UserDefaults.standard.string(forKey: gridTypeKey),
-           let type = ThumbGridView.GridType(rawValue: savedType) {
-            gridType = type
-        }
-    }
 }
 
 enum ExternalApp: CaseIterable {

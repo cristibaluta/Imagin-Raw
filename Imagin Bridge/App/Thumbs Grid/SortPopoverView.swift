@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SortPopoverView: View {
-    @Binding var sortOption: ThumbGridView.SortOption
+    @Binding var sortOption: ThumbGridViewModel.SortOption
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -18,7 +18,7 @@ struct SortPopoverView: View {
 
             // Sort by options
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(ThumbGridView.SortOption.allCases, id: \.self) { option in
+                ForEach(ThumbGridViewModel.SortOption.allCases, id: \.self) { option in
                     Button(action: {
                         sortOption = option
                     }) {

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct GridTypePopoverView: View {
-    @Binding var gridType: ThumbGridView.GridType
+    @Binding var gridType: ThumbGridViewModel.GridType
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -17,7 +17,7 @@ struct GridTypePopoverView: View {
                 .font(.headline)
                 .padding(.bottom, 4)
             
-            ForEach(ThumbGridView.GridType.allCases) { type in
+            ForEach(ThumbGridViewModel.GridType.allCases) { type in
                 Button(action: {
                     gridType = type
                     dismiss()
