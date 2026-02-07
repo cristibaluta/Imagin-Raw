@@ -632,10 +632,6 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     }
 
     private func loadPhotosForSelectedFolder() {
-        // Defer publishing to avoid mutating state during SwiftUI view updates
-        let newPhotos = loadPhotos(in: selectedFolder)
-        DispatchQueue.main.async { [weak self] in
-            self?.photos = newPhotos
-        }
+        photos = loadPhotos(in: selectedFolder)
     }
 }
