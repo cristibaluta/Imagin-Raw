@@ -77,6 +77,9 @@ struct PriorityQueue<Element: Comparable> {
 class ThumbsManager: ObservableObject {
     static let shared = ThumbsManager()
 
+    // Published property for UI to observe queue count
+    @Published private(set) var pendingQueueCount: Int = 0
+
     // Memory cache with LRU eviction
     private var memoryCache: [String: CacheEntry] = [:]
     private var cacheAccessOrder: [String] = []
@@ -161,6 +164,11 @@ class ThumbsManager: ObservableObject {
             self.pendingRequests[cacheKey] = request
             self.priorityQueue.enqueue(request)
 
+            // Update queue count on main thread
+            DispatchQueue.main.async {
+                self.pendingQueueCount = self.pendingRequests.count
+            }
+
             self.processQueue()
         }
     }
@@ -227,6 +235,11 @@ class ThumbsManager: ObservableObject {
 
             // Reset the processing flag so new requests can start fresh
             self.isProcessingQueue = false
+
+            // Update queue count on main thread
+            DispatchQueue.main.async {
+                self.pendingQueueCount = 0
+            }
         }
     }
 
@@ -321,6 +334,12 @@ class ThumbsManager: ObservableObject {
                 if let pendingRequest = self.pendingRequests[currentRequest.cacheKey] {
                     if pendingRequest.id == currentRequest.id {
                         self.pendingRequests.removeValue(forKey: currentRequest.cacheKey)
+                        
+                        // Update queue count on main thread
+                        DispatchQueue.main.async {
+                            self.pendingQueueCount = self.pendingRequests.count
+                        }
+                        
                         return true
                     }
                 }

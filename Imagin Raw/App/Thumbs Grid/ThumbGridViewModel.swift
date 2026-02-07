@@ -16,9 +16,11 @@ class ThumbGridViewModel: ObservableObject {
     @Published var sortOption: SortOption = .name
     @Published var gridType: GridType = .threeColumns
     @Published var lastSelectedIndex: Int?
+    @Published var cachingQueueCount: Int = 0
 
     // MARK: - Dependencies
     private let filesModel: FilesModel
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Constants
     private let sortOptionKey = "SelectedSortOption"
@@ -83,6 +85,11 @@ class ThumbGridViewModel: ObservableObject {
         self.filesModel = filesModel
         loadSortOption()
         loadGridType()
+
+        // Observe ThumbsManager's pendingQueueCount
+        ThumbsManager.shared.$pendingQueueCount
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$cachingQueueCount)
     }
 
     // MARK: - Computed Properties
@@ -171,9 +178,18 @@ class ThumbGridViewModel: ObservableObject {
         let columnCount = gridType.columnCount
         let thumbSize = gridType.thumbSize
         let spacing: CGFloat = 8
-        let horizontalPadding: CGFloat = 24 // 12 on each side
+        let horizontalPadding: CGFloat = 32 // 16 on each side
         let totalSpacing = CGFloat(columnCount - 1) * spacing
         return (CGFloat(columnCount) * thumbSize) + totalSpacing + horizontalPadding
+    }
+
+    // MARK: - Caching Progress
+    var totalPhotosCount: Int {
+        return photos.count
+    }
+
+    var showCachingProgress: Bool {
+        return cachingQueueCount > 0
     }
 
     // MARK: - Selection Management

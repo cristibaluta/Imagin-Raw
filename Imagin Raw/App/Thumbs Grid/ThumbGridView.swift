@@ -254,15 +254,26 @@ struct ThumbGridView: View {
 
     private var photoCountText: some View {
         Group {
-            if viewModel.selectedPhotos.count > 1 {
+            // Priority 1: Show caching progress when generating thumbnails
+            if viewModel.showCachingProgress {
+                Text("Caching \(viewModel.cachingQueueCount) of \(viewModel.totalPhotosCount)")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
+            // Priority 2: Show selected count when multiple photos selected
+            else if viewModel.selectedPhotos.count > 1 {
                 Text("\(viewModel.selectedPhotos.count) of \(viewModel.photos.count) selected")
                     .font(.caption)
                     .foregroundColor(.blue)
-            } else if viewModel.selectedLabels.count > 0 {
+            }
+            // Priority 3: Show filtered count when filters are active
+            else if viewModel.selectedLabels.count > 0 {
                 Text("\(viewModel.filteredPhotos.count) of \(viewModel.photos.count) photos")
                     .font(.caption)
                     .foregroundColor(.secondary)
-            } else {
+            }
+            // Priority 4: Show total count
+            else {
                 Text("\(viewModel.photos.count) photos")
                     .font(.caption)
                     .foregroundColor(.secondary)
