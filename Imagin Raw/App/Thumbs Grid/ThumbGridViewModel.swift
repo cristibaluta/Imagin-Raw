@@ -178,7 +178,7 @@ class ThumbGridViewModel: ObservableObject {
         let columnCount = gridType.columnCount
         let thumbSize = gridType.thumbSize
         let spacing: CGFloat = 8
-        let horizontalPadding: CGFloat = 32 // 16 on each side
+        let horizontalPadding: CGFloat = 24 // 12 on each side
         let totalSpacing = CGFloat(columnCount - 1) * spacing
         return (CGFloat(columnCount) * thumbSize) + totalSpacing + horizontalPadding
     }
