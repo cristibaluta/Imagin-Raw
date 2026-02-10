@@ -13,6 +13,7 @@ struct ThumbCell: View {
     let onDoubleClick: () -> Void
     let onRatingChanged: (Int) -> Void
     let onMoveToTrash: (PhotoItem) -> Void
+    let onCopyTo: (PhotoItem) -> Void
     let size: CGFloat  // Now accepts size as a parameter
     @State private var thumbnailImage: NSImage?
     @State private var isLoading = false
@@ -156,6 +157,14 @@ struct ThumbCell: View {
                 NSWorkspace.shared.selectFile(photo.path, inFileViewerRootedAtPath: "")
             }) {
                 Label("Reveal in Finder", systemImage: "folder")
+            }
+
+            Divider()
+
+            Button(action: {
+                onCopyTo(photo)
+            }) {
+                Label("Copy to...", systemImage: "doc.on.doc")
             }
 
             Divider()

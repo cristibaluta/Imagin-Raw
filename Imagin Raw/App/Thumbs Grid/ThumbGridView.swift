@@ -20,6 +20,8 @@ struct ThumbGridView: View {
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
     @State private var showGridTypePopover = false
+    @State private var showCopyToSheet = false
+    @State private var photosToCopy: [PhotoItem] = []
 
     init(filesModel: FilesModel, selectedApp: PhotoApp?, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?) {
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
@@ -49,6 +51,11 @@ struct ThumbGridView: View {
         .frame(width: viewModel.gridWidth)
         .fixedSize(horizontal: true, vertical: false)
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth)
+        .sheet(isPresented: $showCopyToSheet) {
+            CopyToView(photosToCoрy: photosToCopy)
+                .environmentObject(filesModel)
+                .interactiveDismissDisabled(false)
+        }
     }
 
     // MARK: - View Components
@@ -163,6 +170,18 @@ struct ThumbGridView: View {
                     photosToTrash = [rightClickedPhoto]
                 }
                 viewModel.movePhotosToTrash(photosToTrash)
+            },
+            onCopyTo: { rightClickedPhoto in
+                // If the right-clicked photo is not in the selection, only copy it
+                // Otherwise, copy all selected photos
+                if viewModel.selectedPhotos.contains(rightClickedPhoto.id) {
+                    // Right-clicked photo is part of selection - copy all selected
+                    photosToCopy = viewModel.getSelectedPhotosForBulkAction()
+                } else {
+                    // Right-clicked photo is not selected - copy only this one
+                    photosToCopy = [rightClickedPhoto]
+                }
+                showCopyToSheet = true
             },
             size: viewModel.gridType.thumbSize
         )
