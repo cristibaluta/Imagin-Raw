@@ -345,18 +345,8 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
 
         return true
     }
-    let xmpFiles = files.filter { $0.pathExtension.lowercased() == "xmp" }
     let acrFiles = files.filter { $0.pathExtension.lowercased() == "acr" }
     let jpgFiles = files.filter { jpgExtensions.contains($0.pathExtension.lowercased()) }
-
-    // Create dictionaries for XMP and ACR lookup by base filename
-    var xmpLookup: [String: String] = [:]
-    for xmpFile in xmpFiles {
-        let baseName = xmpFile.deletingPathExtension().lastPathComponent
-        if let xmpContent = try? String(contentsOf: xmpFile, encoding: .utf8) {
-            xmpLookup[baseName] = xmpContent
-        }
-    }
 
     var acrLookup: Set<String> = Set()
     for acrFile in acrFiles {
@@ -370,13 +360,8 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
         jpgLookup.insert(baseName)
     }
 
-    // Create PhotoItems with matched XMP content and ACR detection
+    // Create PhotoItems with basic info only - no XMP or rating yet
     let startTime = Date()
-    var totalXmpTime: TimeInterval = 0
-    var totalRatingTime: TimeInterval = 0
-    var xmpCount = 0
-    var ratingCount = 0
-
     let result = imageFiles
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
         .map { imageFile in
@@ -385,54 +370,92 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
             // Get creation date from the file attributes we already retrieved
             let creationDate = (try? imageFile.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date()
 
-            // Check for XMP metadata - TIMED
-            let xmpStart = Date()
-            let xmp: XmpMetadata? = if let xmpContent = xmpLookup[baseName] {
-                XmpParser.parseMetadata(from: xmpContent)
-            } else {
-                nil
-            }
-            if xmp != nil {
-                let xmpDuration = Date().timeIntervalSince(xmpStart)
-                totalXmpTime += xmpDuration
-                xmpCount += 1
-            }
-
             // Check for ACR file
             let hasACR = acrLookup.contains(baseName)
 
             // Check for JPG file
             let hasJPG = jpgLookup.contains(baseName)
 
-            // Extract in-camera rating from RAW file (Canon IPTC StarRating) - TIMED
-            let ratingStart = Date()
-            let inCameraRating: Int? = if rawExtensions.contains(imageFile.pathExtension.lowercased()) {
-                RawWrapper.shared().extractCanonRating(fromFile: imageFile.path)?.intValue
-            } else {
-                nil
-            }
-            if inCameraRating != nil {
-                let ratingDuration = Date().timeIntervalSince(ratingStart)
-                totalRatingTime += ratingDuration
-                ratingCount += 1
-            }
-
-            return PhotoItem(path: imageFile.path, xmp: xmp, dateCreated: creationDate, hasACR: hasACR, hasJPG: hasJPG, inCameraRating: inCameraRating)
+            return PhotoItem(path: imageFile.path, xmp: nil, dateCreated: creationDate, hasACR: hasACR, hasJPG: hasJPG, inCameraRating: nil)
         }
 
     let totalTime = Date().timeIntervalSince(startTime)
-    print("📊 loadPhotos Performance:")
+    print("📊 loadPhotos (basic) Performance:")
     print("   Total files: \(imageFiles.count)")
     print("   Total time: \(String(format: "%.3f", totalTime))s")
-    if xmpCount > 0 {
-        print("   XMP parsing: \(xmpCount) files, \(String(format: "%.3f", totalXmpTime))s total, \(String(format: "%.3f", totalXmpTime/Double(xmpCount)))s avg")
-    }
-    if ratingCount > 0 {
-        print("   Rating extraction: \(ratingCount) files, \(String(format: "%.3f", totalRatingTime))s total, \(String(format: "%.3f", totalRatingTime/Double(ratingCount)))s avg")
-    }
-    print("   Other operations: \(String(format: "%.3f", totalTime - totalXmpTime - totalRatingTime))s")
 
     return result
+}
+
+func loadPhotosMetadataAsync(in folder: FolderItem?, photos: [PhotoItem]) async -> [PhotoItem] {
+    guard let folder else { return photos }
+
+    let fm = FileManager.default
+    let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
+                         "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
+                         "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
+                         "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
+
+    let files = (try? fm.contentsOfDirectory(
+        at: folder.url,
+        includingPropertiesForKeys: nil,
+        options: [.skipsHiddenFiles]
+    )) ?? []
+
+    let xmpFiles = files.filter { $0.pathExtension.lowercased() == "xmp" }
+
+    var xmpLookup: [String: String] = [:]
+    for xmpFile in xmpFiles {
+        let baseName = xmpFile.deletingPathExtension().lastPathComponent
+        if let xmpContent = try? String(contentsOf: xmpFile, encoding: .utf8) {
+            xmpLookup[baseName] = xmpContent
+        }
+    }
+
+    let startTime = Date()
+
+    return await withTaskGroup(of: (Int, XmpMetadata?, Int?).self, returning: [PhotoItem].self) { group in
+        for (index, photo) in photos.enumerated() {
+            group.addTask {
+                let url = URL(fileURLWithPath: photo.path)
+                let baseName = url.deletingPathExtension().lastPathComponent
+
+                let xmp: XmpMetadata? = if let xmpContent = xmpLookup[baseName] {
+                    XmpParser.parseMetadata(from: xmpContent)
+                } else {
+                    nil
+                }
+
+                let inCameraRating: Int? = if rawExtensions.contains(url.pathExtension.lowercased()) {
+                    RawWrapper.shared().extractCanonRating(fromFile: photo.path)?.intValue
+                } else {
+                    nil
+                }
+
+                return (index, xmp, inCameraRating)
+            }
+        }
+
+        var updatedPhotos = photos
+        for await (index, xmp, rating) in group {
+            updatedPhotos[index] = PhotoItem(
+                id: photos[index].id,
+                path: photos[index].path,
+                xmp: xmp,
+                dateCreated: photos[index].dateCreated,
+                hasACR: photos[index].hasACR,
+                hasJPG: photos[index].hasJPG,
+                inCameraRating: rating
+            )
+        }
+
+        let totalTime = Date().timeIntervalSince(startTime)
+        print("📊 loadPhotosMetadataAsync Performance:")
+        print("   Total files: \(photos.count)")
+        print("   Total time: \(String(format: "%.3f", totalTime))s")
+
+        return updatedPhotos
+    }
 }
 
 
@@ -681,6 +704,15 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     }
 
     private func loadPhotosForSelectedFolder() {
+        // Load photos immediately with basic info (fast)
         photos = loadPhotos(in: selectedFolder)
+
+        // Load metadata asynchronously in the background
+        Task {
+            let photosWithMetadata = await loadPhotosMetadataAsync(in: selectedFolder, photos: photos)
+            await MainActor.run {
+                self.photos = photosWithMetadata
+            }
+        }
     }
 }
