@@ -12,7 +12,6 @@ struct CopyToView: View {
     @Environment(\.dismiss) private var dismiss
     let photosToCoрy: [PhotoItem]
 
-    @State private var selectedDestination: FolderItem?
     @State private var isCopying = false
     @State private var copyProgress: Double = 0.0
     @State private var currentFile: String = ""
@@ -32,20 +31,9 @@ struct CopyToView: View {
 
             Divider()
 
-            // Folder selection view
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(filesModel.rootFolders) { folder in
-                        FolderRowForCopy(
-                            folder: folder,
-                            selectedFolder: $selectedDestination,
-                            isDisabled: isCopying
-                        )
-                    }
-                }
-                .padding(.vertical, 8)
-            }
-            .disabled(isCopying)
+            // Folder selection view - Reuse the existing SidebarView
+            SidebarView(hideBottomBar: true)
+                .disabled(isCopying)
 
             Divider()
 
@@ -99,18 +87,23 @@ struct CopyToView: View {
                     performCopy()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(selectedDestination == nil || isCopying)
+                .disabled(filesModel.selectedFolder == nil || isCopying)
             }
             .padding()
         }
         .frame(width: 400, height: 600)
         .onAppear {
-            selectedDestination = filesModel.selectedFolder
+            // Enable copy mode to prevent photo loading
+            filesModel.isInCopyMode = true
+        }
+        .onDisappear {
+            // Disable copy mode when popover closes
+            filesModel.isInCopyMode = false
         }
     }
 
     private func performCopy() {
-        guard let destination = selectedDestination else { return }
+        guard let destinationURL = filesModel.selectedFolder?.url else { return }
 
         isCopying = true
         copyProgress = 0.0
@@ -142,8 +135,6 @@ struct CopyToView: View {
 
         // Perform copy on background thread
         DispatchQueue.global(qos: .userInitiated).async {
-            let destinationURL = destination.url
-
             for (index, file) in filesToCopy.enumerated() {
                 DispatchQueue.main.async {
                     currentFile = file.filename
@@ -186,76 +177,6 @@ struct CopyToView: View {
                     }
                 } else {
                     isCopying = false
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Folder Row for Copy Destination
-struct FolderRowForCopy: View {
-    let folder: FolderItem
-    @Binding var selectedFolder: FolderItem?
-    let isDisabled: Bool
-    @State private var isExpanded: Bool = true
-
-    private var isSelected: Bool {
-        selectedFolder?.url == folder.url
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 4) {
-                // Disclosure triangle
-                if let children = folder.children, !children.isEmpty {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .frame(width: 12)
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                isExpanded.toggle()
-                            }
-                        }
-                } else {
-                    Spacer()
-                        .frame(width: 12)
-                }
-
-                // Folder icon
-                Image(systemName: "folder.fill")
-                    .foregroundColor(.blue)
-                    .font(.system(size: 14))
-
-                // Folder name
-                Text(folder.url.lastPathComponent)
-                    .font(.system(size: 13))
-                    .lineLimit(1)
-
-                Spacer()
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
-            .cornerRadius(4)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if !isDisabled {
-                    selectedFolder = folder
-                }
-            }
-
-            // Subfolders
-            if isExpanded, let children = folder.children, !children.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(children) { subfolder in
-                        FolderRowForCopy(
-                            folder: subfolder,
-                            selectedFolder: $selectedFolder,
-                            isDisabled: isDisabled
-                        )
-                        .padding(.leading, 16)
-                    }
                 }
             }
         }

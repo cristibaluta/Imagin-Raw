@@ -472,6 +472,9 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     @Published var selectedPhoto: PhotoItem?
     @Published var photos: [PhotoItem] = []
 
+    // Flag to prevent photo loading when in copy mode
+    var isInCopyMode: Bool = false
+
     private let userFoldersKey = "UserManagedFolderBookmarks"
     private var accessedURLs: Set<URL> = []
     private let fileMonitor = FileSystemMonitor()
@@ -704,6 +707,9 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     }
 
     private func loadPhotosForSelectedFolder() {
+        // Don't load photos if we're in copy mode (selecting destination folder)
+        guard !isInCopyMode else { return }
+
         // Load photos immediately with basic info (fast)
         photos = loadPhotos(in: selectedFolder)
 
