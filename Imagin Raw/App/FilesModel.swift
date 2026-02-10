@@ -363,7 +363,7 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
         let baseName = acrFile.deletingPathExtension().lastPathComponent
         acrLookup.insert(baseName)
     }
-    
+
     var jpgLookup: Set<String> = Set()
     for jpgFile in jpgFiles {
         let baseName = jpgFile.deletingPathExtension().lastPathComponent
@@ -371,7 +371,13 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
     }
 
     // Create PhotoItems with matched XMP content and ACR detection
-    return imageFiles
+    let startTime = Date()
+    var totalXmpTime: TimeInterval = 0
+    var totalRatingTime: TimeInterval = 0
+    var xmpCount = 0
+    var ratingCount = 0
+
+    let result = imageFiles
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
         .map { imageFile in
             let baseName = imageFile.deletingPathExtension().lastPathComponent
@@ -379,28 +385,54 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
             // Get creation date from the file attributes we already retrieved
             let creationDate = (try? imageFile.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date()
 
-            // Check for XMP metadata
+            // Check for XMP metadata - TIMED
+            let xmpStart = Date()
             let xmp: XmpMetadata? = if let xmpContent = xmpLookup[baseName] {
                 XmpParser.parseMetadata(from: xmpContent)
             } else {
                 nil
             }
+            if xmp != nil {
+                let xmpDuration = Date().timeIntervalSince(xmpStart)
+                totalXmpTime += xmpDuration
+                xmpCount += 1
+            }
 
             // Check for ACR file
             let hasACR = acrLookup.contains(baseName)
-            
+
             // Check for JPG file
             let hasJPG = jpgLookup.contains(baseName)
 
-            // Extract in-camera rating from RAW file (Canon IPTC StarRating)
+            // Extract in-camera rating from RAW file (Canon IPTC StarRating) - TIMED
+            let ratingStart = Date()
             let inCameraRating: Int? = if rawExtensions.contains(imageFile.pathExtension.lowercased()) {
                 RawWrapper.shared().extractCanonRating(fromFile: imageFile.path)?.intValue
             } else {
                 nil
             }
+            if inCameraRating != nil {
+                let ratingDuration = Date().timeIntervalSince(ratingStart)
+                totalRatingTime += ratingDuration
+                ratingCount += 1
+            }
 
             return PhotoItem(path: imageFile.path, xmp: xmp, dateCreated: creationDate, hasACR: hasACR, hasJPG: hasJPG, inCameraRating: inCameraRating)
         }
+
+    let totalTime = Date().timeIntervalSince(startTime)
+    print("📊 loadPhotos Performance:")
+    print("   Total files: \(imageFiles.count)")
+    print("   Total time: \(String(format: "%.3f", totalTime))s")
+    if xmpCount > 0 {
+        print("   XMP parsing: \(xmpCount) files, \(String(format: "%.3f", totalXmpTime))s total, \(String(format: "%.3f", totalXmpTime/Double(xmpCount)))s avg")
+    }
+    if ratingCount > 0 {
+        print("   Rating extraction: \(ratingCount) files, \(String(format: "%.3f", totalRatingTime))s total, \(String(format: "%.3f", totalRatingTime/Double(ratingCount)))s avg")
+    }
+    print("   Other operations: \(String(format: "%.3f", totalTime - totalXmpTime - totalRatingTime))s")
+
+    return result
 }
 
 
