@@ -347,6 +347,7 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
     }
     let xmpFiles = files.filter { $0.pathExtension.lowercased() == "xmp" }
     let acrFiles = files.filter { $0.pathExtension.lowercased() == "acr" }
+    let jpgFiles = files.filter { jpgExtensions.contains($0.pathExtension.lowercased()) }
 
     // Create dictionaries for XMP and ACR lookup by base filename
     var xmpLookup: [String: String] = [:]
@@ -361,6 +362,12 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
     for acrFile in acrFiles {
         let baseName = acrFile.deletingPathExtension().lastPathComponent
         acrLookup.insert(baseName)
+    }
+    
+    var jpgLookup: Set<String> = Set()
+    for jpgFile in jpgFiles {
+        let baseName = jpgFile.deletingPathExtension().lastPathComponent
+        jpgLookup.insert(baseName)
     }
 
     // Create PhotoItems with matched XMP content and ACR detection
@@ -381,6 +388,9 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
 
             // Check for ACR file
             let hasACR = acrLookup.contains(baseName)
+            
+            // Check for JPG file
+            let hasJPG = jpgLookup.contains(baseName)
 
             // Extract in-camera rating from RAW file (Canon IPTC StarRating)
             let inCameraRating: Int? = if rawExtensions.contains(imageFile.pathExtension.lowercased()) {
@@ -389,7 +399,7 @@ func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
                 nil
             }
 
-            return PhotoItem(path: imageFile.path, xmp: xmp, dateCreated: creationDate, hasACR: hasACR, inCameraRating: inCameraRating)
+            return PhotoItem(path: imageFile.path, xmp: xmp, dateCreated: creationDate, hasACR: hasACR, hasJPG: hasJPG, inCameraRating: inCameraRating)
         }
 }
 

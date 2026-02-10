@@ -13,38 +13,42 @@ struct PhotoItem: Identifiable, Hashable {
     let xmp: XmpMetadata?
     let dateCreated: Date
     let hasACR: Bool // Indicates if an ACR (Adobe Camera Raw) file exists for this photo
+    let hasJPG: Bool // Indicates if a JPG counterpart exists for this RAW photo
     let inCameraRating: Int? // Canon in-camera rating from IPTC metadata (0-5)
     var toDelete: Bool = false // Transient property, not saved to XMP
 
-    init(path: String, xmp: XmpMetadata? = nil, dateCreated: Date, hasACR: Bool = false, inCameraRating: Int? = nil) {
+    init(path: String, xmp: XmpMetadata? = nil, dateCreated: Date, hasACR: Bool = false, hasJPG: Bool = false, inCameraRating: Int? = nil) {
         self.id = UUID()
         self.path = path
         self.xmp = xmp
         self.dateCreated = dateCreated
         self.hasACR = hasACR
+        self.hasJPG = hasJPG
         self.inCameraRating = inCameraRating
         self.toDelete = false
     }
 
     // Initializer that preserves the existing ID when updating XMP metadata
-    init(id: UUID, path: String, xmp: XmpMetadata?, dateCreated: Date, hasACR: Bool = false, inCameraRating: Int? = nil) {
+    init(id: UUID, path: String, xmp: XmpMetadata?, dateCreated: Date, hasACR: Bool = false, hasJPG: Bool = false, inCameraRating: Int? = nil) {
         self.id = id
         self.path = path
         self.xmp = xmp
         self.dateCreated = dateCreated
         self.hasACR = hasACR
+        self.hasJPG = hasJPG
         self.inCameraRating = inCameraRating
         self.toDelete = false
     }
 
     // Initializer that preserves the existing ID and toDelete state when updating XMP metadata
-    init(id: UUID, path: String, xmp: XmpMetadata?, dateCreated: Date, toDelete: Bool, hasACR: Bool = false, inCameraRating: Int? = nil) {
+    init(id: UUID, path: String, xmp: XmpMetadata?, dateCreated: Date, toDelete: Bool, hasACR: Bool = false, hasJPG: Bool = false, inCameraRating: Int? = nil) {
         self.id = id
         self.path = path
         self.xmp = xmp
         self.dateCreated = dateCreated
         self.toDelete = toDelete
         self.hasACR = hasACR
+        self.hasJPG = hasJPG
         self.inCameraRating = inCameraRating
     }
 

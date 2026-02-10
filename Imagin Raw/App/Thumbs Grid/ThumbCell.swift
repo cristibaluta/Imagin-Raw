@@ -65,22 +65,43 @@ struct ThumbCell: View {
                             .foregroundColor(.orange)
                             .shadow(color: .black, radius: 2, x: 1, y: 1)
                     }
-                    if photo.hasACR {
+
+                    // ACR and JPG indicators in top-right corner
+                    if photo.hasACR || photo.hasJPG {
                         VStack {
-                            HStack {
+                            HStack(spacing: 2) {
                                 Spacer()
-                                Image(systemName: "slider.horizontal.3")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.white)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 3, style: .circular)
-                                            .foregroundColor(Color.gray.opacity(0.8))
-                                            .frame(width: 20, height: 20)
-                                    )
-                                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                    .padding(.trailing, 4)
-                                    .padding(.top, 4)
+
+                                // ACR indicator
+                                if photo.hasACR {
+                                    Image(systemName: "slider.horizontal.3")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 3, style: .circular)
+                                                .foregroundColor(Color.gray.opacity(0.8))
+                                                .frame(width: 20, height: 20)
+                                        )
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                }
+
+                                // JPG indicator
+                                if photo.hasJPG {
+                                    Text("+JPG")
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 3)
+                                        .padding(.vertical, 2)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 3, style: .circular)
+                                                .foregroundColor(Color.blue.opacity(0.8))
+                                        )
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                }
                             }
+                            .padding(.trailing, 4)
+                            .padding(.top, 4)
+
                             Spacer()
                         }
                     }
