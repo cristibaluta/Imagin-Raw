@@ -15,6 +15,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (instancetype)shared;
 - (nullable RawPhoto *)extractRawPhoto:(NSString *)path;
 - (nullable NSData *)extractEmbeddedJPEG:(NSString *)path; // Keep for backward compatibility
+- (nullable NSNumber *)extractCanonRatingFromFile:(NSString *)path; // Extract Canon in-camera rating
 
 @end
 

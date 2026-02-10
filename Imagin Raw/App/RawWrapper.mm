@@ -2,6 +2,8 @@
 #import "RawWrapper.h"
 #import "RawPhoto.h"
 #include "../libraw/libraw.h"
+#import <ImageIO/ImageIO.h>
+#import <CoreGraphics/CoreGraphics.h>
 
 @implementation RawWrapper
 
@@ -174,6 +176,21 @@
         exifDict[@"DateTime"] = date;
     }
 
+    // Canon MakerNote: Detect Canon files
+    NSString *make = exifDict[@"Make"];
+    if (make && [make rangeOfString:@"Canon" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+        // This is a Canon file
+        exifDict[@"CanonMakerNoteDetected"] = @YES;
+
+        // Attempt to extract rating if Canon makernotes are available
+        if (raw->imgdata.makernotes.canon.SensorWidth > 0) {
+            // Canon makernotes are parsed
+            if (raw->imgdata.makernotes.canon.Quality > 0) {
+                exifDict[@"CanonQuality"] = @(raw->imgdata.makernotes.canon.Quality);
+            }
+        }
+    }
+
     // GPS data (if available)
     if (raw->imgdata.other.parsed_gps.gpsparsed) {
         NSMutableDictionary *gpsDict = [NSMutableDictionary dictionary];
@@ -200,6 +217,48 @@
     if (raw->imgdata.color.profile_length > 0) {
         exifDict[@"ColorProfileLength"] = @(raw->imgdata.color.profile_length);
     }
+}
+
+// Extract Canon in-camera rating using ImageIO framework
+// Canon stores the in-camera rating in IPTC metadata as StarRating
+- (NSNumber *)extractCanonRatingFromFile:(NSString *)path {
+    NSURL *fileURL = [NSURL fileURLWithPath:path];
+    CGImageSourceRef imageSource = CGImageSourceCreateWithURL((__bridge CFURLRef)fileURL, NULL);
+
+    if (!imageSource) {
+        return nil;
+    }
+
+    NSNumber *rating = nil;
+
+    // Get image properties including EXIF, IPTC, and MakerNote
+    CFDictionaryRef imageProperties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, NULL);
+    if (imageProperties) {
+        NSDictionary *properties = (__bridge_transfer NSDictionary *)imageProperties;
+
+        // Check IPTC dictionary for StarRating (this is where Canon stores in-camera rating)
+        NSDictionary *iptcDict = properties[(NSString *)kCGImagePropertyIPTCDictionary];
+        if (iptcDict) {
+            NSNumber *starRating = iptcDict[@"StarRating"];
+            if (starRating && [starRating intValue] > 0) {
+                rating = starRating;
+            }
+        }
+
+        // Fallback: Check standard EXIF rating if IPTC not found
+        if (!rating) {
+            NSDictionary *exifDict = properties[(NSString *)kCGImagePropertyExifDictionary];
+            if (exifDict) {
+                NSNumber *exifRating = exifDict[@"UserRating"];
+                if (exifRating && [exifRating intValue] > 0) {
+                    rating = exifRating;
+                }
+            }
+        }
+    }
+
+    CFRelease(imageSource);
+    return rating;
 }
 
 @end
