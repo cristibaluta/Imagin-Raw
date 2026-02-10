@@ -9,6 +9,7 @@ import SwiftUI
 
 struct FilterPopoverView: View {
     @Binding var selectedLabels: Set<String>
+    @Binding var selectedRatings: Set<Int>
     let photos: [PhotoItem]
 
     // All available labels in the requested order
@@ -33,37 +34,91 @@ struct FilterPopoverView: View {
         }
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Filter by Labels")
-                .font(.headline)
-                .padding(.bottom, 4)
+    // Calculate count for each rating
+    private func getCountForRating(_ rating: Int) -> Int {
+        return photos.filter { photo in
+            // Get the effective rating (XMP or in-camera fallback)
+            let effectiveRating: Int
+            if let xmpRating = photo.xmp?.rating, xmpRating > 0 {
+                effectiveRating = xmpRating
+            } else {
+                effectiveRating = photo.inCameraRating ?? 0
+            }
+            return effectiveRating == rating
+        }.count
+    }
 
-            ForEach(availableLabels, id: \.self) { label in
-                let count = getCountForLabel(label)
-                Toggle(isOn: Binding(
-                    get: { selectedLabels.contains(label) },
-                    set: { isSelected in
-                        if isSelected {
-                            selectedLabels.insert(label)
-                        } else {
-                            selectedLabels.remove(label)
+    var body: some View {
+        HStack(alignment: .top, spacing: 24) {
+            // Labels column
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Filter by Labels")
+                    .font(.headline)
+                    .padding(.bottom, 4)
+
+                ForEach(availableLabels, id: \.self) { label in
+                    let count = getCountForLabel(label)
+                    Toggle(isOn: Binding(
+                        get: { selectedLabels.contains(label) },
+                        set: { isSelected in
+                            if isSelected {
+                                selectedLabels.insert(label)
+                            } else {
+                                selectedLabels.remove(label)
+                            }
+                        }
+                    )) {
+                        HStack {
+                            Text(label)
+                            if count > 0 {
+                                Text("(\(count))")
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
-                )) {
-                    HStack {
-                        Text(label)
-                        if count > 0 {
-                            Text("(\(count))")
-                                .foregroundColor(.secondary)
-                        }
-                    }
+                    .toggleStyle(CheckboxToggleStyle(label: label))
                 }
-                .toggleStyle(CheckboxToggleStyle(label: label))
+            }
+
+            Divider()
+
+            // Ratings column
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Filter by Rating")
+                    .font(.headline)
+                    .padding(.bottom, 4)
+
+                ForEach(1...5, id: \.self) { rating in
+                    let count = getCountForRating(rating)
+                    Toggle(isOn: Binding(
+                        get: { selectedRatings.contains(rating) },
+                        set: { isSelected in
+                            if isSelected {
+                                selectedRatings.insert(rating)
+                            } else {
+                                selectedRatings.remove(rating)
+                            }
+                        }
+                    )) {
+                        HStack(spacing: 4) {
+                            // Show stars
+                            ForEach(1...5, id: \.self) { star in
+                                Image(systemName: star <= rating ? "star.fill" : "star")
+                                    .foregroundColor(star <= rating ? .yellow : .gray)
+                                    .font(.system(size: 10))
+                            }
+                            if count > 0 {
+                                Text("(\(count))")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .toggleStyle(RatingCheckboxToggleStyle())
+                }
             }
         }
         .padding(16)
-        .frame(minWidth: 100)
+        .frame(minWidth: 300)
     }
 }
 
@@ -103,6 +158,21 @@ struct CheckboxToggleStyle: ToggleStyle {
             return .orange
         default:
             return .secondary
+        }
+    }
+}
+
+struct RatingCheckboxToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack {
+            Image(systemName: configuration.isOn ? "checkmark.square.fill" : "square")
+                .foregroundColor(configuration.isOn ? .blue : .secondary)
+                .font(.system(size: 16, weight: .medium))
+                .onTapGesture {
+                    configuration.isOn.toggle()
+                }
+
+            configuration.label
         }
     }
 }

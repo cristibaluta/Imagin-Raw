@@ -221,7 +221,7 @@ struct ThumbGridView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .popover(isPresented: $showFilterPopover) {
-                    FilterPopoverView(selectedLabels: $viewModel.selectedLabels, photos: viewModel.photos)
+                    FilterPopoverView(selectedLabels: $viewModel.selectedLabels, selectedRatings: $viewModel.selectedRatings, photos: viewModel.photos)
                 }
 
                 ForEach(viewModel.availableLabels, id: \.self) { label in
@@ -267,7 +267,7 @@ struct ThumbGridView: View {
                     .foregroundColor(.blue)
             }
             // Priority 3: Show filtered count when filters are active
-            else if viewModel.selectedLabels.count > 0 {
+            else if viewModel.selectedLabels.count > 0 || viewModel.selectedRatings.count > 0 {
                 Text("\(viewModel.filteredPhotos.count) of \(viewModel.photos.count) photos")
                     .font(.caption)
                     .foregroundColor(.secondary)

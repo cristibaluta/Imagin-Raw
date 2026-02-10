@@ -13,6 +13,7 @@ class ThumbGridViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var selectedPhotos: Set<UUID> = []
     @Published var selectedLabels: Set<String> = []
+    @Published var selectedRatings: Set<Int> = [] // Rating filters (1-5)
     @Published var sortOption: SortOption = .name
     @Published var gridType: GridType = .threeColumns
     @Published var lastSelectedIndex: Int?
@@ -100,7 +101,7 @@ class ThumbGridViewModel: ObservableObject {
     var filteredPhotos: [PhotoItem] {
         var result = photos
 
-        // Apply filtering
+        // Apply label filtering
         if !selectedLabels.isEmpty {
             result = result.filter { photo in
                 if selectedLabels.contains("To Delete") && photo.toDelete {
@@ -114,6 +115,20 @@ class ThumbGridViewModel: ObservableObject {
                 }
 
                 return selectedLabels.contains(photoLabel) && !photo.toDelete
+            }
+        }
+
+        // Apply rating filtering
+        if !selectedRatings.isEmpty {
+            result = result.filter { photo in
+                // Get the effective rating (XMP or in-camera fallback)
+                let rating: Int
+                if let xmpRating = photo.xmp?.rating, xmpRating > 0 {
+                    rating = xmpRating
+                } else {
+                    rating = photo.inCameraRating ?? 0
+                }
+                return selectedRatings.contains(rating)
             }
         }
 
@@ -389,36 +404,63 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func clearInvalidFilters() {
-        guard !selectedLabels.isEmpty else {
-            return
-        }
+        // Clear invalid label filters
+        if !selectedLabels.isEmpty {
+            var labelsToRemove: Set<String> = []
 
-        var labelsToRemove: Set<String> = []
+            for label in selectedLabels {
+                // Check if any photo matches this label
+                let hasMatchingPhoto = photos.contains { photo in
+                    if label == "To Delete" && photo.toDelete {
+                        return true
+                    }
 
-        for label in selectedLabels {
-            // Check if any photo matches this label
-            let hasMatchingPhoto = photos.contains { photo in
-                if label == "To Delete" && photo.toDelete {
-                    return true
+                    let photoLabel = photo.xmp?.label ?? ""
+
+                    if label == "No Label" && photoLabel.isEmpty && !photo.toDelete {
+                        return true
+                    }
+
+                    return photoLabel == label && !photo.toDelete
                 }
 
-                let photoLabel = photo.xmp?.label ?? ""
-
-                if label == "No Label" && photoLabel.isEmpty && !photo.toDelete {
-                    return true
+                if !hasMatchingPhoto {
+                    labelsToRemove.insert(label)
                 }
-
-                return photoLabel == label && !photo.toDelete
             }
 
-            if !hasMatchingPhoto {
-                labelsToRemove.insert(label)
+            // Remove invalid labels
+            if !labelsToRemove.isEmpty {
+                selectedLabels.subtract(labelsToRemove)
             }
         }
 
-        // Remove invalid labels
-        if !labelsToRemove.isEmpty {
-            selectedLabels.subtract(labelsToRemove)
+        // Clear invalid rating filters
+        if !selectedRatings.isEmpty {
+            var ratingsToRemove: Set<Int> = []
+
+            for rating in selectedRatings {
+                // Check if any photo has this rating
+                let hasMatchingPhoto = photos.contains { photo in
+                    // Get the effective rating (XMP or in-camera fallback)
+                    let effectiveRating: Int
+                    if let xmpRating = photo.xmp?.rating, xmpRating > 0 {
+                        effectiveRating = xmpRating
+                    } else {
+                        effectiveRating = photo.inCameraRating ?? 0
+                    }
+                    return effectiveRating == rating
+                }
+
+                if !hasMatchingPhoto {
+                    ratingsToRemove.insert(rating)
+                }
+            }
+
+            // Remove invalid ratings
+            if !ratingsToRemove.isEmpty {
+                selectedRatings.subtract(ratingsToRemove)
+            }
         }
     }
 
