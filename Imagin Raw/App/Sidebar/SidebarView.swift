@@ -9,16 +9,13 @@ import SwiftUI
 
 struct SidebarView: View {
     @EnvironmentObject var filesModel: FilesModel
-    @State private var expandedFolders: Set<URL> = []
     @State private var showingFolderPicker = false
     @State private var showingAddPopover = false
     let onDoubleClick: (() -> Void)?
-    let hideBottomBar: Bool
 
     // Default initializer for backwards compatibility
-    init(onDoubleClick: (() -> Void)? = nil, hideBottomBar: Bool = false) {
+    init(onDoubleClick: (() -> Void)? = nil) {
         self.onDoubleClick = onDoubleClick
-        self.hideBottomBar = hideBottomBar
     }
 
     private let expandedFoldersKey = "ExpandedFolders"
@@ -26,137 +23,66 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Main folder list or welcome screen
-            if filesModel.rootFolders.isEmpty {
-                // Welcome screen when no folders are added
-                VStack(spacing: 16) {
-                    Spacer()
-
-                    Image(systemName: "folder.badge.plus")
-                        .font(.system(size: 48))
-                        .foregroundColor(.secondary)
-
-                    VStack(spacing: 8) {
-                        Text("Add Photo Folders")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-
-                        Text("This is where you add folders containing photos you want to view and organize.")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 20)
-                    }
-
-                    Button(action: {
-                        showingFolderPicker = true
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 12, weight: .medium))
-                            Text("Add Folder")
-                                .font(.system(size: 14, weight: .medium))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.accentColor)
-                        .cornerRadius(6)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-
-                    Spacer().frame(height: 10)
-
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // Normal folder list
-                List(selection: $filesModel.selectedFolder) {
-                    ForEach(Array(filesModel.rootFolders.enumerated()), id: \.element.id) { index, rootFolder in
-                        FolderRowView(
-                            folder: rootFolder,
-                            expandedFolders: $expandedFolders,
-                            selectedFolder: $filesModel.selectedFolder,
-                            saveExpandedState: saveExpandedState,
-                            onDoubleClick: {
-                                onDoubleClick?()
-                            },
-                            isRootFolder: true
-                        )
-                    }
-                    .onDelete(perform: deleteFolders)
-                }
-                .listStyle(.sidebar)
-                .focusable(false)
+            FoldersListView {
+                self.onDoubleClick?()
             }
 
-            // Bottom bar with add and remove buttons - only show if not hidden
-            if !hideBottomBar {
-                HStack {
-                    Button(action: {
-                        showingAddPopover = true
-                    }) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.primary)
-                            .frame(width: 20, height: 20)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .frame(width: 24, height: 32)
-                    .contentShape(Rectangle())
-                    .help("Add folder")
-                    .popover(isPresented: $showingAddPopover) {
-                        AddFolderPopover(
-                            onAddVolumes: {
-                                showingAddPopover = false
-                                addVolumesFolder()
-                            },
-                            onAddCustomFolder: {
-                                showingAddPopover = false
-                                showingFolderPicker = true
-                            }
-                        )
-                    }
-
-                    Button(action: {
-                        if let selectedFolder = filesModel.selectedFolder {
-                            // Only remove if the selected folder is a root folder
-                            if isRootFolder(selectedFolder.url) {
-                                filesModel.removeFolder(at: selectedFolder.url)
-                            }
-                        }
-                    }) {
-                        Image(systemName: "minus")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(isRootFolderSelected() ? .primary : .secondary)
-                            .frame(width: 20, height: 20)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .frame(width: 24, height: 32)
-                    .contentShape(Rectangle())
-                    .disabled(!isRootFolderSelected())
-                    .help("Remove folder")
-
-                    Spacer()
-
-                    Text("\(filesModel.rootFolders.count) folders")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            HStack {
+                Button(action: {
+                    showingAddPopover = true
+                }) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.primary)
+                        .frame(width: 20, height: 20)
+                        .contentShape(Rectangle())
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-                .background(Color(NSColor.controlBackgroundColor))
+                .buttonStyle(PlainButtonStyle())
+                .frame(width: 24, height: 32)
+                .contentShape(Rectangle())
+                .help("Add folder")
+                .popover(isPresented: $showingAddPopover) {
+                    AddFolderPopover(
+                        onAddVolumes: {
+                            showingAddPopover = false
+                            addVolumesFolder()
+                        },
+                        onAddCustomFolder: {
+                            showingAddPopover = false
+                            showingFolderPicker = true
+                        }
+                    )
+                }
+
+                Button(action: {
+                    if let selectedFolder = filesModel.selectedFolder {
+                        // Only remove if the selected folder is a root folder
+                        if isRootFolder(selectedFolder.url) {
+                            filesModel.removeFolder(at: selectedFolder.url)
+                        }
+                    }
+                }) {
+                    Image(systemName: "minus")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(isRootFolderSelected() ? .primary : .secondary)
+                        .frame(width: 20, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(PlainButtonStyle())
+                .frame(width: 24, height: 32)
+                .contentShape(Rectangle())
+                .disabled(!isRootFolderSelected())
+                .help("Remove folder")
+
+                Spacer()
+
+                Text("\(filesModel.rootFolders.count) folders")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
-        }
-        .onAppear {
-            loadExpandedState()
-            loadSelectedFolder()
-        }
-        .onChange(of: filesModel.selectedFolder) { _, newValue in
-            saveSelectedFolder(newValue)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .background(Color(NSColor.controlBackgroundColor))
         }
         .fileImporter(
             isPresented: $showingFolderPicker,
@@ -168,78 +94,10 @@ struct SidebarView: View {
                 if let url = urls.first {
                     filesModel.addFolder(at: url)
                 }
-            case .failure(let error):
+            case .failure(_):
                 break
             }
         }
-    }
-
-    private func loadExpandedState() {
-        if let data = UserDefaults.standard.data(forKey: expandedFoldersKey),
-           let urls = try? JSONDecoder().decode([URL].self, from: data) {
-            expandedFolders = Set(urls)
-        }
-    }
-
-    private func saveExpandedState() {
-        let urls = Array(expandedFolders)
-        if let data = try? JSONEncoder().encode(urls) {
-            UserDefaults.standard.set(data, forKey: expandedFoldersKey)
-        }
-    }
-
-    private func loadSelectedFolder() {
-        if let data = UserDefaults.standard.data(forKey: selectedFolderKey),
-           let url = try? JSONDecoder().decode(URL.self, from: data) {
-            // Find the folder in any of the root folders that matches the saved URL
-            for rootFolder in filesModel.rootFolders {
-                if let folder = findFolder(url: url, in: rootFolder) {
-                    filesModel.selectedFolder = folder
-                    return
-                }
-            }
-        }
-    }
-
-    private func saveSelectedFolder(_ folder: FolderItem?) {
-        if let folder = folder,
-           let data = try? JSONEncoder().encode(folder.url) {
-            UserDefaults.standard.set(data, forKey: selectedFolderKey)
-        }
-    }
-
-    private func findFolder(url: URL, in folderItem: FolderItem) -> FolderItem? {
-        if folderItem.url == url {
-            return folderItem
-        }
-
-        if let children = folderItem.children {
-            for child in children {
-                if let found = findFolder(url: url, in: child) {
-                    return found
-                }
-            }
-        }
-
-        return nil
-    }
-
-    private func deleteFolders(offsets: IndexSet) {
-        for index in offsets {
-            let folder = filesModel.rootFolders[index]
-            filesModel.removeFolder(at: folder.url)
-        }
-    }
-
-    private func isDescendant(_ childURL: URL, of parentFolder: FolderItem) -> Bool {
-        if let children = parentFolder.children {
-            for child in children {
-                if child.url == childURL || isDescendant(childURL, of: child) {
-                    return true
-                }
-            }
-        }
-        return false
     }
 
     private func isRootFolder(_ url: URL) -> Bool {
@@ -255,7 +113,7 @@ struct SidebarView: View {
         // Instead of adding /Volumes directly (which won't work in sandboxed apps),
         // open a file picker at /Volumes to let user select which volume to add
         let openPanel = NSOpenPanel()
-        openPanel.message = "Please allow access to this folder in order to see your external hard drives"
+        openPanel.message = "Please allow access to this folder in order to see all your external hard drives"
         openPanel.prompt = "Allow Access"
         openPanel.canChooseFiles = false
         openPanel.canChooseDirectories = true

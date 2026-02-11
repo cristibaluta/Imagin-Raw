@@ -13,8 +13,7 @@ struct FolderSelectionPopoverView: View {
     @State private var initialSelectedFolder: FolderItem?
 
     var body: some View {
-        SidebarView(onDoubleClick: nil, hideBottomBar: true)
-            .environmentObject(filesModel)
+        FoldersListView(onDoubleClick: nil)
             .onAppear {
                 // Store the initial selected folder when popover opens
                 initialSelectedFolder = filesModel.selectedFolder

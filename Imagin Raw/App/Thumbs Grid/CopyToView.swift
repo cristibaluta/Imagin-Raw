@@ -32,7 +32,7 @@ struct CopyToView: View {
             Divider()
 
             // Folder selection view - Reuse the existing SidebarView
-            SidebarView(hideBottomBar: true)
+            FoldersListView()
                 .disabled(isCopying)
 
             Divider()
@@ -135,7 +135,7 @@ struct CopyToView: View {
 
         // Perform copy on background thread
         DispatchQueue.global(qos: .userInitiated).async {
-            for (index, file) in filesToCopy.enumerated() {
+            for (_, file) in filesToCopy.enumerated() {
                 DispatchQueue.main.async {
                     currentFile = file.filename
                 }

@@ -157,7 +157,7 @@ struct ContentView: View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             // Left sidebar: folders
             SidebarView {
-                // Double-click callback: collapse sidebar to double column view
+                // Double-click callback: collapse sidebar
                 columnVisibilityStorage = "doubleColumn"
             }
             .navigationSplitViewColumnWidth(min: 150, ideal: 200, max: 250)
