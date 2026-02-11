@@ -92,6 +92,7 @@ struct ContentView: View {
                         .frame(minWidth: 1200, minHeight: 800)
                         .preferredColorScheme(.dark)
                         .focusable()
+                        .focusEffectDisabled()
                         .onKeyPress { keyPress in
                             handleKeyPress(keyPress)
                         }

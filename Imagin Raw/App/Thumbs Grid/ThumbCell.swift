@@ -67,7 +67,7 @@ struct ThumbCell: View {
                     }
 
                     // ACR and JPG indicators in top-right corner
-                    if photo.hasACR || photo.hasJPG {
+                    if photo.hasACR || (photo.isRawFile && photo.hasJPG) {
                         VStack {
                             HStack(spacing: 2) {
                                 Spacer()
@@ -86,7 +86,7 @@ struct ThumbCell: View {
                                 }
 
                                 // JPG indicator
-                                if photo.hasJPG {
+                                if photo.isRawFile && photo.hasJPG {
                                     Text("+JPG")
                                         .font(.system(size: 8, weight: .bold))
                                         .foregroundColor(.white)
