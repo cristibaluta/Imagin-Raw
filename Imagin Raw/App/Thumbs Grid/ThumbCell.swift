@@ -177,10 +177,8 @@ struct ThumbCell: View {
             Button(action: {
                 NSWorkspace.shared.selectFile(photo.path, inFileViewerRootedAtPath: "")
             }) {
-                Label("Reveal in Finder", systemImage: "folder")
+                Label("Show in Finder", systemImage: "folder")
             }
-
-            Divider()
 
             Button(action: {
                 onCopyTo(photo)

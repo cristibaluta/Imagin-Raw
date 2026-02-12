@@ -132,7 +132,7 @@ struct FolderRowView: View {
                     Button(action: {
                         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
                     }) {
-                        Label("Reveal in Finder", systemImage: "folder")
+                        Label("Show in Finder", systemImage: "folder")
                     }
 
                     // Only show eject option for root folders in /Volumes
