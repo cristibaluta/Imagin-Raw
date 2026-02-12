@@ -7,6 +7,7 @@
 import Foundation
 import CoreServices
 import AppKit
+import Combine
 
 // MARK: - File Monitoring
 
@@ -35,9 +36,8 @@ private func fsEventsCallback(
             let url = URL(fileURLWithPath: pathString)
 
             if monitor.isRelevantChange(at: url, flags: eventFlags[i]) {
-                Task { @MainActor in
-                    monitor.delegate?.folderContentsDidChange(at: url)
-                }
+                // Send the event through the throttled subject instead of calling delegate directly
+                monitor.fileChangeSubject.send(url)
             }
         }
     }
@@ -53,10 +53,24 @@ class FileSystemMonitor {
     private static var monitors: [Int: FileSystemMonitor] = [:]
     private var monitorId: Int
 
+    // Combine subjects for throttling
+    let fileChangeSubject = PassthroughSubject<URL, Never>()
+    private var cancellables = Set<AnyCancellable>()
+
     init() {
         FileSystemMonitor.nextId += 1
         self.monitorId = FileSystemMonitor.nextId
         FileSystemMonitor.monitors[monitorId] = self
+
+        // Set up throttling - wait 2 seconds after the last event
+        fileChangeSubject
+            .debounce(for: .seconds(2), scheduler: DispatchQueue.main)
+            .sink { [weak self] url in
+                Task { @MainActor in
+                    self?.delegate?.folderContentsDidChange(at: url)
+                }
+            }
+            .store(in: &cancellables)
     }
 
     static func getMonitor(id: Int) -> FileSystemMonitor? {
@@ -650,27 +664,24 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     }
 
     private func loadUserFolders() {
-        if let data = UserDefaults.standard.data(forKey: userFoldersKey),
-           let folderBookmarks = try? JSONDecoder().decode([FolderBookmark].self, from: data) {
+        guard let data = UserDefaults.standard.data(forKey: userFoldersKey),
+              let folderBookmarks = try? JSONDecoder().decode([FolderBookmark].self, from: data) else {
+            return
+        }
+        for bookmark in folderBookmarks {
+            // Restore access using the security-scoped bookmark
+            if let restoredURL = restoreSecurityScopedAccess(from: bookmark.bookmarkData) {
+                accessedURLs.insert(restoredURL)
 
-            // Restore folder trees from saved bookmarks
-            for bookmark in folderBookmarks {
-                // Restore access using the security-scoped bookmark
-                if let restoredURL = restoreSecurityScopedAccess(from: bookmark.bookmarkData) {
-                    accessedURLs.insert(restoredURL)
-
-                    // Verify the folder still exists before adding it
-                    if FileManager.default.fileExists(atPath: restoredURL.path) {
-                        let folderTree = loadFolderTree(at: restoredURL, maxDepth: 2, currentDepth: 0, bookmarkData: bookmark.bookmarkData)
-                        rootFolders.append(folderTree)
-
-                        // Start monitoring the restored folder for changes
-                        fileMonitor.startMonitoring(url: restoredURL)
-                    } else {
-                        // Folder no longer exists, stop accessing the resource
-                        restoredURL.stopAccessingSecurityScopedResource()
-                        accessedURLs.remove(restoredURL)
-                    }
+                // Verify the folder still exists before adding it
+                if FileManager.default.fileExists(atPath: restoredURL.path) {
+                    let folderTree = loadFolderTree(at: restoredURL, maxDepth: 2, currentDepth: 0, bookmarkData: bookmark.bookmarkData)
+                    rootFolders.append(folderTree)
+                    fileMonitor.startMonitoring(url: restoredURL)
+                } else {
+                    // Folder no longer exists, stop accessing the resource
+                    restoredURL.stopAccessingSecurityScopedResource()
+                    accessedURLs.remove(restoredURL)
                 }
             }
         }
@@ -697,13 +708,17 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
             if folders[i].url == folder.url {
                 // Found the folder, load its children
                 let updatedChildren = loadFolderChildren(for: folder)
-                folders[i] = FolderItem(url: folder.url, children: updatedChildren.isEmpty ? nil : updatedChildren, bookmarkData: folder.bookmarkData)
+                folders[i] = FolderItem(url: folder.url,
+                                        children: updatedChildren.isEmpty ? nil : updatedChildren,
+                                        bookmarkData: folder.bookmarkData)
                 return
             } else if let children = folders[i].children {
                 // Recursively search in children
                 var mutableChildren = children
                 updateFolderChildren(folder: folder, in: &mutableChildren)
-                folders[i] = FolderItem(url: folders[i].url, children: mutableChildren, bookmarkData: folders[i].bookmarkData)
+                folders[i] = FolderItem(url: folders[i].url,
+                                        children: mutableChildren,
+                                        bookmarkData: folders[i].bookmarkData)
             }
         }
     }
@@ -714,10 +729,7 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
             return
         }
 
-        // Load photos immediately with basic info (fast)
         photos = loadPhotos(in: selectedFolder)
-
-        // Load metadata asynchronously in the background
         isLoadingMetadata = true
         Task {
             let photosWithMetadata = await loadPhotosMetadataAsync(in: selectedFolder, photos: photos)
@@ -727,4 +739,5 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
             }
         }
     }
+    
 }
