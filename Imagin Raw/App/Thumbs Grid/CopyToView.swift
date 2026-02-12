@@ -9,30 +9,10 @@ import SwiftUI
 import AppKit
 
 struct CopyToView: View {
+    @EnvironmentObject var filesModel: FilesModel
     @Environment(\.dismiss) private var dismiss
     let photosToCoрy: [PhotoItem]
     let destinationURL: URL
-
-    var body: some View {
-        CopyProgressView(
-            photosToCoрy: photosToCoрy,
-            destinationURL: destinationURL,
-            onComplete: {
-                dismiss()
-            },
-            onCancel: {
-                dismiss()
-            }
-        )
-        .frame(minWidth: 500, minHeight: 180)
-    }
-}
-
-struct CopyProgressView: View {
-    let photosToCoрy: [PhotoItem]
-    let destinationURL: URL
-    let onComplete: () -> Void
-    let onCancel: () -> Void
 
     @State private var copyProgress: Double = 0.0
     @State private var currentFile: String = ""
@@ -91,7 +71,8 @@ struct CopyProgressView: View {
                     if copyError == nil {
                         isCancelled = true
                     }
-                    onCancel()
+                    print("press cancel")
+                    dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
             }
@@ -104,6 +85,8 @@ struct CopyProgressView: View {
     }
 
     private func performCopy() {
+        filesModel.isInCopyMode = true
+        print("sending photos to copy: \(photosToCoрy.count) destination: \(destinationURL)")
         // Count total files to copy (RAW + potential JPGs)
         var filesToCopy: [(source: URL, filename: String)] = []
 
@@ -115,12 +98,14 @@ struct CopyProgressView: View {
             // Add the RAW file
             filesToCopy.append((source: photoURL, filename: photoURL.lastPathComponent))
 
-            // Check for associated JPG
-            for jpgExt in ["jpg", "jpeg", "JPG", "JPEG"] {
-                let jpgURL = directory.appendingPathComponent("\(baseName).\(jpgExt)")
-                if FileManager.default.fileExists(atPath: jpgURL.path) {
-                    filesToCopy.append((source: jpgURL, filename: jpgURL.lastPathComponent))
-                    break // Only add the first JPG found
+            if photo.isRawFile {
+                // Check for associated JPG
+                for jpgExt in ["jpg", "jpeg", "JPG", "JPEG"] {
+                    let jpgURL = directory.appendingPathComponent("\(baseName).\(jpgExt)")
+                    if FileManager.default.fileExists(atPath: jpgURL.path) {
+                        filesToCopy.append((source: jpgURL, filename: jpgURL.lastPathComponent))
+                        break // Only add the first JPG found
+                    }
                 }
             }
         }
@@ -133,9 +118,11 @@ struct CopyProgressView: View {
             for (index, file) in filesToCopy.enumerated() {
                 // Check if cancelled
                 if isCancelled {
+                    print("cancelled copy")
                     break
                 }
 
+                print("copying \(file)")
                 DispatchQueue.main.async {
                     currentFile = file.filename
                 }
@@ -170,13 +157,15 @@ struct CopyProgressView: View {
 
             // Complete
             DispatchQueue.main.async {
+                filesModel.isInCopyMode = false
                 if copyError == nil && !isCancelled {
                     // Success - close the dialog after a brief delay
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        onComplete()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        dismiss()
                     }
                 }
             }
         }
     }
+
 }

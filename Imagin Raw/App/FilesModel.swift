@@ -500,10 +500,7 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     }
 
     deinit {
-        // Stop file monitoring
         fileMonitor.stopAllMonitoring()
-
-        // Stop accessing all security-scoped resources
         for url in accessedURLs {
             url.stopAccessingSecurityScopedResource()
         }
@@ -512,22 +509,17 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     // MARK: - FileSystemMonitorDelegate
 
     func folderContentsDidChange(at url: URL) {
-
-        // Find and refresh the affected folder in our tree
+        guard !isInCopyMode else {
+            print("Ignore folder contents change event in copy mode")
+            return
+        }
         refreshFolderTree(for: url)
 
         // If this is the currently selected folder or a parent of it, refresh the photos and thumbnails
         if let selectedFolder = selectedFolder {
             if selectedFolder.url == url || url.path.hasPrefix(selectedFolder.url.path) {
-
-                // Stop any pending thumbnail requests
                 ThumbsManager.shared.stopQueue()
-
-                // Reload photos for the selected folder
                 loadPhotosForSelectedFolder()
-
-                // Trigger thumbnail regeneration for the new photo list
-                // This will happen automatically when the photos array is updated due to @Published
             }
         }
     }
@@ -630,9 +622,6 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
             return
         }
 
-        if url.path.hasPrefix("/Volumes/") {
-        }
-
         accessedURLs.insert(url)
 
         // Load the folder tree and add to root folders
@@ -682,11 +671,9 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
                         restoredURL.stopAccessingSecurityScopedResource()
                         accessedURLs.remove(restoredURL)
                     }
-                } else {
                 }
             }
         }
-        // On fresh install, show no folders - user must add them manually
     }
 
     private func saveUserFolders() {
@@ -723,7 +710,9 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
 
     private func loadPhotosForSelectedFolder() {
         // Don't load photos if we're in copy mode (selecting destination folder)
-        guard !isInCopyMode else { return }
+        guard !isInCopyMode else {
+            return
+        }
 
         // Load photos immediately with basic info (fast)
         photos = loadPhotos(in: selectedFolder)

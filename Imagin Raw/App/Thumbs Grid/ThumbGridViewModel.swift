@@ -19,6 +19,9 @@ class ThumbGridViewModel: ObservableObject {
     @Published var lastSelectedIndex: Int?
     @Published var cachingQueueCount: Int = 0
 
+    @Published var photosToCopy: [PhotoItem] = []
+    @Published var copyDestinationURL: URL?
+
     // MARK: - Dependencies
     private let filesModel: FilesModel
     private var cancellables = Set<AnyCancellable>()

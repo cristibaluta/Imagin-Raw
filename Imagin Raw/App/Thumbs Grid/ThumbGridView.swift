@@ -21,8 +21,6 @@ struct ThumbGridView: View {
     @State private var showSortPopover = false
     @State private var showGridTypePopover = false
     @State private var showCopyToSheet = false
-    @State private var copyDestinationURL: URL?
-    @State private var photosToCopy: [PhotoItem] = []
 
     init(filesModel: FilesModel, selectedApp: PhotoApp?, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?) {
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
@@ -53,7 +51,7 @@ struct ThumbGridView: View {
         .fixedSize(horizontal: true, vertical: false)
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth)
         .sheet(isPresented: $showCopyToSheet) {
-            CopyToView(photosToCoрy: photosToCopy, destinationURL: copyDestinationURL ?? URL(fileURLWithPath: "/"))
+            CopyToView(photosToCoрy: viewModel.photosToCopy, destinationURL: viewModel.copyDestinationURL ?? URL(fileURLWithPath: "/"))
                 .environmentObject(filesModel)
                 .interactiveDismissDisabled(false)
         }
@@ -177,10 +175,10 @@ struct ThumbGridView: View {
                 // Otherwise, copy all selected photos
                 if viewModel.selectedPhotos.contains(rightClickedPhoto.id) {
                     // Right-clicked photo is part of selection - copy all selected
-                    photosToCopy = viewModel.getSelectedPhotosForBulkAction()
+                    viewModel.photosToCopy = viewModel.getSelectedPhotosForBulkAction()
                 } else {
                     // Right-clicked photo is not selected - copy only this one
-                    photosToCopy = [rightClickedPhoto]
+                    viewModel.photosToCopy = [rightClickedPhoto]
                 }
                 showFolderPicker()
             },
@@ -430,7 +428,7 @@ struct ThumbGridView: View {
     private func showFolderPicker() {
         let panel = NSOpenPanel()
         panel.title = "Choose Destination Folder"
-        panel.message = "Select a folder to copy \(photosToCopy.count) photo\(photosToCopy.count == 1 ? "" : "s") to"
+        panel.message = "Select a folder to copy \(viewModel.photosToCopy.count) photo\(viewModel.photosToCopy.count == 1 ? "" : "s") to"
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
@@ -439,7 +437,7 @@ struct ThumbGridView: View {
 
         panel.begin { [self] response in
             if response == .OK, let url = panel.url {
-                copyDestinationURL = url
+                viewModel.copyDestinationURL = url
                 showCopyToSheet = true
             }
         }
