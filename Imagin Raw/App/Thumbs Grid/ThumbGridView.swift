@@ -15,7 +15,6 @@ struct ThumbGridView: View {
     let selectedApp: PhotoApp?
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
     let onEnterReviewMode: (() -> Void)?
-
     @FocusState private var isFocused: Bool
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
@@ -49,7 +48,7 @@ struct ThumbGridView: View {
         }
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth+16)
         .sheet(isPresented: $showCopyToSheet) {
-            CopyToView(photosToCoрy: viewModel.photosToCopy, destinationURL: viewModel.copyDestinationURL ?? URL(fileURLWithPath: "/"))
+            CopyToView(photosToCoрy: viewModel.photosToCopy)
                 .environmentObject(filesModel)
                 .interactiveDismissDisabled(false)
         }
@@ -178,7 +177,7 @@ struct ThumbGridView: View {
                     // Right-clicked photo is not selected - copy only this one
                     viewModel.photosToCopy = [rightClickedPhoto]
                 }
-                showFolderPicker()
+                showCopyToSheet = true
             },
             size: viewModel.gridType.thumbSize
         )
@@ -419,24 +418,6 @@ struct ThumbGridView: View {
                 scrollView.scrollerStyle = .legacy
                 scrollView.hasVerticalScroller = true
                 scrollView.autohidesScrollers = false
-            }
-        }
-    }
-
-    private func showFolderPicker() {
-        let panel = NSOpenPanel()
-        panel.title = "Choose Destination Folder"
-        panel.message = "Select a folder to copy \(viewModel.photosToCopy.count) photo\(viewModel.photosToCopy.count == 1 ? "" : "s") to"
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
-
-        panel.begin { [self] response in
-            if response == .OK, let url = panel.url {
-                viewModel.copyDestinationURL = url
-                showCopyToSheet = true
             }
         }
     }

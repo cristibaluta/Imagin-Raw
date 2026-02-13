@@ -11,18 +11,18 @@ import AppKit
 struct CopyToView: View {
     @Environment(\.dismiss) private var dismiss
     let photosToCoрy: [PhotoItem]
-    let destinationURL: URL
 
+    @State private var destinationURL: URL?
     @State private var showProgressView = false
     @State private var renameByExifDate = false
     @State private var customPrefix = ""
     @State private var organizeByDate = false
 
     var body: some View {
-        if showProgressView {
+        if showProgressView, let destination = destinationURL {
             CopyProgressView(
                 photosToCoрy: photosToCoрy,
-                destinationURL: destinationURL,
+                destinationURL: destination,
                 renameByExifDate: renameByExifDate,
                 customPrefix: customPrefix,
                 organizeByDate: organizeByDate,
@@ -37,7 +37,7 @@ struct CopyToView: View {
         } else {
             CopyOptionsView(
                 photosCount: photosToCoрy.count,
-                destinationPath: destinationURL.path,
+                destinationURL: $destinationURL,
                 renameByExifDate: $renameByExifDate,
                 customPrefix: $customPrefix,
                 organizeByDate: $organizeByDate,
@@ -48,14 +48,14 @@ struct CopyToView: View {
                     dismiss()
                 }
             )
-            .frame(minWidth: 500, minHeight: 300)
+            .frame(minWidth: 500, minHeight: 320)
         }
     }
 }
 
 struct CopyOptionsView: View {
     let photosCount: Int
-    let destinationPath: String
+    @Binding var destinationURL: URL?
     @Binding var renameByExifDate: Bool
     @Binding var customPrefix: String
     @Binding var organizeByDate: Bool
@@ -69,15 +69,37 @@ struct CopyOptionsView: View {
                 Text("Copy Options")
                     .font(.headline)
 
-                Text("Copying \(photosCount) photo\(photosCount == 1 ? "" : "s") to:")
+                Text("Copying \(photosCount) photo\(photosCount == 1 ? "" : "s")")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
+            }
 
-                Text(destinationPath)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-                    .truncationMode(.middle)
+            Divider()
+
+            // Destination folder selection
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Destination:")
+                    .font(.body)
+
+                HStack {
+                    if let url = destinationURL {
+                        Text(url.path)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        Text("No folder selected")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    Button("Browse...") {
+                        showFolderPicker()
+                    }
+                }
             }
 
             Divider()
@@ -132,9 +154,27 @@ struct CopyOptionsView: View {
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
+                .disabled(destinationURL == nil)
             }
         }
         .padding(20)
+    }
+
+    private func showFolderPicker() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose Destination Folder"
+        panel.message = "Select a folder to copy \(photosCount) photo\(photosCount == 1 ? "" : "s") to"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                destinationURL = url
+            }
+        }
     }
 }
 
