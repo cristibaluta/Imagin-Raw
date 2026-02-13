@@ -50,15 +50,10 @@ struct ThumbCell: View {
             }
             .frame(width: size, height: size)
             .overlay(
-                Rectangle()
-                    .stroke(
-                        isSelected ? Color.blue : .clear,
-                        lineWidth: 2
-                    )
-            )
-            .overlay(
-                // Trash icon overlay for photos marked for deletion
                 Group {
+                    if isSelected {
+                        Rectangle().stroke(.blue, lineWidth: 2)
+                    }
                     if photo.toDelete {
                         Image(systemName: "trash")
                             .font(.system(size: 24, weight: .bold))
@@ -133,44 +128,34 @@ struct ThumbCell: View {
                 loadThumbnail()
             }
 
-            // Fixed-height container for filename and stars to prevent jumping
-            VStack(spacing: (isHovering || currentRating > 0) && photo.isRawFile ? 0 : 2) { // Tighter spacing when stars show
-                // Filename with colored pill background based on label
-                Text(filename)
-                    .font(.system(size: 11)) // Keep consistent font size
-                    .lineLimit(1)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, (isHovering || currentRating > 0) && photo.isRawFile ? 2 : 4) // Tighter padding when stars show
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(getLabelBackgroundColor())
-                            .opacity(hasLabel() ? 1 : 0)
-                    )
-                    .foregroundColor(getLabelTextColor())
-                    .offset(y: (isHovering || currentRating > 0) && photo.isRawFile ? -2 : 0) // Move up 2px when stars show
+            Text(filename)
+                .font(.system(size: 11))
+                .lineLimit(1)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2) // Tighter padding when stars show
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(getLabelBackgroundColor())
+                        .opacity(hasLabel() ? 1 : 0)
+                )
+                .foregroundColor(getLabelTextColor())
 
-                // Star rating - show when hovering or when photo has rating (only for RAW files)
-                if photo.isRawFile && (isHovering || currentRating > 0) {
-                    StarRatingView(
-                        rating: currentRating,
-                        maxRating: 5,
-                        starSize: 10, // Slightly smaller stars
-                        onRatingChanged: onRatingChanged
-                    )
-                    .allowsHitTesting(true) // Ensure stars can receive clicks
-                } else {
-                    // Invisible spacer to maintain consistent height
-                    Spacer()
-                        .frame(height: 14) // Height to match star rating view
-                }
+            if photo.isRawFile && (isHovering || currentRating > 0) {
+                StarRatingView(
+                    rating: currentRating,
+                    maxRating: 5,
+                    starSize: 10,
+                    onRatingChanged: onRatingChanged
+                )
+                .allowsHitTesting(true)
+                .frame(height: 10)
             }
-            .frame(height: 36) // Fixed height container to prevent jumping
 
             Spacer()
         }
         .contentShape(Rectangle()) // Make entire cell area hoverable
         .onHover { hovering in
-            // Only enable hover state for RAW files
+            // We don't allow rating for JPG
             isHovering = photo.isRawFile && hovering
         }
         .contextMenu {

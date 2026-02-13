@@ -42,7 +42,7 @@ struct StarRatingView: View {
                     onRatingChanged(0)
                 }) {
                     Image(systemName: "xmark")
-                        .font(.system(size: starSize - 2, weight: .bold))
+                        .font(.system(size: starSize - 4, weight: .bold))
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(PlainButtonStyle())

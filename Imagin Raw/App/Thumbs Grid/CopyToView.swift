@@ -211,70 +211,59 @@ struct CopyOptionsView: View {
             Divider()
 
             // Options
-            VStack(alignment: .leading, spacing: 16) {
-                // Rename by EXIF date
-                Toggle(isOn: $renameByExifDate) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Rename files by EXIF date")
-                            .font(.body)
-                        Text("Format: YYYY-MM-DD_HHMMSS")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+            HStack {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Rename by EXIF date
+                    Toggle(isOn: $renameByExifDate) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Rename files by creation date")
+                                .font(.body)
+                            Text("Format: YYYY-MM-DD_HHMMSS")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
-                }
 
-                // Custom prefix
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Custom prefix (optional)")
-                        .font(.body)
-                    TextField("e.g., Vacation_", text: $customPrefix)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 300)
-                }
-
-                // Organize by date
-                Toggle(isOn: $organizeByDate) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Organize into subfolders by date")
+                    // Custom prefix
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Custom prefix (optional)")
                             .font(.body)
-                        Text("Creates folders like: 02-13 (Month-Day)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        TextField("e.g., Vacation_", text: $customPrefix)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(maxWidth: 300)
                     }
-                }
 
-                // Organize by camera model
-                Toggle(isOn: $organizeByCameraModel) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    // Organize by date
+                    Toggle(isOn: $organizeByDate) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Organize into subfolders by date")
+                                .font(.body)
+                            Text("Creates folders like: 02-13 (Month-Day)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    // Organize by camera model
+                    Toggle(isOn: $organizeByCameraModel) {
                         Text("Organize into subfolders by camera model")
                             .font(.body)
-                        Text("Creates folders with camera model names")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
-                }
 
-                // Organize JPGs in subfolder
-                Toggle(isOn: $organizeJpgsInSubfolder) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    // Organize JPGs in subfolder
+                    Toggle(isOn: $organizeJpgsInSubfolder) {
                         Text("Copy JPGs to _jpg subfolder")
                             .font(.body)
-                        Text("Separates JPG counterparts into a _jpg subfolder")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
                 }
+                Spacer()
             }
 
             // Preview section
             if let preview = previewPath {
                 Divider()
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Preview (first file):")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
+                HStack {
                     Text(preview)
                         .font(.system(.caption, design: .monospaced))
                         .foregroundColor(.primary)
@@ -283,6 +272,7 @@ struct CopyOptionsView: View {
                         .padding(8)
                         .background(Color(NSColor.textBackgroundColor))
                         .cornerRadius(4)
+                    Spacer()
                 }
             }
 
