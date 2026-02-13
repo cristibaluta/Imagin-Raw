@@ -217,9 +217,9 @@ struct CopyOptionsView: View {
             let dateString = dateFormatter.string(from: firstPhoto.dateCreated)
 
             if !customPrefix.isEmpty {
-                filename = customPrefix + dateString + "." + fileExtension
+                filename = customPrefix + dateString + "_" + filename// + "." + fileExtension
             } else {
-                filename = dateString + "." + fileExtension
+                filename = dateString + "_" + filename// + "." + fileExtension
             }
         } else if !customPrefix.isEmpty {
             filename = customPrefix + filename
@@ -325,7 +325,7 @@ struct CopyOptionsView: View {
 
                     // Custom prefix
                     HStack(alignment: .center, spacing: 16) {
-                        Text("Prefix")
+                        Text("Filename prefix")
                             .font(.body)
                         TextField("e.g., Paris_", text: $customPrefix)
                             .textFieldStyle(.roundedBorder)
@@ -334,11 +334,8 @@ struct CopyOptionsView: View {
                     // Rename by EXIF date
                     Toggle(isOn: $renameByExifDate) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Rename files by creation date")
+                            Text("Include creation date (YYYY-MM-DD_HHMMSS)")
                                 .font(.body)
-                            Text("Format: YYYY-MM-DD_HHMMSS")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
                         }
                     }
 
@@ -538,7 +535,7 @@ struct CopyProgressView: View {
 
                 // Determine destination filename and path
                 let originalFilename = file.filename
-                let fileExtension = file.source.pathExtension
+//                let fileExtension = file.source.pathExtension
                 var newFilename = originalFilename
 
                 // Apply custom prefix
@@ -553,9 +550,9 @@ struct CopyProgressView: View {
                     let dateString = dateFormatter.string(from: photo.dateCreated)
 
                     if !customPrefix.isEmpty {
-                        newFilename = customPrefix + dateString + "." + fileExtension
+                        newFilename = customPrefix + dateString + "_" + originalFilename
                     } else {
-                        newFilename = dateString + "." + fileExtension
+                        newFilename = dateString + "_" + originalFilename
                     }
                 }
 
