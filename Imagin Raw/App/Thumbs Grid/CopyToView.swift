@@ -227,26 +227,20 @@ struct CopyOptionsView: View {
 
         components.append(filename)
 
-        return components.joined(separator: "/")
+        return components.joined(separator: " > ")
     }
 
     var body: some View {
         VStack(spacing: 20) {
             // Header
-            VStack(spacing: 8) {
-                Text("Copy Options")
-                    .font(.headline)
-
-                Text("Copying \(photosCount) photo\(photosCount == 1 ? "" : "s")")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
+            Text("Copy \(photosCount) photo\(photosCount == 1 ? "" : "s")")
+                .font(.headline)
 
             Divider()
 
             // Destination folder selection
             VStack(alignment: .leading, spacing: 8) {
-                Text("Primary Destination:")
+                Text("Destination:")
                     .font(.body)
 
                 HStack {
@@ -311,26 +305,6 @@ struct CopyOptionsView: View {
             // Options
             HStack {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Rename by EXIF date
-                    Toggle(isOn: $renameByExifDate) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Rename files by creation date")
-                                .font(.body)
-                            Text("Format: YYYY-MM-DD_HHMMSS")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-
-                    // Custom prefix
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Custom prefix (optional)")
-                        Text("Prefix (optional)")
-                            .font(.body)
-                        TextField("e.g., Vacation_", text: $customPrefix)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(maxWidth: 300)
-                    }
 
                     // Organize by date
                     Toggle(isOn: $organizeByDate) {
@@ -349,9 +323,28 @@ struct CopyOptionsView: View {
                             .font(.body)
                     }
 
+                    // Custom prefix
+                    HStack(alignment: .center, spacing: 16) {
+                        Text("Prefix")
+                            .font(.body)
+                        TextField("e.g., Paris_", text: $customPrefix)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    // Rename by EXIF date
+                    Toggle(isOn: $renameByExifDate) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Rename files by creation date")
+                                .font(.body)
+                            Text("Format: YYYY-MM-DD_HHMMSS")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
                     // Organize JPGs in subfolder
                     Toggle(isOn: $organizeJpgsInSubfolder) {
-                        Text("Copy JPGs to _jpg subfolder")
+                        Text("Copy JPGs to '_jpg' subfolder")
                             .font(.body)
                     }
                 }
@@ -362,16 +355,16 @@ struct CopyOptionsView: View {
             if let preview = previewPath {
                 Divider()
 
-                HStack {
+                HStack(spacing: 12) {
+                    Text("Preview")
                     Text(preview)
                         .font(.system(.caption, design: .monospaced))
                         .foregroundColor(.primary)
-                        .lineLimit(3)
-                        .truncationMode(.middle)
+                        .lineLimit(1)
+                        .truncationMode(.head)
                         .padding(8)
                         .background(Color(NSColor.textBackgroundColor))
                         .cornerRadius(4)
-                    Spacer()
                 }
             }
 
