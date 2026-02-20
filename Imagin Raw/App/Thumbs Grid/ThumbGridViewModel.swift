@@ -142,34 +142,38 @@ class ThumbGridViewModel: ObservableObject {
     var filteredPhotos: [PhotoItem] {
         var result = photos
 
-        // Apply label filtering
-        if !selectedLabels.isEmpty {
-            result = result.filter { photo in
-                if selectedLabels.contains("To Delete") && photo.toDelete {
-                    return true
+        // If metadata is still loading, show all photos (don't apply filters yet)
+        // This prevents showing an empty view while waiting for metadata
+        if !isLoadingMetadata {
+            // Apply label filtering only after metadata is loaded
+            if !selectedLabels.isEmpty {
+                result = result.filter { photo in
+                    if selectedLabels.contains("To Delete") && photo.toDelete {
+                        return true
+                    }
+
+                    let photoLabel = photo.xmp?.label ?? ""
+
+                    if selectedLabels.contains("No Label") && photoLabel.isEmpty && !photo.toDelete {
+                        return true
+                    }
+
+                    return selectedLabels.contains(photoLabel) && !photo.toDelete
                 }
-
-                let photoLabel = photo.xmp?.label ?? ""
-
-                if selectedLabels.contains("No Label") && photoLabel.isEmpty && !photo.toDelete {
-                    return true
-                }
-
-                return selectedLabels.contains(photoLabel) && !photo.toDelete
             }
-        }
 
-        // Apply rating filtering
-        if !selectedRatings.isEmpty {
-            result = result.filter { photo in
-                // Get the effective rating (XMP or in-camera fallback)
-                let rating: Int
-                if let xmpRating = photo.xmp?.rating, xmpRating > 0 {
-                    rating = xmpRating
-                } else {
-                    rating = photo.inCameraRating ?? 0
+            // Apply rating filtering only after metadata is loaded
+            if !selectedRatings.isEmpty {
+                result = result.filter { photo in
+                    // Get the effective rating (XMP or in-camera fallback)
+                    let rating: Int
+                    if let xmpRating = photo.xmp?.rating, xmpRating > 0 {
+                        rating = xmpRating
+                    } else {
+                        rating = photo.inCameraRating ?? 0
+                    }
+                    return selectedRatings.contains(rating)
                 }
-                return selectedRatings.contains(rating)
             }
         }
 
