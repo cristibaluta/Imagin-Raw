@@ -593,13 +593,13 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
 
         print("🔌 Volume unmounting: \(volumeURL.path)")
 
-        // Find and remove folders that are on this volume
+        // Find and remove root folders that are on this volume
         let foldersToRemove = rootFolders.filter { folder in
             folder.url.path.hasPrefix(volumeURL.path)
         }
 
         for folder in foldersToRemove {
-            print("❌ Removing folder from unmounted volume: \(folder.url.path)")
+            print("❌ Removing root folder from unmounted volume: \(folder.url.path)")
 
             // If this was the selected folder, clear the selection
             if selectedFolder?.url == folder.url {
@@ -619,6 +619,52 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
             // Remove from rootFolders
             rootFolders.removeAll { $0.url == folder.url }
         }
+
+        // Also remove the unmounted volume from children of ALL root folders
+        // This handles cases where /Volumes or external drives appear as children
+        for i in 0..<rootFolders.count {
+            rootFolders[i] = removeUnmountedVolumeFromChildren(folder: rootFolders[i], volumeURL: volumeURL)
+        }
+    }
+
+    // Helper function to recursively remove unmounted volume from folder children
+    private func removeUnmountedVolumeFromChildren(folder: FolderItem, volumeURL: URL) -> FolderItem {
+        guard var children = folder.children else {
+            return folder
+        }
+
+        // Filter out children that are on the unmounted volume
+        let originalCount = children.count
+        children = children.filter { child in
+            let shouldKeep = !child.url.path.hasPrefix(volumeURL.path)
+            if !shouldKeep {
+                print("❌ Removing child folder from unmounted volume: \(child.url.path)")
+
+                // If this was the selected folder, clear the selection
+                if selectedFolder?.url == child.url {
+                    selectedFolder = nil
+                    photos = []
+                }
+            }
+            return shouldKeep
+        }
+
+        if children.count < originalCount {
+            print("   📁 Filtered out \(originalCount - children.count) child(ren) from \(folder.url.path)")
+        }
+
+        // Recursively process remaining children to remove deeper nested volumes
+        children = children.map { child in
+            removeUnmountedVolumeFromChildren(folder: child, volumeURL: volumeURL)
+        }
+
+        // Return updated folder with filtered children
+        // If no children remain, set to nil instead of empty array
+        return FolderItem(
+            url: folder.url,
+            children: children.isEmpty ? nil : children,
+            bookmarkData: folder.bookmarkData
+        )
     }
 
     // MARK: - FileSystemMonitorDelegate
