@@ -514,18 +514,110 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     private var accessedURLs: Set<URL> = []
     private let fileMonitor = FileSystemMonitor()
 
+    // Store all folders (including unmounted ones) and track which are currently available
+    private var allFolderBookmarks: [FolderBookmark] = []
+
     init() {
         fileMonitor.delegate = self
         loadUserFolders()
+        setupVolumeMonitoring()
     }
 
     deinit {
         // Stop file monitoring
         fileMonitor.stopAllMonitoring()
 
+        // Stop volume monitoring
+        NotificationCenter.default.removeObserver(self)
+
         // Stop accessing all security-scoped resources
         for url in accessedURLs {
             url.stopAccessingSecurityScopedResource()
+        }
+    }
+
+    // MARK: - Volume Monitoring
+
+    private func setupVolumeMonitoring() {
+        // Listen for volume mount/unmount notifications
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(volumeDidMount(_:)),
+            name: NSWorkspace.didMountNotification,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(volumeWillUnmount(_:)),
+            name: NSWorkspace.willUnmountNotification,
+            object: nil
+        )
+    }
+
+    @objc private func volumeDidMount(_ notification: Notification) {
+        guard let volumeURL = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else {
+            return
+        }
+
+        print("🔌 Volume mounted: \(volumeURL.path)")
+
+        // Check if any of our saved bookmarks are on this volume
+        for bookmark in allFolderBookmarks {
+            let bookmarkPath = bookmark.url.path
+
+            // Check if this bookmark is on the newly mounted volume
+            if bookmarkPath.hasPrefix(volumeURL.path) {
+                // Try to restore access to this folder
+                if let restoredURL = restoreSecurityScopedAccess(from: bookmark.bookmarkData) {
+                    // Check if it's not already in rootFolders
+                    if !rootFolders.contains(where: { $0.url.path == restoredURL.path }) {
+                        accessedURLs.insert(restoredURL)
+
+                        if FileManager.default.fileExists(atPath: restoredURL.path) {
+                            let folderTree = loadFolderTree(at: restoredURL, maxDepth: 2, currentDepth: 0, bookmarkData: bookmark.bookmarkData)
+                            rootFolders.append(folderTree)
+                            fileMonitor.startMonitoring(url: restoredURL)
+                            print("✅ Restored folder from mounted volume: \(restoredURL.path)")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @objc private func volumeWillUnmount(_ notification: Notification) {
+        guard let volumeURL = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else {
+            return
+        }
+
+        print("🔌 Volume unmounting: \(volumeURL.path)")
+
+        // Find and remove folders that are on this volume
+        let foldersToRemove = rootFolders.filter { folder in
+            folder.url.path.hasPrefix(volumeURL.path)
+        }
+
+        for folder in foldersToRemove {
+            print("❌ Removing folder from unmounted volume: \(folder.url.path)")
+
+            // If this was the selected folder, clear the selection
+            if selectedFolder?.url == folder.url {
+                selectedFolder = nil
+                photos = []
+            }
+
+            // Stop monitoring
+            fileMonitor.stopMonitoring(url: folder.url)
+
+            // Stop accessing security-scoped resource
+            if accessedURLs.contains(folder.url) {
+                folder.url.stopAccessingSecurityScopedResource()
+                accessedURLs.remove(folder.url)
+            }
+
+            // Remove from rootFolders
+            rootFolders.removeAll { $0.url == folder.url }
         }
     }
 
@@ -629,8 +721,8 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     }
 
     func addFolder(at url: URL) {
-        // Check if folder already exists
-        if rootFolders.contains(where: { $0.url == url }) {
+        // Check if folder already exists in allFolderBookmarks
+        if allFolderBookmarks.contains(where: { $0.url.path == url.path }) {
             return
         }
 
@@ -655,6 +747,10 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
 
         accessedURLs.insert(url)
 
+        // Save to allFolderBookmarks (this persists it even when volume is unmounted)
+        let bookmark = FolderBookmark(url: url, bookmarkData: bookmarkData)
+        allFolderBookmarks.append(bookmark)
+
         // Load the folder tree and add to root folders
         let newFolder = loadFolderTree(at: url, maxDepth: 2, currentDepth: 0, bookmarkData: bookmarkData)
         rootFolders.append(newFolder)
@@ -676,7 +772,10 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
             accessedURLs.remove(url)
         }
 
+        // Remove from both rootFolders and allFolderBookmarks
         rootFolders.removeAll { $0.url == url }
+        allFolderBookmarks.removeAll { $0.url.path == url.path }
+
         saveUserFolders()
     }
 
@@ -685,6 +784,11 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
               let folderBookmarks = try? JSONDecoder().decode([FolderBookmark].self, from: data) else {
             return
         }
+
+        // Store all bookmarks (including unmounted volumes)
+        allFolderBookmarks = folderBookmarks
+
+        // Only add folders that are currently accessible (mounted)
         for bookmark in folderBookmarks {
             // Restore access using the security-scoped bookmark
             if let restoredURL = restoreSecurityScopedAccess(from: bookmark.bookmarkData) {
@@ -696,7 +800,7 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
                     rootFolders.append(folderTree)
                     fileMonitor.startMonitoring(url: restoredURL)
                 } else {
-                    // Folder no longer exists, stop accessing the resource
+                    // Folder doesn't exist yet (unmounted volume) - keep in allFolderBookmarks but don't add to rootFolders
                     restoredURL.stopAccessingSecurityScopedResource()
                     accessedURLs.remove(restoredURL)
                 }
@@ -705,12 +809,8 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     }
 
     private func saveUserFolders() {
-        let folderBookmarks = rootFolders.compactMap { folder -> FolderBookmark? in
-            guard let bookmarkData = folder.bookmarkData else { return nil }
-            return FolderBookmark(url: folder.url, bookmarkData: bookmarkData)
-        }
-
-        if let data = try? JSONEncoder().encode(folderBookmarks) {
+        // Save all bookmarks, including those from unmounted volumes
+        if let data = try? JSONEncoder().encode(allFolderBookmarks) {
             UserDefaults.standard.set(data, forKey: userFoldersKey)
         }
     }
