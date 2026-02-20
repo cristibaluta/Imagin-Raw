@@ -308,36 +308,4 @@ struct ContentView: View {
             NSWorkspace.shared.open(url)
         }
     }
-
-    private func updatePhotoWithXmpMetadata(photo: PhotoItem, xmpMetadata: XmpMetadata) {
-        // Find the current photo index in the filesModel's photos array
-        if let photoIndex = filesModel.photos.firstIndex(where: { $0.path == photo.path }) {
-            let currentPhoto = filesModel.photos[photoIndex]
-
-            // Create a new PhotoItem with the updated XMP metadata but preserve the original ID, dateCreated, and toDelete state
-            let updatedPhoto = PhotoItem(
-                id: photo.id,
-                path: photo.path,
-                xmp: xmpMetadata,
-                dateCreated: photo.dateCreated,
-                toDelete: currentPhoto.toDelete,
-                hasACR: currentPhoto.hasACR,
-                hasJPG: currentPhoto.hasJPG,
-                inCameraRating: currentPhoto.inCameraRating,
-                isRawFile: currentPhoto.isRawFile,
-                fileSizeBytes: currentPhoto.fileSizeBytes,
-                width: currentPhoto.width,
-                height: currentPhoto.height,
-                cameraMake: currentPhoto.cameraMake,
-                cameraModel: currentPhoto.cameraModel
-            )
-
-            // Update the photos array directly (since BrowserModel is @Published)
-            filesModel.photos[photoIndex] = updatedPhoto
-
-            // Update selectedPhoto to point to the new updated photo instance (same photo, just updated)
-            filesModel.selectedPhoto = updatedPhoto
-
-        }
-    }
 }

@@ -322,190 +322,14 @@ func loadFolderChildren(for folder: FolderItem) -> [FolderItem] {
     return childTree.children ?? []
 }
 
-
-func loadPhotos(in folder: FolderItem?) -> [PhotoItem] {
-    guard let folder else { return [] }
-
-    let fm = FileManager.default
-    let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
-                         "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
-                         "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
-                         "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
-    let jpgExtensions = ["jpg", "jpeg"]
-    let otherExtensions = ["png", "heic", "tiff", "tif"]
-    let allowed = rawExtensions + jpgExtensions + otherExtensions
-
-    let files = (try? fm.contentsOfDirectory(
-        at: folder.url,
-        includingPropertiesForKeys: [.creationDateKey],
-        options: [.skipsHiddenFiles]
-    )) ?? []
-
-    // Create a set of base filenames that have RAW versions
-    let rawBaseNames = Set(files
-        .filter { rawExtensions.contains($0.pathExtension.lowercased()) }
-        .map { $0.deletingPathExtension().lastPathComponent })
-
-    // Separate image files from XMP and ACR files, filtering out JPGs with RAW counterparts
-    let imageFiles = files.filter { file in
-        let ext = file.pathExtension.lowercased()
-        guard allowed.contains(ext) else { return false }
-
-        // If it's a JPG and a RAW version exists, skip it
-        if jpgExtensions.contains(ext) {
-            let baseName = file.deletingPathExtension().lastPathComponent
-            return !rawBaseNames.contains(baseName)
-        }
-
-        return true
-    }
-    let acrFiles = files.filter { $0.pathExtension.lowercased() == "acr" }
-    let jpgFiles = files.filter { jpgExtensions.contains($0.pathExtension.lowercased()) }
-
-    var acrLookup: Set<String> = Set()
-    for acrFile in acrFiles {
-        let baseName = acrFile.deletingPathExtension().lastPathComponent
-        acrLookup.insert(baseName)
-    }
-
-    var jpgLookup: Set<String> = Set()
-    for jpgFile in jpgFiles {
-        let baseName = jpgFile.deletingPathExtension().lastPathComponent
-        jpgLookup.insert(baseName)
-    }
-
-    // Create PhotoItems with basic info only - no XMP or rating yet
-    let startTime = Date()
-    let result = imageFiles
-        .sorted { $0.lastPathComponent < $1.lastPathComponent }
-        .map { imageFile in
-            let baseName = imageFile.deletingPathExtension().lastPathComponent
-
-            // Get creation date from the file attributes we already retrieved
-            let creationDate = (try? imageFile.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date()
-
-            // Check for ACR file
-            let hasACR = acrLookup.contains(baseName)
-
-            // Check for JPG file
-            let hasJPG = jpgLookup.contains(baseName)
-
-            return PhotoItem(path: imageFile.path, xmp: nil, dateCreated: creationDate, hasACR: hasACR, hasJPG: hasJPG, inCameraRating: nil)
-        }
-
-    let totalTime = Date().timeIntervalSince(startTime)
-    print("📊 loadPhotos (basic) Performance:")
-    print("   Total files: \(imageFiles.count)")
-    print("   Total time: \(String(format: "%.3f", totalTime))s")
-
-    return result
-}
-
-func loadPhotosMetadataAsync(in folder: FolderItem?, photos: [PhotoItem]) async -> [PhotoItem] {
-    guard let folder else { return photos }
-
-    let fm = FileManager.default
-    let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
-                         "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
-                         "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
-                         "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
-
-    let files = (try? fm.contentsOfDirectory(
-        at: folder.url,
-        includingPropertiesForKeys: nil,
-        options: [.skipsHiddenFiles]
-    )) ?? []
-
-    let xmpFiles = files.filter { $0.pathExtension.lowercased() == "xmp" }
-
-    var xmpLookup: [String: String] = [:]
-    for xmpFile in xmpFiles {
-        let baseName = xmpFile.deletingPathExtension().lastPathComponent
-        if let xmpContent = try? String(contentsOf: xmpFile, encoding: .utf8) {
-            xmpLookup[baseName] = xmpContent
-        }
-    }
-
-    let startTime = Date()
-
-    return await withTaskGroup(of: (Int, XmpMetadata?, Int?, Bool, Int64?, Int?, Int?, String?, String?).self, returning: [PhotoItem].self) { group in
-        for (index, photo) in photos.enumerated() {
-            group.addTask {
-                let url = URL(fileURLWithPath: photo.path)
-                let baseName = url.deletingPathExtension().lastPathComponent
-                let fileExtension = url.pathExtension.lowercased()
-                let isRaw = rawExtensions.contains(fileExtension)
-
-                let xmp: XmpMetadata? = if let xmpContent = xmpLookup[baseName] {
-                    XmpParser.parseMetadata(from: xmpContent)
-                } else {
-                    nil
-                }
-
-                // Get file size
-                let fileSize: Int64? = (try? fm.attributesOfItem(atPath: photo.path))?[.size] as? Int64
-
-                // Extract metadata (rating, width, height, camera info) in a single call
-                var inCameraRating: Int? = nil
-                var width: Int? = nil
-                var height: Int? = nil
-                var cameraMake: String? = nil
-                var cameraModel: String? = nil
-
-                if let metadata = RawWrapper.shared().extractMetadata(photo.path) {
-                    inCameraRating = (metadata["rating"] as? NSNumber)?.intValue
-                    width = (metadata["width"] as? NSNumber)?.intValue
-                    height = (metadata["height"] as? NSNumber)?.intValue
-                    cameraMake = metadata["cameraMake"] as? String
-                    cameraModel = metadata["cameraModel"] as? String
-                }
-
-                return (index, xmp, inCameraRating, isRaw, fileSize, width, height, cameraMake, cameraModel)
-            }
-        }
-
-        var updatedPhotos = photos
-        for await (index, xmp, rating, isRaw, fileSize, width, height, cameraMake, cameraModel) in group {
-            updatedPhotos[index] = PhotoItem(
-                id: photos[index].id,
-                path: photos[index].path,
-                xmp: xmp,
-                dateCreated: photos[index].dateCreated,
-                hasACR: photos[index].hasACR,
-                hasJPG: photos[index].hasJPG,
-                inCameraRating: rating,
-                isRawFile: isRaw,
-                fileSizeBytes: fileSize,
-                width: width,
-                height: height,
-                cameraMake: cameraMake,
-                cameraModel: cameraModel
-            )
-        }
-
-        let totalTime = Date().timeIntervalSince(startTime)
-        print("📊 loadPhotosMetadataAsync Performance:")
-        print("   Total files: \(photos.count)")
-        print("   Total time: \(String(format: "%.3f", totalTime))s")
-
-        return updatedPhotos
-    }
-}
-
-
 @MainActor
 final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     @Published var rootFolders: [FolderItem] = []
-    @Published var selectedFolder: FolderItem? {
-        didSet {
-            // Stop any pending thumbnail requests for the previous folder
-            ThumbsManager.shared.stopQueue()
-            loadPhotosForSelectedFolder()
-        }
-    }
+    @Published var selectedFolder: FolderItem?
     @Published var selectedPhoto: PhotoItem?
-    @Published var photos: [PhotoItem] = []
-    @Published var isLoadingMetadata: Bool = false
+
+    // Notification to trigger folder content reload
+    @Published var folderContentDidChange: FolderItem?
 
     // Flag to prevent photo loading when in copy mode
     var isInCopyMode: Bool = false
@@ -604,7 +428,6 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
             // If this was the selected folder, clear the selection
             if selectedFolder?.url == folder.url {
                 selectedFolder = nil
-                photos = []
             }
 
             // Stop monitoring
@@ -643,7 +466,6 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
                 // If this was the selected folder, clear the selection
                 if selectedFolder?.url == child.url {
                     selectedFolder = nil
-                    photos = []
                 }
             }
             return shouldKeep
@@ -677,18 +499,11 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
         // Find and refresh the affected folder in our tree
         refreshFolderTree(for: url)
 
-        // If this is the currently selected folder or a parent of it, refresh the photos and thumbnails
+        // If this is the currently selected folder or a parent of it, notify about the change
         if let selectedFolder = selectedFolder {
             if selectedFolder.url == url || url.path.hasPrefix(selectedFolder.url.path) {
-
-                // Stop any pending thumbnail requests
-                ThumbsManager.shared.stopQueue()
-
-                // Reload photos for the selected folder
-                loadPhotosForSelectedFolder()
-
-                // Trigger thumbnail regeneration for the new photo list
-                // This will happen automatically when the photos array is updated due to @Published
+                // Notify that folder contents changed - PhotosModel will handle the reload
+                folderContentDidChange = selectedFolder
             }
         }
     }
@@ -885,20 +700,4 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
             }
         }
     }
-
-    private func loadPhotosForSelectedFolder() {
-        // Don't load photos if we're in copy mode (selecting destination folder)
-        guard !isInCopyMode else { return }
-
-        photos = loadPhotos(in: selectedFolder)
-        isLoadingMetadata = true
-        Task {
-            let photosWithMetadata = await loadPhotosMetadataAsync(in: selectedFolder, photos: photos)
-            await MainActor.run {
-                self.photos = photosWithMetadata
-                self.isLoadingMetadata = false
-            }
-        }
-    }
-
 }

@@ -52,6 +52,24 @@ struct ThumbGridView: View {
                 .environmentObject(filesModel)
                 .interactiveDismissDisabled(false)
         }
+        .onAppear {
+            // Load photos for the selected folder when view first appears
+            if let folder = filesModel.selectedFolder {
+                viewModel.loadPhotosForFolder(folder)
+            }
+        }
+        .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
+            // Load photos for the new folder
+            if let folder = newFolder {
+                viewModel.loadPhotosForFolder(folder)
+            }
+        }
+        .onChange(of: filesModel.folderContentDidChange) { oldValue, newValue in
+            // Reload photos when folder contents change
+            if newValue != nil {
+                viewModel.reloadPhotos()
+            }
+        }
     }
 
     // MARK: - View Components
@@ -115,27 +133,28 @@ struct ThumbGridView: View {
                 isFocused = true
                 viewModel.initializeSelection()
             }
-            .onChange(of: filesModel.photos) { oldPhotos, newPhotos in
+            .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
+                // Select first photo when photos load if nothing is selected
                 if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
                     filesModel.selectedPhoto = newPhotos.first
+                    viewModel.selectedPhotos.removeAll()
+                    viewModel.selectedPhotos.insert(newPhotos.first!.id)
+                    viewModel.lastSelectedIndex = 0
                 }
             }
-            .onChange(of: filesModel.isLoadingMetadata) { oldValue, newValue in
+            .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
                 // When metadata loading completes, clear invalid filters
                 if oldValue == true && newValue == false {
                     viewModel.clearInvalidFilters()
                 }
             }
-            .onChange(of: filesModel.selectedFolder) {
+            .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
                 // Scroll to top and select first photo when folder changes
                 if let firstPhoto = viewModel.filteredPhotos.first {
-                    // Select the first photo
                     filesModel.selectedPhoto = firstPhoto
                     viewModel.selectedPhotos.removeAll()
                     viewModel.selectedPhotos.insert(firstPhoto.id)
                     viewModel.lastSelectedIndex = 0
-
-                    // Scroll to top without animation
                     proxy.scrollTo(firstPhoto.id, anchor: .top)
                 }
             }

@@ -24,6 +24,7 @@ class ThumbGridViewModel: ObservableObject {
 
     // MARK: - Dependencies
     private let filesModel: FilesModel
+    private var photosModel: PhotosModel?
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Constants
@@ -96,9 +97,31 @@ class ThumbGridViewModel: ObservableObject {
             .assign(to: &$cachingQueueCount)
     }
 
+    // MARK: - Photo Loading
+    func loadPhotosForFolder(_ folder: FolderItem) {
+        // Create a new PhotosModel for this folder
+        let newPhotosModel = PhotosModel(folder: folder)
+        self.photosModel = newPhotosModel
+
+        // Load photos
+        newPhotosModel.loadPhotos()
+
+        // Clear selection when loading new folder
+        selectedPhotos.removeAll()
+        lastSelectedIndex = nil
+    }
+
+    func reloadPhotos() {
+        photosModel?.reloadPhotos()
+    }
+
     // MARK: - Computed Properties
     var photos: [PhotoItem] {
-        return filesModel.photos
+        return photosModel?.photos ?? []
+    }
+
+    var isLoadingMetadata: Bool {
+        return photosModel?.isLoadingMetadata ?? false
     }
 
     var filteredPhotos: [PhotoItem] {
@@ -203,10 +226,6 @@ class ThumbGridViewModel: ObservableObject {
     // MARK: - Caching Progress
     var showCachingProgress: Bool {
         return cachingQueueCount > 0
-    }
-
-    var isLoadingMetadata: Bool {
-        return filesModel.isLoadingMetadata
     }
 
     // MARK: - Selection Management
@@ -341,9 +360,9 @@ class ThumbGridViewModel: ObservableObject {
                     }
                 }
 
-                // Remove from filesModel.photos array
-                if let index = filesModel.photos.firstIndex(where: { $0.id == photo.id }) {
-                    filesModel.photos.remove(at: index)
+                // Remove from photos array
+                if let index = photosModel?.photos.firstIndex(where: { $0.id == photo.id }) {
+                    photosModel?.photos.remove(at: index)
                 }
             } catch {
                 // Silently handle errors
@@ -661,54 +680,60 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     private func toggleToDeleteState(for photo: PhotoItem) {
-        if let photoIndex = filesModel.photos.firstIndex(where: { $0.path == photo.path }) {
-            let currentPhoto = filesModel.photos[photoIndex]
-
-            let updatedPhoto = PhotoItem(
-                id: currentPhoto.id,
-                path: currentPhoto.path,
-                xmp: currentPhoto.xmp,
-                dateCreated: currentPhoto.dateCreated,
-                toDelete: !currentPhoto.toDelete,
-                hasACR: currentPhoto.hasACR,
-                hasJPG: currentPhoto.hasJPG,
-                inCameraRating: currentPhoto.inCameraRating,
-                isRawFile: currentPhoto.isRawFile,
-                fileSizeBytes: currentPhoto.fileSizeBytes,
-                width: currentPhoto.width,
-                height: currentPhoto.height,
-                cameraMake: currentPhoto.cameraMake,
-                cameraModel: currentPhoto.cameraModel
-            )
-
-            filesModel.photos[photoIndex] = updatedPhoto
-            filesModel.selectedPhoto = updatedPhoto
+        guard let photosModel = photosModel,
+              let photoIndex = photosModel.photos.firstIndex(where: { $0.path == photo.path }) else {
+            return
         }
+
+        let currentPhoto = photosModel.photos[photoIndex]
+
+        let updatedPhoto = PhotoItem(
+            id: currentPhoto.id,
+            path: currentPhoto.path,
+            xmp: currentPhoto.xmp,
+            dateCreated: currentPhoto.dateCreated,
+            toDelete: !currentPhoto.toDelete,
+            hasACR: currentPhoto.hasACR,
+            hasJPG: currentPhoto.hasJPG,
+            inCameraRating: currentPhoto.inCameraRating,
+            isRawFile: currentPhoto.isRawFile,
+            fileSizeBytes: currentPhoto.fileSizeBytes,
+            width: currentPhoto.width,
+            height: currentPhoto.height,
+            cameraMake: currentPhoto.cameraMake,
+            cameraModel: currentPhoto.cameraModel
+        )
+
+        photosModel.photos[photoIndex] = updatedPhoto
+        filesModel.selectedPhoto = updatedPhoto
     }
 
     private func updatePhotoWithXmpMetadata(photo: PhotoItem, xmpMetadata: XmpMetadata) {
-        if let photoIndex = filesModel.photos.firstIndex(where: { $0.path == photo.path }) {
-            let currentPhoto = filesModel.photos[photoIndex]
-
-            let updatedPhoto = PhotoItem(
-                id: photo.id,
-                path: photo.path,
-                xmp: xmpMetadata,
-                dateCreated: photo.dateCreated,
-                toDelete: currentPhoto.toDelete,
-                hasACR: currentPhoto.hasACR,
-                hasJPG: currentPhoto.hasJPG,
-                inCameraRating: currentPhoto.inCameraRating,
-                isRawFile: currentPhoto.isRawFile,
-                fileSizeBytes: currentPhoto.fileSizeBytes,
-                width: currentPhoto.width,
-                height: currentPhoto.height,
-                cameraMake: currentPhoto.cameraMake,
-                cameraModel: currentPhoto.cameraModel
-            )
-
-            filesModel.photos[photoIndex] = updatedPhoto
-            filesModel.selectedPhoto = updatedPhoto
+        guard let photosModel = photosModel,
+              let photoIndex = photosModel.photos.firstIndex(where: { $0.path == photo.path }) else {
+            return
         }
+
+        let currentPhoto = photosModel.photos[photoIndex]
+
+        let updatedPhoto = PhotoItem(
+            id: photo.id,
+            path: photo.path,
+            xmp: xmpMetadata,
+            dateCreated: photo.dateCreated,
+            toDelete: currentPhoto.toDelete,
+            hasACR: currentPhoto.hasACR,
+            hasJPG: currentPhoto.hasJPG,
+            inCameraRating: currentPhoto.inCameraRating,
+            isRawFile: currentPhoto.isRawFile,
+            fileSizeBytes: currentPhoto.fileSizeBytes,
+            width: currentPhoto.width,
+            height: currentPhoto.height,
+            cameraMake: currentPhoto.cameraMake,
+            cameraModel: currentPhoto.cameraModel
+        )
+
+        photosModel.photos[photoIndex] = updatedPhoto
+        filesModel.selectedPhoto = updatedPhoto
     }
 }
