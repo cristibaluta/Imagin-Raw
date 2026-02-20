@@ -143,8 +143,10 @@ struct ThumbGridView: View {
                 }
             }
             .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
+                print("🔔 isLoadingMetadata changed: \(oldValue) -> \(newValue)")
                 // When metadata loading completes, clear invalid filters
                 if oldValue == true && newValue == false {
+                    print("🎯 Calling clearInvalidFilters()")
                     viewModel.clearInvalidFilters()
                 }
             }

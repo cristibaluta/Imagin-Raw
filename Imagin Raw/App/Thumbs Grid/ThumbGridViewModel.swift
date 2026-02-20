@@ -18,6 +18,7 @@ class ThumbGridViewModel: ObservableObject {
     @Published var gridType: GridType = .threeColumns
     @Published var lastSelectedIndex: Int?
     @Published var cachingQueueCount: Int = 0
+    @Published var isLoadingMetadata: Bool = false
 
     @Published var photosToCopy: [PhotoItem] = []
     @Published var copyDestinationURL: URL?
@@ -117,6 +118,15 @@ class ThumbGridViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // Observe PhotosModel's isLoadingMetadata and update our published property
+        newPhotosModel.$isLoadingMetadata
+            .sink { [weak self] isLoading in
+                print("📡 PhotosModel.isLoadingMetadata changed to: \(isLoading)")
+                self?.isLoadingMetadata = isLoading
+                print("📡 ThumbGridViewModel.isLoadingMetadata set to: \(isLoading)")
+            }
+            .store(in: &cancellables)
+
         // Load photos
         newPhotosModel.loadPhotos()
 
@@ -133,10 +143,6 @@ class ThumbGridViewModel: ObservableObject {
     // MARK: - Computed Properties
     var photos: [PhotoItem] {
         return photosModel?.photos ?? []
-    }
-
-    var isLoadingMetadata: Bool {
-        return photosModel?.isLoadingMetadata ?? false
     }
 
     var filteredPhotos: [PhotoItem] {
@@ -449,6 +455,8 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func clearInvalidFilters() {
+        print("🔍 clearInvalidFilters called - photos: \(photos.count), labels: \(selectedLabels), ratings: \(selectedRatings)")
+
         // Clear invalid label filters
         if !selectedLabels.isEmpty {
             var labelsToRemove: Set<String> = []
@@ -470,12 +478,14 @@ class ThumbGridViewModel: ObservableObject {
                 }
 
                 if !hasMatchingPhoto {
+                    print("   ❌ Label '\(label)' has no matching photos - will remove")
                     labelsToRemove.insert(label)
                 }
             }
 
             // Remove invalid labels
             if !labelsToRemove.isEmpty {
+                print("   🗑️ Removing labels: \(labelsToRemove)")
                 selectedLabels.subtract(labelsToRemove)
             }
         }
@@ -511,6 +521,9 @@ class ThumbGridViewModel: ObservableObject {
         // After clearing invalid filters, check if any photos would match the remaining filters
         // If we still have active filters but no photos match, clear all filters
         if !photos.isEmpty && (!selectedLabels.isEmpty || !selectedRatings.isEmpty) {
+            print("   🔎 Checking if remaining filters match any photos...")
+            print("   Remaining labels: \(selectedLabels), ratings: \(selectedRatings)")
+
             // Manually check if any photo matches the remaining filters
             let hasMatchingPhoto = photos.contains { photo in
                 var matchesLabel = selectedLabels.isEmpty
@@ -546,9 +559,14 @@ class ThumbGridViewModel: ObservableObject {
 
             // If no photos match the remaining filters, clear all filters
             if !hasMatchingPhoto {
+                print("   ❌ No photos match remaining filters - clearing ALL filters")
                 selectedLabels.removeAll()
                 selectedRatings.removeAll()
+            } else {
+                print("   ✅ Some photos match remaining filters - keeping them")
             }
+        } else {
+            print("   ℹ️ No active filters remaining after cleanup")
         }
     }
 
