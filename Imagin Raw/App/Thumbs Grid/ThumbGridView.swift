@@ -447,6 +447,10 @@ struct ThumbGridView: View {
             viewModel.toggleDeleteState(for: photos)
             return .handled
         }
+        if key == "a" || key == "A" {
+            viewModel.applyLabel(labelMap["8"]!, to: rawPhotos)
+            return .handled
+        }
 
         return .ignored
     }
