@@ -440,6 +440,9 @@ class ThumbGridViewModel: ObservableObject {
         // Clear selection after moving
         selectedPhotos.removeAll()
 
+        // Force immediate update of filtered photos to reflect the deletion
+        updateFilteredPhotos()
+
         // Select first remaining photo if available
         if !filteredPhotos.isEmpty {
             let firstPhoto = filteredPhotos[0]
