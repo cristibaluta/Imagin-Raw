@@ -70,8 +70,11 @@ struct ThumbGridView: View {
         }
         .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
             // Load photos for the new folder
-            if let folder = newFolder {
+            if let folder = newFolder, oldFolder?.url != newFolder?.url {
                 viewModel.loadPhotosForFolder(folder)
+                // Clear the current selection so the photos observer will select the first photo
+                filesModel.selectedPhoto = nil
+                viewModel.selectedPhotos.removeAll()
             }
         }
         .onChange(of: filesModel.folderContentDidChange) { oldValue, newValue in

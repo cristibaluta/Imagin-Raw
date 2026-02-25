@@ -131,7 +131,6 @@ struct LargePreviewView: View {
             }
             let metadata = RawWrapper.shared().extractMetadata(path)
             let rating = metadata?["rating"] as? NSNumber
-            print(rating)
 
             // Store EXIF data for display
             var exifInfo: [String: Any]? = nil
@@ -206,13 +205,13 @@ struct CompactExifOverlayView: View {
 
     var body: some View {
         if nsImage.size.width > nsImage.size.height {
-            HStack(spacing: 16) {
+            HStack(spacing: 8) {
                 Exif1View(exifData: exifData)
                 Exif2View(exifData: exifData)
             }
             .padding(16)
         } else {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
                 Exif1View(exifData: exifData)
                 Exif2View(exifData: exifData)
             }
@@ -225,8 +224,7 @@ struct Exif1View: View {
     let exifData: [String: Any]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 16) {
                 // Aperture
                 if let aperture = exifData["Aperture"] as? NSNumber {
@@ -242,21 +240,21 @@ struct Exif1View: View {
                     }
                 }
             }
-            .font(.system(size: 14, weight: .medium))
+            .font(.system(size: 12))
             .foregroundColor(.white)
 
             HStack(spacing: 10) {
                 // ISO
                 if let iso = exifData["ISO"] as? NSNumber {
                     Text("ISO \(iso)")
-                        .font(.system(size: 14))
+                        .font(.system(size: 12))
                         .foregroundColor(.white)
                 }
             }
             .foregroundColor(.gray)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(Color.black.opacity(0.7))
@@ -268,7 +266,7 @@ struct Exif2View: View {
     let exifData: [String: Any]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             // Camera details
             if let make = exifData["Make"] as? String,
                let model = exifData["Model"] as? String {
@@ -288,14 +286,14 @@ struct Exif2View: View {
                         .padding(.vertical, 2)
                         .overlay(
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.black.opacity(0.7))
+                                .fill(.primary.opacity(0.4))
                         )
                 }
             }
         }
-        .font(.system(size: 14))
+        .font(.system(size: 12))
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .stroke(Color.black.opacity(0.7), lineWidth: 2)

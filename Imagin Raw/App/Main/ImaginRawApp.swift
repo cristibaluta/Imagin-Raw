@@ -14,7 +14,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @main
-struct ImaginBridgeApp: App {
+struct ImaginRawApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {
