@@ -16,7 +16,12 @@ class ThumbGridViewModel: ObservableObject {
     @Published var selectedRatings: Set<Int> = [] // Rating filters (1-5)
     @Published var sortOption: SortOption = .name
     @Published var gridType: GridType = .threeColumns
-    @Published var lastSelectedIndex: Int?
+    @Published var lastSelectedIndex: Int? {
+        didSet {
+            print(">>>>> Last selected index: \(lastSelectedIndex)")
+            print("")
+        }
+    }
     @Published var cachingQueueCount: Int = 0
     @Published var isLoadingMetadata: Bool = false
 
@@ -445,10 +450,21 @@ class ThumbGridViewModel: ObservableObject {
 
         // Select first remaining photo if available
         if !filteredPhotos.isEmpty {
-            let firstPhoto = filteredPhotos[0]
-            filesModel.selectedPhoto = firstPhoto
-            selectedPhotos.insert(firstPhoto.id)
-            lastSelectedIndex = 0
+            // Try to select the photo at the same index, or the closest one if that index is now out of bounds
+            let targetIndex: Int
+            if let lastIndex = lastSelectedIndex {
+                // If the last index is still valid, use it
+                // Otherwise, select the last photo (which is now at lastIndex - 1 if we deleted the last one)
+                targetIndex = min(lastIndex, filteredPhotos.count - 1)
+            } else {
+                // No previous selection, default to first photo
+                targetIndex = 0
+            }
+
+            let photoToSelect = filteredPhotos[targetIndex]
+            filesModel.selectedPhoto = photoToSelect
+            selectedPhotos.insert(photoToSelect.id)
+            lastSelectedIndex = targetIndex
         } else {
             filesModel.selectedPhoto = nil
         }
