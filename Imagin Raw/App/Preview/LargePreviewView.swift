@@ -135,10 +135,7 @@ struct LargePreviewView: View {
             // Store EXIF data for display
             var exifInfo: [String: Any]? = nil
             if let exifData = rawPhoto.exifData {
-                for (key, value) in exifData {
-                }
                 exifInfo = exifData as? [String: Any]
-            } else {
             }
 
             // Return the image and EXIF data
@@ -149,17 +146,38 @@ struct LargePreviewView: View {
             return (NSImage(data: imageData), exifInfo)
         } else {
             // Load regular image file directly from disk
-            guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-                  let existingMetadata: CGImageMetadata = CGImageSourceCopyMetadataAtIndex(source, 0, nil) else {
+            guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
                 return (NSImage(contentsOfFile: path), nil)
             }
-
-            // 2. Get existing metadata or create a new mutable one
-            let metadata = CGImageMetadataCreateMutableCopy(existingMetadata) ?? CGImageMetadataCreateMutable()
-
-//            trySetLabel(url: url, label: "Select")
-
-            return (NSImage(contentsOfFile: path), nil)
+            let nsImage = NSImage(contentsOfFile: path)
+            if let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] {
+                var exifDict: [String: Any] = [:]
+                if let exif = properties[kCGImagePropertyExifDictionary] as? [CFString: Any] {
+                    // Map common EXIF fields
+                    if let aperture = exif[kCGImagePropertyExifFNumber] as? NSNumber {
+                        exifDict["Aperture"] = aperture
+                    }
+                    if let shutter = exif[kCGImagePropertyExifExposureTime] as? NSNumber {
+                        exifDict["ShutterSpeed"] = shutter
+                    }
+                    if let iso = exif[kCGImagePropertyExifISOSpeedRatings] as? [NSNumber], let isoVal = iso.first {
+                        exifDict["ISO"] = isoVal
+                    }
+                    if let focal = exif[kCGImagePropertyExifFocalLength] as? NSNumber {
+                        exifDict["FocalLength"] = focal
+                    }
+                }
+                if let tiff = properties[kCGImagePropertyTIFFDictionary] as? [CFString: Any] {
+                    if let make = tiff[kCGImagePropertyTIFFMake] as? String {
+                        exifDict["Make"] = make
+                    }
+                    if let model = tiff[kCGImagePropertyTIFFModel] as? String {
+                        exifDict["Model"] = model
+                    }
+                }
+                return (nsImage, exifDict)
+            }
+            return (nsImage, nil)
         }
     }
 
