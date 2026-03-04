@@ -2,6 +2,7 @@ import SwiftUI
 import ImageIO
 import RCPreferences
 
+@MainActor
 class LargePreviewViewModel: ObservableObject {
     @Published var preview: NSImage?
     @Published var isLoading = false
@@ -42,12 +43,13 @@ class LargePreviewViewModel: ObservableObject {
         preview = nil
         isLoading = true
         exifData = nil
-        Task(priority: .userInitiated) { [weak self, path] in
+        Task(priority: .userInitiated) { [path] in
             let (loadedImage, extractedExifData) = await Self.loadImageWithExif(from: path)
             await MainActor.run {
-                self?.preview = loadedImage
-                self?.exifData = extractedExifData
-                self?.isLoading = false
+                // Update published properties on the main actor without capturing self in a sendable context
+                self.preview = loadedImage
+                self.exifData = extractedExifData
+                self.isLoading = false
                 // Store in cache if loaded
                 if let img = loadedImage {
                     Self.imageCache[path] = (img, extractedExifData)
