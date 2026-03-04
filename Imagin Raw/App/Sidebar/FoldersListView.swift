@@ -17,9 +17,6 @@ struct FoldersListView: View {
         self.onDoubleClick = onDoubleClick
     }
 
-    private let expandedFoldersKey = "ExpandedFolders"
-    private let selectedFolderKey = "SelectedFolder"
-
     var body: some View {
         List(selection: $filesModel.selectedFolder) {
             ForEach(Array(filesModel.rootFolders.enumerated()), id: \.element.id) { index, rootFolder in
@@ -48,7 +45,7 @@ struct FoldersListView: View {
     }
 
     private func loadExpandedState() {
-        if let data = UserDefaults.standard.data(forKey: expandedFoldersKey),
+        if let data = UserDefaults.standard.data(forKey: AppPreference.expandedFolders.rawValue),
            let urls = try? JSONDecoder().decode([URL].self, from: data) {
             expandedFolders = Set(urls)
         }
@@ -57,14 +54,13 @@ struct FoldersListView: View {
     private func saveExpandedState() {
         let urls = Array(expandedFolders)
         if let data = try? JSONEncoder().encode(urls) {
-            UserDefaults.standard.set(data, forKey: expandedFoldersKey)
+            UserDefaults.standard.set(data, forKey: AppPreference.expandedFolders.rawValue)
         }
     }
 
     private func loadSelectedFolder() {
-        if let data = UserDefaults.standard.data(forKey: selectedFolderKey),
+        if let data = UserDefaults.standard.data(forKey: AppPreference.selectedFolder.rawValue),
            let url = try? JSONDecoder().decode(URL.self, from: data) {
-            // Find the folder in any of the root folders that matches the saved URL
             for rootFolder in filesModel.rootFolders {
                 if let folder = findFolder(url: url, in: rootFolder) {
                     filesModel.selectedFolder = folder
@@ -77,7 +73,7 @@ struct FoldersListView: View {
     private func saveSelectedFolder(_ folder: FolderItem?) {
         if let folder = folder,
            let data = try? JSONEncoder().encode(folder.url) {
-            UserDefaults.standard.set(data, forKey: selectedFolderKey)
+            UserDefaults.standard.set(data, forKey: AppPreference.selectedFolder.rawValue)
         }
     }
 

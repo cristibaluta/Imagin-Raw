@@ -12,8 +12,6 @@ class ExternalAppManager: ObservableObject {
 
     @Published var discoveredPhotoApps: [PhotoApp] = []
 
-    private let selectedAppKey = "SelectedExternalApp"
-
     init() {}
 
     // MARK: - Photo App Discovery
@@ -96,19 +94,12 @@ class ExternalAppManager: ObservableObject {
     // MARK: - Selected App Management
 
     func saveSelectedApp(_ app: PhotoApp?) {
-        if let app = app {
-            UserDefaults.standard.set(app.bundleIdentifier, forKey: selectedAppKey)
-        } else {
-            UserDefaults.standard.removeObject(forKey: selectedAppKey)
-        }
+        appPrefs.set(app?.bundleIdentifier ?? "", forKey: .selectedExternalApp)
     }
 
     func loadSelectedApp() -> PhotoApp? {
-        guard let savedBundleID = UserDefaults.standard.string(forKey: selectedAppKey) else {
-            return nil
-        }
-
-        // Find the app with matching bundle identifier from discovered apps
+        let savedBundleID = appPrefs.string(.selectedExternalApp)
+        guard !savedBundleID.isEmpty else { return nil }
         return discoveredPhotoApps.first { $0.bundleIdentifier == savedBundleID }
     }
 

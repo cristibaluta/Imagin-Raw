@@ -1,11 +1,12 @@
 import SwiftUI
 import ImageIO
+import RCPreferences
 
 class LargePreviewViewModel: ObservableObject {
     @Published var preview: NSImage?
     @Published var isLoading = false
     @Published var exifData: [String: Any]?
-    @Published var alignToTopLeft: Bool = UserDefaults.standard.bool(forKey: "ImageAlignmentTopLeft")
+    @Published var alignToTopLeft: Bool = appPrefs.bool(.alignToTopLeft)
 
     private(set) var photo: PhotoItem?
 
@@ -20,7 +21,7 @@ class LargePreviewViewModel: ObservableObject {
 
     func toggleAlignment() {
         alignToTopLeft.toggle()
-        UserDefaults.standard.set(alignToTopLeft, forKey: "ImageAlignmentTopLeft")
+        appPrefs.set(alignToTopLeft, forKey: .alignToTopLeft)
     }
 
     private func loadPreview() {

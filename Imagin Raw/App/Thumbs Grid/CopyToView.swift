@@ -21,37 +21,24 @@ struct CopyToView: View {
     @State private var organizeByCameraModel = false
     @State private var organizeJpgsInSubfolder = false
 
-    // UserDefaults keys
-    private let renameByExifDateKey = "CopyTo_RenameByExifDate"
-    private let customPrefixKey = "CopyTo_CustomPrefix"
-    private let organizeByDateKey = "CopyTo_OrganizeByDate"
-    private let organizeByCameraModelKey = "CopyTo_OrganizeByCameraModel"
-    private let organizeJpgsInSubfolderKey = "CopyTo_OrganizeJpgsInSubfolder"
-    private let lastDestinationURLKey = "CopyTo_LastDestinationURL"
-    private let lastBackupDestinationURLKey = "CopyTo_LastBackupDestinationURL"
-    private let destinationBookmarkKey = "CopyTo_DestinationBookmark"
-    private let backupBookmarkKey = "CopyTo_BackupBookmark"
-
     init(photosToCoрy: [PhotoItem]) {
         self.photosToCoрy = photosToCoрy
 
         // Load saved settings
-        _renameByExifDate = State(initialValue: UserDefaults.standard.bool(forKey: renameByExifDateKey))
-        _customPrefix = State(initialValue: UserDefaults.standard.string(forKey: customPrefixKey) ?? "")
-        _organizeByDate = State(initialValue: UserDefaults.standard.bool(forKey: organizeByDateKey))
-        _organizeByCameraModel = State(initialValue: UserDefaults.standard.bool(forKey: organizeByCameraModelKey))
-        _organizeJpgsInSubfolder = State(initialValue: UserDefaults.standard.bool(forKey: organizeJpgsInSubfolderKey))
+        _renameByExifDate = State(initialValue: appPrefs.bool(.copyToRenameByExifDate))
+        _customPrefix = State(initialValue: appPrefs.string(.copyToCustomPrefix))
+        _organizeByDate = State(initialValue: appPrefs.bool(.copyToOrganizeByDate))
+        _organizeByCameraModel = State(initialValue: appPrefs.bool(.copyToOrganizeByCameraModel))
+        _organizeJpgsInSubfolder = State(initialValue: appPrefs.bool(.copyToOrganizeJpgsInSubfolder))
 
-        // Load last destinations from security-scoped bookmarks
-        if let bookmarkData = UserDefaults.standard.data(forKey: destinationBookmarkKey) {
-            if let url = Self.urlFromBookmark(bookmarkData) {
-                _destinationURL = State(initialValue: url)
-            }
+        // Load last destinations from security-scoped bookmarks (Data - use UserDefaults directly with AppPreference key)
+        if let bookmarkData = UserDefaults.standard.data(forKey: AppPreference.copyToDestinationBookmark.rawValue),
+           let url = Self.urlFromBookmark(bookmarkData) {
+            _destinationURL = State(initialValue: url)
         }
-        if let bookmarkData = UserDefaults.standard.data(forKey: backupBookmarkKey) {
-            if let url = Self.urlFromBookmark(bookmarkData) {
-                _backupDestinationURL = State(initialValue: url)
-            }
+        if let bookmarkData = UserDefaults.standard.data(forKey: AppPreference.copyToBackupBookmark.rawValue),
+           let url = Self.urlFromBookmark(bookmarkData) {
+            _backupDestinationURL = State(initialValue: url)
         }
     }
 
@@ -83,27 +70,27 @@ struct CopyToView: View {
     }
 
     private func saveSettings() {
-        UserDefaults.standard.set(renameByExifDate, forKey: renameByExifDateKey)
-        UserDefaults.standard.set(customPrefix, forKey: customPrefixKey)
-        UserDefaults.standard.set(organizeByDate, forKey: organizeByDateKey)
-        UserDefaults.standard.set(organizeByCameraModel, forKey: organizeByCameraModelKey)
-        UserDefaults.standard.set(organizeJpgsInSubfolder, forKey: organizeJpgsInSubfolderKey)
+        appPrefs.set(renameByExifDate, forKey: .copyToRenameByExifDate)
+        appPrefs.set(customPrefix, forKey: .copyToCustomPrefix)
+        appPrefs.set(organizeByDate, forKey: .copyToOrganizeByDate)
+        appPrefs.set(organizeByCameraModel, forKey: .copyToOrganizeByCameraModel)
+        appPrefs.set(organizeJpgsInSubfolder, forKey: .copyToOrganizeJpgsInSubfolder)
 
-        // Save security-scoped bookmarks
+        // Save security-scoped bookmarks (Data - use UserDefaults directly with AppPreference key)
         if let url = destinationURL {
             if let bookmarkData = Self.bookmarkFromURL(url) {
-                UserDefaults.standard.set(bookmarkData, forKey: destinationBookmarkKey)
+                UserDefaults.standard.set(bookmarkData, forKey: AppPreference.copyToDestinationBookmark.rawValue)
             }
-            UserDefaults.standard.set(url.absoluteString, forKey: lastDestinationURLKey)
+            appPrefs.set(url.absoluteString, forKey: .copyToLastDestinationURL)
         }
         if let url = backupDestinationURL {
             if let bookmarkData = Self.bookmarkFromURL(url) {
-                UserDefaults.standard.set(bookmarkData, forKey: backupBookmarkKey)
+                UserDefaults.standard.set(bookmarkData, forKey: AppPreference.copyToBackupBookmark.rawValue)
             }
-            UserDefaults.standard.set(url.absoluteString, forKey: lastBackupDestinationURLKey)
+            appPrefs.set(url.absoluteString, forKey: .copyToLastBackupDestinationURL)
         } else {
-            UserDefaults.standard.removeObject(forKey: lastBackupDestinationURLKey)
-            UserDefaults.standard.removeObject(forKey: backupBookmarkKey)
+            UserDefaults.standard.removeObject(forKey: AppPreference.copyToLastBackupDestinationURL.rawValue)
+            UserDefaults.standard.removeObject(forKey: AppPreference.copyToBackupBookmark.rawValue)
         }
     }
 

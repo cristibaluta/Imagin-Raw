@@ -36,10 +36,6 @@ class ThumbGridViewModel: ObservableObject {
     private var photosModel: PhotosModel?
     private var cancellables = Set<AnyCancellable>()
 
-    // MARK: - Constants
-    private let sortOptionKey = "SelectedSortOption"
-    private let gridTypeKey = "SelectedGridType"
-
     // MARK: - Enums
     enum SortOption: String, CaseIterable {
         case name = "Name"
@@ -126,8 +122,10 @@ class ThumbGridViewModel: ObservableObject {
 // TODO this is called too often, when i just label a photo
     private func updateFilteredPhotos() {
         var result = photos
-        let lastSelectedIndex = self.lastSelectedIndex
-        let lastSelectedPhotoId = lastSelectedIndex != nil ? filteredPhotos[lastSelectedIndex!].id : nil
+
+        // Get the currently selected photo ID from filesModel instead of looking it up in the old filteredPhotos
+        // This prevents issues when filteredPhotos hasn't been updated yet (e.g., right after deletion)
+        let lastSelectedPhotoId = filesModel.selectedPhoto?.id
 
         // If metadata is still loading, show all photos (don't apply filters yet)
         // This prevents showing an empty view while waiting for metadata
@@ -185,7 +183,18 @@ class ThumbGridViewModel: ObservableObject {
         }
 
         filteredPhotos = result
-        self.lastSelectedIndex = filteredPhotos.firstIndex(where: { $0.id == lastSelectedPhotoId })
+
+        // Update lastSelectedIndex to match the selected photo's position in the new filtered list
+        if let selectedPhotoId = lastSelectedPhotoId {
+            self.lastSelectedIndex = filteredPhotos.firstIndex(where: { $0.id == selectedPhotoId })
+            // If the photo wasn't found but we have a valid selection, preserve the current index
+            // This prevents losing the index during reloads when photos are temporarily not in the array
+        }
+        // Only set to nil if there's no selected photo at all
+        else if filesModel.selectedPhoto == nil {
+            self.lastSelectedIndex = nil
+        }
+        // Otherwise keep the existing lastSelectedIndex value
     }
 
     // MARK: - Photo Loading
@@ -445,14 +454,17 @@ class ThumbGridViewModel: ObservableObject {
         // Clear selection after moving
         selectedPhotos.removeAll()
 
+        // Save the last selected index before updateFilteredPhotos resets it
+        let savedLastSelectedIndex = lastSelectedIndex
+
         // Force immediate update of filtered photos to reflect the deletion
         updateFilteredPhotos()
 
-        // Select first remaining photo if available
+        // Select a photo near the last selected index if available
         if !filteredPhotos.isEmpty {
             // Try to select the photo at the same index, or the closest one if that index is now out of bounds
             let targetIndex: Int
-            if let lastIndex = lastSelectedIndex {
+            if let lastIndex = savedLastSelectedIndex {
                 // If the last index is still valid, use it
                 // Otherwise, select the last photo (which is now at lastIndex - 1 if we deleted the last one)
                 targetIndex = min(lastIndex, filteredPhotos.count - 1)
@@ -467,6 +479,7 @@ class ThumbGridViewModel: ObservableObject {
             lastSelectedIndex = targetIndex
         } else {
             filesModel.selectedPhoto = nil
+            lastSelectedIndex = nil
         }
     }
 
@@ -491,23 +504,23 @@ class ThumbGridViewModel: ObservableObject {
 
     // MARK: - Persistence
     func saveSortOption() {
-        UserDefaults.standard.set(sortOption.rawValue, forKey: sortOptionKey)
+        appPrefs.set(sortOption.rawValue, forKey: .sortOption)
     }
 
     func loadSortOption() {
-        if let savedOption = UserDefaults.standard.string(forKey: sortOptionKey),
-           let option = SortOption(rawValue: savedOption) {
+        let saved = appPrefs.string(.sortOption)
+        if let option = SortOption(rawValue: saved) {
             sortOption = option
         }
     }
 
     func saveGridType() {
-        UserDefaults.standard.set(gridType.rawValue, forKey: gridTypeKey)
+        appPrefs.set(gridType.rawValue, forKey: .gridType)
     }
 
     func loadGridType() {
-        if let savedType = UserDefaults.standard.string(forKey: gridTypeKey),
-           let type = GridType(rawValue: savedType) {
+        let saved = appPrefs.string(.gridType)
+        if let type = GridType(rawValue: saved) {
             gridType = type
         }
     }

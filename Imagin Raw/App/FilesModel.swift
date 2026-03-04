@@ -334,7 +334,6 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     // Flag to prevent photo loading when in copy mode
     var isInCopyMode: Bool = false
 
-    private let userFoldersKey = "UserManagedFolderBookmarks"
     private var accessedURLs: Set<URL> = []
     private let fileMonitor = FileSystemMonitor()
 
@@ -641,7 +640,7 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     }
 
     private func loadUserFolders() {
-        guard let data = UserDefaults.standard.data(forKey: userFoldersKey),
+        guard let data = UserDefaults.standard.data(forKey: AppPreference.userFolderBookmarks.rawValue),
               let folderBookmarks = try? JSONDecoder().decode([FolderBookmark].self, from: data) else {
             return
         }
@@ -670,9 +669,8 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     }
 
     private func saveUserFolders() {
-        // Save all bookmarks, including those from unmounted volumes
         if let data = try? JSONEncoder().encode(allFolderBookmarks) {
-            UserDefaults.standard.set(data, forKey: userFoldersKey)
+            UserDefaults.standard.set(data, forKey: AppPreference.userFolderBookmarks.rawValue)
         }
     }
 

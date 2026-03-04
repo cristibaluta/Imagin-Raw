@@ -1,0 +1,15 @@
+{
+  "originHash" : "9c3908e59b7da633452ae2a38e285228d7a1a41115469ad913d713c8bde45560",
+  "pins" : [
+    {
+      "identity" : "rcpreferences",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/cristibaluta/RCPreferences.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "369cde53cbc4d44fd9f4ae74c67c18ec23176657"
+      }
+    }
+  ],
+  "version" : 3
+}
