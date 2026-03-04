@@ -115,14 +115,11 @@ class ExternalAppManager: ObservableObject {
             // Use the selected PhotoApp
             let configuration = NSWorkspace.OpenConfiguration()
             NSWorkspace.shared.open(urls, withApplicationAt: app.url, configuration: configuration) { app, error in
-                if let error = error {
-                    // Fallback to default application
+                if let _ = error {
                     self.openPhotosWithDefaultApp(urls)
-                } else {
                 }
             }
         } else {
-            // Use system default application
             openPhotosWithDefaultApp(urls)
         }
     }
@@ -139,7 +136,7 @@ class ExternalAppManager: ObservableObject {
         if let defaultAppURL = NSWorkspace.shared.urlForApplication(toOpen: firstURL) {
             let configuration = NSWorkspace.OpenConfiguration()
             NSWorkspace.shared.open(urls, withApplicationAt: defaultAppURL, configuration: configuration) { (app, error) in
-                if let error = error {
+                if let _ = error {
                 } else {
                 }
             }

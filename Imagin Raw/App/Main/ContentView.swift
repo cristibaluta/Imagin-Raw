@@ -266,38 +266,4 @@ struct ContentView: View {
     private func openMultiplePhotosInExternalApp(photos: [PhotoItem]) {
         externalAppManager.openPhotos(photos, with: selectedApp)
     }
-
-    private func sharePhoto(_ photo: PhotoItem) {
-        let url = URL(fileURLWithPath: photo.path)
-
-        // Create a sharing service picker to show all available sharing options
-        let sharingServicePicker = NSSharingServicePicker(items: [url])
-
-        // Find the main window to position the popover
-        if let window = NSApp.mainWindow,
-           let contentView = window.contentView {
-
-            // Create a rect for the button (approximate position - you might need to adjust this)
-            let rect = NSRect(x: contentView.bounds.maxX - 100, y: contentView.bounds.maxY - 50, width: 30, height: 30)
-
-            sharingServicePicker.show(relativeTo: rect, of: contentView, preferredEdge: .minY)
-        }
-    }
-
-    private func openInExternalApp(photo: PhotoItem) {
-        let url = URL(fileURLWithPath: photo.path)
-
-        if let app = selectedApp {
-            // Use the selected PhotoApp
-            do {
-                try NSWorkspace.shared.open([url], withApplicationAt: app.url, options: [], configuration: [:])
-            } catch {
-                // Fallback to default application
-                NSWorkspace.shared.open(url)
-            }
-        } else {
-            // Use system default application
-            NSWorkspace.shared.open(url)
-        }
-    }
 }

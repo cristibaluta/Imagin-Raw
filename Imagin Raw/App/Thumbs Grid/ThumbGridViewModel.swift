@@ -16,12 +16,7 @@ class ThumbGridViewModel: ObservableObject {
     @Published var selectedRatings: Set<Int> = [] // Rating filters (1-5)
     @Published var sortOption: SortOption = .name
     @Published var gridType: GridType = .threeColumns
-    @Published var lastSelectedIndex: Int? {
-        didSet {
-            print(">>>>> Last selected index: \(lastSelectedIndex)")
-            print("")
-        }
-    }
+    @Published var lastSelectedIndex: Int?
     @Published var cachingQueueCount: Int = 0
     @Published var isLoadingMetadata: Bool = false
 

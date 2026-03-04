@@ -196,7 +196,6 @@ struct CopyOptionsView: View {
 
         // Generate filename
         var filename = URL(fileURLWithPath: firstPhoto.path).lastPathComponent
-        let fileExtension = URL(fileURLWithPath: firstPhoto.path).pathExtension
 
         if renameByExifDate {
             let dateFormatter = DateFormatter()

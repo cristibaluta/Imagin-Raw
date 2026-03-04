@@ -42,7 +42,7 @@ class LargePreviewViewModel: ObservableObject {
         preview = nil
         isLoading = true
         exifData = nil
-        Task.detached(priority: .userInitiated) { [weak self] in
+        Task(priority: .userInitiated) { [weak self, path] in
             let (loadedImage, extractedExifData) = await Self.loadImageWithExif(from: path)
             await MainActor.run {
                 self?.preview = loadedImage
@@ -121,3 +121,4 @@ class LargePreviewViewModel: ObservableObject {
         }
     }
 }
+

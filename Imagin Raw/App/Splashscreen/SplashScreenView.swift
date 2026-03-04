@@ -90,7 +90,7 @@ struct SplashScreenView: View {
                 if let url = urls.first {
                     filesModel.addFolder(at: url)
                 }
-            case .failure(let error):
+            case .failure(_):
                 break
             }
         }
