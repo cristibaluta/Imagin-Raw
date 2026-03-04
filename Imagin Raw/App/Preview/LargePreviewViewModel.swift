@@ -6,8 +6,12 @@ class LargePreviewViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var exifData: [String: Any]?
     @Published var alignToTopLeft: Bool = UserDefaults.standard.bool(forKey: "ImageAlignmentTopLeft")
-    
+
     private(set) var photo: PhotoItem?
+
+    private static let cacheLimit = 10
+    private static var imageCache: [String: (NSImage, [String: Any]?)] = [:]
+    private static var cacheOrder: [String] = [] // Most recent at end
 
     func setPhoto(_ photo: PhotoItem) {
         self.photo = photo
@@ -20,15 +24,42 @@ class LargePreviewViewModel: ObservableObject {
     }
 
     private func loadPreview() {
-        guard let photo = photo, preview == nil else { return }
+        guard let photo = photo else { return }
+        let path = photo.path
+        // Check cache first
+        if let (cachedImage, cachedExif) = Self.imageCache[path] {
+            self.preview = cachedImage
+            self.exifData = cachedExif
+            self.isLoading = false
+            // Move to most recent
+            if let idx = Self.cacheOrder.firstIndex(of: path) {
+                Self.cacheOrder.remove(at: idx)
+                Self.cacheOrder.append(path)
+            }
+            return
+        }
+        preview = nil
         isLoading = true
         exifData = nil
         Task.detached(priority: .userInitiated) { [weak self] in
-            let (loadedImage, extractedExifData) = await Self.loadImageWithExif(from: photo.path)
+            let (loadedImage, extractedExifData) = await Self.loadImageWithExif(from: path)
             await MainActor.run {
                 self?.preview = loadedImage
                 self?.exifData = extractedExifData
                 self?.isLoading = false
+                // Store in cache if loaded
+                if let img = loadedImage {
+                    Self.imageCache[path] = (img, extractedExifData)
+                    if let idx = Self.cacheOrder.firstIndex(of: path) {
+                        Self.cacheOrder.remove(at: idx)
+                    }
+                    Self.cacheOrder.append(path)
+                    // Enforce cache limit
+                    while Self.cacheOrder.count > Self.cacheLimit {
+                        let oldest = Self.cacheOrder.removeFirst()
+                        Self.imageCache.removeValue(forKey: oldest)
+                    }
+                }
             }
         }
     }
