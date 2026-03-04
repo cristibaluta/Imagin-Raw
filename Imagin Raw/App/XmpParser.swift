@@ -219,7 +219,7 @@ class XmpParser {
             }
 
             // Remove existing attribute if present
-            if let existingAttr = descriptionElement.attribute(forName: attribute) {
+            if let _ = descriptionElement.attribute(forName: attribute) {
                 descriptionElement.removeAttribute(forName: attribute)
             }
 
@@ -279,7 +279,7 @@ class XmpParser {
         dateFormatter.timeZone = TimeZone.current
         let currentDateString = dateFormatter.string(from: currentDate)
 
-        if let metadataAttr = element.attribute(forName: "xmp:MetadataDate") {
+        if let _ = element.attribute(forName: "xmp:MetadataDate") {
             element.removeAttribute(forName: "xmp:MetadataDate")
         }
         let metadataAttribute = XMLNode.attribute(withName: "xmp:MetadataDate", stringValue: currentDateString) as! XMLNode
@@ -395,7 +395,6 @@ class XmpParser {
     /// Format the rdf:Description tag with proper attribute indentation
     private static func formatDescriptionTag(_ tag: String) -> String {
         // Extract the tag name and attributes
-        let tagStartPattern = "<rdf:Description"
         let attributePattern = "\\s+(\\w+:[\\w]+)\\s*=\\s*\"([^\"]*)\""
 
         var result = "<rdf:Description rdf:about=\"\""
