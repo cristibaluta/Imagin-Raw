@@ -14,6 +14,7 @@ struct ThumbCell: View {
     let onRatingChanged: (Int) -> Void
     let onMoveToTrash: (PhotoItem) -> Void
     let onCopyTo: (PhotoItem) -> Void
+    let onMoveAllMarkedToTrash: (() -> (count: Int, action: () -> Void))?
     let size: CGFloat  // Now accepts size as a parameter
     @State private var thumbnailImage: NSImage?
     @State private var isLoading = false
@@ -177,6 +178,15 @@ struct ThumbCell: View {
                 onMoveToTrash(photo)
             }) {
                 Label("Move to Trash", systemImage: "trash")
+            }
+
+            if photo.toDelete, let onMoveAllMarkedToTrash {
+                let info = onMoveAllMarkedToTrash()
+                Button(action: {
+                    info.action()
+                }) {
+                    Label("Move to Trash all \(info.count) marked for deletion", systemImage: "trash.fill")
+                }
             }
         }
     }

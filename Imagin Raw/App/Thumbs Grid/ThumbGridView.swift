@@ -58,7 +58,7 @@ struct ThumbGridView: View {
         }
         .onAppear {
             // Load photos for the selected folder when view first appears
-            
+
             // Set up the callback for the toolbar button to open all selected photos
             openSelectedPhotosCallback = { [viewModel] in
                 let selectedPhotoItems = viewModel.getSelectedPhotosForBulkAction()
@@ -189,30 +189,26 @@ struct ThumbGridView: View {
                 viewModel.applyRating(rating, to: [photo])
             },
             onMoveToTrash: { rightClickedPhoto in
-                // If the right-clicked photo is not in the selection, only delete it
-                // Otherwise, delete all selected photos
                 let photosToTrash: [PhotoItem]
                 if viewModel.selectedPhotos.contains(rightClickedPhoto.id) {
-                    // Right-clicked photo is part of selection - delete all selected
                     photosToTrash = viewModel.getSelectedPhotosForBulkAction()
                 } else {
-                    // Right-clicked photo is not selected - delete only this one
                     photosToTrash = [rightClickedPhoto]
                 }
                 viewModel.movePhotosToTrash(photosToTrash)
             },
             onCopyTo: { rightClickedPhoto in
-                // If the right-clicked photo is not in the selection, only copy it
-                // Otherwise, copy all selected photos
                 if viewModel.selectedPhotos.contains(rightClickedPhoto.id) {
-                    // Right-clicked photo is part of selection - copy all selected
                     viewModel.photosToCopy = viewModel.getSelectedPhotosForBulkAction()
                 } else {
-                    // Right-clicked photo is not selected - copy only this one
                     viewModel.photosToCopy = [rightClickedPhoto]
                 }
                 showCopyToSheet = true
             },
+            onMoveAllMarkedToTrash: photo.toDelete ? { [viewModel] in
+                let marked = viewModel.getPhotosMarkedForDeletion()
+                return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
+            } : nil,
             size: viewModel.gridType.thumbSize
         )
         .frame(width: viewModel.gridType.thumbSize, height: viewModel.gridType.cellHeight)
@@ -279,7 +275,12 @@ struct ThumbGridView: View {
                     Button(action: {
                         viewModel.toggleLabelFilter(label)
                     }) {
-                        Image(systemName: viewModel.selectedLabels.contains(label) ? "checkmark.square.fill" : "square")
+                        let iconName = if label == "To Delete" {
+                            viewModel.selectedLabels.contains(label) ? "trash.fill" : "trash"
+                        } else {
+                            viewModel.selectedLabels.contains(label) ? "checkmark.square.fill" : "square.fill"
+                        }
+                        Image(systemName: iconName)
                             .foregroundColor(viewModel.getColorForLabel(label))
                             .font(.system(size: 14, weight: .medium))
                     }

@@ -478,6 +478,10 @@ class ThumbGridViewModel: ObservableObject {
         }
     }
 
+    func getPhotosMarkedForDeletion() -> [PhotoItem] {
+        return photos.filter { $0.toDelete }
+    }
+
     func getSelectedPhotosForBulkAction() -> [PhotoItem] {
         // Always get photos from the source of truth (photosModel.photos), not from cached filteredPhotos
         // This ensures we get the most current version of photos, even if filteredPhotos hasn't updated yet
