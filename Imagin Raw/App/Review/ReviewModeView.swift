@@ -18,13 +18,15 @@ struct ReviewModeView: View {
     let onExit: () -> Void
     let onUpdatePhoto: (PhotoItem, XmpMetadata) -> Void
     let onToggleDelete: (PhotoItem) -> Void
+    let onMoveToTrash: (PhotoItem) -> Void
 
-    init(photos: [PhotoItem], selectedPhoto: Binding<PhotoItem?>, onExit: @escaping () -> Void, onUpdatePhoto: @escaping (PhotoItem, XmpMetadata) -> Void, onToggleDelete: @escaping (PhotoItem) -> Void) {
+    init(photos: [PhotoItem], selectedPhoto: Binding<PhotoItem?>, onExit: @escaping () -> Void, onUpdatePhoto: @escaping (PhotoItem, XmpMetadata) -> Void, onToggleDelete: @escaping (PhotoItem) -> Void, onMoveToTrash: @escaping (PhotoItem) -> Void) {
         self.photos = photos
         self._selectedPhoto = selectedPhoto
         self.onExit = onExit
         self.onUpdatePhoto = onUpdatePhoto
         self.onToggleDelete = onToggleDelete
+        self.onMoveToTrash = onMoveToTrash
 
         // Find the current index
         if let selected = selectedPhoto.wrappedValue,
@@ -212,8 +214,12 @@ struct ReviewModeView: View {
             }
             return .handled
         case .delete:
-            onToggleDelete(photo)
-            return .handled
+            // Cmd+Delete: immediately trash the photo
+            if keyPress.modifiers.contains(.command) {
+                onMoveToTrash(photo)
+                return .handled
+            }
+            return .ignored
         default:
             // Handle labeling keys with character input
             let characters = keyPress.characters
@@ -252,7 +258,7 @@ struct ReviewModeView: View {
             case "-":
                 removeLabelFromPhoto(photo)
                 return .handled
-            case "d", "D":
+            case "x", "X":
                 onToggleDelete(photo)
                 return .handled
             default:

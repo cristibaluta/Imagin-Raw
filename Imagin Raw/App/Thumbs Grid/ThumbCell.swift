@@ -185,7 +185,7 @@ struct ThumbCell: View {
                 Button(action: {
                     info.action()
                 }) {
-                    Label("Move to Trash all \(info.count) marked for deletion", systemImage: "trash.fill")
+                    Label("Move to Trash all Rejected Photos (\(info.count))", systemImage: "trash.fill")
                 }
             }
         }

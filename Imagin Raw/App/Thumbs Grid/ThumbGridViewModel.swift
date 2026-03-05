@@ -129,7 +129,7 @@ class ThumbGridViewModel: ObservableObject {
             // Apply label filtering only after metadata is loaded
             if !selectedLabels.isEmpty {
                 result = result.filter { photo in
-                    if selectedLabels.contains("To Delete") && photo.toDelete {
+                    if selectedLabels.contains("Rejected") && photo.toDelete {
                         return true
                     }
 
@@ -291,7 +291,7 @@ class ThumbGridViewModel: ObservableObject {
         }
 
         if hasToDelete {
-            result.append("To Delete")
+            result.append("Rejected")
         }
 
         return result
@@ -600,7 +600,7 @@ class ThumbGridViewModel: ObservableObject {
             for label in selectedLabels {
                 // Check if any photo matches this label
                 let hasMatchingPhoto = photos.contains { photo in
-                    if label == "To Delete" && photo.toDelete {
+                    if label == "Rejected" && photo.toDelete {
                         return true
                     }
 
@@ -667,7 +667,7 @@ class ThumbGridViewModel: ObservableObject {
 
                 // Check label filter
                 if !selectedLabels.isEmpty {
-                    if selectedLabels.contains("To Delete") && photo.toDelete {
+                    if selectedLabels.contains("Rejected") && photo.toDelete {
                         matchesLabel = true
                     } else {
                         let photoLabel = photo.xmp?.label ?? ""
@@ -714,7 +714,7 @@ class ThumbGridViewModel: ObservableObject {
         case "Approved": return .green
         case "Review": return .blue
         case "To Do": return .purple
-        case "To Delete": return .orange
+        case "Rejected": return .orange
         default: return .secondary
         }
     }

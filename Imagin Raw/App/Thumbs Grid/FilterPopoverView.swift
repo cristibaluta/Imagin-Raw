@@ -13,7 +13,7 @@ struct FilterPopoverView: View {
     let photos: [PhotoItem]
 
     // All available labels in the requested order
-    private let availableLabels = ["No Label", "Select", "Second", "Approved", "Review", "To Do", "To Delete"]
+    private let availableLabels = ["No Label", "Select", "Second", "Approved", "Review", "To Do", "Rejected"]
 
     // Calculate count for each label
     private func getCountForLabel(_ label: String) -> Int {
@@ -22,7 +22,7 @@ struct FilterPopoverView: View {
                 let photoLabel = photo.xmp?.label ?? ""
                 return photoLabel.isEmpty && !photo.toDelete
             }.count
-        } else if label == "To Delete" {
+        } else if label == "Rejected" {
             return photos.filter { photo in
                 return photo.toDelete
             }.count
@@ -154,7 +154,7 @@ struct CheckboxToggleStyle: ToggleStyle {
             return .blue
         case "To Do":
             return .purple
-        case "To Delete":
+        case "Rejected":
             return .orange
         default:
             return .secondary

@@ -286,7 +286,7 @@ struct ThumbGridView: View {
                     Button(action: {
                         viewModel.toggleLabelFilter(label)
                     }) {
-                        let iconName = if label == "To Delete" {
+                        let iconName = if label == "Rejected" {
                             viewModel.selectedLabels.contains(label) ? "trash.fill" : "trash"
                         } else {
                             viewModel.selectedLabels.contains(label) ? "checkmark.square.fill" : "square.fill"
@@ -403,6 +403,8 @@ struct ThumbGridView: View {
                 onEnterReviewMode?()
             }
             return .handled
+        case .delete:
+            return handleOtherKeys(keyPress)
         default:
             return handleOtherKeys(keyPress)
         }
@@ -441,6 +443,14 @@ struct ThumbGridView: View {
             return .handled
         }
 
+        // Cmd+Delete — immediately trash selected photos
+        // The Delete (backspace) key sends \u{7F}, also check keyPress.key == .delete
+        if keyPress.modifiers.contains(.command) &&
+            (keyPress.key == .delete || keyPress.characters == "\u{7F}") {
+            viewModel.movePhotosToTrash(photos)
+            return .handled
+        }
+
         let key = keyPress.characters
 
         // Filter to only RAW files for rating and labeling operations
@@ -473,8 +483,8 @@ struct ThumbGridView: View {
             return .handled
         }
 
-        // Toggle delete state (works for all files)
-        if key == "\u{7F}" || key == "d" || key == "D" {
+        // Toggle reject state (X key, works for all files)
+        if key == "x" || key == "X" {
             viewModel.toggleDeleteState(for: photos)
             return .handled
         }

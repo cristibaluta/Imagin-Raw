@@ -58,7 +58,7 @@ struct ShortcutsHelpView: View {
                         }
 
                         HStack(spacing: 16) {
-                            Text("d, Delete")
+                            Text("X")
                                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
                                 .foregroundColor(.primary)
                                 .padding(.horizontal, 8)
@@ -66,10 +66,24 @@ struct ShortcutsHelpView: View {
                                 .background(Color(NSColor.controlBackgroundColor))
                                 .cornerRadius(4)
                                 .frame(minWidth: 60, alignment: .center)
-                            Text("Mark for deletion")
+                            Text("Reject (mark for deletion)")
                                 .font(.system(size: 13))
                                 .foregroundColor(.secondary)
+                            Spacer()
+                        }
 
+                        HStack(spacing: 16) {
+                            Text("⌘ Delete")
+                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color(NSColor.controlBackgroundColor))
+                                .cornerRadius(4)
+                                .frame(minWidth: 60, alignment: .center)
+                            Text("Move to trash immediately")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
                             Spacer()
                         }
                     }
