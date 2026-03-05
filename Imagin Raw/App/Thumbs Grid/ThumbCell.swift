@@ -56,7 +56,7 @@ struct ThumbCell: View {
                         Rectangle().stroke(.blue, lineWidth: 2)
                     }
                     if photo.toDelete {
-                        Image(systemName: "trash")
+                        Image(systemName: "xmark")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundColor(.orange)
                             .shadow(color: .black, radius: 2, x: 1, y: 1)

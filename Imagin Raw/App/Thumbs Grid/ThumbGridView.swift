@@ -287,7 +287,7 @@ struct ThumbGridView: View {
                         viewModel.toggleLabelFilter(label)
                     }) {
                         let iconName = if label == "Rejected" {
-                            viewModel.selectedLabels.contains(label) ? "trash.fill" : "trash"
+                            viewModel.selectedLabels.contains(label) ? "x.square.fill" : "x.square"
                         } else {
                             viewModel.selectedLabels.contains(label) ? "checkmark.square.fill" : "square.fill"
                         }
