@@ -44,7 +44,7 @@ struct SidebarView: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
                         .font(.system(size: 11))
-                    TextField("Search folders...", text: $searchText)
+                    TextField("Search folders & files...", text: $searchText)
                         .textFieldStyle(.plain)
                         .font(.system(size: 12))
                         .onChange(of: searchText) { _, newValue in
@@ -75,6 +75,7 @@ struct SidebarView: View {
                 )
                 .padding(.horizontal, 10)
                 .padding(.top, 8)
+                .help("Search folders and photos by name. Powered by macOS Spotlight.")
             }
 
             HStack {
