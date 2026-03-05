@@ -327,8 +327,6 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     @Published var rootFolders: [FolderItem] = []
     @Published var selectedFolder: FolderItem?
     @Published var selectedPhoto: PhotoItem?
-
-    // Notification to trigger folder content reload
     @Published var folderContentDidChange: FolderItem?
 
     // Flag to prevent photo loading when in copy mode
@@ -347,13 +345,11 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
     }
 
     deinit {
-        // Stop file monitoring
         fileMonitor.stopAllMonitoring()
 
         // Stop volume monitoring
         NotificationCenter.default.removeObserver(self)
 
-        // Stop accessing all security-scoped resources
         for url in accessedURLs {
             url.stopAccessingSecurityScopedResource()
         }
@@ -389,11 +385,8 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
         for bookmark in allFolderBookmarks {
             let bookmarkPath = bookmark.url.path
 
-            // Check if this bookmark is on the newly mounted volume
             if bookmarkPath.hasPrefix(volumeURL.path) {
-                // Try to restore access to this folder
                 if let restoredURL = restoreSecurityScopedAccess(from: bookmark.bookmarkData) {
-                    // Check if it's not already in rootFolders
                     if !rootFolders.contains(where: { $0.url.path == restoredURL.path }) {
                         accessedURLs.insert(restoredURL)
 
@@ -695,6 +688,20 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
                 folders[i] = FolderItem(url: folders[i].url,
                                         children: mutableChildren,
                                         bookmarkData: folders[i].bookmarkData)
+            }
+        }
+    }
+
+    func search() {
+        let searcher = SpotlightSearcher()
+        let folder = URL(fileURLWithPath: "/Users/me/Documents")
+
+        Task {
+            for await results in searcher.search(folder: folder, text: "Patricia") {
+                print("Results updated:")
+                for file in results {
+                    print(file.path)
+                }
             }
         }
     }
