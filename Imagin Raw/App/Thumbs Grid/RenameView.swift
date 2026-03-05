@@ -12,10 +12,9 @@ struct RenameView: View {
     let photosToRename: [PhotoItem]
 
     @State private var renameByExifDate = false
+    @State private var useSequentialNumbers = false
     @State private var customPrefix = ""
     @State private var showProgressView = false
-    @State private var renameError: String?
-    @State private var renamedCount = 0
 
     init(photosToRename: [PhotoItem]) {
         self.photosToRename = photosToRename
@@ -26,28 +25,38 @@ struct RenameView: View {
     // Preview of what the first photo would be renamed to
     private var previewName: String? {
         guard let photo = photosToRename.first else { return nil }
-        return newFilename(for: photo)
+        return newFilename(for: photo, index: 0)
     }
 
-    private func newFilename(for photo: PhotoItem) -> String {
+    private func newFilename(for photo: PhotoItem, index: Int) -> String {
         let url = URL(fileURLWithPath: photo.path)
+        let ext = url.pathExtension
         let originalFilename = url.lastPathComponent
-        var result = originalFilename
 
+        // Build the base name (before extension)
+        var baseName: String
+
+        if useSequentialNumbers {
+            // Replace original name with 4-digit sequential number
+            baseName = String(format: "%04d", index + 1)
+        } else {
+            baseName = url.deletingPathExtension().lastPathComponent
+        }
+
+        // Prepend EXIF date if enabled
         if renameByExifDate {
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd_HHmmss"
             let dateString = dateFormatter.string(from: photo.dateCreated)
-            if !customPrefix.isEmpty {
-                result = customPrefix + dateString + "_" + originalFilename
-            } else {
-                result = dateString + "_" + originalFilename
-            }
-        } else if !customPrefix.isEmpty {
-            result = customPrefix + originalFilename
+            baseName = dateString + "_" + baseName
         }
 
-        return result
+        // Prepend custom prefix
+        if !customPrefix.isEmpty {
+            baseName = customPrefix + baseName
+        }
+
+        return ext.isEmpty ? baseName : baseName + "." + ext
     }
 
     var body: some View {
@@ -55,7 +64,7 @@ struct RenameView: View {
             if showProgressView {
                 RenameProgressView(
                     photosToRename: photosToRename,
-                    newFilename: { newFilename(for: $0) },
+                    newFilename: { newFilename(for: $0, index: $1) },
                     onComplete: { dismiss() },
                     onCancel: { dismiss() }
                 )
@@ -78,9 +87,18 @@ struct RenameView: View {
 
                         // Rename by EXIF date
                         Toggle(isOn: $renameByExifDate) {
+                            Text("Include creation date (YYYY-MM-DD_HHMMSS)")
+                                .font(.body)
+                        }
+
+                        // Sequential numbering
+                        Toggle(isOn: $useSequentialNumbers) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Include creation date (YYYY-MM-DD_HHMMSS)")
+                                Text("Replace filename with sequential number (0001, 0002...)")
                                     .font(.body)
+                                Text("Original file extension is preserved")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
                         }
                     }
@@ -116,11 +134,11 @@ struct RenameView: View {
                         }
                         .keyboardShortcut(.defaultAction)
                         .buttonStyle(.borderedProminent)
-                        .disabled(customPrefix.isEmpty && !renameByExifDate)
+                        .disabled(customPrefix.isEmpty && !renameByExifDate && !useSequentialNumbers)
                     }
                 }
                 .padding(20)
-                .frame(minWidth: 500, minHeight: 260)
+                .frame(minWidth: 500, minHeight: 300)
             }
         }
     }
@@ -128,7 +146,7 @@ struct RenameView: View {
 
 private struct RenameProgressView: View {
     let photosToRename: [PhotoItem]
-    let newFilename: (PhotoItem) -> String
+    let newFilename: (PhotoItem, Int) -> String
     let onComplete: () -> Void
     let onCancel: () -> Void
 
@@ -195,7 +213,7 @@ private struct RenameProgressView: View {
                 guard !isCancelled else { break }
 
                 let sourceURL = URL(fileURLWithPath: photo.path)
-                let newName = newFilename(photo)
+                let newName = newFilename(photo, index)
                 let destURL = sourceURL.deletingLastPathComponent().appendingPathComponent(newName)
 
                 DispatchQueue.main.async { currentFile = sourceURL.lastPathComponent }
