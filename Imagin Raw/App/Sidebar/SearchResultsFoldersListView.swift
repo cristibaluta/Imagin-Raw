@@ -39,13 +39,9 @@ struct SearchResultsFoldersListView: View {
             } else {
                 List(results, id: \.url, selection: $filesModel.selectedFolder) {
                     folder in
-                    SearchResultRowView(
-                        folder: folder,
-                        isSelected: filesModel.selectedFolder?.url == folder.url
-                    )
-                    .onTapGesture {
-                        filesModel.selectedFolder = folder
-                    }
+                    SearchResultRowView(folder: folder)
+                        .tag(folder)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
                 }
                 .listStyle(.sidebar)
                 .focusable(false)
@@ -60,26 +56,24 @@ struct SearchResultsFoldersListView: View {
 private struct SearchResultRowView: View {
 
     let folder: FolderItem
-    let isSelected: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "folder.fill")
-                .foregroundColor(.blue)
-                .font(.system(size: 13))
-
+        Label {
             VStack(alignment: .leading, spacing: 1) {
-                // Folder name
                 Text(folder.url.lastPathComponent)
                     .font(.system(size: 13))
                     .lineLimit(1)
-                // Parent path as subtitle
                 Text(folder.url.deletingLastPathComponent().path)
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .truncationMode(.head)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } icon: {
+            Image(systemName: "folder.fill")
+                .foregroundColor(.blue)
+                .font(.system(size: 13))
         }
         .padding(.vertical, 2)
     }
