@@ -11,17 +11,15 @@ struct SidebarView: View {
     @EnvironmentObject var filesModel: FilesModel
     @State private var showingFolderPicker = false
     @State private var showingAddPopover = false
-    @State private var searchText = ""
-    @StateObject private var searcher = SpotlightSearcher()
+    @ObservedObject var searcher: SpotlightSearcher
+    @Binding var searchText: String
     let onDoubleClick: (() -> Void)?
 
-    // Default initializer for backwards compatibility
-    init(onDoubleClick: (() -> Void)? = nil) {
+    init(searcher: SpotlightSearcher, searchText: Binding<String>, onDoubleClick: (() -> Void)? = nil) {
+        self.searcher = searcher
+        self._searchText = searchText
         self.onDoubleClick = onDoubleClick
     }
-
-    private let expandedFoldersKey = "ExpandedFolders"
-    private let selectedFolderKey = "SelectedFolder"
 
     private var isSearching: Bool {
         searchText.count >= 3
@@ -32,7 +30,7 @@ struct SidebarView: View {
             ZStack(alignment: .top) {
                 if isSearching {
                     SearchResultsFoldersListView(
-                        results: searcher.results,
+                        folderResults: searcher.results,
                         isSearching: searcher.isSearching
                     )
                 } else {

@@ -29,6 +29,7 @@ class ThumbGridViewModel: ObservableObject {
     // MARK: - Dependencies
     private let filesModel: FilesModel
     private var photosModel: PhotosModel?
+    private var searchResultsPhotos: [PhotoItem]? = nil
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Enums
@@ -244,9 +245,23 @@ class ThumbGridViewModel: ObservableObject {
         photosModel?.reloadPhotos()
     }
 
+    /// Show an explicit list of PhotoItems (Spotlight photo search results).
+    func loadSearchResults(_ items: [PhotoItem]) {
+        searchResultsPhotos = items
+        selectedPhotos.removeAll()
+        lastSelectedIndex = nil
+        updateFilteredPhotos()
+    }
+
+    /// Clear search results, reverting to folder-based photos.
+    func clearSearchResults() {
+        searchResultsPhotos = nil
+        updateFilteredPhotos()
+    }
+
     // MARK: - Computed Properties
     var photos: [PhotoItem] {
-        return photosModel?.photos ?? []
+        return searchResultsPhotos ?? photosModel?.photos ?? []
     }
 
     var availableLabels: [String] {

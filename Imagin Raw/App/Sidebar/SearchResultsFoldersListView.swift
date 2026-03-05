@@ -7,27 +7,26 @@
 
 import SwiftUI
 
-/// A flat list of folder search results. No hierarchy, no expand/collapse.
-/// Tapping a row selects the folder and loads its photos directly.
+/// A flat list of folder search results only.
+/// Photo results are shown in the content column (ThumbGridView).
 struct SearchResultsFoldersListView: View {
 
-    let results: [FolderItem]
+    let folderResults: [FolderItem]
     let isSearching: Bool
 
     @EnvironmentObject var filesModel: FilesModel
 
     var body: some View {
         Group {
-            if isSearching {
+            if isSearching && folderResults.isEmpty {
                 VStack {
                     Spacer()
                     ProgressView("Searching...")
-                        .progressViewStyle(CircularProgressViewStyle())
                         .foregroundColor(.secondary)
                     Spacer()
                 }
                 .padding(.top, 44)
-            } else if results.isEmpty {
+            } else if folderResults.isEmpty {
                 VStack {
                     Spacer()
                     Text("No folders found")
@@ -37,9 +36,8 @@ struct SearchResultsFoldersListView: View {
                 }
                 .padding(.top, 44)
             } else {
-                List(results, id: \.url, selection: $filesModel.selectedFolder) {
-                    folder in
-                    SearchResultRowView(folder: folder)
+                List(folderResults, id: \.url, selection: $filesModel.selectedFolder) { folder in
+                    SearchFolderRowView(folder: folder)
                         .tag(folder)
                         .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
                 }
@@ -53,10 +51,8 @@ struct SearchResultsFoldersListView: View {
     }
 }
 
-private struct SearchResultRowView: View {
-
+private struct SearchFolderRowView: View {
     let folder: FolderItem
-
     var body: some View {
         Label {
             VStack(alignment: .leading, spacing: 1) {

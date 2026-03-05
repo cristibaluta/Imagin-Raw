@@ -81,6 +81,76 @@ final class PhotosModel: ObservableObject {
 
     // MARK: - Static Photo Loading Methods
 
+    /// Load a specific list of file URLs as PhotoItems (used for search results).
+    /// Returns basic info immediately, then enriches with metadata.
+    static func loadPhotos(for urls: [URL]) async -> [PhotoItem] {
+        let fm = FileManager.default
+        let jpgExtensions = ["jpg", "jpeg"]
+        let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
+                             "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
+                             "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
+                             "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
+
+        // Build basic PhotoItems first
+        var basicPhotos: [PhotoItem] = urls.map { url in
+            let date = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date()
+            return PhotoItem(path: url.path, xmp: nil, dateCreated: date, hasACR: false, hasJPG: false, inCameraRating: nil)
+        }
+
+        // Enrich with metadata in parallel
+        return await withTaskGroup(of: (Int, XmpMetadata?, Int?, Bool, Int64?, Int?, Int?, String?, String?).self, returning: [PhotoItem].self) { group in
+            for (index, photo) in basicPhotos.enumerated() {
+                group.addTask {
+                    let url = URL(fileURLWithPath: photo.path)
+                    let ext = url.pathExtension.lowercased()
+                    let isRaw = rawExtensions.contains(ext)
+
+                    // Try XMP sidecar
+                    let xmpURL = url.deletingPathExtension().appendingPathExtension("xmp")
+                    let xmp: XmpMetadata? = (try? String(contentsOf: xmpURL, encoding: .utf8)).flatMap {
+                        XmpParser.parseMetadata(from: $0)
+                    }
+
+                    let fileSize: Int64? = (try? fm.attributesOfItem(atPath: photo.path))?[.size] as? Int64
+                    var inCameraRating: Int? = nil
+                    var width: Int? = nil
+                    var height: Int? = nil
+                    var cameraMake: String? = nil
+                    var cameraModel: String? = nil
+
+                    if let metadata = RawWrapper.shared().extractMetadata(photo.path) {
+                        inCameraRating = (metadata["rating"] as? NSNumber)?.intValue
+                        width = (metadata["width"] as? NSNumber)?.intValue
+                        height = (metadata["height"] as? NSNumber)?.intValue
+                        cameraMake = metadata["cameraMake"] as? String
+                        cameraModel = metadata["cameraModel"] as? String
+                    }
+
+                    return (index, xmp, inCameraRating, isRaw, fileSize, width, height, cameraMake, cameraModel)
+                }
+            }
+
+            for await (index, xmp, rating, isRaw, fileSize, width, height, cameraMake, cameraModel) in group {
+                basicPhotos[index] = PhotoItem(
+                    id: basicPhotos[index].id,
+                    path: basicPhotos[index].path,
+                    xmp: xmp,
+                    dateCreated: basicPhotos[index].dateCreated,
+                    hasACR: basicPhotos[index].hasACR,
+                    hasJPG: basicPhotos[index].hasJPG,
+                    inCameraRating: rating,
+                    isRawFile: isRaw,
+                    fileSizeBytes: fileSize,
+                    width: width,
+                    height: height,
+                    cameraMake: cameraMake,
+                    cameraModel: cameraModel
+                )
+            }
+            return basicPhotos
+        }
+    }
+
     private static func loadPhotosBasic(in folder: FolderItem) -> [PhotoItem] {
         let fm = FileManager.default
         let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",

@@ -13,6 +13,7 @@ struct ThumbGridView: View {
     @EnvironmentObject var filesModel: FilesModel
 
     let selectedApp: PhotoApp?
+    let searchPhotoResults: [PhotoItem]?
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
     let onEnterReviewMode: (() -> Void)?
     @FocusState private var isFocused: Bool
@@ -23,13 +24,13 @@ struct ThumbGridView: View {
     @State private var showGridTypePopover = false
     @State private var showCopyToSheet = false
 
-    init(filesModel: FilesModel, selectedApp: PhotoApp?, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?, openSelectedPhotosCallback: Binding<(() -> Void)?>) {
+    init(filesModel: FilesModel, selectedApp: PhotoApp?, searchPhotoResults: [PhotoItem]? = nil, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?, openSelectedPhotosCallback: Binding<(() -> Void)?>) {
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
         self.selectedApp = selectedApp
+        self.searchPhotoResults = searchPhotoResults
         self.onOpenSelectedPhotos = onOpenSelectedPhotos
         self.onEnterReviewMode = onEnterReviewMode
         self._openSelectedPhotosCallback = openSelectedPhotosCallback
-
     }
 
     var body: some View {
@@ -57,28 +58,39 @@ struct ThumbGridView: View {
                 .interactiveDismissDisabled(false)
         }
         .onAppear {
-            // Load photos for the selected folder when view first appears
-
-            // Set up the callback for the toolbar button to open all selected photos
             openSelectedPhotosCallback = { [viewModel] in
                 let selectedPhotoItems = viewModel.getSelectedPhotosForBulkAction()
                 onOpenSelectedPhotos?(selectedPhotoItems)
             }
-            if let folder = filesModel.selectedFolder {
+            if let results = searchPhotoResults {
+                viewModel.loadSearchResults(results)
+            } else if let folder = filesModel.selectedFolder {
                 viewModel.loadPhotosForFolder(folder)
+            }
+        }
+        .onChange(of: searchPhotoResults) { _, newResults in
+            if let results = newResults {
+                // Search is active: show search photo results
+                viewModel.loadSearchResults(results)
+            } else {
+                // Search was cleared: revert to the currently selected folder
+                viewModel.clearSearchResults()
+                if let folder = filesModel.selectedFolder {
+                    viewModel.loadPhotosForFolder(folder)
+                }
             }
         }
         .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
-            // Load photos for the new folder
-            if let folder = newFolder, oldFolder?.url != newFolder?.url {
-                viewModel.loadPhotosForFolder(folder)
-                // Clear the current selection so the photos observer will select the first photo
-                filesModel.selectedPhoto = nil
-                viewModel.selectedPhotos.removeAll()
-            }
+            guard let folder = newFolder, oldFolder?.url != newFolder?.url else { return }
+            // A folder was selected (either normally or from search results).
+            // Always load its photos — this overrides search results in the content column.
+            // The search sidebar stays untouched.
+            viewModel.clearSearchResults()
+            viewModel.loadPhotosForFolder(folder)
+            filesModel.selectedPhoto = nil
+            viewModel.selectedPhotos.removeAll()
         }
         .onChange(of: filesModel.folderContentDidChange) { oldValue, newValue in
-            // Reload photos when folder contents change
             if newValue != nil {
                 viewModel.reloadPhotos()
             }
@@ -147,7 +159,6 @@ struct ThumbGridView: View {
                 viewModel.initializeSelection()
             }
             .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
-                // Select first photo when photos load if nothing is selected
                 if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
                     filesModel.selectedPhoto = newPhotos.first
                     viewModel.selectedPhotos.removeAll()

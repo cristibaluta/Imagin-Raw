@@ -21,6 +21,8 @@ struct PhotoApp: Identifiable, Hashable {
 struct ContentView: View {
     @StateObject private var filesModel = FilesModel()
     @StateObject private var externalAppManager = ExternalAppManager()
+    @StateObject private var searcher = SpotlightSearcher()
+    @State private var searchText = ""
     @State private var selectedApp: PhotoApp?
     @SceneStorage("columnVisibility") private var columnVisibilityStorage: String = "all"
     @State private var showFolderPopover = false
@@ -73,7 +75,6 @@ struct ContentView: View {
                     navigationSplitView
                         .navigationTitle(navigationTitle)
                         .onChange(of: columnVisibilityStorage) { _, newValue in
-                            // Update our tracked state when the column visibility changes
                             isSidebarCollapsed = (newValue == "doubleColumn")
                         }
                         .toolbar {
@@ -114,10 +115,13 @@ struct ContentView: View {
     private var navigationSplitView: some View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             // Left sidebar: folders
-            SidebarView {
-                // Double-click callback: collapse sidebar
-                columnVisibilityStorage = "doubleColumn"
-            }
+            SidebarView(
+                searcher: searcher,
+                searchText: $searchText,
+                onDoubleClick: {
+                    columnVisibilityStorage = "doubleColumn"
+                }
+            )
             .navigationSplitViewColumnWidth(min: 150, ideal: 200, max: 250)
             .environmentObject(filesModel)
         } content: {
@@ -125,6 +129,7 @@ struct ContentView: View {
             ThumbGridView(
                 filesModel: filesModel,
                 selectedApp: selectedApp,
+                searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
                 onOpenSelectedPhotos: { photos in
                     openMultiplePhotosInExternalApp(photos: photos)
                 },
