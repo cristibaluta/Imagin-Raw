@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import ImageIO
 
 struct LargePreviewView: View {
     let photo: PhotoItem
@@ -67,18 +66,16 @@ struct LargePreviewView: View {
                 Spacer() // Push content to bottom
 
                 HStack {
-                    // EXIF overlay positioning based on photo alignment
                     if model.alignToTopLeft {
-                        Spacer() // Push overlay to right
-                        if let nsImage = model.preview, let exifData = model.exifData {
-                            CompactExifOverlayView(nsImage: nsImage, exifData: exifData)
+                        Spacer()
+                        if let nsImage = model.preview, let exifInfo = model.exifInfo {
+                            CompactExifOverlayView(nsImage: nsImage, exifInfo: exifInfo)
                         }
                     } else {
-                        // EXIF overlay in bottom left when photo is centered
-                        if let nsImage = model.preview, let exifData = model.exifData {
-                            CompactExifOverlayView(nsImage: nsImage, exifData: exifData)
+                        if let nsImage = model.preview, let exifInfo = model.exifInfo {
+                            CompactExifOverlayView(nsImage: nsImage, exifInfo: exifInfo)
                         }
-                        Spacer() // Push overlay to left
+                        Spacer()
                     }
                 }
             }

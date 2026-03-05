@@ -2,19 +2,19 @@ import SwiftUI
 
 struct CompactExifOverlayView: View {
     let nsImage: NSImage
-    let exifData: [String: Any]
+    let exifInfo: ExifInfo
 
     var body: some View {
         if nsImage.size.width > nsImage.size.height {
             HStack(spacing: 8) {
-                Exif1View(exifData: exifData)
-                Exif2View(exifData: exifData)
+                Exif1View(exifInfo: exifInfo)
+                Exif2View(exifInfo: exifInfo)
             }
             .padding(16)
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                Exif1View(exifData: exifData)
-                Exif2View(exifData: exifData)
+                Exif1View(exifInfo: exifInfo)
+                Exif2View(exifInfo: exifInfo)
             }
             .padding(16)
         }
@@ -22,18 +22,18 @@ struct CompactExifOverlayView: View {
 }
 
 struct Exif1View: View {
-    let exifData: [String: Any]
+    let exifInfo: ExifInfo
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 16) {
                 // Aperture
-                if let aperture = exifData["Aperture"] as? NSNumber {
-                    Text("ƒ/\(String(format: "%.1f", aperture.doubleValue))")
+                if let aperture = exifInfo.aperture {
+                    Text("ƒ/\(String(format: "%.1f", aperture))")
                 }
                 // Shutter speed
-                if let shutter = exifData["ShutterSpeed"] as? NSNumber {
-                    let shutterValue = shutter.doubleValue
+                if let shutter = exifInfo.shutterSpeed {
+                    let shutterValue = shutter
                     if shutterValue < 1 {
                         Text("1/\(Int(round(1/shutterValue)))s")
                     } else {
@@ -46,7 +46,7 @@ struct Exif1View: View {
 
             HStack(spacing: 10) {
                 // ISO
-                if let iso = exifData["ISO"] as? NSNumber {
+                if let iso = exifInfo.iso {
                     Text("ISO \(iso)")
                         .font(.system(size: 12))
                         .foregroundColor(.white)
@@ -64,24 +64,21 @@ struct Exif1View: View {
 }
 
 struct Exif2View: View {
-    let exifData: [String: Any]
+    let exifInfo: ExifInfo
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             // Camera details
-            if let make = exifData["Make"] as? String,
-               let model = exifData["Model"] as? String {
+            if let make = exifInfo.cameraMake, let model = exifInfo.cameraModel {
                 Text("\(make) \(model)")
             }
-
             HStack {
-                if let lens = exifData["LensModel"] as? String {
+                if let lens = exifInfo.lensModel {
                     Text(lens)
                 }
-
                 // Focal Length
-                if let focal = exifData["FocalLength"] as? NSNumber {
-                    Text("\(String(format: "%.0f", focal.doubleValue))mm")
+                if let focal = exifInfo.focalLength {
+                    Text("\(String(format: "%.0f", focal))mm")
                         .foregroundColor(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
