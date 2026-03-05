@@ -424,6 +424,12 @@ struct ThumbGridView: View {
             return .handled
         }
 
+        // Command+Z for Undo last trash
+        if keyPress.modifiers.contains(.command) && keyPress.characters == "z" {
+            viewModel.undoLastTrash()
+            return .handled
+        }
+
         let key = keyPress.characters
 
         // Filter to only RAW files for rating and labeling operations
