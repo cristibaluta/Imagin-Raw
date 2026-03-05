@@ -102,7 +102,7 @@ struct SidebarView: View {
                 .buttonStyle(PlainButtonStyle())
                 .frame(width: 24, height: 32)
                 .contentShape(Rectangle())
-                .help("Add folder")
+                .help("Add source")
                 .popover(isPresented: $showingAddPopover) {
                     AddFolderPopover(
                         onAddVolumes: {
@@ -134,11 +134,11 @@ struct SidebarView: View {
                 .frame(width: 24, height: 32)
                 .contentShape(Rectangle())
                 .disabled(!isRootFolderSelected())
-                .help("Remove folder")
+                .help("Remove source")
 
                 Spacer()
 
-                Text("\(filesModel.rootFolders.count) folders")
+                Text("\(filesModel.rootFolders.count) sources")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
