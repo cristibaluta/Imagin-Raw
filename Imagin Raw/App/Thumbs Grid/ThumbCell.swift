@@ -14,6 +14,7 @@ struct ThumbCell: View {
     let onRatingChanged: (Int) -> Void
     let onMoveToTrash: (PhotoItem) -> Void
     let onCopyTo: (PhotoItem) -> Void
+    let onRenameTo: (PhotoItem) -> Void
     let onMoveAllMarkedToTrash: (() -> (count: Int, action: () -> Void))?
     let size: CGFloat  // Now accepts size as a parameter
     @State private var thumbnailImage: NSImage?
@@ -170,6 +171,12 @@ struct ThumbCell: View {
                 onCopyTo(photo)
             }) {
                 Label("Copy to...", systemImage: "doc.on.doc")
+            }
+
+            Button(action: {
+                onRenameTo(photo)
+            }) {
+                Label("Rename...", systemImage: "pencil")
             }
 
             Divider()

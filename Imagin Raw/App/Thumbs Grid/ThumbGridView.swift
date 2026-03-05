@@ -23,6 +23,8 @@ struct ThumbGridView: View {
     @State private var showSortPopover = false
     @State private var showGridTypePopover = false
     @State private var showCopyToSheet = false
+    @State private var showRenameSheet = false
+    @State private var photosToRename: [PhotoItem] = []
 
     init(filesModel: FilesModel, selectedApp: PhotoApp?, searchPhotoResults: [PhotoItem]? = nil, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?, openSelectedPhotosCallback: Binding<(() -> Void)?>) {
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
@@ -55,6 +57,10 @@ struct ThumbGridView: View {
         .sheet(isPresented: $showCopyToSheet) {
             CopyToView(photosToCoрy: viewModel.photosToCopy)
                 .environmentObject(filesModel)
+                .interactiveDismissDisabled(false)
+        }
+        .sheet(isPresented: $showRenameSheet) {
+            RenameView(photosToRename: photosToRename)
                 .interactiveDismissDisabled(false)
         }
         .onAppear {
@@ -215,6 +221,14 @@ struct ThumbGridView: View {
                     viewModel.photosToCopy = [rightClickedPhoto]
                 }
                 showCopyToSheet = true
+            },
+            onRenameTo: { rightClickedPhoto in
+                if viewModel.selectedPhotos.contains(rightClickedPhoto.id) {
+                    photosToRename = viewModel.getSelectedPhotosForBulkAction()
+                } else {
+                    photosToRename = [rightClickedPhoto]
+                }
+                showRenameSheet = true
             },
             onMoveAllMarkedToTrash: photo.toDelete ? { [viewModel] in
                 let marked = viewModel.getPhotosMarkedForDeletion()
