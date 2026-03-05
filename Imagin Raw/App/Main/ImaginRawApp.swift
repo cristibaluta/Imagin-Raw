@@ -16,10 +16,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct ImaginRawApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .background(Color(NSColor(white: 0.2, alpha: 1.0)))
         }
         .windowToolbarStyle(.unified)
         .windowResizability(.contentSize)

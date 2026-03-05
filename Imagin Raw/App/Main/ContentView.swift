@@ -90,7 +90,7 @@ struct ContentView: View {
                             isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
                         }
                         .frame(minWidth: 1200, minHeight: 800)
-//                        .preferredColorScheme(.dark)
+                        .preferredColorScheme(.dark)
                         .focusable()
                         .focusEffectDisabled()
                 }
