@@ -22,36 +22,57 @@ struct RenameView: View {
         _customPrefix = State(initialValue: appPrefs.string(.copyToCustomPrefix))
     }
 
-    // Preview of what the first photo would be renamed to
-    private var previewName: String? {
-        guard let photo = photosToRename.first else { return nil }
-        return newFilename(for: photo, index: 0)
+    /// Scans the folder for files already named with 4-digit numbers (optionally
+    /// filtered by the current prefix) and returns the highest number found,
+    /// so the new batch starts after it.
+    private var sequentialStartIndex: Int {
+        guard useSequentialNumbers,
+              let firstPhoto = photosToRename.first else { return 0 }
+        let folder = URL(fileURLWithPath: firstPhoto.path).deletingLastPathComponent()
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
+        )) ?? []
+
+        // Build pattern: if a prefix is set, require it before the 4-digit number
+        let prefixPattern = customPrefix.isEmpty ? "" : NSRegularExpression.escapedPattern(for: customPrefix)
+        let pattern = try? NSRegularExpression(pattern: "^\(prefixPattern)(\\d{4})\\.")
+
+        var highest = 0
+        for file in files {
+            let name = file.lastPathComponent
+            let range = NSRange(name.startIndex..., in: name)
+            if let match = pattern?.firstMatch(in: name, range: range),
+               let numRange = Range(match.range(at: 1), in: name),
+               let number = Int(name[numRange]) {
+                highest = max(highest, number)
+            }
+        }
+        return highest
     }
 
-    private func newFilename(for photo: PhotoItem, index: Int) -> String {
+    private var previewName: String? {
+        guard let photo = photosToRename.first else { return nil }
+        return newFilename(for: photo, index: 0, startOffset: sequentialStartIndex)
+    }
+
+    private func newFilename(for photo: PhotoItem, index: Int, startOffset: Int = 0) -> String {
         let url = URL(fileURLWithPath: photo.path)
         let ext = url.pathExtension
-        let originalFilename = url.lastPathComponent
 
-        // Build the base name (before extension)
         var baseName: String
 
         if useSequentialNumbers {
-            // Replace original name with 4-digit sequential number
-            baseName = String(format: "%04d", index + 1)
+            baseName = String(format: "%04d", startOffset + index + 1)
         } else {
             baseName = url.deletingPathExtension().lastPathComponent
         }
 
-        // Prepend EXIF date if enabled
         if renameByExifDate {
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd_HHmmss"
-            let dateString = dateFormatter.string(from: photo.dateCreated)
-            baseName = dateString + "_" + baseName
+            baseName = dateFormatter.string(from: photo.dateCreated) + "_" + baseName
         }
 
-        // Prepend custom prefix
         if !customPrefix.isEmpty {
             baseName = customPrefix + baseName
         }
@@ -62,9 +83,10 @@ struct RenameView: View {
     var body: some View {
         Group {
             if showProgressView {
+                let startOffset = sequentialStartIndex
                 RenameProgressView(
                     photosToRename: photosToRename,
-                    newFilename: { newFilename(for: $0, index: $1) },
+                    newFilename: { newFilename(for: $0, index: $1, startOffset: startOffset) },
                     onComplete: { dismiss() },
                     onCancel: { dismiss() }
                 )
@@ -96,7 +118,7 @@ struct RenameView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Replace filename with sequential number (0001, 0002...)")
                                     .font(.body)
-                                Text("Original file extension is preserved")
+                                Text("Continues from the highest number already in the folder")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
