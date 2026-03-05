@@ -26,6 +26,7 @@ struct SearchResultsFoldersListView: View {
                         .foregroundColor(.secondary)
                     Spacer()
                 }
+                .padding(.top, 44)
             } else if results.isEmpty {
                 VStack {
                     Spacer()
@@ -34,6 +35,7 @@ struct SearchResultsFoldersListView: View {
                         .foregroundColor(.secondary)
                     Spacer()
                 }
+                .padding(.top, 44)
             } else {
                 List(results, id: \.url, selection: $filesModel.selectedFolder) {
                     folder in
@@ -47,6 +49,9 @@ struct SearchResultsFoldersListView: View {
                 }
                 .listStyle(.sidebar)
                 .focusable(false)
+                .safeAreaInset(edge: .top) {
+                    Color.clear.frame(height: 44)
+                }
             }
         }
     }
@@ -73,7 +78,7 @@ private struct SearchResultRowView: View {
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
-                    .truncationMode(.middle)
+                    .truncationMode(.head)
             }
         }
         .padding(.vertical, 2)

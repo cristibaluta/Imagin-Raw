@@ -29,48 +29,54 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Search bar
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 12))
-                TextField("Search folders...", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-                    .onChange(of: searchText) { _, newValue in
-                        if newValue.count >= 3 {
-                            searcher.search(query: newValue, in: filesModel.rootFolders)
-                        } else {
-                            searcher.stopSearch()
+            ZStack(alignment: .top) {
+                if isSearching {
+                    SearchResultsFoldersListView(
+                        results: searcher.results,
+                        isSearching: searcher.isSearching
+                    )
+                } else {
+                    FoldersListView {
+                        self.onDoubleClick?()
+                    }
+                }
+
+                // Floating search bar
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 11))
+                    TextField("Search folders...", text: $searchText)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12))
+                        .onChange(of: searchText) { _, newValue in
+                            if newValue.count >= 3 {
+                                searcher.search(query: newValue, in: filesModel.rootFolders)
+                            } else {
+                                searcher.stopSearch()
+                            }
                         }
+                    if !searchText.isEmpty {
+                        Button(action: {
+                            searchText = ""
+                            searcher.stopSearch()
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                                .font(.system(size: 11))
+                        }
+                        .buttonStyle(.plain)
                     }
-                if !searchText.isEmpty {
-                    Button(action: {
-                        searchText = ""
-                        searcher.stopSearch()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 12))
-                    }
-                    .buttonStyle(.plain)
                 }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Color(NSColor.controlBackgroundColor))
-
-            Divider()
-
-            if isSearching {
-                SearchResultsFoldersListView(
-                    results: searcher.results,
-                    isSearching: searcher.isSearching
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(NSColor.windowBackgroundColor))
+                        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
                 )
-            } else {
-                FoldersListView {
-                    self.onDoubleClick?()
-                }
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
             }
 
             HStack {
