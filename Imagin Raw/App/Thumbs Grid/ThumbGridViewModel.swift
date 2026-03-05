@@ -395,11 +395,17 @@ class ThumbGridViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Undo support
+    // Each entry maps trashed file URL back to its original URL
+    private var undoStack: [[(trashedURL: URL, originalURL: URL)]] = []
+
     func movePhotosToTrash(_ photos: [PhotoItem]) {
         let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
                            "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
                            "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
                            "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
+
+        var undoEntry: [(trashedURL: URL, originalURL: URL)] = []
 
         for photo in photos {
             let url = URL(fileURLWithPath: photo.path)
@@ -408,32 +414,45 @@ class ThumbGridViewModel: ObservableObject {
             let directory = url.deletingLastPathComponent()
 
             do {
-                // Move main file to trash
-                try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+                // Move main file to trash, capturing the resulting trash URL for undo
+                var trashedURL: NSURL?
+                try FileManager.default.trashItem(at: url, resultingItemURL: &trashedURL)
+                if let trashedURL = trashedURL as? URL {
+                    undoEntry.append((trashedURL: trashedURL, originalURL: url))
+                }
 
                 // Delete the cached thumbnail
                 ThumbsManager.shared.deleteCachedThumbnail(for: photo.path)
 
                 // If this is a RAW file, also delete associated files
                 if rawExtensions.contains(fileExtension) {
-                    // Delete associated JPG files
                     for jpgExt in ["jpg", "jpeg", "JPG", "JPEG"] {
                         let jpgURL = directory.appendingPathComponent("\(baseName).\(jpgExt)")
                         if FileManager.default.fileExists(atPath: jpgURL.path) {
-                            try? FileManager.default.trashItem(at: jpgURL, resultingItemURL: nil)
+                            var trashedJpgURL: NSURL?
+                            try? FileManager.default.trashItem(at: jpgURL, resultingItemURL: &trashedJpgURL)
+                            if let trashedJpgURL = trashedJpgURL as? URL {
+                                undoEntry.append((trashedURL: trashedJpgURL, originalURL: jpgURL))
+                            }
                         }
                     }
 
-                    // Delete associated XMP file
                     let xmpURL = directory.appendingPathComponent("\(baseName).xmp")
                     if FileManager.default.fileExists(atPath: xmpURL.path) {
-                        try? FileManager.default.trashItem(at: xmpURL, resultingItemURL: nil)
+                        var trashedXmpURL: NSURL?
+                        try? FileManager.default.trashItem(at: xmpURL, resultingItemURL: &trashedXmpURL)
+                        if let trashedXmpURL = trashedXmpURL as? URL {
+                            undoEntry.append((trashedURL: trashedXmpURL, originalURL: xmpURL))
+                        }
                     }
 
-                    // Delete associated ACR file
                     let acrURL = directory.appendingPathComponent("\(baseName).acr")
                     if FileManager.default.fileExists(atPath: acrURL.path) {
-                        try? FileManager.default.trashItem(at: acrURL, resultingItemURL: nil)
+                        var trashedAcrURL: NSURL?
+                        try? FileManager.default.trashItem(at: acrURL, resultingItemURL: &trashedAcrURL)
+                        if let trashedAcrURL = trashedAcrURL as? URL {
+                            undoEntry.append((trashedURL: trashedAcrURL, originalURL: acrURL))
+                        }
                     }
                 }
 
@@ -444,6 +463,10 @@ class ThumbGridViewModel: ObservableObject {
             } catch {
                 // Silently handle errors
             }
+        }
+
+        if !undoEntry.isEmpty {
+            undoStack.append(undoEntry)
         }
 
         // Clear selection after moving
@@ -476,6 +499,21 @@ class ThumbGridViewModel: ObservableObject {
             filesModel.selectedPhoto = nil
             lastSelectedIndex = nil
         }
+    }
+
+    func undoLastTrash() {
+        guard let lastEntry = undoStack.popLast() else { return }
+        for item in lastEntry {
+            do {
+                try FileManager.default.moveItem(at: item.trashedURL, to: item.originalURL)
+                // Invalidate the cached thumbnail so it gets regenerated on reload
+                ThumbsManager.shared.deleteCachedThumbnail(for: item.originalURL.path)
+            } catch {
+                // Silently handle errors
+            }
+        }
+        // Explicitly reload since the file system watcher may not fire fast enough
+        reloadPhotos()
     }
 
     func getPhotosMarkedForDeletion() -> [PhotoItem] {
