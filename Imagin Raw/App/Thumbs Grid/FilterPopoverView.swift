@@ -155,7 +155,7 @@ struct CheckboxToggleStyle: ToggleStyle {
         case "To Do":
             return .purple
         case "Rejected":
-            return .orange
+            return .red
         default:
             return .secondary
         }

@@ -58,7 +58,7 @@ struct ThumbCell: View {
                     if photo.toDelete {
                         Image(systemName: "xmark")
                             .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.orange)
+                            .foregroundColor(.red)
                             .shadow(color: .black, radius: 2, x: 1, y: 1)
                     }
 
@@ -223,7 +223,7 @@ struct ThumbCell: View {
     private func getLabelBackgroundColor() -> Color {
         // Check if photo is marked for deletion first
         if photo.toDelete {
-            return .orange
+            return .red
         }
 
         guard let label = photo.xmp?.label else { return .clear }

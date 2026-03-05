@@ -339,7 +339,7 @@ struct ReviewModeView: View {
 
     private func getLabelBackgroundColor(for photo: PhotoItem) -> Color {
         if photo.toDelete {
-            return .orange
+            return .red
         }
 
         guard let label = photo.xmp?.label, !label.isEmpty else {
@@ -416,7 +416,7 @@ struct CarouselMainPhoto: View {
                             Spacer()
                             Image(systemName: "trash")
                                 .font(.system(size: 60, weight: .bold))
-                                .foregroundColor(.orange)
+                                .foregroundColor(.red)
                                 .shadow(color: .black, radius: 4, x: 2, y: 2)
                                 .padding(30)
                         }
