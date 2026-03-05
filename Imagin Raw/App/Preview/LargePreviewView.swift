@@ -54,7 +54,7 @@ struct LargePreviewView: View {
                     }) {
                         Image(systemName: model.alignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
                             .font(.title2)
-                            .foregroundColor(model.alignToTopLeft ? .white.opacity(0.4) : .white)
+                            .foregroundColor(model.alignToTopLeft ? .white.opacity(0.4) : .gray)
                             .padding()
                     }
                     .buttonStyle(PlainButtonStyle())
