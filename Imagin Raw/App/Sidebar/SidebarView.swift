@@ -11,6 +11,8 @@ struct SidebarView: View {
     @EnvironmentObject var filesModel: FilesModel
     @State private var showingFolderPicker = false
     @State private var showingAddPopover = false
+    @State private var searchText = ""
+    @StateObject private var searcher = SpotlightSearcher()
     let onDoubleClick: (() -> Void)?
 
     // Default initializer for backwards compatibility
@@ -21,15 +23,71 @@ struct SidebarView: View {
     private let expandedFoldersKey = "ExpandedFolders"
     private let selectedFolderKey = "SelectedFolder"
 
+    private var isSearching: Bool {
+        searchText.count >= 3
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            FoldersListView {
-                self.onDoubleClick?()
+            // Search bar
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 12))
+                TextField("Search folders...", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .onChange(of: searchText) { _, newValue in
+                        if newValue.count >= 3 {
+                            searcher.search(query: newValue, in: filesModel.rootFolders)
+                        } else {
+                            searcher.stopSearch()
+                        }
+                    }
+                if !searchText.isEmpty {
+                    Button(action: {
+                        searchText = ""
+                        searcher.stopSearch()
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 12))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color(NSColor.controlBackgroundColor))
+
+            Divider()
+
+            if isSearching {
+                SearchResultsFoldersListView(
+                    results: searcher.results,
+                    isSearching: searcher.isSearching
+                )
+            } else {
+                FoldersListView {
+                    self.onDoubleClick?()
+                }
             }
 
             HStack {
                 Button(action: {
-                    showingAddPopover = true
+                    if showingAddPopover {
+                        // Close with animation
+                        withAnimation {
+                            showingAddPopover = false
+                        }
+                    } else {
+                        // Open without animation
+                        var transaction = Transaction()
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) {
+                            showingAddPopover = true
+                        }
+                    }
                 }) {
                     Image(systemName: "plus")
                         .font(.system(size: 12, weight: .medium))

@@ -692,17 +692,4 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
         }
     }
 
-    func search() {
-        let searcher = SpotlightSearcher()
-        let folder = URL(fileURLWithPath: "/Users/me/Documents")
-
-        Task {
-            for await results in searcher.search(folder: folder, text: "Patricia") {
-                print("Results updated:")
-                for file in results {
-                    print(file.path)
-                }
-            }
-        }
-    }
 }
