@@ -85,7 +85,6 @@ final class PhotosModel: ObservableObject {
     /// Returns basic info immediately, then enriches with metadata.
     static func loadPhotos(for urls: [URL]) async -> [PhotoItem] {
         let fm = FileManager.default
-        let jpgExtensions = ["jpg", "jpeg"]
         let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
                              "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
                              "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
