@@ -119,7 +119,7 @@ struct ContentView: View {
                     columnVisibilityStorage = "doubleColumn"
                 }
             )
-            .navigationSplitViewColumnWidth(min: 150, ideal: 200, max: 250)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 250)
             .environmentObject(filesModel)
         } content: {
             // Middle: thumbnails
