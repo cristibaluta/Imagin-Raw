@@ -30,7 +30,9 @@ enum AppPreference: String, RCPreferencesProtocol {
     // MARK: - Copy To
     case copyToRenameByExifDate = "CopyTo_RenameByExifDate"
     case copyToCustomPrefix = "CopyTo_CustomPrefix"
-    case copyToOrganizeByDate = "CopyTo_OrganizeByDate"
+    case copyToOrganizeByYear = "CopyTo_OrganizeByYear"
+    case copyToOrganizeByMonth = "CopyTo_OrganizeByMonth"
+    case copyToOrganizeByDay = "CopyTo_OrganizeByDay"
     case copyToOrganizeByCameraModel = "CopyTo_OrganizeByCameraModel"
     case copyToOrganizeJpgsInSubfolder = "CopyTo_OrganizeJpgsInSubfolder"
     case copyToLastDestinationURL = "CopyTo_LastDestinationURL"
@@ -49,7 +51,9 @@ enum AppPreference: String, RCPreferencesProtocol {
         case .userFolderBookmarks:      return Data()
         case .copyToRenameByExifDate:   return false
         case .copyToCustomPrefix:       return ""
-        case .copyToOrganizeByDate:     return false
+        case .copyToOrganizeByYear:     return false
+        case .copyToOrganizeByMonth:    return false
+        case .copyToOrganizeByDay:      return false
         case .copyToOrganizeByCameraModel: return false
         case .copyToOrganizeJpgsInSubfolder: return false
         case .copyToLastDestinationURL: return ""

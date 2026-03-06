@@ -17,7 +17,9 @@ struct CopyToView: View {
     @State private var showProgressView = false
     @State private var renameByExifDate = false
     @State private var customPrefix = ""
-    @State private var organizeByDate = false
+    @State private var organizeByYear = false
+    @State private var organizeByMonth = false
+    @State private var organizeByDay = false
     @State private var organizeByCameraModel = false
     @State private var organizeJpgsInSubfolder = false
 
@@ -27,7 +29,9 @@ struct CopyToView: View {
         // Load saved settings
         _renameByExifDate = State(initialValue: appPrefs.bool(.copyToRenameByExifDate))
         _customPrefix = State(initialValue: appPrefs.string(.copyToCustomPrefix))
-        _organizeByDate = State(initialValue: appPrefs.bool(.copyToOrganizeByDate))
+        _organizeByYear = State(initialValue: appPrefs.bool(.copyToOrganizeByYear))
+        _organizeByMonth = State(initialValue: appPrefs.bool(.copyToOrganizeByMonth))
+        _organizeByDay = State(initialValue: appPrefs.bool(.copyToOrganizeByDay))
         _organizeByCameraModel = State(initialValue: appPrefs.bool(.copyToOrganizeByCameraModel))
         _organizeJpgsInSubfolder = State(initialValue: appPrefs.bool(.copyToOrganizeJpgsInSubfolder))
 
@@ -72,7 +76,9 @@ struct CopyToView: View {
     private func saveSettings() {
         appPrefs.set(renameByExifDate, forKey: .copyToRenameByExifDate)
         appPrefs.set(customPrefix, forKey: .copyToCustomPrefix)
-        appPrefs.set(organizeByDate, forKey: .copyToOrganizeByDate)
+        appPrefs.set(organizeByYear, forKey: .copyToOrganizeByYear)
+        appPrefs.set(organizeByMonth, forKey: .copyToOrganizeByMonth)
+        appPrefs.set(organizeByDay, forKey: .copyToOrganizeByDay)
         appPrefs.set(organizeByCameraModel, forKey: .copyToOrganizeByCameraModel)
         appPrefs.set(organizeJpgsInSubfolder, forKey: .copyToOrganizeJpgsInSubfolder)
 
@@ -103,7 +109,9 @@ struct CopyToView: View {
                     backupDestinationURL: backupDestinationURL,
                     renameByExifDate: renameByExifDate,
                     customPrefix: customPrefix,
-                    organizeByDate: organizeByDate,
+                    organizeByYear: organizeByYear,
+                    organizeByMonth: organizeByMonth,
+                    organizeByDay: organizeByDay,
                     organizeByCameraModel: organizeByCameraModel,
                     organizeJpgsInSubfolder: organizeJpgsInSubfolder,
                     onComplete: {
@@ -122,7 +130,9 @@ struct CopyToView: View {
                     backupDestinationURL: $backupDestinationURL,
                     renameByExifDate: $renameByExifDate,
                     customPrefix: $customPrefix,
-                    organizeByDate: $organizeByDate,
+                    organizeByYear: $organizeByYear,
+                    organizeByMonth: $organizeByMonth,
+                    organizeByDay: $organizeByDay,
                     organizeByCameraModel: $organizeByCameraModel,
                     organizeJpgsInSubfolder: $organizeJpgsInSubfolder,
                     onStart: {
@@ -151,7 +161,9 @@ struct CopyOptionsView: View {
     @Binding var backupDestinationURL: URL?
     @Binding var renameByExifDate: Bool
     @Binding var customPrefix: String
-    @Binding var organizeByDate: Bool
+    @Binding var organizeByYear: Bool
+    @Binding var organizeByMonth: Bool
+    @Binding var organizeByDay: Bool
     @Binding var organizeByCameraModel: Bool
     @Binding var organizeJpgsInSubfolder: Bool
     let onStart: () -> Void
@@ -167,15 +179,20 @@ struct CopyOptionsView: View {
         var components: [String] = [baseURL.path]
 
         // Add date folder if enabled (year/month/day structure)
-        if organizeByDate {
+        if organizeByYear || organizeByMonth || organizeByDay {
             let calendar = Calendar.current
-            let year = calendar.component(.year, from: firstPhoto.dateCreated)
-            let month = calendar.component(.month, from: firstPhoto.dateCreated)
-            let day = calendar.component(.day, from: firstPhoto.dateCreated)
-
-            components.append(String(year))
-            components.append(String(format: "%02d", month))
-            components.append(String(format: "%02d", day))
+            if organizeByYear {
+                let year = calendar.component(.year, from: firstPhoto.dateCreated)
+                components.append(String(year))
+            }
+            if organizeByMonth {
+                let month = calendar.component(.month, from: firstPhoto.dateCreated)
+                components.append(String(format: "%02d", month))
+            }
+            if organizeByDay {
+                let day = calendar.component(.day, from: firstPhoto.dateCreated)
+                components.append(String(format: "%02d", day))
+            }
         }
 
         // Add camera model folder if enabled
@@ -292,15 +309,19 @@ struct CopyOptionsView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 16) {
 
-                    // Organize by date
-                    Toggle(isOn: $organizeByDate) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Organize into subfolders by date")
-                                .font(.body)
-                            Text("Creates folders structure (Year/Month/Day)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+                    // Organize by date — year/month/day on one row
+                    HStack(spacing: 12) {
+                        Text("Organize by date")
+                            .font(.body)
+                        Spacer()
+                        Toggle("Year", isOn: $organizeByYear)
+                            .toggleStyle(.checkbox)
+                        Toggle("Month", isOn: $organizeByMonth)
+                            .toggleStyle(.checkbox)
+                            .disabled(!organizeByYear)
+                        Toggle("Day", isOn: $organizeByDay)
+                            .toggleStyle(.checkbox)
+                            .disabled(!organizeByMonth)
                     }
 
                     // Organize by camera model
@@ -401,7 +422,9 @@ struct CopyProgressView: View {
     let backupDestinationURL: URL?
     let renameByExifDate: Bool
     let customPrefix: String
-    let organizeByDate: Bool
+    let organizeByYear: Bool
+    let organizeByMonth: Bool
+    let organizeByDay: Bool
     let organizeByCameraModel: Bool
     let organizeJpgsInSubfolder: Bool
     let onComplete: () -> Void
@@ -546,19 +569,20 @@ struct CopyProgressView: View {
                 func copyToDestination(_ baseURL: URL) throws {
                     var destinationFolder = baseURL
 
-                    // Organize by date if option is enabled and we have photo metadata
-                    if organizeByDate, let photo = file.photo {
+                    if (organizeByYear || organizeByMonth || organizeByDay), let photo = file.photo {
                         let calendar = Calendar.current
-                        let year = calendar.component(.year, from: photo.dateCreated)
-                        let month = calendar.component(.month, from: photo.dateCreated)
-                        let day = calendar.component(.day, from: photo.dateCreated)
-
-                        // Create year/month/day folder structure
-                        destinationFolder = baseURL
-                            .appendingPathComponent(String(year))
-                            .appendingPathComponent(String(format: "%02d", month))
-                            .appendingPathComponent(String(format: "%02d", day))
-
+                        if organizeByYear {
+                            let year = calendar.component(.year, from: photo.dateCreated)
+                            destinationFolder = destinationFolder.appendingPathComponent(String(year))
+                        }
+                        if organizeByMonth {
+                            let month = calendar.component(.month, from: photo.dateCreated)
+                            destinationFolder = destinationFolder.appendingPathComponent(String(format: "%02d", month))
+                        }
+                        if organizeByDay {
+                            let day = calendar.component(.day, from: photo.dateCreated)
+                            destinationFolder = destinationFolder.appendingPathComponent(String(format: "%02d", day))
+                        }
                         // Create subfolder if it doesn't exist
                         try FileManager.default.createDirectory(at: destinationFolder, withIntermediateDirectories: true)
                     }
