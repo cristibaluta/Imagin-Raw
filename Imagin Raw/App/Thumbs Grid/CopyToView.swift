@@ -8,356 +8,76 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Container
+
 struct CopyToView: View {
     @Environment(\.dismiss) private var dismiss
     let photosToCoрy: [PhotoItem]
 
-    @State private var destinationURL: URL?
-    @State private var backupDestinationURL: URL?
-    @State private var showProgressView = false
-    @State private var renameByExifDate = false
-    @State private var useSequentialNumbers = false
-    @State private var customPrefix = ""
-    @State private var organizeByYear = false
-    @State private var organizeByMonth = false
-    @State private var organizeByDay = false
-    @State private var eventName = ""
-    @State private var organizeByCameraModel = false
-    @State private var organizeJpgsInSubfolder = false
-
-    init(photosToCoрy: [PhotoItem]) {
-        self.photosToCoрy = photosToCoрy
-
-        // Load saved settings
-        _renameByExifDate = State(initialValue: appPrefs.bool(.copyToRenameByExifDate))
-        _useSequentialNumbers = State(initialValue: appPrefs.bool(.copyToUseSequentialNumbers))
-        _customPrefix = State(initialValue: appPrefs.string(.copyToCustomPrefix))
-        _organizeByYear = State(initialValue: appPrefs.bool(.copyToOrganizeByYear))
-        _organizeByMonth = State(initialValue: appPrefs.bool(.copyToOrganizeByMonth))
-        _organizeByDay = State(initialValue: appPrefs.bool(.copyToOrganizeByDay))
-        _eventName = State(initialValue: appPrefs.string(.copyToEventName))
-        _organizeByCameraModel = State(initialValue: appPrefs.bool(.copyToOrganizeByCameraModel))
-        _organizeJpgsInSubfolder = State(initialValue: appPrefs.bool(.copyToOrganizeJpgsInSubfolder))
-
-        // Load last destinations from security-scoped bookmarks (Data - use UserDefaults directly with AppPreference key)
-        if let bookmarkData = UserDefaults.standard.data(forKey: AppPreference.copyToDestinationBookmark.rawValue),
-           let url = Self.urlFromBookmark(bookmarkData) {
-            _destinationURL = State(initialValue: url)
-        }
-        if let bookmarkData = UserDefaults.standard.data(forKey: AppPreference.copyToBackupBookmark.rawValue),
-           let url = Self.urlFromBookmark(bookmarkData) {
-            _backupDestinationURL = State(initialValue: url)
-        }
-    }
-
-    private static func urlFromBookmark(_ bookmarkData: Data) -> URL? {
-        var isStale = false
-        do {
-            let url = try URL(resolvingBookmarkData: bookmarkData, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale)
-            if isStale {
-                // Bookmark is stale, will need to recreate it
-                return nil
-            }
-            // Start accessing the security-scoped resource
-            _ = url.startAccessingSecurityScopedResource()
-            return url
-        } catch {
-            print("Error resolving bookmark: \(error)")
-            return nil
-        }
-    }
-
-    private static func bookmarkFromURL(_ url: URL) -> Data? {
-        do {
-            let bookmarkData = try url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
-            return bookmarkData
-        } catch {
-            print("Error creating bookmark: \(error)")
-            return nil
-        }
-    }
-
-    private func saveSettings() {
-        appPrefs.set(renameByExifDate, forKey: .copyToRenameByExifDate)
-        appPrefs.set(useSequentialNumbers, forKey: .copyToUseSequentialNumbers)
-        appPrefs.set(customPrefix, forKey: .copyToCustomPrefix)
-        appPrefs.set(organizeByYear, forKey: .copyToOrganizeByYear)
-        appPrefs.set(organizeByMonth, forKey: .copyToOrganizeByMonth)
-        appPrefs.set(organizeByDay, forKey: .copyToOrganizeByDay)
-        appPrefs.set(eventName, forKey: .copyToEventName)
-        appPrefs.set(organizeByCameraModel, forKey: .copyToOrganizeByCameraModel)
-        appPrefs.set(organizeJpgsInSubfolder, forKey: .copyToOrganizeJpgsInSubfolder)
-
-        // Save security-scoped bookmarks (Data - use UserDefaults directly with AppPreference key)
-        if let url = destinationURL {
-            if let bookmarkData = Self.bookmarkFromURL(url) {
-                UserDefaults.standard.set(bookmarkData, forKey: AppPreference.copyToDestinationBookmark.rawValue)
-            }
-            appPrefs.set(url.absoluteString, forKey: .copyToLastDestinationURL)
-        }
-        if let url = backupDestinationURL {
-            if let bookmarkData = Self.bookmarkFromURL(url) {
-                UserDefaults.standard.set(bookmarkData, forKey: AppPreference.copyToBackupBookmark.rawValue)
-            }
-            appPrefs.set(url.absoluteString, forKey: .copyToLastBackupDestinationURL)
-        } else {
-            UserDefaults.standard.removeObject(forKey: AppPreference.copyToLastBackupDestinationURL.rawValue)
-            UserDefaults.standard.removeObject(forKey: AppPreference.copyToBackupBookmark.rawValue)
-        }
-    }
+    @StateObject private var viewModel = CopyToViewModel()
 
     var body: some View {
         Group {
-            if showProgressView, let destination = destinationURL {
-                CopyProgressView(
-                    photosToCoрy: photosToCoрy,
-                    destinationURL: destination,
-                    backupDestinationURL: backupDestinationURL,
-                    renameByExifDate: renameByExifDate,
-                    useSequentialNumbers: useSequentialNumbers,
-                    customPrefix: customPrefix,
-                    organizeByYear: organizeByYear,
-                    organizeByMonth: organizeByMonth,
-                    organizeByDay: organizeByDay,
-                    eventName: eventName,
-                    organizeByCameraModel: organizeByCameraModel,
-                    organizeJpgsInSubfolder: organizeJpgsInSubfolder,
-                    onComplete: { dismiss() },
-                    onCancel: { dismiss() }
-                )
+            if viewModel.isCopying {
+                CopyProgressView(viewModel: viewModel) {
+                    dismiss()
+                }
                 .frame(minWidth: 500, minHeight: 180)
             } else {
-                CopyOptionsView(
-                    photosToCoрy: photosToCoрy,
-                    photosCount: photosToCoрy.count,
-                    destinationURL: $destinationURL,
-                    backupDestinationURL: $backupDestinationURL,
-                    renameByExifDate: $renameByExifDate,
-                    customPrefix: $customPrefix,
-                    useSequentialNumbers: $useSequentialNumbers,
-                    organizeByYear: $organizeByYear,
-                    organizeByMonth: $organizeByMonth,
-                    organizeByDay: $organizeByDay,
-                    eventName: $eventName,
-                    organizeByCameraModel: $organizeByCameraModel,
-                    organizeJpgsInSubfolder: $organizeJpgsInSubfolder,
-                    onStart: {
-                        saveSettings()
-                        showProgressView = true
-                    },
-                    onCancel: { dismiss() }
-                )
+                CopyOptionsView(photosToCoрy: photosToCoрy, viewModel: viewModel) {
+                    viewModel.saveSettings()
+                    viewModel.startCopy(photos: photosToCoрy)
+                } onCancel: {
+                    dismiss()
+                }
                 .frame(minWidth: 500, minHeight: 420)
             }
         }
         .onDisappear {
-            // Stop accessing security-scoped resources when view disappears
-            destinationURL?.stopAccessingSecurityScopedResource()
-            backupDestinationURL?.stopAccessingSecurityScopedResource()
+            viewModel.stopAccessingSecurityScopedResources()
         }
     }
 }
 
+// MARK: - Options
+
 struct CopyOptionsView: View {
     let photosToCoрy: [PhotoItem]
-    let photosCount: Int
-    @Binding var destinationURL: URL?
-    @Binding var backupDestinationURL: URL?
-    @Binding var renameByExifDate: Bool
-    @Binding var customPrefix: String
-    @Binding var useSequentialNumbers: Bool
-    @Binding var organizeByYear: Bool
-    @Binding var organizeByMonth: Bool
-    @Binding var organizeByDay: Bool
-    @Binding var eventName: String
-    @Binding var organizeByCameraModel: Bool
-    @Binding var organizeJpgsInSubfolder: Bool
+    @ObservedObject var viewModel: CopyToViewModel
     let onStart: () -> Void
     let onCancel: () -> Void
 
-    // Computed property to generate preview path
-    private var sequentialStartIndex: Int {
-        Self.computeSequentialStartOffset(
-            in: destinationURL,
-            prefix: customPrefix
-        )
-    }
-
-    /// Scans `folder` for files already matching `prefix + 0000.ext` and returns the highest number found.
-    static func computeSequentialStartOffset(in folder: URL?, prefix: String) -> Int {
-        guard let folder else { return 0 }
-        let files = (try? FileManager.default.contentsOfDirectory(
-            at: folder, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
-        )) ?? []
-        let prefixPattern = prefix.isEmpty ? "" : NSRegularExpression.escapedPattern(for: prefix)
-        let pattern = try? NSRegularExpression(pattern: "^\(prefixPattern)(\\d{4})\\.")
-        var highest = 0
-        for file in files {
-            let name = file.lastPathComponent
-            let range = NSRange(name.startIndex..., in: name)
-            if let match = pattern?.firstMatch(in: name, range: range),
-               let numRange = Range(match.range(at: 1), in: name),
-               let number = Int(name[numRange]) {
-                highest = max(highest, number)
-            }
-        }
-        return highest
-    }
-
-    /// Builds the destination filename for a single photo.
-    /// `sequentialIndex` is the 1-based number to use when `useSequentialNumbers` is true.
-    static func buildFilename(for photo: PhotoItem,
-                              sequentialIndex: Int?,
-                              useSequentialNumbers: Bool,
-                              renameByExifDate: Bool,
-                              customPrefix: String) -> String {
-        let url = URL(fileURLWithPath: photo.path)
-        let ext = url.pathExtension
-
-        var baseName: String
-        if useSequentialNumbers, let idx = sequentialIndex {
-            baseName = String(format: "%04d", idx)
-        } else {
-            baseName = url.deletingPathExtension().lastPathComponent
-        }
-
-        if renameByExifDate {
-            let fmt = DateFormatter()
-            fmt.dateFormat = "yyyy-MM-dd_HHmmss"
-            baseName = fmt.string(from: photo.dateCreated) + "_" + baseName
-        }
-
-        if !customPrefix.isEmpty {
-            baseName = customPrefix + baseName
-        }
-
-        return ext.isEmpty ? baseName : baseName + "." + ext
-    }
-
-    private var previewPath: String? {
-        guard let firstPhoto = photosToCoрy.first,
-              let baseURL = destinationURL else {
-            return nil
-        }
-
-        var components: [String] = [baseURL.path]
-
-        // Add date folder if enabled (year/month/day structure)
-        if organizeByYear || organizeByMonth || organizeByDay {
-            let calendar = Calendar.current
-            if organizeByYear {
-                let year = calendar.component(.year, from: firstPhoto.dateCreated)
-                components.append(String(year))
-            }
-            if organizeByMonth {
-                let month = calendar.component(.month, from: firstPhoto.dateCreated)
-                components.append(String(format: "%02d", month))
-            }
-            if organizeByDay {
-                let day = calendar.component(.day, from: firstPhoto.dateCreated)
-                components.append(String(format: "%02d", day))
-            }
-        }
-
-        // Add event/client/location folder if non-empty
-        if !eventName.isEmpty {
-            components.append(eventName)
-        }
-
-        // Add camera model folder if enabled
-        if organizeByCameraModel, let cameraModel = firstPhoto.cameraModel {
-            // Clean up camera model for folder name
-            let cleanModel = cameraModel
-                .replacingOccurrences(of: "/", with: "-")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            components.append(cleanModel)
-        }
-
-        // Add _jpg folder if this would be a JPG and the option is enabled
-        let isJpg = firstPhoto.path.lowercased().hasSuffix(".jpg") ||
-                    firstPhoto.path.lowercased().hasSuffix(".jpeg")
-        if organizeJpgsInSubfolder && isJpg {
-            components.append("_jpg")
-        }
-
-        // Generate filename using shared method
-        let filename = Self.buildFilename(
-            for: firstPhoto,
-            sequentialIndex: useSequentialNumbers ? (sequentialStartIndex + 1) : nil,
-            useSequentialNumbers: useSequentialNumbers,
-            renameByExifDate: renameByExifDate,
-            customPrefix: customPrefix
-        )
-
-        components.append(filename)
-
-        return components.joined(separator: " > ")
-    }
-
     var body: some View {
         VStack(spacing: 20) {
-            // Header
-            Text("Copy \(photosCount) photo\(photosCount == 1 ? "" : "s")")
+            Text("Copy \(photosToCoрy.count) photo\(photosToCoрy.count == 1 ? "" : "s")")
                 .font(.headline)
 
             Divider()
 
-            // Destination folder selection
+            // Destination
             VStack(alignment: .leading, spacing: 8) {
-                Text("Destination:")
-                    .font(.body)
-
+                Text("Destination:").font(.body)
                 HStack {
-                    if let url = destinationURL {
-                        Text(url.path)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else {
-                        Text("No folder selected")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    Button("Browse...") {
-                        showFolderPicker(forBackup: false)
-                    }
+                    Text(viewModel.destinationURL?.path ?? "No folder selected")
+                        .font(.caption).foregroundColor(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("Browse...") { showFolderPicker(forBackup: false) }
                 }
             }
 
-            // Backup destination folder selection
+            // Backup destination
             VStack(alignment: .leading, spacing: 8) {
-                Text("Backup Destination (Optional):")
-                    .font(.body)
-
+                Text("Backup Destination (Optional):").font(.body)
                 HStack {
-                    if let url = backupDestinationURL {
-                        Text(url.path)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else {
-                        Text("No backup folder selected")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    Button("Browse...") {
-                        showFolderPicker(forBackup: true)
-                    }
-
-                    if backupDestinationURL != nil {
-                        Button(action: {
-                            backupDestinationURL = nil
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
+                    Text(viewModel.backupDestinationURL?.path ?? "No backup folder selected")
+                        .font(.caption).foregroundColor(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("Browse...") { showFolderPicker(forBackup: true) }
+                    if viewModel.backupDestinationURL != nil {
+                        Button { viewModel.backupDestinationURL = nil } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
                         }
                         .buttonStyle(.plain)
                     }
@@ -366,82 +86,60 @@ struct CopyOptionsView: View {
 
             Divider()
 
-            // Folders Options
+            // Folder organisation options
             VStack(alignment: .leading, spacing: 16) {
-                // Organize by date — year/month/day on one row
                 HStack(spacing: 12) {
-                    Text("Organize by date")
-                        .font(.body)
+                    Text("Organize by date").font(.body)
                     Spacer()
-                    Toggle("Year", isOn: $organizeByYear)
-                        .toggleStyle(.checkbox)
-                    Toggle("Month", isOn: $organizeByMonth)
-                        .toggleStyle(.checkbox)
-                        .disabled(!organizeByYear)
-                    Toggle("Day", isOn: $organizeByDay)
-                        .toggleStyle(.checkbox)
-                        .disabled(!organizeByMonth)
+                    Toggle("Year", isOn: $viewModel.organizeByYear).toggleStyle(.checkbox)
+                    Toggle("Month", isOn: $viewModel.organizeByMonth).toggleStyle(.checkbox)
+                        .disabled(!viewModel.organizeByYear)
+                    Toggle("Day", isOn: $viewModel.organizeByDay).toggleStyle(.checkbox)
+                        .disabled(!viewModel.organizeByMonth)
                 }
 
-                // Organize by client / event / location
                 HStack(spacing: 12) {
-                    Text("Client / event / location")
-                        .font(.body)
-                        .lineLimit(1)
-                    TextField("e.g., Paris, Wedding, Nike", text: $eventName)
+                    Text("Client / event / location").font(.body).lineLimit(1)
+                    TextField("e.g., Paris, Wedding, Nike", text: $viewModel.eventName)
                         .textFieldStyle(.roundedBorder)
                 }
 
-                // Organize by camera model
-                Toggle(isOn: $organizeByCameraModel) {
-                    Text("Organize into subfolders by camera model")
-                        .font(.body)
+                Toggle(isOn: $viewModel.organizeByCameraModel) {
+                    Text("Organize into subfolders by camera model").font(.body)
                 }
             }
 
             Divider()
 
+            // Filename options
             VStack(alignment: .leading, spacing: 16) {
-                // Custom prefix
                 HStack(alignment: .center, spacing: 16) {
-                    Text("Filename prefix")
-                        .font(.body)
-                    TextField("e.g., Paris_", text: $customPrefix)
+                    Text("Filename prefix").font(.body)
+                    TextField("e.g., Paris_", text: $viewModel.customPrefix)
                         .textFieldStyle(.roundedBorder)
                 }
 
-                // Sequential numbers
-                Toggle(isOn: $useSequentialNumbers) {
-                    Text("Replace filename with sequential numbers (0001, 0002...)")
-                        .font(.body)
+                Toggle(isOn: $viewModel.useSequentialNumbers) {
+                    Text("Replace filename with sequential numbers (0001, 0002...)").font(.body)
                 }
 
-                // Rename by EXIF date
-                Toggle(isOn: $renameByExifDate) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Include creation date (YYYY-MM-DD_HHMMSS)")
-                            .font(.body)
-                    }
+                Toggle(isOn: $viewModel.renameByExifDate) {
+                    Text("Include creation date (YYYY-MM-DD_HHMMSS)").font(.body)
                 }
 
-                // Organize JPGs in subfolder
-                Toggle(isOn: $organizeJpgsInSubfolder) {
-                    Text("Copy JPGs to '_jpg' subfolder")
-                        .font(.body)
+                Toggle(isOn: $viewModel.organizeJpgsInSubfolder) {
+                    Text("Copy JPGs to '_jpg' subfolder").font(.body)
                 }
             }
 
-            // Preview section
-            if let preview = previewPath {
+            // Preview
+            if let preview = viewModel.previewPath(for: photosToCoрy) {
                 Divider()
-
                 HStack(spacing: 12) {
                     Text("Preview")
                     Text(preview)
                         .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                        .truncationMode(.head)
+                        .lineLimit(1).truncationMode(.head)
                         .padding(8)
                         .background(Color(NSColor.textBackgroundColor))
                         .cornerRadius(4)
@@ -450,21 +148,13 @@ struct CopyOptionsView: View {
 
             Spacer()
 
-            // Buttons
             HStack(spacing: 12) {
-                Button("Cancel") {
-                    onCancel()
-                }
-                .keyboardShortcut(.cancelAction)
-
+                Button("Cancel", action: onCancel).keyboardShortcut(.cancelAction)
                 Spacer()
-
-                Button("Start Copying") {
-                    onStart()
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
-                .disabled(destinationURL == nil)
+                Button("Start Copying", action: onStart)
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(viewModel.destinationURL == nil)
             }
         }
         .padding(20)
@@ -473,276 +163,73 @@ struct CopyOptionsView: View {
     private func showFolderPicker(forBackup: Bool) {
         let panel = NSOpenPanel()
         panel.title = forBackup ? "Choose Backup Destination Folder" : "Choose Destination Folder"
-        panel.message = "Select a folder to copy \(photosCount) photo\(photosCount == 1 ? "" : "s") to"
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
         panel.prompt = "Choose"
-
         panel.begin { response in
-            if response == .OK, let url = panel.url {
-                if forBackup {
-                    backupDestinationURL = url
-                } else {
-                    destinationURL = url
-                }
-            }
+            guard response == .OK, let url = panel.url else { return }
+            if forBackup { viewModel.backupDestinationURL = url }
+            else         { viewModel.destinationURL = url }
         }
     }
 }
 
-struct CopyProgressView: View {
-    let photosToCoрy: [PhotoItem]
-    let destinationURL: URL
-    let backupDestinationURL: URL?
-    let renameByExifDate: Bool
-    let useSequentialNumbers: Bool
-    let customPrefix: String
-    let organizeByYear: Bool
-    let organizeByMonth: Bool
-    let organizeByDay: Bool
-    let eventName: String
-    let organizeByCameraModel: Bool
-    let organizeJpgsInSubfolder: Bool
-    let onComplete: () -> Void
-    let onCancel: () -> Void
+// MARK: - Progress
 
-    @State private var copyProgress: Double = 0.0
-    @State private var currentFile: String = ""
-    @State private var copiedCount: Int = 0
-    @State private var totalCount: Int = 0
-    @State private var copyError: String?
-    @State private var isCancelled = false
+struct CopyProgressView: View {
+    @ObservedObject var viewModel: CopyToViewModel
+    let onDone: () -> Void
 
     var body: some View {
         VStack(spacing: 16) {
-            // Header
-            Text("Copying Files...")
-                .font(.headline)
+            Text("Copying Files...").font(.headline)
 
-            if backupDestinationURL != nil {
+            if viewModel.backupDestinationURL != nil {
                 Text("Copying to primary and backup destinations")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.caption).foregroundColor(.secondary)
             }
 
-            // Progress bar
-            ProgressView(value: copyProgress, total: 1.0)
-                .progressViewStyle(.linear)
-                .frame(height: 8)
+            ProgressView(value: viewModel.copyProgress, total: 1.0)
+                .progressViewStyle(.linear).frame(height: 8)
 
-            // Current file and count
             VStack(spacing: 4) {
                 HStack {
-                    Text("Copying: \(currentFile)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    Text("Copying: \(viewModel.currentFile)")
+                        .font(.caption).foregroundColor(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
                     Spacer()
                 }
-
                 HStack {
-                    Text("\(copiedCount) of \(totalCount)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Text("\(viewModel.copiedCount) of \(viewModel.totalCount)")
+                        .font(.caption).foregroundColor(.secondary)
                     Spacer()
                 }
             }
 
-            // Error message
-            if let error = copyError {
+            if let error = viewModel.copyError {
                 HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
-                    Text(error)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange)
+                    Text(error).font(.caption).foregroundColor(.secondary).lineLimit(2)
                     Spacer()
                 }
             }
 
-            // Cancel button
             HStack {
                 Spacer()
-                Button(copyError != nil ? "Close" : "Cancel") {
-                    if copyError == nil {
-                        isCancelled = true
-                    }
-                    onCancel()
+                Button(viewModel.copyError != nil ? "Close" : "Cancel") {
+                    if viewModel.copyError == nil { viewModel.cancel() }
+                    onDone()
                 }
                 .keyboardShortcut(.cancelAction)
             }
         }
         .padding(20)
         .frame(minWidth: 500, minHeight: 180)
-        .onAppear {
-            performCopy()
-        }
-    }
-
-    private func performCopy() {
-        // Count total files to copy (RAW + potential JPGs)
-        var filesToCopy: [(source: URL, photo: PhotoItem?, filename: String, isJpg: Bool)] = []
-
-        for photo in photosToCoрy {
-            let photoURL = URL(fileURLWithPath: photo.path)
-            let baseName = photoURL.deletingPathExtension().lastPathComponent
-            let directory = photoURL.deletingLastPathComponent()
-
-            // Add the RAW file
-            filesToCopy.append((source: photoURL, photo: photo, filename: photoURL.lastPathComponent, isJpg: false))
-
-            // Check for associated JPG - use the same photo metadata so it goes to the same folder structure
-            for jpgExt in ["jpg", "jpeg", "JPG", "JPEG"] {
-                let jpgURL = directory.appendingPathComponent("\(baseName).\(jpgExt)")
-                if FileManager.default.fileExists(atPath: jpgURL.path) {
-                    filesToCopy.append((source: jpgURL, photo: photo, filename: jpgURL.lastPathComponent, isJpg: true))
-                    break // Only add the first JPG found
-                }
-            }
-        }
-
-        totalCount = filesToCopy.count
-        currentFile = "Preparing..."
-
-        // Compute sequential start offset once using the shared helper — scan destination, not source
-        let sequentialStartOffset = useSequentialNumbers
-            ? CopyOptionsView.computeSequentialStartOffset(in: destinationURL, prefix: customPrefix)
-            : 0
-
-        // Track sequential index per original photo so RAW+JPG pairs share the same number
-        var photoSequentialIndex: [String: Int] = [:]
-        var nextSequentialIndex = sequentialStartOffset + 1
-
-        // Perform copy on background thread
-        DispatchQueue.global(qos: .userInitiated).async {
-            for (index, file) in filesToCopy.enumerated() {
-                if isCancelled { break }
-
-                DispatchQueue.main.async { currentFile = file.filename }
-
-                // Determine sequential index for this file's photo
-                var sequentialIndex: Int? = nil
-                if useSequentialNumbers, let photo = file.photo {
-                    if let existing = photoSequentialIndex[photo.path] {
-                        sequentialIndex = existing
-                    } else {
-                        sequentialIndex = nextSequentialIndex
-                        photoSequentialIndex[photo.path] = nextSequentialIndex
-                        nextSequentialIndex += 1
-                    }
-                }
-
-                // Build filename using shared helper
-                let newFilename: String
-                if let photo = file.photo {
-                    let base = CopyOptionsView.buildFilename(
-                        for: photo,
-                        sequentialIndex: sequentialIndex,
-                        useSequentialNumbers: useSequentialNumbers,
-                        renameByExifDate: renameByExifDate,
-                        customPrefix: customPrefix
-                    )
-                    // Preserve the actual file extension (for JPG companions of RAW files)
-                    let ext = file.source.pathExtension
-                    let baseWithoutExt = URL(fileURLWithPath: base).deletingPathExtension().lastPathComponent
-                    let builtExt = URL(fileURLWithPath: base).pathExtension
-                    newFilename = (ext.lowercased() != builtExt.lowercased() && !ext.isEmpty)
-                        ? baseWithoutExt + "." + ext
-                        : base
-                } else {
-                    newFilename = file.source.lastPathComponent
-                }
-
-                // Helper function to copy to a destination
-                func copyToDestination(_ baseURL: URL) throws {
-                    var destinationFolder = baseURL
-
-                    if (organizeByYear || organizeByMonth || organizeByDay), let photo = file.photo {
-                        let calendar = Calendar.current
-                        if organizeByYear {
-                            let year = calendar.component(.year, from: photo.dateCreated)
-                            destinationFolder = destinationFolder.appendingPathComponent(String(year))
-                        }
-                        if organizeByMonth {
-                            let month = calendar.component(.month, from: photo.dateCreated)
-                            destinationFolder = destinationFolder.appendingPathComponent(String(format: "%02d", month))
-                        }
-                        if organizeByDay {
-                            let day = calendar.component(.day, from: photo.dateCreated)
-                            destinationFolder = destinationFolder.appendingPathComponent(String(format: "%02d", day))
-                        }
-                        // Create subfolder if it doesn't exist
-                        try FileManager.default.createDirectory(at: destinationFolder, withIntermediateDirectories: true)
-                    }
-
-                    // Organize by event/client/location if name is provided
-                    if !eventName.isEmpty {
-                        destinationFolder = destinationFolder.appendingPathComponent(eventName)
-                        try FileManager.default.createDirectory(at: destinationFolder, withIntermediateDirectories: true)
-                    }
-
-                    // Organize by camera model if option is enabled and we have photo metadata
-                    if organizeByCameraModel, let photo = file.photo, let cameraModel = photo.cameraModel {
-                        // Clean up camera model for folder name (replace / with -)
-                        let cleanModel = cameraModel.replacingOccurrences(of: "/", with: "-")
-                        destinationFolder = destinationFolder.appendingPathComponent(cleanModel)
-
-                        // Create subfolder if it doesn't exist
-                        try FileManager.default.createDirectory(at: destinationFolder, withIntermediateDirectories: true)
-                    }
-
-                    // If this is a JPG and the option is enabled, put it in _jpg subfolder
-                    if file.isJpg && organizeJpgsInSubfolder {
-                        destinationFolder = destinationFolder.appendingPathComponent("_jpg")
-
-                        // Create _jpg subfolder if it doesn't exist
-                        try FileManager.default.createDirectory(at: destinationFolder, withIntermediateDirectories: true)
-                    }
-
-                    let destinationFileURL = destinationFolder.appendingPathComponent(newFilename)
-
-                    // Skip if file already exists
-                    if FileManager.default.fileExists(atPath: destinationFileURL.path) {
-                        return
-                    }
-
-                    // Copy the file
-                    try FileManager.default.copyItem(at: file.source, to: destinationFileURL)
-                }
-
-                do {
-                    // Copy to primary destination
-                    try copyToDestination(destinationURL)
-
-                    // Copy to backup destination if provided
-                    if let backupURL = backupDestinationURL {
-                        try copyToDestination(backupURL)
-                    }
-
-                    DispatchQueue.main.async {
-                        copiedCount = index + 1
-                        copyProgress = Double(copiedCount) / Double(totalCount)
-                    }
-                } catch {
-                    DispatchQueue.main.async {
-                        copyError = "Failed to copy \(file.filename): \(error.localizedDescription)"
-                    }
-                    break
-                }
-            }
-
-            // Complete
-            DispatchQueue.main.async {
-                if copyError == nil && !isCancelled {
-                    // Success - close the dialog after a brief delay
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        onComplete()
-                    }
-                }
+        .onChange(of: viewModel.isCopying) { _, copying in
+            if !copying && viewModel.copyError == nil && !viewModel.isCancelled {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { onDone() }
             }
         }
     }
