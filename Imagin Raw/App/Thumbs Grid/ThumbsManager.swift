@@ -206,7 +206,8 @@ class ThumbsManager: ObservableObject {
     func deleteCachedThumbnail(for path: String) {
         let key = cacheKey(for: path)
         let subdirectory = cacheSubdirectory(for: path)
-        let diskCachePath = subdirectory.appendingPathComponent("\(key).jpg")
+        let filename = diskFilename(for: path)
+        let diskCachePath = subdirectory.appendingPathComponent("\(filename).jpg")
 
         // Remove from memory cache
         cacheQueue.async(flags: .barrier) { [weak self] in
@@ -245,21 +246,21 @@ class ThumbsManager: ObservableObject {
 
     // MARK: - Private Methods
 
+    /// Memory cache key: directoryHash_filename — unique across all folders
     private func cacheKey(for path: String) -> String {
-        // Use original filename as cache key
-        return URL(fileURLWithPath: path).lastPathComponent
+        let url = URL(fileURLWithPath: path)
+        let directoryPath = url.deletingLastPathComponent().path
+        let directoryHash = persistentHash(for: directoryPath)
+        return "\(directoryHash)_\(url.lastPathComponent)"
     }
 
+    /// Disk cache subdirectory: per-folder, so filename-only is safe on disk
     private func cacheSubdirectory(for path: String) -> URL {
         let url = URL(fileURLWithPath: path)
         let directoryPath = url.deletingLastPathComponent().path
-
-        // Create folder name: originalFolderName_hash
         let lastComponent = url.deletingLastPathComponent().lastPathComponent
         let directoryHash = persistentHash(for: directoryPath)
-        let safeFolderName = "\(lastComponent)_\(directoryHash)"
-
-        return cacheDirectory.appendingPathComponent(safeFolderName)
+        return cacheDirectory.appendingPathComponent("\(lastComponent)_\(directoryHash)")
     }
 
     private func persistentHash(for string: String) -> String {
@@ -268,13 +269,15 @@ class ThumbsManager: ObservableObject {
         return hash.compactMap { String(format: "%02x", $0) }.joined().prefix(8).description
     }
 
+    /// Disk filename: just the original filename (safe because it's inside a per-folder subdirectory)
+    private func diskFilename(for path: String) -> String {
+        return URL(fileURLWithPath: path).lastPathComponent
+    }
+
     private func getCachedImage(for cacheKey: String) -> NSImage? {
         return cacheQueue.sync {
             guard let entry = memoryCache[cacheKey] else { return nil }
-
-            // Update access order for LRU
             updateAccessOrder(for: cacheKey)
-
             return entry.image
         }
     }
@@ -282,20 +285,14 @@ class ThumbsManager: ObservableObject {
     private func setCachedImage(_ image: NSImage, for cacheKey: String) {
         cacheQueue.async(flags: .barrier) { [weak self] in
             guard let self = self else { return }
-
-            let entry = CacheEntry(image: image, lastAccessed: Date())
-            self.memoryCache[cacheKey] = entry
+            self.memoryCache[cacheKey] = CacheEntry(image: image, lastAccessed: Date())
             self.updateAccessOrder(for: cacheKey)
-
-            // Enforce cache size limit with LRU eviction
             self.evictIfNeeded()
         }
     }
 
     private func updateAccessOrder(for cacheKey: String) {
-        // Remove from current position
         cacheAccessOrder.removeAll { $0 == cacheKey }
-        // Add to end (most recently used)
         cacheAccessOrder.append(cacheKey)
     }
 
@@ -334,12 +331,11 @@ class ThumbsManager: ObservableObject {
                 if let pendingRequest = self.pendingRequests[currentRequest.cacheKey] {
                     if pendingRequest.id == currentRequest.id {
                         self.pendingRequests.removeValue(forKey: currentRequest.cacheKey)
-                        
-                        // Update queue count on main thread
+
                         DispatchQueue.main.async {
                             self.pendingQueueCount = self.pendingRequests.count
                         }
-                        
+
                         return true
                     }
                 }
@@ -399,7 +395,8 @@ class ThumbsManager: ObservableObject {
 
     private func loadFromDisk(cacheKey: String, forPath path: String) -> NSImage? {
         let cacheSubdir = cacheSubdirectory(for: path)
-        let diskPath = cacheSubdir.appendingPathComponent("\(cacheKey).jpg")
+        let filename = diskFilename(for: path)
+        let diskPath = cacheSubdir.appendingPathComponent("\(filename).jpg")
 
         guard FileManager.default.fileExists(atPath: diskPath.path),
               let data = try? Data(contentsOf: diskPath),
@@ -415,13 +412,10 @@ class ThumbsManager: ObservableObject {
               let jpegData = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) else {
             return
         }
-
         let cacheSubdir = cacheSubdirectory(for: path)
-
-        // Create subdirectory if it doesn't exist
         try? FileManager.default.createDirectory(at: cacheSubdir, withIntermediateDirectories: true)
-
-        let diskPath = cacheSubdir.appendingPathComponent("\(cacheKey).jpg")
+        let filename = diskFilename(for: path)
+        let diskPath = cacheSubdir.appendingPathComponent("\(filename).jpg")
         try? jpegData.write(to: diskPath)
     }
 
