@@ -102,12 +102,9 @@ struct ContentView: View {
         guard let url = navigationDocumentURL else {
             return "Imagin Raw"
         }
-
         // Create a breadcrumb-style path
         let pathComponents = url.pathComponents.filter { $0 != "/" }
         let breadcrumb = pathComponents.joined(separator: " › ")
-
-        // Debug output
 
         return breadcrumb.isEmpty ? url.lastPathComponent : breadcrumb
     }
@@ -171,7 +168,6 @@ struct ContentView: View {
         ToolbarItemGroup(placement: .navigation) {
             navigationToolbarItems
         }
-
         ToolbarItemGroup(placement: .primaryAction) {
             primaryActionToolbarItems
         }
@@ -198,25 +194,23 @@ struct ContentView: View {
 
     @ViewBuilder
     private var primaryActionToolbarItems: some View {
-        // Button to open in selected app
-        Button(action: {
-            // Use the callback from ThumbGridView to open selected photos
-            openSelectedPhotosCallback?()
-        }) {
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.up.forward.app")
-                    .font(.system(size: 12, weight: .regular))
-                Text("Open in \(selectedApp?.displayName ?? "Default App")")
+        ControlGroup {
+            // Button to open in selected app
+            Button(action: {
+                openSelectedPhotosCallback?()
+            }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.up.forward.app")
+                        .font(.system(size: 12, weight: .regular))
+                    Text("Open in \(selectedApp?.displayName ?? "Default App")")
+                }
+                .foregroundColor(filesModel.selectedPhoto != nil ? .primary : .secondary)
             }
-            .foregroundColor(filesModel.selectedPhoto != nil ? .primary : .secondary)
+            .disabled(filesModel.selectedPhoto == nil)
+
+            // Menu to select app
+            appSelectionMenu
         }
-        .disabled(filesModel.selectedPhoto == nil)
-        .help("Open in \(selectedApp?.displayName ?? "external app")")
-
-        // Menu to select app
-        appSelectionMenu
-
-        Spacer().frame(width: 20)
 
         // Sharing/Export button
         if let photoURL = shareablePhoto {
@@ -225,7 +219,6 @@ struct ContentView: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.primary)
             }
-            .help("Share photo")
         } else {
             Button(action: {}) {
                 Image(systemName: "square.and.arrow.up")
@@ -233,7 +226,6 @@ struct ContentView: View {
                     .foregroundColor(.secondary)
             }
             .disabled(true)
-            .help("Share photo")
         }
     }
 
@@ -265,7 +257,6 @@ struct ContentView: View {
             }
         } label: {
         }
-        .help("Select external app")
     }
 
     private func openMultiplePhotosInExternalApp(photos: [PhotoItem]) {
