@@ -285,20 +285,19 @@ class CopyToViewModel: ObservableObject {
                         if _organizeByYear  { dest = dest.appendingPathComponent(String(cal.component(.year, from: date))) }
                         if _organizeByMonth { dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.month, from: date))) }
                         if _organizeByDay   { dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.day, from: date))) }
-                        try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
                     }
                     if !_eventName.isEmpty {
                         dest = dest.appendingPathComponent(_eventName)
-                        try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
                     }
                     if _organizeByCameraModel, let model = file.photo.cameraModel {
                         dest = dest.appendingPathComponent(model.replacingOccurrences(of: "/", with: "-"))
-                        try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
                     }
                     if file.isJpg && _organizeJpgsInSubfolder {
                         dest = dest.appendingPathComponent("_jpg")
-                        try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
                     }
+
+                    // Single createDirectory call now that the full path is built
+                    try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
 
                     let destFile = dest.appendingPathComponent(newFilename)
                     if FileManager.default.fileExists(atPath: destFile.path) { return }
