@@ -194,23 +194,38 @@ struct ContentView: View {
 
     @ViewBuilder
     private var primaryActionToolbarItems: some View {
-        ControlGroup {
-            // Button to open in selected app
-            Button(action: {
-                openSelectedPhotosCallback?()
-            }) {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.up.forward.app")
-                        .font(.system(size: 12, weight: .regular))
-                    Text("Open in \(selectedApp?.displayName ?? "Default App")")
+        Menu {
+            ForEach(externalAppManager.discoveredPhotoApps) { photoApp in
+                Button(action: {
+                    selectedApp = photoApp
+                    externalAppManager.saveSelectedApp(photoApp)
+                }) {
+                    HStack {
+                        Text(photoApp.displayName)
+                        if selectedApp?.id == photoApp.id {
+                            Spacer()
+                            Image(systemName: "checkmark")
+                        }
+                    }
                 }
-                .foregroundColor(filesModel.selectedPhoto != nil ? .primary : .secondary)
             }
-            .disabled(filesModel.selectedPhoto == nil)
-
-            // Menu to select app
-            appSelectionMenu
+            if !externalAppManager.discoveredPhotoApps.isEmpty {
+                Divider()
+            }
+            Button("Default App") {
+                selectedApp = nil
+                externalAppManager.saveSelectedApp(nil)
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.up.forward.app")
+                    .font(.system(size: 12, weight: .regular))
+                Text("Open in \(selectedApp?.displayName ?? "Default App")")
+            }
+        } primaryAction: {
+            openSelectedPhotosCallback?()
         }
+        .disabled(filesModel.selectedPhoto == nil)
 
         // Sharing/Export button
         if let photoURL = shareablePhoto {
@@ -226,36 +241,6 @@ struct ContentView: View {
                     .foregroundColor(.secondary)
             }
             .disabled(true)
-        }
-    }
-
-    private var appSelectionMenu: some View {
-        Menu {
-            // Discovered photo apps section
-            ForEach(externalAppManager.discoveredPhotoApps) { photoApp in
-                Button(action: {
-                    selectedApp = photoApp
-                    externalAppManager.saveSelectedApp(photoApp)
-                }) {
-                    HStack {
-                        Text(photoApp.displayName)
-                        if selectedApp?.id == photoApp.id {
-                            Spacer()
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
-            }
-
-            if !externalAppManager.discoveredPhotoApps.isEmpty {
-                Divider()
-            }
-
-            Button("Default App") {
-                selectedApp = nil
-                externalAppManager.saveSelectedApp(nil)
-            }
-        } label: {
         }
     }
 
