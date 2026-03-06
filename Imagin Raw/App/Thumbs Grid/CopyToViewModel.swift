@@ -6,7 +6,11 @@
 import Foundation
 import AppKit
 
-class CopyToViewModel: ObservableObject {
+class CopyToViewModel: ObservableObject, Identifiable {
+    let id = UUID()
+
+    // MARK: - Photos
+    let photos: [PhotoItem]
 
     // MARK: - Destination
     @Published var destinationURL: URL?
@@ -36,7 +40,8 @@ class CopyToViewModel: ObservableObject {
 
     // MARK: - Init
 
-    init() {
+    init(photos: [PhotoItem]) {
+        self.photos = photos
         renameByExifDate        = appPrefs.bool(.copyToRenameByExifDate)
         useSequentialNumbers    = appPrefs.bool(.copyToUseSequentialNumbers)
         customPrefix            = appPrefs.string(.copyToCustomPrefix)
@@ -142,7 +147,7 @@ class CopyToViewModel: ObservableObject {
     }
 
     /// Builds a preview path string for the first photo in `photos`.
-    func previewPath(for photos: [PhotoItem]) -> String? {
+    func previewPath() -> String? {
         guard let firstPhoto = photos.first, let baseURL = destinationURL else { return nil }
 
         var components: [String] = [baseURL.path]
@@ -170,7 +175,7 @@ class CopyToViewModel: ObservableObject {
 
     // MARK: - Copy
 
-    func startCopy(photos: [PhotoItem]) async {
+    func startCopy() async {
         guard let destination = destinationURL else { return }
         isCancelled = false
         copyProgress = 0

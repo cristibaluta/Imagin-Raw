@@ -22,7 +22,7 @@ struct ThumbGridView: View {
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
     @State private var showGridTypePopover = false
-    @State private var copyToSheetPhotos: PhotosSheetItem? = nil
+    @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
 
     init(filesModel: FilesModel, selectedApp: PhotoApp?, searchPhotoResults: [PhotoItem]? = nil, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?, openSelectedPhotosCallback: Binding<(() -> Void)?>) {
@@ -53,8 +53,8 @@ struct ThumbGridView: View {
             }
         }
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth+16)
-        .sheet(item: $copyToSheetPhotos) { item in
-            CopyToView(photosToCoрy: item.photos)
+        .sheet(item: $copyToViewModel) { vm in
+            CopyToView(viewModel: vm)
                 .environmentObject(filesModel)
                 .interactiveDismissDisabled(false)
         }
@@ -217,7 +217,7 @@ struct ThumbGridView: View {
                 let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
                     ? viewModel.getSelectedPhotosForBulkAction()
                     : [rightClickedPhoto]
-                copyToSheetPhotos = PhotosSheetItem(photos: photos)
+                copyToViewModel = CopyToViewModel(photos: photos)
             },
             onRenameTo: { rightClickedPhoto in
                 let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)

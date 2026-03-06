@@ -12,9 +12,7 @@ import AppKit
 
 struct CopyToView: View {
     @Environment(\.dismiss) private var dismiss
-    let photosToCoрy: [PhotoItem]
-
-    @StateObject private var viewModel = CopyToViewModel()
+    @ObservedObject var viewModel: CopyToViewModel
     @State private var showProgress = false
 
     var body: some View {
@@ -25,11 +23,11 @@ struct CopyToView: View {
                 }
                 .frame(minWidth: 500, minHeight: 180)
             } else {
-                CopyOptionsView(photosToCoрy: photosToCoрy, viewModel: viewModel) {
+                CopyOptionsView(viewModel: viewModel) {
                     viewModel.saveSettings()
                     showProgress = true
                     Task {
-                        await viewModel.startCopy(photos: photosToCoрy)
+                        await viewModel.startCopy()
                         if viewModel.copyError == nil && !viewModel.isCancelled {
                             try? await Task.sleep(nanoseconds: 500_000_000)
                             dismiss()
@@ -50,14 +48,13 @@ struct CopyToView: View {
 // MARK: - Options
 
 struct CopyOptionsView: View {
-    let photosToCoрy: [PhotoItem]
     @ObservedObject var viewModel: CopyToViewModel
     let onStart: () -> Void
     let onCancel: () -> Void
 
     var body: some View {
         VStack(spacing: 20) {
-            Text("Copy \(photosToCoрy.count) photo\(photosToCoрy.count == 1 ? "" : "s")")
+            Text("Copy \(viewModel.photos.count) photo\(viewModel.photos.count == 1 ? "" : "s")")
                 .font(.headline)
 
             Divider()
@@ -141,7 +138,7 @@ struct CopyOptionsView: View {
             }
 
             // Preview
-            if let preview = viewModel.previewPath(for: photosToCoрy) {
+            if let preview = viewModel.previewPath() {
                 Divider()
                 HStack(spacing: 12) {
                     Text("Preview")
