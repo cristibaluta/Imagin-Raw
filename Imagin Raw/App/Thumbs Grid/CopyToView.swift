@@ -16,6 +16,7 @@ struct CopyToView: View {
     @State private var backupDestinationURL: URL?
     @State private var showProgressView = false
     @State private var renameByExifDate = false
+    @State private var useSequentialNumbers = false
     @State private var customPrefix = ""
     @State private var organizeByYear = false
     @State private var organizeByMonth = false
@@ -29,6 +30,7 @@ struct CopyToView: View {
 
         // Load saved settings
         _renameByExifDate = State(initialValue: appPrefs.bool(.copyToRenameByExifDate))
+        _useSequentialNumbers = State(initialValue: appPrefs.bool(.copyToUseSequentialNumbers))
         _customPrefix = State(initialValue: appPrefs.string(.copyToCustomPrefix))
         _organizeByYear = State(initialValue: appPrefs.bool(.copyToOrganizeByYear))
         _organizeByMonth = State(initialValue: appPrefs.bool(.copyToOrganizeByMonth))
@@ -77,6 +79,7 @@ struct CopyToView: View {
 
     private func saveSettings() {
         appPrefs.set(renameByExifDate, forKey: .copyToRenameByExifDate)
+        appPrefs.set(useSequentialNumbers, forKey: .copyToUseSequentialNumbers)
         appPrefs.set(customPrefix, forKey: .copyToCustomPrefix)
         appPrefs.set(organizeByYear, forKey: .copyToOrganizeByYear)
         appPrefs.set(organizeByMonth, forKey: .copyToOrganizeByMonth)
@@ -111,6 +114,7 @@ struct CopyToView: View {
                     destinationURL: destination,
                     backupDestinationURL: backupDestinationURL,
                     renameByExifDate: renameByExifDate,
+                    useSequentialNumbers: useSequentialNumbers,
                     customPrefix: customPrefix,
                     organizeByYear: organizeByYear,
                     organizeByMonth: organizeByMonth,
@@ -130,6 +134,7 @@ struct CopyToView: View {
                     backupDestinationURL: $backupDestinationURL,
                     renameByExifDate: $renameByExifDate,
                     customPrefix: $customPrefix,
+                    useSequentialNumbers: $useSequentialNumbers,
                     organizeByYear: $organizeByYear,
                     organizeByMonth: $organizeByMonth,
                     organizeByDay: $organizeByDay,
@@ -160,6 +165,7 @@ struct CopyOptionsView: View {
     @Binding var backupDestinationURL: URL?
     @Binding var renameByExifDate: Bool
     @Binding var customPrefix: String
+    @Binding var useSequentialNumbers: Bool
     @Binding var organizeByYear: Bool
     @Binding var organizeByMonth: Bool
     @Binding var organizeByDay: Bool
@@ -170,6 +176,64 @@ struct CopyOptionsView: View {
     let onCancel: () -> Void
 
     // Computed property to generate preview path
+    private var sequentialStartIndex: Int {
+        Self.computeSequentialStartOffset(
+            in: destinationURL,
+            prefix: customPrefix
+        )
+    }
+
+    /// Scans `folder` for files already matching `prefix + 0000.ext` and returns the highest number found.
+    static func computeSequentialStartOffset(in folder: URL?, prefix: String) -> Int {
+        guard let folder else { return 0 }
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
+        )) ?? []
+        let prefixPattern = prefix.isEmpty ? "" : NSRegularExpression.escapedPattern(for: prefix)
+        let pattern = try? NSRegularExpression(pattern: "^\(prefixPattern)(\\d{4})\\.")
+        var highest = 0
+        for file in files {
+            let name = file.lastPathComponent
+            let range = NSRange(name.startIndex..., in: name)
+            if let match = pattern?.firstMatch(in: name, range: range),
+               let numRange = Range(match.range(at: 1), in: name),
+               let number = Int(name[numRange]) {
+                highest = max(highest, number)
+            }
+        }
+        return highest
+    }
+
+    /// Builds the destination filename for a single photo.
+    /// `sequentialIndex` is the 1-based number to use when `useSequentialNumbers` is true.
+    static func buildFilename(for photo: PhotoItem,
+                              sequentialIndex: Int?,
+                              useSequentialNumbers: Bool,
+                              renameByExifDate: Bool,
+                              customPrefix: String) -> String {
+        let url = URL(fileURLWithPath: photo.path)
+        let ext = url.pathExtension
+
+        var baseName: String
+        if useSequentialNumbers, let idx = sequentialIndex {
+            baseName = String(format: "%04d", idx)
+        } else {
+            baseName = url.deletingPathExtension().lastPathComponent
+        }
+
+        if renameByExifDate {
+            let fmt = DateFormatter()
+            fmt.dateFormat = "yyyy-MM-dd_HHmmss"
+            baseName = fmt.string(from: photo.dateCreated) + "_" + baseName
+        }
+
+        if !customPrefix.isEmpty {
+            baseName = customPrefix + baseName
+        }
+
+        return ext.isEmpty ? baseName : baseName + "." + ext
+    }
+
     private var previewPath: String? {
         guard let firstPhoto = photosToCoрy.first,
               let baseURL = destinationURL else {
@@ -216,22 +280,14 @@ struct CopyOptionsView: View {
             components.append("_jpg")
         }
 
-        // Generate filename
-        var filename = URL(fileURLWithPath: firstPhoto.path).lastPathComponent
-
-        if renameByExifDate {
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd_HHmmss"
-            let dateString = dateFormatter.string(from: firstPhoto.dateCreated)
-
-            if !customPrefix.isEmpty {
-                filename = customPrefix + dateString + "_" + filename// + "." + fileExtension
-            } else {
-                filename = dateString + "_" + filename// + "." + fileExtension
-            }
-        } else if !customPrefix.isEmpty {
-            filename = customPrefix + filename
-        }
+        // Generate filename using shared method
+        let filename = Self.buildFilename(
+            for: firstPhoto,
+            sequentialIndex: useSequentialNumbers ? (sequentialStartIndex + 1) : nil,
+            useSequentialNumbers: useSequentialNumbers,
+            renameByExifDate: renameByExifDate,
+            customPrefix: customPrefix
+        )
 
         components.append(filename)
 
@@ -310,63 +366,69 @@ struct CopyOptionsView: View {
 
             Divider()
 
-            // Options
-            HStack {
-                VStack(alignment: .leading, spacing: 16) {
+            // Folders Options
+            VStack(alignment: .leading, spacing: 16) {
+                // Organize by date — year/month/day on one row
+                HStack(spacing: 12) {
+                    Text("Organize by date")
+                        .font(.body)
+                    Spacer()
+                    Toggle("Year", isOn: $organizeByYear)
+                        .toggleStyle(.checkbox)
+                    Toggle("Month", isOn: $organizeByMonth)
+                        .toggleStyle(.checkbox)
+                        .disabled(!organizeByYear)
+                    Toggle("Day", isOn: $organizeByDay)
+                        .toggleStyle(.checkbox)
+                        .disabled(!organizeByMonth)
+                }
 
-                    // Organize by date — year/month/day on one row
-                    HStack(spacing: 12) {
-                        Text("Organize by date")
-                            .font(.body)
-                        Spacer()
-                        Toggle("Year", isOn: $organizeByYear)
-                            .toggleStyle(.checkbox)
-                        Toggle("Month", isOn: $organizeByMonth)
-                            .toggleStyle(.checkbox)
-                            .disabled(!organizeByYear)
-                        Toggle("Day", isOn: $organizeByDay)
-                            .toggleStyle(.checkbox)
-                            .disabled(!organizeByMonth)
-                    }
+                // Organize by client / event / location
+                HStack(spacing: 12) {
+                    Text("Client / event / location")
+                        .font(.body)
+                        .lineLimit(1)
+                    TextField("e.g., Paris, Wedding, Nike", text: $eventName)
+                        .textFieldStyle(.roundedBorder)
+                }
 
-                    // Organize by client / event / location
-                    HStack(spacing: 12) {
-                        Text("Client / event / location")
-                            .font(.body)
-                            .lineLimit(1)
-                        TextField("e.g., Paris, Wedding, Nike", text: $eventName)
-                            .textFieldStyle(.roundedBorder)
-                    }
+                // Organize by camera model
+                Toggle(isOn: $organizeByCameraModel) {
+                    Text("Organize into subfolders by camera model")
+                        .font(.body)
+                }
+            }
 
-                    // Organize by camera model
-                    Toggle(isOn: $organizeByCameraModel) {
-                        Text("Organize into subfolders by camera model")
-                            .font(.body)
-                    }
+            Divider()
 
-                    // Custom prefix
-                    HStack(alignment: .center, spacing: 16) {
-                        Text("Filename prefix")
-                            .font(.body)
-                        TextField("e.g., Paris_", text: $customPrefix)
-                            .textFieldStyle(.roundedBorder)
-                    }
+            VStack(alignment: .leading, spacing: 16) {
+                // Custom prefix
+                HStack(alignment: .center, spacing: 16) {
+                    Text("Filename prefix")
+                        .font(.body)
+                    TextField("e.g., Paris_", text: $customPrefix)
+                        .textFieldStyle(.roundedBorder)
+                }
 
-                    // Rename by EXIF date
-                    Toggle(isOn: $renameByExifDate) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Include creation date (YYYY-MM-DD_HHMMSS)")
-                                .font(.body)
-                        }
-                    }
+                // Sequential numbers
+                Toggle(isOn: $useSequentialNumbers) {
+                    Text("Replace filename with sequential numbers (0001, 0002...)")
+                        .font(.body)
+                }
 
-                    // Organize JPGs in subfolder
-                    Toggle(isOn: $organizeJpgsInSubfolder) {
-                        Text("Copy JPGs to '_jpg' subfolder")
+                // Rename by EXIF date
+                Toggle(isOn: $renameByExifDate) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Include creation date (YYYY-MM-DD_HHMMSS)")
                             .font(.body)
                     }
                 }
-                Spacer()
+
+                // Organize JPGs in subfolder
+                Toggle(isOn: $organizeJpgsInSubfolder) {
+                    Text("Copy JPGs to '_jpg' subfolder")
+                        .font(.body)
+                }
             }
 
             // Preview section
@@ -435,6 +497,7 @@ struct CopyProgressView: View {
     let destinationURL: URL
     let backupDestinationURL: URL?
     let renameByExifDate: Bool
+    let useSequentialNumbers: Bool
     let customPrefix: String
     let organizeByYear: Bool
     let organizeByMonth: Bool
@@ -545,39 +608,53 @@ struct CopyProgressView: View {
         totalCount = filesToCopy.count
         currentFile = "Preparing..."
 
+        // Compute sequential start offset once using the shared helper — scan destination, not source
+        let sequentialStartOffset = useSequentialNumbers
+            ? CopyOptionsView.computeSequentialStartOffset(in: destinationURL, prefix: customPrefix)
+            : 0
+
+        // Track sequential index per original photo so RAW+JPG pairs share the same number
+        var photoSequentialIndex: [String: Int] = [:]
+        var nextSequentialIndex = sequentialStartOffset + 1
+
         // Perform copy on background thread
         DispatchQueue.global(qos: .userInitiated).async {
             for (index, file) in filesToCopy.enumerated() {
-                // Check if cancelled
-                if isCancelled {
-                    break
-                }
+                if isCancelled { break }
 
-                DispatchQueue.main.async {
-                    currentFile = file.filename
-                }
+                DispatchQueue.main.async { currentFile = file.filename }
 
-                // Determine destination filename and path
-                let originalFilename = file.filename
-//                let fileExtension = file.source.pathExtension
-                var newFilename = originalFilename
-
-                // Apply custom prefix
-                if !customPrefix.isEmpty {
-                    newFilename = customPrefix + originalFilename
-                }
-
-                // Rename by EXIF date if option is enabled and we have photo metadata
-                if renameByExifDate, let photo = file.photo {
-                    let dateFormatter = DateFormatter()
-                    dateFormatter.dateFormat = "yyyy-MM-dd_HHmmss"
-                    let dateString = dateFormatter.string(from: photo.dateCreated)
-
-                    if !customPrefix.isEmpty {
-                        newFilename = customPrefix + dateString + "_" + originalFilename
+                // Determine sequential index for this file's photo
+                var sequentialIndex: Int? = nil
+                if useSequentialNumbers, let photo = file.photo {
+                    if let existing = photoSequentialIndex[photo.path] {
+                        sequentialIndex = existing
                     } else {
-                        newFilename = dateString + "_" + originalFilename
+                        sequentialIndex = nextSequentialIndex
+                        photoSequentialIndex[photo.path] = nextSequentialIndex
+                        nextSequentialIndex += 1
                     }
+                }
+
+                // Build filename using shared helper
+                let newFilename: String
+                if let photo = file.photo {
+                    let base = CopyOptionsView.buildFilename(
+                        for: photo,
+                        sequentialIndex: sequentialIndex,
+                        useSequentialNumbers: useSequentialNumbers,
+                        renameByExifDate: renameByExifDate,
+                        customPrefix: customPrefix
+                    )
+                    // Preserve the actual file extension (for JPG companions of RAW files)
+                    let ext = file.source.pathExtension
+                    let baseWithoutExt = URL(fileURLWithPath: base).deletingPathExtension().lastPathComponent
+                    let builtExt = URL(fileURLWithPath: base).pathExtension
+                    newFilename = (ext.lowercased() != builtExt.lowercased() && !ext.isEmpty)
+                        ? baseWithoutExt + "." + ext
+                        : base
+                } else {
+                    newFilename = file.source.lastPathComponent
                 }
 
                 // Helper function to copy to a destination

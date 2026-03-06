@@ -29,6 +29,7 @@ enum AppPreference: String, RCPreferencesProtocol {
 
     // MARK: - Copy To
     case copyToRenameByExifDate = "CopyTo_RenameByExifDate"
+    case copyToUseSequentialNumbers = "CopyTo_UseSequentialNumbers"
     case copyToCustomPrefix = "CopyTo_CustomPrefix"
     case copyToOrganizeByYear = "CopyTo_OrganizeByYear"
     case copyToOrganizeByMonth = "CopyTo_OrganizeByMonth"
@@ -51,6 +52,7 @@ enum AppPreference: String, RCPreferencesProtocol {
         case .selectedExternalApp:      return ""
         case .userFolderBookmarks:      return Data()
         case .copyToRenameByExifDate:   return false
+        case .copyToUseSequentialNumbers:       return false
         case .copyToCustomPrefix:       return ""
         case .copyToOrganizeByYear:     return false
         case .copyToOrganizeByMonth:    return false
