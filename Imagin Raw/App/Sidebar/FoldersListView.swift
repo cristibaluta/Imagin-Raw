@@ -35,9 +35,6 @@ struct FoldersListView: View {
         }
         .listStyle(.sidebar)
         .focusable(false)
-        .safeAreaInset(edge: .top) {
-            Color.clear.frame(height: 44)
-        }
         .onAppear {
             loadExpandedState()
             loadSelectedFolder()

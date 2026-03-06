@@ -37,6 +37,9 @@ struct SidebarView: View {
                     FoldersListView {
                         self.onDoubleClick?()
                     }
+                    .safeAreaInset(edge: .top) {
+                        Color.clear.frame(height: 44)
+                    }
                 }
 
                 // Floating search bar
@@ -75,7 +78,7 @@ struct SidebarView: View {
                 )
                 .padding(.horizontal, 10)
                 .padding(.top, 8)
-                .help("Search folders and photos by name. Powered by macOS Spotlight.")
+                .help("Powered by macOS Spotlight.")
             }
 
             HStack {
