@@ -95,8 +95,7 @@ class CopyToViewModel: ObservableObject, Identifiable {
 
     // MARK: - Filename helpers
 
-    /// Scans `folder` for files already matching `prefix + 0000.ext` and returns the highest number found.
-    static func computeSequentialStartOffset(in folder: URL?, prefix: String) -> Int {
+    private func computeSequentialStartOffset(in folder: URL?, prefix: String) -> Int {
         guard let folder else { return 0 }
         let files = (try? FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
@@ -116,61 +115,68 @@ class CopyToViewModel: ObservableObject, Identifiable {
         return highest
     }
 
-    /// Builds the destination filename for a single photo.
-    /// `sequentialIndex` is the 1-based number to use when `useSequentialNumbers` is true.
-    static func buildFilename(for photo: PhotoItem,
-                              sequentialIndex: Int?,
-                              useSequentialNumbers: Bool,
-                              renameByExifDate: Bool,
-                              customPrefix: String) -> String {
+    private func buildFilename(for photo: PhotoItem,
+                               sequentialIndex: Int?,
+                               useSequentialNumbers: Bool,
+                               renameByExifDate: Bool,
+                               customPrefix: String) -> String {
         let url = URL(fileURLWithPath: photo.path)
         let ext = url.pathExtension
-
         var baseName: String
         if useSequentialNumbers, let idx = sequentialIndex {
             baseName = String(format: "%04d", idx)
         } else {
             baseName = url.deletingPathExtension().lastPathComponent
         }
-
         if renameByExifDate {
             let fmt = DateFormatter()
             fmt.dateFormat = "yyyy-MM-dd_HHmmss"
             baseName = fmt.string(from: photo.dateCreated) + "_" + baseName
         }
-
-        if !customPrefix.isEmpty {
-            baseName = customPrefix + baseName
-        }
-
+        if !customPrefix.isEmpty { baseName = customPrefix + baseName }
         return ext.isEmpty ? baseName : baseName + "." + ext
+    }
+
+    private func buildDestinationFolder(base: URL, date: Date, cameraModel: String?, isJpg: Bool, settings: CopySettings) -> URL {
+        var dest = base
+        let cal = Calendar.current
+        if settings.organizeByYear  { dest = dest.appendingPathComponent(String(cal.component(.year, from: date))) }
+        if settings.organizeByMonth { dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.month, from: date))) }
+        if settings.organizeByDay   { dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.day, from: date))) }
+        if !settings.eventName.isEmpty { dest = dest.appendingPathComponent(settings.eventName) }
+        if settings.organizeByCameraModel, let model = cameraModel {
+            dest = dest.appendingPathComponent(model.replacingOccurrences(of: "/", with: "-").trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        if isJpg && settings.organizeJpgsInSubfolder { dest = dest.appendingPathComponent("_jpg") }
+        return dest
     }
 
     /// Builds a preview path string for the first photo in `photos`.
     func previewPath() -> String? {
         guard let firstPhoto = photos.first, let baseURL = destinationURL else { return nil }
 
-        var components: [String] = [baseURL.path]
-        let cal = Calendar.current
-        if organizeByYear  { components.append(String(cal.component(.year, from: firstPhoto.dateCreated))) }
-        if organizeByMonth { components.append(String(format: "%02d", cal.component(.month, from: firstPhoto.dateCreated))) }
-        if organizeByDay   { components.append(String(format: "%02d", cal.component(.day, from: firstPhoto.dateCreated))) }
-        if !eventName.isEmpty { components.append(eventName) }
-        if organizeByCameraModel, let model = firstPhoto.cameraModel {
-            components.append(model.replacingOccurrences(of: "/", with: "-").trimmingCharacters(in: .whitespacesAndNewlines))
-        }
+        let settings = CopySettings(self)
         let isJpg = firstPhoto.path.lowercased().hasSuffix(".jpg") || firstPhoto.path.lowercased().hasSuffix(".jpeg")
-        if organizeJpgsInSubfolder && isJpg { components.append("_jpg") }
+        let folder = buildDestinationFolder(
+            base: baseURL,
+            date: firstPhoto.dateCreated,
+            cameraModel: firstPhoto.cameraModel,
+            isJpg: isJpg,
+            settings: settings
+        )
 
-        let startOffset = useSequentialNumbers ? Self.computeSequentialStartOffset(in: destinationURL, prefix: customPrefix) : 0
-        components.append(Self.buildFilename(
+        let startOffset = useSequentialNumbers ? computeSequentialStartOffset(in: destinationURL, prefix: customPrefix) : 0
+        let filename = buildFilename(
             for: firstPhoto,
             sequentialIndex: useSequentialNumbers ? (startOffset + 1) : nil,
             useSequentialNumbers: useSequentialNumbers,
             renameByExifDate: renameByExifDate,
             customPrefix: customPrefix
-        ))
-        return components.joined(separator: " > ")
+        )
+
+        return (folder.pathComponents + [filename]).joined(separator: " > ")
+            .replacingOccurrences(of: "/ > /", with: " > ")
+            .replacingOccurrences(of: "//", with: "/")
     }
 
     // MARK: - Copy
@@ -201,7 +207,7 @@ class CopyToViewModel: ObservableObject, Identifiable {
         await MainActor.run { totalCount = filesToCopy.count; currentFile = "Preparing..." }
 
         let startOffset = useSequentialNumbers
-            ? Self.computeSequentialStartOffset(in: destination, prefix: customPrefix)
+            ? computeSequentialStartOffset(in: destination, prefix: customPrefix)
             : 0
 
         // Capture settings for use inside the task
@@ -232,7 +238,7 @@ class CopyToViewModel: ObservableObject, Identifiable {
                 }
 
                 // Build filename, preserving actual extension for JPG companions
-                let builtName = CopyToViewModel.buildFilename(
+                let builtName = self.buildFilename(
                     for: file.photo,
                     sequentialIndex: sequentialIndex,
                     useSequentialNumbers: settings.useSequentialNumbers,
@@ -268,19 +274,13 @@ class CopyToViewModel: ObservableObject, Identifiable {
                           to baseURL: URL,
                           filename: String,
                           settings: CopySettings) throws {
-        var dest = baseURL
-        let cal  = Calendar.current
-        let date = file.photo.dateCreated
-
-        if settings.organizeByYear  { dest = dest.appendingPathComponent(String(cal.component(.year, from: date))) }
-        if settings.organizeByMonth { dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.month, from: date))) }
-        if settings.organizeByDay   { dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.day, from: date))) }
-        if !settings.eventName.isEmpty { dest = dest.appendingPathComponent(settings.eventName) }
-        if settings.organizeByCameraModel, let model = file.photo.cameraModel {
-            dest = dest.appendingPathComponent(model.replacingOccurrences(of: "/", with: "-"))
-        }
-        if file.isJpg && settings.organizeJpgsInSubfolder { dest = dest.appendingPathComponent("_jpg") }
-
+        let dest = buildDestinationFolder(
+            base: baseURL,
+            date: file.photo.dateCreated,
+            cameraModel: file.photo.cameraModel,
+            isJpg: file.isJpg,
+            settings: settings
+        )
         try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
         let destFile = dest.appendingPathComponent(filename)
         guard !FileManager.default.fileExists(atPath: destFile.path) else { return }
@@ -306,7 +306,7 @@ class CopyToViewModel: ObservableObject, Identifiable {
 
 // MARK: - Settings snapshot (value type for safe cross-actor capture)
 
-private struct CopySettings {
+struct CopySettings {
     let renameByExifDate: Bool
     let useSequentialNumbers: Bool
     let customPrefix: String
