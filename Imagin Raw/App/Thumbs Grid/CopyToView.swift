@@ -15,10 +15,11 @@ struct CopyToView: View {
     let photosToCoрy: [PhotoItem]
 
     @StateObject private var viewModel = CopyToViewModel()
+    @State private var showProgress = false
 
     var body: some View {
         Group {
-            if viewModel.isCopying {
+            if showProgress {
                 CopyProgressView(viewModel: viewModel) {
                     dismiss()
                 }
@@ -26,7 +27,14 @@ struct CopyToView: View {
             } else {
                 CopyOptionsView(photosToCoрy: photosToCoрy, viewModel: viewModel) {
                     viewModel.saveSettings()
-                    viewModel.startCopy(photos: photosToCoрy)
+                    showProgress = true
+                    Task {
+                        await viewModel.startCopy(photos: photosToCoрy)
+                        if viewModel.copyError == nil && !viewModel.isCancelled {
+                            try? await Task.sleep(nanoseconds: 500_000_000)
+                            dismiss()
+                        }
+                    }
                 } onCancel: {
                     dismiss()
                 }
@@ -227,10 +235,5 @@ struct CopyProgressView: View {
         }
         .padding(20)
         .frame(minWidth: 500, minHeight: 180)
-        .onChange(of: viewModel.isCopying) { _, copying in
-            if !copying && viewModel.copyError == nil && !viewModel.isCancelled {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { onDone() }
-            }
-        }
     }
 }

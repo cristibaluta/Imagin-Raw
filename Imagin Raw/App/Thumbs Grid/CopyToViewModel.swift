@@ -2,14 +2,10 @@
 //  CopyToViewModel.swift
 //  Imagin Raw
 //
-//  Created by Cristian Baluta on 06.03.2026.
-//
 
 import Foundation
 import AppKit
-import SwiftUI
 
-@MainActor
 class CopyToViewModel: ObservableObject {
 
     // MARK: - Destination
@@ -29,14 +25,14 @@ class CopyToViewModel: ObservableObject {
     @Published var organizeByCameraModel: Bool
     @Published var organizeJpgsInSubfolder: Bool
 
-    // MARK: - Progress state
+    // MARK: - Progress state (observed by CopyProgressView)
     @Published var copyProgress: Double = 0.0
     @Published var currentFile: String = ""
     @Published var copiedCount: Int = 0
     @Published var totalCount: Int = 0
     @Published var copyError: String?
-    @Published var isCopying: Bool = false
-    @Published var isCancelled: Bool = false
+    private(set) var isCancelled: Bool = false
+    private var copyTask: Task<Void, Never>?
 
     // MARK: - Init
 
@@ -52,13 +48,9 @@ class CopyToViewModel: ObservableObject {
         organizeJpgsInSubfolder = appPrefs.bool(.copyToOrganizeJpgsInSubfolder)
 
         if let data = UserDefaults.standard.data(forKey: AppPreference.copyToDestinationBookmark.rawValue),
-           let url = Self.urlFromBookmark(data) {
-            destinationURL = url
-        }
+           let url = Self.urlFromBookmark(data) { destinationURL = url }
         if let data = UserDefaults.standard.data(forKey: AppPreference.copyToBackupBookmark.rawValue),
-           let url = Self.urlFromBookmark(data) {
-            backupDestinationURL = url
-        }
+           let url = Self.urlFromBookmark(data) { backupDestinationURL = url }
     }
 
     // MARK: - Persistence
@@ -151,63 +143,49 @@ class CopyToViewModel: ObservableObject {
 
     /// Builds a preview path string for the first photo in `photos`.
     func previewPath(for photos: [PhotoItem]) -> String? {
-        guard let firstPhoto = photos.first,
-              let baseURL = destinationURL else { return nil }
+        guard let firstPhoto = photos.first, let baseURL = destinationURL else { return nil }
 
         var components: [String] = [baseURL.path]
-
-        if organizeByYear || organizeByMonth || organizeByDay {
-            let cal = Calendar.current
-            if organizeByYear  { components.append(String(cal.component(.year, from: firstPhoto.dateCreated))) }
-            if organizeByMonth { components.append(String(format: "%02d", cal.component(.month, from: firstPhoto.dateCreated))) }
-            if organizeByDay   { components.append(String(format: "%02d", cal.component(.day, from: firstPhoto.dateCreated))) }
-        }
-
-        if !eventName.isEmpty {
-            components.append(eventName)
-        }
-
+        let cal = Calendar.current
+        if organizeByYear  { components.append(String(cal.component(.year, from: firstPhoto.dateCreated))) }
+        if organizeByMonth { components.append(String(format: "%02d", cal.component(.month, from: firstPhoto.dateCreated))) }
+        if organizeByDay   { components.append(String(format: "%02d", cal.component(.day, from: firstPhoto.dateCreated))) }
+        if !eventName.isEmpty { components.append(eventName) }
         if organizeByCameraModel, let model = firstPhoto.cameraModel {
             components.append(model.replacingOccurrences(of: "/", with: "-").trimmingCharacters(in: .whitespacesAndNewlines))
         }
-
         let isJpg = firstPhoto.path.lowercased().hasSuffix(".jpg") || firstPhoto.path.lowercased().hasSuffix(".jpeg")
         if organizeJpgsInSubfolder && isJpg { components.append("_jpg") }
 
-        let startOffset = useSequentialNumbers
-            ? Self.computeSequentialStartOffset(in: destinationURL, prefix: customPrefix)
-            : 0
-        let filename = Self.buildFilename(
+        let startOffset = useSequentialNumbers ? Self.computeSequentialStartOffset(in: destinationURL, prefix: customPrefix) : 0
+        components.append(Self.buildFilename(
             for: firstPhoto,
             sequentialIndex: useSequentialNumbers ? (startOffset + 1) : nil,
             useSequentialNumbers: useSequentialNumbers,
             renameByExifDate: renameByExifDate,
             customPrefix: customPrefix
-        )
-        components.append(filename)
-
+        ))
         return components.joined(separator: " > ")
     }
 
     // MARK: - Copy
 
-    func startCopy(photos: [PhotoItem]) {
+    func startCopy(photos: [PhotoItem]) async {
         guard let destination = destinationURL else { return }
-        isCopying = true
         isCancelled = false
         copyProgress = 0
         copiedCount = 0
         copyError = nil
 
-        // Build file list (RAW + associated JPGs)
+        // Build file list
         var filesToCopy: [(source: URL, photo: PhotoItem, isJpg: Bool)] = []
         for photo in photos {
             let photoURL = URL(fileURLWithPath: photo.path)
-            let baseName = photoURL.deletingPathExtension().lastPathComponent
+            let baseName  = photoURL.deletingPathExtension().lastPathComponent
             let directory = photoURL.deletingLastPathComponent()
             filesToCopy.append((source: photoURL, photo: photo, isJpg: false))
-            for jpgExt in ["jpg", "jpeg", "JPG", "JPEG"] {
-                let jpgURL = directory.appendingPathComponent("\(baseName).\(jpgExt)")
+            for ext in ["jpg", "jpeg", "JPG", "JPEG"] {
+                let jpgURL = directory.appendingPathComponent("\(baseName).\(ext)")
                 if FileManager.default.fileExists(atPath: jpgURL.path) {
                     filesToCopy.append((source: jpgURL, photo: photo, isJpg: true))
                     break
@@ -215,134 +193,134 @@ class CopyToViewModel: ObservableObject {
             }
         }
 
-        totalCount = filesToCopy.count
-        currentFile = "Preparing..."
+        await MainActor.run { totalCount = filesToCopy.count; currentFile = "Preparing..." }
 
-        // Compute sequential start offset once — scan destination
-        let sequentialStartOffset = useSequentialNumbers
+        let startOffset = useSequentialNumbers
             ? Self.computeSequentialStartOffset(in: destination, prefix: customPrefix)
             : 0
 
-        // Snapshot settings for the background thread
-        let _renameByExifDate        = renameByExifDate
-        let _useSequentialNumbers    = useSequentialNumbers
-        let _customPrefix            = customPrefix
-        let _organizeByYear          = organizeByYear
-        let _organizeByMonth         = organizeByMonth
-        let _organizeByDay           = organizeByDay
-        let _eventName               = eventName
-        let _organizeByCameraModel   = organizeByCameraModel
-        let _organizeJpgsInSubfolder = organizeJpgsInSubfolder
-        let backupURL                = backupDestinationURL
+        // Capture settings for use inside the task
+        let settings = CopySettings(self)
+        let backupURL = backupDestinationURL
 
-        var photoSequentialIndex: [String: Int] = [:]
-        var nextSequentialIndex = sequentialStartOffset + 1
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        await Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
+
+            var photoSequentialIndex: [String: Int] = [:]
+            var nextIndex = startOffset + 1
 
             for (index, file) in filesToCopy.enumerated() {
                 if self.isCancelled { break }
 
-                DispatchQueue.main.async { self.currentFile = file.source.lastPathComponent }
+                await MainActor.run { self.currentFile = file.source.lastPathComponent }
 
-                // Resolve sequential index (RAW + JPG pair share the same number)
-                var sequentialIndex: Int? = nil
-                if _useSequentialNumbers {
+                // Resolve sequential index — RAW + JPG companions share the same number
+                var sequentialIndex: Int?
+                if settings.useSequentialNumbers {
                     if let existing = photoSequentialIndex[file.photo.path] {
                         sequentialIndex = existing
                     } else {
-                        sequentialIndex = nextSequentialIndex
-                        photoSequentialIndex[file.photo.path] = nextSequentialIndex
-                        nextSequentialIndex += 1
+                        sequentialIndex = nextIndex
+                        photoSequentialIndex[file.photo.path] = nextIndex
+                        nextIndex += 1
                     }
                 }
 
-                // Build filename
-                let base = Self.buildFilename(
+                // Build filename, preserving actual extension for JPG companions
+                let builtName = CopyToViewModel.buildFilename(
                     for: file.photo,
                     sequentialIndex: sequentialIndex,
-                    useSequentialNumbers: _useSequentialNumbers,
-                    renameByExifDate: _renameByExifDate,
-                    customPrefix: _customPrefix
+                    useSequentialNumbers: settings.useSequentialNumbers,
+                    renameByExifDate: settings.renameByExifDate,
+                    customPrefix: settings.customPrefix
                 )
-                // Preserve actual extension for JPG companions
                 let sourceExt = file.source.pathExtension
-                let builtExt  = URL(fileURLWithPath: base).pathExtension
-                let newFilename: String
-                if sourceExt.lowercased() != builtExt.lowercased() && !sourceExt.isEmpty {
-                    newFilename = URL(fileURLWithPath: base).deletingPathExtension().lastPathComponent + "." + sourceExt
-                } else {
-                    newFilename = base
-                }
-
-                func copyToDestination(_ baseURL: URL) throws {
-                    var dest = baseURL
-
-                    if _organizeByYear || _organizeByMonth || _organizeByDay {
-                        let cal = Calendar.current
-                        let date = file.photo.dateCreated
-                        if _organizeByYear  { dest = dest.appendingPathComponent(String(cal.component(.year, from: date))) }
-                        if _organizeByMonth { dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.month, from: date))) }
-                        if _organizeByDay   { dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.day, from: date))) }
-                    }
-                    if !_eventName.isEmpty {
-                        dest = dest.appendingPathComponent(_eventName)
-                    }
-                    if _organizeByCameraModel, let model = file.photo.cameraModel {
-                        dest = dest.appendingPathComponent(model.replacingOccurrences(of: "/", with: "-"))
-                    }
-                    if file.isJpg && _organizeJpgsInSubfolder {
-                        dest = dest.appendingPathComponent("_jpg")
-                    }
-
-                    // Single createDirectory call now that the full path is built
-                    try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
-
-                    let destFile = dest.appendingPathComponent(newFilename)
-                    if FileManager.default.fileExists(atPath: destFile.path) { return }
-                    try FileManager.default.copyItem(at: file.source, to: destFile)
-                }
+                let builtExt  = URL(fileURLWithPath: builtName).pathExtension
+                let newFilename = (sourceExt.lowercased() != builtExt.lowercased() && !sourceExt.isEmpty)
+                    ? URL(fileURLWithPath: builtName).deletingPathExtension().lastPathComponent + "." + sourceExt
+                    : builtName
 
                 do {
-                    try copyToDestination(destination)
-                    if let backup = backupURL { try copyToDestination(backup) }
-
-                    DispatchQueue.main.async {
+                    try self.copyFile(file, to: destination, filename: newFilename, settings: settings)
+                    if let backup = backupURL {
+                        try self.copyFile(file, to: backup, filename: newFilename, settings: settings)
+                    }
+                    await MainActor.run {
                         self.copiedCount = index + 1
                         self.copyProgress = Double(self.copiedCount) / Double(self.totalCount)
                     }
                 } catch {
-                    DispatchQueue.main.async {
+                    await MainActor.run {
                         self.copyError = "Failed to copy \(file.source.lastPathComponent): \(error.localizedDescription)"
                     }
                     break
                 }
             }
+        }.value
+    }
 
-            DispatchQueue.main.async {
-                self.isCopying = false
-            }
+    private func copyFile(_ file: (source: URL, photo: PhotoItem, isJpg: Bool),
+                          to baseURL: URL,
+                          filename: String,
+                          settings: CopySettings) throws {
+        var dest = baseURL
+        let cal  = Calendar.current
+        let date = file.photo.dateCreated
+
+        if settings.organizeByYear  { dest = dest.appendingPathComponent(String(cal.component(.year, from: date))) }
+        if settings.organizeByMonth { dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.month, from: date))) }
+        if settings.organizeByDay   { dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.day, from: date))) }
+        if !settings.eventName.isEmpty { dest = dest.appendingPathComponent(settings.eventName) }
+        if settings.organizeByCameraModel, let model = file.photo.cameraModel {
+            dest = dest.appendingPathComponent(model.replacingOccurrences(of: "/", with: "-"))
         }
+        if file.isJpg && settings.organizeJpgsInSubfolder { dest = dest.appendingPathComponent("_jpg") }
+
+        try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
+        let destFile = dest.appendingPathComponent(filename)
+        guard !FileManager.default.fileExists(atPath: destFile.path) else { return }
+        try FileManager.default.copyItem(at: file.source, to: destFile)
     }
 
-    func cancel() {
-        isCancelled = true
-    }
+    func cancel() { isCancelled = true }
 
     // MARK: - Bookmark helpers
 
     static func urlFromBookmark(_ data: Data) -> URL? {
         var isStale = false
         guard let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope,
-                                 relativeTo: nil, bookmarkDataIsStale: &isStale),
-              !isStale else { return nil }
+                                 relativeTo: nil, bookmarkDataIsStale: &isStale), !isStale else { return nil }
         _ = url.startAccessingSecurityScopedResource()
         return url
     }
 
     static func bookmarkFromURL(_ url: URL) -> Data? {
-        try? url.bookmarkData(options: .withSecurityScope,
-                              includingResourceValuesForKeys: nil, relativeTo: nil)
+        try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+    }
+}
+
+// MARK: - Settings snapshot (value type for safe cross-actor capture)
+
+private struct CopySettings {
+    let renameByExifDate: Bool
+    let useSequentialNumbers: Bool
+    let customPrefix: String
+    let organizeByYear: Bool
+    let organizeByMonth: Bool
+    let organizeByDay: Bool
+    let eventName: String
+    let organizeByCameraModel: Bool
+    let organizeJpgsInSubfolder: Bool
+
+    init(_ vm: CopyToViewModel) {
+        renameByExifDate        = vm.renameByExifDate
+        useSequentialNumbers    = vm.useSequentialNumbers
+        customPrefix            = vm.customPrefix
+        organizeByYear          = vm.organizeByYear
+        organizeByMonth         = vm.organizeByMonth
+        organizeByDay           = vm.organizeByDay
+        eventName               = vm.eventName
+        organizeByCameraModel   = vm.organizeByCameraModel
+        organizeJpgsInSubfolder = vm.organizeJpgsInSubfolder
     }
 }
