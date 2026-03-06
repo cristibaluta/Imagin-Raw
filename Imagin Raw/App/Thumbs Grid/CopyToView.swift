@@ -20,6 +20,7 @@ struct CopyToView: View {
     @State private var organizeByYear = false
     @State private var organizeByMonth = false
     @State private var organizeByDay = false
+    @State private var eventName = ""
     @State private var organizeByCameraModel = false
     @State private var organizeJpgsInSubfolder = false
 
@@ -32,6 +33,7 @@ struct CopyToView: View {
         _organizeByYear = State(initialValue: appPrefs.bool(.copyToOrganizeByYear))
         _organizeByMonth = State(initialValue: appPrefs.bool(.copyToOrganizeByMonth))
         _organizeByDay = State(initialValue: appPrefs.bool(.copyToOrganizeByDay))
+        _eventName = State(initialValue: appPrefs.string(.copyToEventName))
         _organizeByCameraModel = State(initialValue: appPrefs.bool(.copyToOrganizeByCameraModel))
         _organizeJpgsInSubfolder = State(initialValue: appPrefs.bool(.copyToOrganizeJpgsInSubfolder))
 
@@ -79,6 +81,7 @@ struct CopyToView: View {
         appPrefs.set(organizeByYear, forKey: .copyToOrganizeByYear)
         appPrefs.set(organizeByMonth, forKey: .copyToOrganizeByMonth)
         appPrefs.set(organizeByDay, forKey: .copyToOrganizeByDay)
+        appPrefs.set(eventName, forKey: .copyToEventName)
         appPrefs.set(organizeByCameraModel, forKey: .copyToOrganizeByCameraModel)
         appPrefs.set(organizeJpgsInSubfolder, forKey: .copyToOrganizeJpgsInSubfolder)
 
@@ -112,14 +115,11 @@ struct CopyToView: View {
                     organizeByYear: organizeByYear,
                     organizeByMonth: organizeByMonth,
                     organizeByDay: organizeByDay,
+                    eventName: eventName,
                     organizeByCameraModel: organizeByCameraModel,
                     organizeJpgsInSubfolder: organizeJpgsInSubfolder,
-                    onComplete: {
-                        dismiss()
-                    },
-                    onCancel: {
-                        dismiss()
-                    }
+                    onComplete: { dismiss() },
+                    onCancel: { dismiss() }
                 )
                 .frame(minWidth: 500, minHeight: 180)
             } else {
@@ -133,15 +133,14 @@ struct CopyToView: View {
                     organizeByYear: $organizeByYear,
                     organizeByMonth: $organizeByMonth,
                     organizeByDay: $organizeByDay,
+                    eventName: $eventName,
                     organizeByCameraModel: $organizeByCameraModel,
                     organizeJpgsInSubfolder: $organizeJpgsInSubfolder,
                     onStart: {
                         saveSettings()
                         showProgressView = true
                     },
-                    onCancel: {
-                        dismiss()
-                    }
+                    onCancel: { dismiss() }
                 )
                 .frame(minWidth: 500, minHeight: 420)
             }
@@ -164,6 +163,7 @@ struct CopyOptionsView: View {
     @Binding var organizeByYear: Bool
     @Binding var organizeByMonth: Bool
     @Binding var organizeByDay: Bool
+    @Binding var eventName: String
     @Binding var organizeByCameraModel: Bool
     @Binding var organizeJpgsInSubfolder: Bool
     let onStart: () -> Void
@@ -193,6 +193,11 @@ struct CopyOptionsView: View {
                 let day = calendar.component(.day, from: firstPhoto.dateCreated)
                 components.append(String(format: "%02d", day))
             }
+        }
+
+        // Add event/client/location folder if non-empty
+        if !eventName.isEmpty {
+            components.append(eventName)
         }
 
         // Add camera model folder if enabled
@@ -324,6 +329,15 @@ struct CopyOptionsView: View {
                             .disabled(!organizeByMonth)
                     }
 
+                    // Organize by client / event / location
+                    HStack(spacing: 12) {
+                        Text("Client / event / location")
+                            .font(.body)
+                            .lineLimit(1)
+                        TextField("e.g., Paris, Wedding, Nike", text: $eventName)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
                     // Organize by camera model
                     Toggle(isOn: $organizeByCameraModel) {
                         Text("Organize into subfolders by camera model")
@@ -425,6 +439,7 @@ struct CopyProgressView: View {
     let organizeByYear: Bool
     let organizeByMonth: Bool
     let organizeByDay: Bool
+    let eventName: String
     let organizeByCameraModel: Bool
     let organizeJpgsInSubfolder: Bool
     let onComplete: () -> Void
@@ -584,6 +599,12 @@ struct CopyProgressView: View {
                             destinationFolder = destinationFolder.appendingPathComponent(String(format: "%02d", day))
                         }
                         // Create subfolder if it doesn't exist
+                        try FileManager.default.createDirectory(at: destinationFolder, withIntermediateDirectories: true)
+                    }
+
+                    // Organize by event/client/location if name is provided
+                    if !eventName.isEmpty {
+                        destinationFolder = destinationFolder.appendingPathComponent(eventName)
                         try FileManager.default.createDirectory(at: destinationFolder, withIntermediateDirectories: true)
                     }
 
