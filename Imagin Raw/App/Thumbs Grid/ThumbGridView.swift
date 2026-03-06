@@ -22,9 +22,8 @@ struct ThumbGridView: View {
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
     @State private var showGridTypePopover = false
-    @State private var showCopyToSheet = false
-    @State private var showRenameSheet = false
-    @State private var photosToRename: [PhotoItem] = []
+    @State private var copyToSheetPhotos: PhotosSheetItem? = nil
+    @State private var renameSheetPhotos: PhotosSheetItem? = nil
 
     init(filesModel: FilesModel, selectedApp: PhotoApp?, searchPhotoResults: [PhotoItem]? = nil, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?, openSelectedPhotosCallback: Binding<(() -> Void)?>) {
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
@@ -54,13 +53,13 @@ struct ThumbGridView: View {
             }
         }
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth+16)
-        .sheet(isPresented: $showCopyToSheet) {
-            CopyToView(photosToCoрy: viewModel.photosToCopy)
+        .sheet(item: $copyToSheetPhotos) { item in
+            CopyToView(photosToCoрy: item.photos)
                 .environmentObject(filesModel)
                 .interactiveDismissDisabled(false)
         }
-        .sheet(isPresented: $showRenameSheet) {
-            RenameView(photosToRename: photosToRename)
+        .sheet(item: $renameSheetPhotos) { item in
+            RenameView(photosToRename: item.photos)
                 .interactiveDismissDisabled(false)
         }
         .onAppear {
@@ -215,20 +214,16 @@ struct ThumbGridView: View {
                 viewModel.movePhotosToTrash(photosToTrash)
             },
             onCopyTo: { rightClickedPhoto in
-                if viewModel.selectedPhotos.contains(rightClickedPhoto.id) {
-                    viewModel.photosToCopy = viewModel.getSelectedPhotosForBulkAction()
-                } else {
-                    viewModel.photosToCopy = [rightClickedPhoto]
-                }
-                showCopyToSheet = true
+                let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
+                    ? viewModel.getSelectedPhotosForBulkAction()
+                    : [rightClickedPhoto]
+                copyToSheetPhotos = PhotosSheetItem(photos: photos)
             },
             onRenameTo: { rightClickedPhoto in
-                if viewModel.selectedPhotos.contains(rightClickedPhoto.id) {
-                    photosToRename = viewModel.getSelectedPhotosForBulkAction()
-                } else {
-                    photosToRename = [rightClickedPhoto]
-                }
-                showRenameSheet = true
+                let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
+                    ? viewModel.getSelectedPhotosForBulkAction()
+                    : [rightClickedPhoto]
+                renameSheetPhotos = PhotosSheetItem(photos: photos)
             },
             onMoveAllMarkedToTrash: photo.toDelete ? { [viewModel] in
                 let marked = viewModel.getPhotosMarkedForDeletion()
@@ -534,4 +529,11 @@ struct GridWidthPreferenceKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
     }
+}
+
+/// Identifiable wrapper so .sheet(item:) gets the photos at the moment of presentation,
+/// avoiding the stale-state bug that occurs with .sheet(isPresented:) + a separate array.
+struct PhotosSheetItem: Identifiable {
+    let id = UUID()
+    let photos: [PhotoItem]
 }
