@@ -18,18 +18,6 @@ struct PhotoApp: Identifiable, Hashable {
     }
 }
 
-enum Field: Hashable {
-    case thumbs
-    case searchInput
-    case copyTo
-    case rename
-}
-
-@Observable
-class FocusManager {
-    var currentField: Field? = nil
-}
-
 struct ContentView: View {
     @StateObject private var filesModel = FilesModel()
     @StateObject private var externalAppManager = ExternalAppManager()
@@ -40,10 +28,7 @@ struct ContentView: View {
     @State private var showFolderPopover = false
     @State private var isSidebarCollapsed = false
     @State private var openSelectedPhotosCallback: (() -> Void)?
-    @State private var keyHandlerCallback: ((KeyEquivalent, EventModifiers) -> KeyPress.Result)?
     @State private var contentColumnWidth: CGFloat = 450
-    @FocusState private var focusedField: Field?
-    @State private var focusManager = FocusManager()
 
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
@@ -106,6 +91,8 @@ struct ContentView: View {
                         }
                         .frame(minWidth: 1200, minHeight: 800)
                         .preferredColorScheme(.dark)
+                        .focusable()
+                        .focusEffectDisabled()
                 }
             }
         }
@@ -124,10 +111,10 @@ struct ContentView: View {
 
     private var navigationSplitView: some View {
         NavigationSplitView(columnVisibility: columnVisibility) {
+            // Left sidebar: folders
             SidebarView(
                 searcher: searcher,
                 searchText: $searchText,
-                focusBinding: $focusedField,
                 onDoubleClick: {
                     columnVisibilityStorage = "doubleColumn"
                 }
@@ -146,9 +133,7 @@ struct ContentView: View {
                 onEnterReviewMode: {
 
                 },
-                openSelectedPhotosCallback: $openSelectedPhotosCallback,
-                keyHandlerCallback: $keyHandlerCallback,
-                focusBinding: $focusedField
+                openSelectedPhotosCallback: $openSelectedPhotosCallback
             )
             .onPreferenceChange(GridWidthPreferenceKey.self) { width in
                 contentColumnWidth = width
@@ -160,20 +145,10 @@ struct ContentView: View {
             )
         } detail: {
             detailView
-                .navigationSplitViewColumnWidth(min: 400, ideal: 600)
+            .navigationSplitViewColumnWidth(min: 400, ideal: 600)
         }
         .environmentObject(filesModel)
         .environmentObject(externalAppManager)
-        .environment(focusManager)
-        .focusable()
-        .focused($focusedField, equals: .thumbs)
-        .onKeyPress(phases: .down) { press in
-            print("Focus to \(focusedField)")
-            if focusedField != .thumbs {
-                return .ignored
-            }
-            return keyHandlerCallback?(press.key, press.modifiers) ?? .ignored
-        }
     }
 
     private var detailView: some View {

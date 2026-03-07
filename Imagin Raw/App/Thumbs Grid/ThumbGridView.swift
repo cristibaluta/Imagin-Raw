@@ -16,31 +16,22 @@ struct ThumbGridView: View {
     let searchPhotoResults: [PhotoItem]?
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
     let onEnterReviewMode: (() -> Void)?
+    @FocusState private var isFocused: Bool
     @Binding var openSelectedPhotosCallback: (() -> Void)?
-    @Binding var keyHandlerCallback: ((KeyEquivalent, EventModifiers) -> KeyPress.Result)?
-    var focusBinding: FocusState<Field?>.Binding
+
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
     @State private var showGridTypePopover = false
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
 
-    init(filesModel: FilesModel,
-         selectedApp: PhotoApp?,
-         searchPhotoResults: [PhotoItem]? = nil,
-         onOpenSelectedPhotos: (([PhotoItem]) -> Void)?,
-         onEnterReviewMode: (() -> Void)?,
-         openSelectedPhotosCallback: Binding<(() -> Void)?>,
-         keyHandlerCallback: Binding<((KeyEquivalent, EventModifiers) -> KeyPress.Result)?>,
-         focusBinding: FocusState<Field?>.Binding) {
+    init(filesModel: FilesModel, selectedApp: PhotoApp?, searchPhotoResults: [PhotoItem]? = nil, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?, openSelectedPhotosCallback: Binding<(() -> Void)?>) {
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
         self.selectedApp = selectedApp
         self.searchPhotoResults = searchPhotoResults
         self.onOpenSelectedPhotos = onOpenSelectedPhotos
         self.onEnterReviewMode = onEnterReviewMode
         self._openSelectedPhotosCallback = openSelectedPhotosCallback
-        self._keyHandlerCallback = keyHandlerCallback
-        self.focusBinding = focusBinding
     }
 
     var body: some View {
@@ -66,18 +57,6 @@ struct ThumbGridView: View {
             CopyToView(viewModel: vm)
                 .environmentObject(filesModel)
                 .interactiveDismissDisabled(false)
-                .onAppear() {
-                    Task {
-                        print("Focus set to CopyToView")
-                        focusBinding.wrappedValue = .copyTo
-                    }
-                }
-                .onDisappear() {
-                    Task {
-                        print("Focus set to thumbs")
-                        focusBinding.wrappedValue = .thumbs
-                    }
-                }
         }
         .sheet(item: $renameSheetPhotos) { item in
             RenameView(photosToRename: item.photos)
@@ -87,9 +66,6 @@ struct ThumbGridView: View {
             openSelectedPhotosCallback = { [viewModel] in
                 let selectedPhotoItems = viewModel.getSelectedPhotosForBulkAction()
                 onOpenSelectedPhotos?(selectedPhotoItems)
-            }
-            keyHandlerCallback = { [viewModel] key, modifiers in
-                viewModel.handleKeyPress(key, modifiers: modifiers)
             }
             if let results = searchPhotoResults {
                 viewModel.loadSearchResults(results)
@@ -177,28 +153,14 @@ struct ThumbGridView: View {
 
         return content
             .background(scrollViewConfig)
-//            .onKeyPress { keyPress in
-//                // scroll-to after navigation
-//                let result = viewModel.handleKeyPress(keyPress.key, modifiers: keyPress.modifiers)
-//                if result == .handled, let idx = viewModel.lastSelectedIndex,
-//                   idx < viewModel.filteredPhotos.count {
-//                    proxy.scrollTo(viewModel.filteredPhotos[idx].id, anchor: .center)
-//                }
-//                if result != .ignored { return result }
-//
-//                // Scroll-dependent keys that need proxy
-//                switch keyPress.key {
-//                case .return:
-//                    handleReturnKey()
-//                    return .handled
-//                case .space:
-//                    if filesModel.selectedPhoto != nil { onEnterReviewMode?() }
-//                    return .handled
-//                default:
-//                    return .ignored
-//                }
-//            }
+            .focusable()
+            .focusEffectDisabled()
+            .focused($isFocused)
+            .onKeyPress { keyPress in
+                handleKeyPress(keyPress, proxy: proxy, viewportHeight: geometry.size.height)
+            }
             .onAppear {
+                isFocused = true
                 viewModel.initializeSelection()
             }
             .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
@@ -427,6 +389,44 @@ struct ThumbGridView: View {
         }
     }
 
+    private func handleKeyPress(_ keyPress: KeyPress, proxy: ScrollViewProxy, viewportHeight: CGFloat) -> KeyPress.Result {
+        guard !viewModel.filteredPhotos.isEmpty else { return .ignored }
+
+        let currentIndex = viewModel.filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
+        var newIndex = currentIndex
+
+        switch keyPress.key {
+        case .leftArrow:
+            newIndex = max(0, currentIndex - 1)
+        case .rightArrow:
+            newIndex = min(viewModel.filteredPhotos.count - 1, currentIndex + 1)
+        case .upArrow:
+            newIndex = max(0, currentIndex - viewModel.gridType.columnCount)
+        case .downArrow:
+            newIndex = min(viewModel.filteredPhotos.count - 1, currentIndex + viewModel.gridType.columnCount)
+        case .return:
+            handleReturnKey()
+            return .handled
+        case .space:
+            if filesModel.selectedPhoto != nil {
+                onEnterReviewMode?()
+            }
+            return .handled
+        case .delete:
+            return handleOtherKeys(keyPress)
+        default:
+            return handleOtherKeys(keyPress)
+        }
+
+        if newIndex != currentIndex {
+            viewModel.navigateToPhoto(at: newIndex)
+            proxy.scrollTo(viewModel.filteredPhotos[newIndex].id, anchor: .center)
+            return .handled
+        }
+
+        return .ignored
+    }
+
     private func handleReturnKey() {
         if viewModel.selectedPhotos.count > 1 {
             let selectedPhotoItems = viewModel.filteredPhotos.filter { viewModel.selectedPhotos.contains($0.id) }
@@ -434,6 +434,75 @@ struct ThumbGridView: View {
         } else if let selectedPhoto = filesModel.selectedPhoto {
             externalAppManager.openPhoto(selectedPhoto, with: selectedApp)
         }
+    }
+
+    private func handleOtherKeys(_ keyPress: KeyPress) -> KeyPress.Result {
+        let photos = viewModel.getSelectedPhotosForBulkAction()
+        guard !photos.isEmpty else { return .ignored }
+
+        // Command+A for Select All
+        if keyPress.modifiers.contains(.command) && keyPress.characters == "a" {
+            viewModel.selectAll()
+            return .handled
+        }
+
+        // Command+Z for Undo last trash
+        if keyPress.modifiers.contains(.command) && keyPress.characters == "z" {
+            viewModel.undoLastTrash()
+            return .handled
+        }
+
+        // Cmd+Delete — immediately trash selected photos
+        // The Delete (backspace) key sends \u{7F}, also check keyPress.key == .delete
+        if keyPress.modifiers.contains(.command) &&
+            (keyPress.key == .delete || keyPress.characters == "\u{7F}") {
+            viewModel.movePhotosToTrash(photos)
+            return .handled
+        }
+
+        let key = keyPress.characters
+
+        // Filter to only RAW files for rating and labeling operations
+        let rawPhotos = photos.filter { $0.isRawFile }
+        guard !rawPhotos.isEmpty else { return .ignored }
+
+        // Rating keys (1-5)
+        if let rating = Int(key), rating >= 1 && rating <= 5 {
+            viewModel.applyRating(rating, to: rawPhotos)
+            return .handled
+        }
+
+        // Label keys (6-0)
+        let labelMap: [String: String] = [
+            "6": "Select",
+            "7": "Second",
+            "8": "Approved",
+            "9": "Review",
+            "0": "To Do"
+        ]
+
+        if let label = labelMap[key] {
+            viewModel.applyLabel(label, to: rawPhotos)
+            return .handled
+        }
+
+        // Remove label
+        if key == "-" {
+            viewModel.removeLabels(from: rawPhotos)
+            return .handled
+        }
+
+        // Toggle reject state (X key, works for all files)
+        if key == "x" || key == "X" {
+            viewModel.toggleDeleteState(for: photos)
+            return .handled
+        }
+        if key == "a" || key == "A" {
+            viewModel.applyLabel(labelMap["8"]!, to: rawPhotos)
+            return .handled
+        }
+
+        return .ignored
     }
 
     private func configureScrollView() {

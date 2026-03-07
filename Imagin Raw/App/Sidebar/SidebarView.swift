@@ -13,16 +13,11 @@ struct SidebarView: View {
     @State private var showingAddPopover = false
     @ObservedObject var searcher: SpotlightSearcher
     @Binding var searchText: String
-    var focusBinding: FocusState<Field?>.Binding
     let onDoubleClick: (() -> Void)?
 
-    init(searcher: SpotlightSearcher,
-         searchText: Binding<String>,
-         focusBinding: FocusState<Field?>.Binding,
-         onDoubleClick: (() -> Void)? = nil) {
+    init(searcher: SpotlightSearcher, searchText: Binding<String>, onDoubleClick: (() -> Void)? = nil) {
         self.searcher = searcher
         self._searchText = searchText
-        self.focusBinding = focusBinding
         self.onDoubleClick = onDoubleClick
     }
 
@@ -55,7 +50,6 @@ struct SidebarView: View {
                     TextField("Search folders & files...", text: $searchText)
                         .textFieldStyle(.plain)
                         .font(.system(size: 12))
-                        .focused(focusBinding, equals: .searchInput)
                         .onChange(of: searchText) { _, newValue in
                             if newValue.count >= 3 {
                                 searcher.search(query: newValue, in: filesModel.rootFolders)
