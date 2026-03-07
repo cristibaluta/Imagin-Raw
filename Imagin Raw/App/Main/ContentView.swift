@@ -28,7 +28,7 @@ struct ContentView: View {
     @State private var showFolderPopover = false
     @State private var isSidebarCollapsed = false
     @State private var openSelectedPhotosCallback: (() -> Void)?
-    @State private var keyHandlerCallback: ((KeyEquivalent, EventModifiers) -> Bool)?
+    @State private var keyHandlerCallback: ((KeyEquivalent, EventModifiers) -> KeyPress.Result)?
     @State private var contentColumnWidth: CGFloat = 450
 
 
@@ -92,8 +92,6 @@ struct ContentView: View {
                         }
                         .frame(minWidth: 1200, minHeight: 800)
                         .preferredColorScheme(.dark)
-                        .focusable()
-                        .focusEffectDisabled()
                 }
             }
         }
@@ -111,9 +109,7 @@ struct ContentView: View {
     }
 
     private var navigationSplitView: some View {
-        NavigationSplitView(columnVisibility: columnVisibility) {
-            // Left sidebar: folders
-            SidebarView(
+        NavigationSplitView(columnVisibility: columnVisibility) {            SidebarView(
                 searcher: searcher,
                 searchText: $searchText,
                 onDoubleClick: {
@@ -152,8 +148,7 @@ struct ContentView: View {
         .environmentObject(filesModel)
         .environmentObject(externalAppManager)
         .onKeyPress(phases: .down) { press in
-            let consumed = keyHandlerCallback?(press.key, press.modifiers) ?? false
-            return consumed ? .handled : .ignored
+            keyHandlerCallback?(press.key, press.modifiers) ?? .ignored
         }
     }
 

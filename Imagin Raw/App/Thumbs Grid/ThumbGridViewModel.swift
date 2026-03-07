@@ -556,61 +556,76 @@ class ThumbGridViewModel: ObservableObject {
 
     // MARK: - Keyboard handling
 
-    /// Called from ContentView's central key handler. Returns true if the key was consumed.
-    @discardableResult
-    func handleKeyPress(_ key: KeyEquivalent, modifiers: EventModifiers) -> Bool {
+    /// Called from ContentView's central key handler. Returns the new index to scroll to, or nil.
+    func handleKeyPress(_ key: KeyEquivalent, modifiers: EventModifiers) -> KeyPress.Result {
         let selected = getSelectedPhotosForBulkAction()
-        guard !filteredPhotos.isEmpty else { return false }
+        guard !filteredPhotos.isEmpty else { return .ignored }
         let currentIndex = lastSelectedIndex ?? 0
 
         switch key {
         case .leftArrow:
             navigateToPhoto(at: max(0, currentIndex - 1))
-            return true
+            return .handled
         case .rightArrow:
             navigateToPhoto(at: min(filteredPhotos.count - 1, currentIndex + 1))
-            return true
+            return .handled
+        case .upArrow:
+            navigateToPhoto(at: max(0, currentIndex - gridType.columnCount))
+            return .handled
+        case .downArrow:
+            navigateToPhoto(at: min(filteredPhotos.count - 1, currentIndex + gridType.columnCount))
+            return .handled
         case .delete where modifiers.contains(.command):
-            guard !selected.isEmpty else { return false }
+            guard !selected.isEmpty else { return .ignored }
             movePhotosToTrash(selected)
-            return true
-        case "x":
-            guard !selected.isEmpty else { return false }
+            return .handled
+        case "x", "X":
+            guard !selected.isEmpty else { return .ignored }
             toggleDeleteState(for: selected)
-            return true
-        case "-":
-            guard !selected.isEmpty else { return false }
-            removeLabels(from: selected)
-            return true
+            return .handled
+        case "a" where modifiers.contains(.command):
+            selectAll()
+            return .handled
         case "z" where modifiers.contains(.command):
             undoLastTrash()
-            return true
+            return .handled
+        case "-":
+            let rawPhotos = selected.filter { $0.isRawFile }
+            guard !rawPhotos.isEmpty else { return .ignored }
+            removeLabels(from: rawPhotos)
+            return .handled
         case "1", "2", "3", "4", "5":
-            guard !selected.isEmpty, let n = Int(String(key.character)) else { return false }
-            applyRating(n, to: selected)
-            return true
+            let rawPhotos = selected.filter { $0.isRawFile }
+            guard !rawPhotos.isEmpty, let n = Int(String(key.character)) else { return .ignored }
+            applyRating(n, to: rawPhotos)
+            return .handled
         case "6":
-            guard !selected.isEmpty else { return false }
-            applyLabel("Select", to: selected)
-            return true
+            let rawPhotos = selected.filter { $0.isRawFile }
+            guard !rawPhotos.isEmpty else { return .ignored }
+            applyLabel("Select", to: rawPhotos)
+            return .handled
         case "7":
-            guard !selected.isEmpty else { return false }
-            applyLabel("Second", to: selected)
-            return true
+            let rawPhotos = selected.filter { $0.isRawFile }
+            guard !rawPhotos.isEmpty else { return .ignored }
+            applyLabel("Second", to: rawPhotos)
+            return .handled
         case "8":
-            guard !selected.isEmpty else { return false }
-            applyLabel("Approved", to: selected)
-            return true
+            let rawPhotos = selected.filter { $0.isRawFile }
+            guard !rawPhotos.isEmpty else { return .ignored }
+            applyLabel("Approved", to: rawPhotos)
+            return .handled
         case "9":
-            guard !selected.isEmpty else { return false }
-            applyLabel("Review", to: selected)
-            return true
+            let rawPhotos = selected.filter { $0.isRawFile }
+            guard !rawPhotos.isEmpty else { return .ignored }
+            applyLabel("Review", to: rawPhotos)
+            return .handled
         case "0":
-            guard !selected.isEmpty else { return false }
-            applyLabel("To Do", to: selected)
-            return true
+            let rawPhotos = selected.filter { $0.isRawFile }
+            guard !rawPhotos.isEmpty else { return .ignored }
+            applyLabel("To Do", to: rawPhotos)
+            return .handled
         default:
-            return false
+            return .ignored
         }
     }
 
