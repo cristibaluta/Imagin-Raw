@@ -16,6 +16,7 @@ struct ThumbGridView: View {
     let searchPhotoResults: [PhotoItem]?
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
     let onEnterReviewMode: (() -> Void)?
+    let onToggleSidebar: (() -> Void)?
     @FocusState private var isFocused: Bool
     @Binding var openSelectedPhotosCallback: (() -> Void)?
 
@@ -25,12 +26,13 @@ struct ThumbGridView: View {
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
 
-    init(filesModel: FilesModel, selectedApp: PhotoApp?, searchPhotoResults: [PhotoItem]? = nil, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?, openSelectedPhotosCallback: Binding<(() -> Void)?>) {
+    init(filesModel: FilesModel, selectedApp: PhotoApp?, searchPhotoResults: [PhotoItem]? = nil, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?, onToggleSidebar: (() -> Void)? = nil, openSelectedPhotosCallback: Binding<(() -> Void)?>) {
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
         self.selectedApp = selectedApp
         self.searchPhotoResults = searchPhotoResults
         self.onOpenSelectedPhotos = onOpenSelectedPhotos
         self.onEnterReviewMode = onEnterReviewMode
+        self.onToggleSidebar = onToggleSidebar
         self._openSelectedPhotosCallback = openSelectedPhotosCallback
     }
 
@@ -437,6 +439,20 @@ struct ThumbGridView: View {
     }
 
     private func handleOtherKeys(_ keyPress: KeyPress) -> KeyPress.Result {
+        let key = keyPress.characters
+
+        // Toggle sidebar (works regardless of selection)
+        if key == "c" || key == "C" {
+            onToggleSidebar?()
+            return .handled
+        }
+
+        // Toggle grid type (works regardless of selection)
+        if key == "g" || key == "G" {
+            viewModel.toggleGridType()
+            return .handled
+        }
+
         let photos = viewModel.getSelectedPhotosForBulkAction()
         guard !photos.isEmpty else { return .ignored }
 
@@ -460,9 +476,7 @@ struct ThumbGridView: View {
             return .handled
         }
 
-        let key = keyPress.characters
-
-        // Filter to only RAW files for rating and labeling operations
+        // Toggle reject state (X key, works for all files)
         let rawPhotos = photos.filter { $0.isRawFile }
         guard !rawPhotos.isEmpty else { return .ignored }
 

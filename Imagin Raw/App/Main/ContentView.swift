@@ -133,6 +133,13 @@ struct ContentView: View {
                 onEnterReviewMode: {
 
                 },
+                onToggleSidebar: {
+                    if columnVisibilityStorage == "doubleColumn" {
+                        columnVisibilityStorage = "all"
+                    } else {
+                        columnVisibilityStorage = "doubleColumn"
+                    }
+                },
                 openSelectedPhotosCallback: $openSelectedPhotosCallback
             )
             .onPreferenceChange(GridWidthPreferenceKey.self) { width in
