@@ -18,13 +18,21 @@ struct ThumbGridView: View {
     let onEnterReviewMode: (() -> Void)?
     @Binding var openSelectedPhotosCallback: (() -> Void)?
     @Binding var keyHandlerCallback: ((KeyEquivalent, EventModifiers) -> KeyPress.Result)?
+    var focusBinding: FocusState<Field?>.Binding
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
     @State private var showGridTypePopover = false
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
 
-    init(filesModel: FilesModel, selectedApp: PhotoApp?, searchPhotoResults: [PhotoItem]? = nil, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?, openSelectedPhotosCallback: Binding<(() -> Void)?>, keyHandlerCallback: Binding<((KeyEquivalent, EventModifiers) -> KeyPress.Result)?>) {
+    init(filesModel: FilesModel,
+         selectedApp: PhotoApp?,
+         searchPhotoResults: [PhotoItem]? = nil,
+         onOpenSelectedPhotos: (([PhotoItem]) -> Void)?,
+         onEnterReviewMode: (() -> Void)?,
+         openSelectedPhotosCallback: Binding<(() -> Void)?>,
+         keyHandlerCallback: Binding<((KeyEquivalent, EventModifiers) -> KeyPress.Result)?>,
+         focusBinding: FocusState<Field?>.Binding) {
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
         self.selectedApp = selectedApp
         self.searchPhotoResults = searchPhotoResults
@@ -32,6 +40,7 @@ struct ThumbGridView: View {
         self.onEnterReviewMode = onEnterReviewMode
         self._openSelectedPhotosCallback = openSelectedPhotosCallback
         self._keyHandlerCallback = keyHandlerCallback
+        self.focusBinding = focusBinding
     }
 
     var body: some View {
@@ -57,6 +66,18 @@ struct ThumbGridView: View {
             CopyToView(viewModel: vm)
                 .environmentObject(filesModel)
                 .interactiveDismissDisabled(false)
+                .onAppear() {
+                    Task {
+                        print("Focus set to CopyToView")
+                        focusBinding.wrappedValue = .copyTo
+                    }
+                }
+                .onDisappear() {
+                    Task {
+                        print("Focus set to thumbs")
+                        focusBinding.wrappedValue = .thumbs
+                    }
+                }
         }
         .sheet(item: $renameSheetPhotos) { item in
             RenameView(photosToRename: item.photos)
@@ -156,27 +177,27 @@ struct ThumbGridView: View {
 
         return content
             .background(scrollViewConfig)
-            .onKeyPress { keyPress in
-                // scroll-to after navigation
-                let result = viewModel.handleKeyPress(keyPress.key, modifiers: keyPress.modifiers)
-                if result == .handled, let idx = viewModel.lastSelectedIndex,
-                   idx < viewModel.filteredPhotos.count {
-                    proxy.scrollTo(viewModel.filteredPhotos[idx].id, anchor: .center)
-                }
-                if result != .ignored { return result }
-
-                // Scroll-dependent keys that need proxy
-                switch keyPress.key {
-                case .return:
-                    handleReturnKey()
-                    return .handled
-                case .space:
-                    if filesModel.selectedPhoto != nil { onEnterReviewMode?() }
-                    return .handled
-                default:
-                    return .ignored
-                }
-            }
+//            .onKeyPress { keyPress in
+//                // scroll-to after navigation
+//                let result = viewModel.handleKeyPress(keyPress.key, modifiers: keyPress.modifiers)
+//                if result == .handled, let idx = viewModel.lastSelectedIndex,
+//                   idx < viewModel.filteredPhotos.count {
+//                    proxy.scrollTo(viewModel.filteredPhotos[idx].id, anchor: .center)
+//                }
+//                if result != .ignored { return result }
+//
+//                // Scroll-dependent keys that need proxy
+//                switch keyPress.key {
+//                case .return:
+//                    handleReturnKey()
+//                    return .handled
+//                case .space:
+//                    if filesModel.selectedPhoto != nil { onEnterReviewMode?() }
+//                    return .handled
+//                default:
+//                    return .ignored
+//                }
+//            }
             .onAppear {
                 viewModel.initializeSelection()
             }
