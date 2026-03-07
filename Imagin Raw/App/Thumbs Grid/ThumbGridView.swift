@@ -18,6 +18,7 @@ struct ThumbGridView: View {
     let onEnterReviewMode: (() -> Void)?
     @FocusState private var isFocused: Bool
     @Binding var openSelectedPhotosCallback: (() -> Void)?
+    @Binding var keyHandlerCallback: ((KeyEquivalent, EventModifiers) -> Bool)?
 
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
@@ -25,13 +26,14 @@ struct ThumbGridView: View {
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
 
-    init(filesModel: FilesModel, selectedApp: PhotoApp?, searchPhotoResults: [PhotoItem]? = nil, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?, openSelectedPhotosCallback: Binding<(() -> Void)?>) {
+    init(filesModel: FilesModel, selectedApp: PhotoApp?, searchPhotoResults: [PhotoItem]? = nil, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?, openSelectedPhotosCallback: Binding<(() -> Void)?>, keyHandlerCallback: Binding<((KeyEquivalent, EventModifiers) -> Bool)?>)  {
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
         self.selectedApp = selectedApp
         self.searchPhotoResults = searchPhotoResults
         self.onOpenSelectedPhotos = onOpenSelectedPhotos
         self.onEnterReviewMode = onEnterReviewMode
         self._openSelectedPhotosCallback = openSelectedPhotosCallback
+        self._keyHandlerCallback = keyHandlerCallback
     }
 
     var body: some View {
@@ -66,6 +68,9 @@ struct ThumbGridView: View {
             openSelectedPhotosCallback = { [viewModel] in
                 let selectedPhotoItems = viewModel.getSelectedPhotosForBulkAction()
                 onOpenSelectedPhotos?(selectedPhotoItems)
+            }
+            keyHandlerCallback = { [viewModel] key, modifiers in
+                viewModel.handleKeyPress(key, modifiers: modifiers)
             }
             if let results = searchPhotoResults {
                 viewModel.loadSearchResults(results)

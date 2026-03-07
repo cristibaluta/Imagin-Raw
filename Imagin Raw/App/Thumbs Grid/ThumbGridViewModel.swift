@@ -554,6 +554,66 @@ class ThumbGridViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Keyboard handling
+
+    /// Called from ContentView's central key handler. Returns true if the key was consumed.
+    @discardableResult
+    func handleKeyPress(_ key: KeyEquivalent, modifiers: EventModifiers) -> Bool {
+        let selected = getSelectedPhotosForBulkAction()
+        guard !filteredPhotos.isEmpty else { return false }
+        let currentIndex = lastSelectedIndex ?? 0
+
+        switch key {
+        case .leftArrow:
+            navigateToPhoto(at: max(0, currentIndex - 1))
+            return true
+        case .rightArrow:
+            navigateToPhoto(at: min(filteredPhotos.count - 1, currentIndex + 1))
+            return true
+        case .delete where modifiers.contains(.command):
+            guard !selected.isEmpty else { return false }
+            movePhotosToTrash(selected)
+            return true
+        case "x":
+            guard !selected.isEmpty else { return false }
+            toggleDeleteState(for: selected)
+            return true
+        case "-":
+            guard !selected.isEmpty else { return false }
+            removeLabels(from: selected)
+            return true
+        case "z" where modifiers.contains(.command):
+            undoLastTrash()
+            return true
+        case "1", "2", "3", "4", "5":
+            guard !selected.isEmpty, let n = Int(String(key.character)) else { return false }
+            applyRating(n, to: selected)
+            return true
+        case "6":
+            guard !selected.isEmpty else { return false }
+            applyLabel("Select", to: selected)
+            return true
+        case "7":
+            guard !selected.isEmpty else { return false }
+            applyLabel("Second", to: selected)
+            return true
+        case "8":
+            guard !selected.isEmpty else { return false }
+            applyLabel("Approved", to: selected)
+            return true
+        case "9":
+            guard !selected.isEmpty else { return false }
+            applyLabel("Review", to: selected)
+            return true
+        case "0":
+            guard !selected.isEmpty else { return false }
+            applyLabel("To Do", to: selected)
+            return true
+        default:
+            return false
+        }
+    }
+
     // MARK: - Persistence
     func saveSortOption() {
         appPrefs.set(sortOption.rawValue, forKey: .sortOption)
