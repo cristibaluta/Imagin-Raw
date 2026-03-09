@@ -23,6 +23,7 @@ struct ThumbGridView: View {
     @State private var showSortPopover = false
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
+    @State private var showDuplicatesSheet = false
 
     init(filesModel: FilesModel,
          searchPhotoResults: [PhotoItem]? = nil,
@@ -61,6 +62,9 @@ struct ThumbGridView: View {
         .sheet(item: $renameSheetPhotos) { item in
             RenameView(photosToRename: item.photos)
                 .interactiveDismissDisabled(false)
+        }
+        .sheet(isPresented: $showDuplicatesSheet) {
+            DuplicatesResultSheet(viewModel: viewModel)
         }
         .onAppear {
             openSelectedPhotosCallback = { [viewModel] in
@@ -101,20 +105,7 @@ struct ThumbGridView: View {
 
     private var duplicateGridView: some View {
         Group {
-            if viewModel.isFindingDuplicates {
-                VStack(spacing: 16) {
-                    Spacer()
-                    ProgressView(value: Double(viewModel.duplicateScanProgress.done),
-                                 total: Double(max(1, viewModel.duplicateScanProgress.total)))
-                        .progressViewStyle(.linear)
-                        .frame(width: 260)
-                    Text("Analysing \(viewModel.duplicateScanProgress.done) / \(viewModel.duplicateScanProgress.total) photos...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let result = viewModel.duplicateScanResult {
+            if let result = viewModel.duplicateScanResult {
                 if result.groups.isEmpty {
                     VStack(spacing: 12) {
                         Spacer()
@@ -331,10 +322,7 @@ struct ThumbGridView: View {
 
     private var filterSortBar: some View {
         HStack(spacing: 12) {
-            // Grid Type button
-            Button(action: {
-                viewModel.toggleGridType()
-            }) {
+            Button(action: { viewModel.toggleGridType() }) {
                 Image(systemName: "square.grid.3x3.fill")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.primary)
@@ -342,10 +330,7 @@ struct ThumbGridView: View {
             .buttonStyle(PlainButtonStyle())
             .padding(.leading, 8)
 
-            // Sort button
-            Button(action: {
-                showSortPopover.toggle()
-            }) {
+            Button(action: { showSortPopover.toggle() }) {
                 Image(systemName: "arrow.up.arrow.down")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.primary)
@@ -364,6 +349,7 @@ struct ThumbGridView: View {
                     viewModel.exitDuplicateMode()
                 } else {
                     viewModel.findDuplicates()
+                    showDuplicatesSheet = true
                 }
             }) {
                 Image(systemName: viewModel.isDuplicateMode ? "xmark.circle" : "rectangle.on.rectangle.angled")
@@ -375,9 +361,7 @@ struct ThumbGridView: View {
             .help(viewModel.isDuplicateMode ? "Exit duplicate view" : "Find duplicate or similar photos")
 
             HStack(spacing: 2) {
-                Button(action: {
-                    showFilterPopover.toggle()
-                }) {
+                Button(action: { showFilterPopover.toggle() }) {
                     Image(systemName: "line.3.horizontal.decrease")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.primary)
@@ -391,9 +375,7 @@ struct ThumbGridView: View {
                 }
 
                 ForEach(viewModel.availableLabels, id: \.self) { label in
-                    Button(action: {
-                        viewModel.toggleLabelFilter(label)
-                    }) {
+                    Button(action: { viewModel.toggleLabelFilter(label) }) {
                         let iconName = if label == "Rejected" {
                             viewModel.selectedLabels.contains(label) ? "x.square.fill" : "x.square"
                         } else {
