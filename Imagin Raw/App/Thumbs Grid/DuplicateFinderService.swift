@@ -25,7 +25,7 @@ enum DuplicateFinderService {
     /// Similarity threshold: 0 = identical, higher = more different.
     /// 0.25 catches near-duplicates (exposure tweaks, slight crops).
     /// Raise to ~0.45 for looser "similar scene" matching.
-    static let threshold: Float = 0.25
+    static let threshold: Float = 0.35
 
     // MARK: - Public API
 
