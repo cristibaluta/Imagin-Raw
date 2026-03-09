@@ -50,13 +50,17 @@ class SpotlightSearcher: ObservableObject {
 
         let finished = NotificationCenter.default.addObserver(forName: .NSMetadataQueryDidFinishGathering,
                                                               object: q,
-                                                              queue: .main) { [weak self] _ in
-            self?.handleResults()
+                                                              queue: .main) { _ in
+            Task { await MainActor.run { [weak self] in
+                self?.handleResults()
+            }}
         }
         let updated = NotificationCenter.default.addObserver(forName: .NSMetadataQueryDidUpdate,
                                                              object: q,
-                                                             queue: .main) { [weak self] _ in
-            self?.handleResults()
+                                                             queue: .main) { _ in
+            Task { await MainActor.run { [weak self] in
+                self?.handleResults()
+            }}
         }
         observers = [finished, updated]
         q.start()
