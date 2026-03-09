@@ -23,7 +23,6 @@ struct ThumbGridView: View {
     @State private var showSortPopover = false
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
-    @State private var showDuplicatesSheet = false
 
     init(filesModel: FilesModel,
          searchPhotoResults: [PhotoItem]? = nil,
@@ -41,14 +40,14 @@ struct ThumbGridView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Main thumbnail grid
-            if viewModel.filteredPhotos.isEmpty {
+            if viewModel.isDuplicateMode {
+                duplicateGridView
+            } else if viewModel.filteredPhotos.isEmpty {
                 emptyStateView
             } else {
                 photoGridView
             }
 
-            // Filter and Sort bar
             if !viewModel.photos.isEmpty {
                 filterSortBar
             }
@@ -63,9 +62,6 @@ struct ThumbGridView: View {
             RenameView(photosToRename: item.photos)
                 .interactiveDismissDisabled(false)
         }
-        .sheet(isPresented: $showDuplicatesSheet) {
-            DuplicatesResultSheet(viewModel: viewModel)
-        }
         .onAppear {
             openSelectedPhotosCallback = { [viewModel] in
                 let selectedPhotoItems = viewModel.getSelectedPhotosForBulkAction()
@@ -79,10 +75,8 @@ struct ThumbGridView: View {
         }
         .onChange(of: searchPhotoResults) { _, newResults in
             if let results = newResults {
-                // Search is active: show search photo results
                 viewModel.loadSearchResults(results)
             } else {
-                // Search was cleared: revert to the currently selected folder
                 viewModel.clearSearchResults()
                 if let folder = filesModel.selectedFolder {
                     viewModel.loadPhotosForFolder(folder)
@@ -91,9 +85,6 @@ struct ThumbGridView: View {
         }
         .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
             guard let folder = newFolder, oldFolder?.url != newFolder?.url else { return }
-            // A folder was selected (either normally or from search results).
-            // Always load its photos — this overrides search results in the content column.
-            // The search sidebar stays untouched.
             viewModel.clearSearchResults()
             viewModel.loadPhotosForFolder(folder)
             filesModel.selectedPhoto = nil
@@ -106,7 +97,87 @@ struct ThumbGridView: View {
         }
     }
 
-    // MARK: - View Components
+    // MARK: - Duplicate Grid
+
+    private var duplicateGridView: some View {
+        Group {
+            if viewModel.isFindingDuplicates {
+                VStack(spacing: 16) {
+                    Spacer()
+                    ProgressView(value: Double(viewModel.duplicateScanProgress.done),
+                                 total: Double(max(1, viewModel.duplicateScanProgress.total)))
+                        .progressViewStyle(.linear)
+                        .frame(width: 260)
+                    Text("Analysing \(viewModel.duplicateScanProgress.done) / \(viewModel.duplicateScanProgress.total) photos...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let result = viewModel.duplicateScanResult {
+                if result.groups.isEmpty {
+                    VStack(spacing: 12) {
+                        Spacer()
+                        Image(systemName: "checkmark.circle")
+                            .font(.system(size: 48))
+                            .foregroundColor(.green)
+                        Text("No duplicates found")
+                            .font(.headline)
+                        Text("Scanned \(result.totalScanned) photos in \(String(format: "%.2f", result.duration))s")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView(.vertical) {
+                        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
+                            ForEach(Array(result.groups.enumerated()), id: \.element.id) { groupIndex, group in
+                                Section {
+                                    LazyVGrid(columns: viewModel.dynamicColumns, spacing: 8) {
+                                        ForEach(group.photos) { photo in
+                                            createThumbCell(for: photo)
+                                        }
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.bottom, 16)
+                                } header: {
+                                    duplicateGroupHeader(group: group, index: groupIndex, total: result.groups.count)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+        }
+    }
+
+    private func duplicateGroupHeader(group: DuplicateGroup, index: Int, total: Int) -> some View {
+        let pct = max(0, min(100, Int(((1.0 - Double(group.distance)) * 100).rounded())))
+        return HStack(spacing: 8) {
+            Text("Group \(index + 1) of \(total)")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+            Text("·")
+                .foregroundColor(.secondary)
+            Text("\(group.photos.count) photos")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text("·")
+                .foregroundColor(.secondary)
+            Text("\(pct)% similar")
+                .font(.caption)
+                .foregroundColor(pct >= 90 ? .orange : .secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color(NSColor.windowBackgroundColor).opacity(0.95))
+    }
+
+    // MARK: - Empty State
 
     private var emptyStateView: some View {
         VStack(spacing: 16) {
@@ -143,6 +214,8 @@ struct ThumbGridView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+
+    // MARK: - Photo Grid
 
     private var photoGridView: some View {
         ScrollViewReader { proxy in
@@ -200,6 +273,8 @@ struct ThumbGridView: View {
         }
     }
 
+    // MARK: - Thumb Cell
+
     private func createThumbCell(for photo: PhotoItem) -> some View {
         ThumbCell(
             photo: photo,
@@ -252,6 +327,8 @@ struct ThumbGridView: View {
         }
     }
 
+    // MARK: - Filter/Sort Bar
+
     private var filterSortBar: some View {
         HStack(spacing: 12) {
             // Grid Type button
@@ -281,20 +358,22 @@ struct ThumbGridView: View {
                 viewModel.saveSortOption()
             }
 
-            // Find Duplicates button
+            // Find Duplicates / Exit Duplicates button
             Button(action: {
-                viewModel.findDuplicates()
-                showDuplicatesSheet = true
+                if viewModel.isDuplicateMode {
+                    viewModel.exitDuplicateMode()
+                } else {
+                    viewModel.findDuplicates()
+                }
             }) {
-                Image(systemName: "rectangle.on.rectangle.angled")
+                Image(systemName: viewModel.isDuplicateMode ? "xmark.circle" : "rectangle.on.rectangle.angled")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(viewModel.isFindingDuplicates ? .orange : .primary)
+                    .foregroundColor(viewModel.isFindingDuplicates ? .orange : viewModel.isDuplicateMode ? .blue : .primary)
             }
             .buttonStyle(PlainButtonStyle())
             .disabled(viewModel.isFindingDuplicates)
-            .help("Find duplicate or similar photos")
+            .help(viewModel.isDuplicateMode ? "Exit duplicate view" : "Find duplicate or similar photos")
 
-            // Filter section
             HStack(spacing: 2) {
                 Button(action: {
                     showFilterPopover.toggle()
@@ -328,24 +407,20 @@ struct ThumbGridView: View {
                     .help(label)
                 }
 
-                // TODO show this only if there are starred photos
-                if true {
-                    Button(action: {
-                        if viewModel.selectedRatings.isEmpty {
-                            viewModel.selectedRatings = [1, 2, 3, 4, 5]
-                        } else {
-                            viewModel.selectedRatings = []
-                        }
-                    }) {
-                        Image(systemName: viewModel.selectedRatings.isEmpty ? "star" : "star.fill")
-                            .font(.system(size: 12, weight: .medium))
+                Button(action: {
+                    if viewModel.selectedRatings.isEmpty {
+                        viewModel.selectedRatings = [1, 2, 3, 4, 5]
+                    } else {
+                        viewModel.selectedRatings = []
                     }
-                    .buttonStyle(PlainButtonStyle())
-                    .help("Filter by all ratings")
+                }) {
+                    Image(systemName: viewModel.selectedRatings.isEmpty ? "star" : "star.fill")
+                        .font(.system(size: 12, weight: .medium))
                 }
+                .buttonStyle(PlainButtonStyle())
+                .help("Filter by all ratings")
 
-                Spacer()
-                    .frame(width: 4)
+                Spacer().frame(width: 4)
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 3)
@@ -355,7 +430,6 @@ struct ThumbGridView: View {
 
             Spacer()
 
-            // Photo count
             photoCountText
         }
         .frame(height: 40)
@@ -364,32 +438,23 @@ struct ThumbGridView: View {
 
     private var photoCountText: some View {
         Group {
-            // Priority 1: Show metadata loading when collecting XMP and rating data
             if viewModel.isLoadingMetadata {
                 Text("Collecting metadata...")
                     .font(.caption)
                     .foregroundColor(.orange)
-            }
-            // Priority 2: Show caching progress when generating thumbnails
-            else if viewModel.showCachingProgress {
+            } else if viewModel.showCachingProgress {
                 Text("Generating \(viewModel.cachingQueueCount) thumbnails...")
                     .font(.caption)
                     .foregroundColor(.orange)
-            }
-            // Priority 3: Show selected count when multiple photos selected
-            else if viewModel.selectedPhotos.count > 1 {
+            } else if viewModel.selectedPhotos.count > 1 {
                 Text("\(viewModel.selectedPhotos.count) of \(viewModel.photos.count) selected")
                     .font(.caption)
                     .foregroundColor(.blue)
-            }
-            // Priority 4: Show filtered count when filters are active
-            else if viewModel.selectedLabels.count > 0 || viewModel.selectedRatings.count > 0 {
+            } else if viewModel.selectedLabels.count > 0 || viewModel.selectedRatings.count > 0 {
                 Text("\(viewModel.filteredPhotos.count) of \(viewModel.photos.count) photos")
                     .font(.caption)
                     .foregroundColor(.secondary)
-            }
-            // Priority 5: Show total count
-            else {
+            } else {
                 Text("\(viewModel.photos.count) photos")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -431,8 +496,6 @@ struct GridWidthPreferenceKey: PreferenceKey {
     }
 }
 
-/// Identifiable wrapper so .sheet(item:) gets the photos at the moment of presentation,
-/// avoiding the stale-state bug that occurs with .sheet(isPresented:) + a separate array.
 struct PhotosSheetItem: Identifiable {
     let id = UUID()
     let photos: [PhotoItem]

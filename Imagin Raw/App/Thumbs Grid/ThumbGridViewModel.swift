@@ -20,6 +20,7 @@ class ThumbGridViewModel: ObservableObject {
     @Published var cachingQueueCount: Int = 0
     @Published var isLoadingMetadata: Bool = false
     @Published var isFindingDuplicates: Bool = false
+    @Published var isDuplicateMode: Bool = false
     @Published var duplicateScanProgress: (done: Int, total: Int) = (0, 0)
     @Published var duplicateScanResult: DuplicateScanResult? = nil
 
@@ -1075,6 +1076,7 @@ class ThumbGridViewModel: ObservableObject {
             await MainActor.run {
                 self?.duplicateScanResult = result
                 self?.isFindingDuplicates = false
+                self?.isDuplicateMode = true
                 print("🔍 Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", result.duration))s")
                 for (i, group) in result.groups.enumerated() {
                     let names = group.photos.map { URL(fileURLWithPath: $0.path).lastPathComponent }.joined(separator: ", ")
@@ -1082,6 +1084,11 @@ class ThumbGridViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    func exitDuplicateMode() {
+        isDuplicateMode = false
+        duplicateScanResult = nil
     }
 
 }
