@@ -100,6 +100,11 @@ class ThumbsManager: ObservableObject {
 
     // Cache directory
     private let cacheDirectory: URL
+    private let accessLogURL: URL
+    private let diskCacheLimitBytes: Int64 = 2 * 1024 * 1024 * 1024 // 2 GB
+
+    // In-memory copy of the access log: [subdirectoryName: creationDate]
+    private var accessLog: [String: Date] = [:]
 
     private let thumbSize: CGFloat = 256
 
@@ -107,12 +112,16 @@ class ThumbsManager: ObservableObject {
         // Create cache directory in Application Support
         let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         cacheDirectory = cachesDir.appendingPathComponent("ro.imagin.raw/256")
+        accessLogURL = cachesDir.appendingPathComponent("ro.imagin.raw/cache_access_log.json")
 
         // Initialize semaphore for concurrent processing limit
         processingSemaphore = DispatchSemaphore(value: processingLimit)
 
         // Create directory if it doesn't exist
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+
+        loadAccessLog()
+        evictDiskCacheIfNeeded()
     }
 
     // MARK: - Public Interface
@@ -216,7 +225,8 @@ class ThumbsManager: ObservableObject {
     func purgeCache(for folderURL: URL) {
         let folderPath = folderURL.path
         let directoryHash = persistentHash(for: folderPath)
-        let subdirectory = cacheDirectory.appendingPathComponent("\(folderURL.lastPathComponent)_\(directoryHash)")
+        let subdirName = "\(folderURL.lastPathComponent)_\(directoryHash)"
+        let subdirectory = cacheDirectory.appendingPathComponent(subdirName)
 
         // Remove matching entries from memory cache
         cacheQueue.async(flags: .barrier) { [weak self] in
@@ -229,9 +239,12 @@ class ThumbsManager: ObservableObject {
             }
         }
 
-        // Remove subdirectory from disk
-        diskQueue.async {
+        // Remove subdirectory from disk and access log
+        diskQueue.async { [weak self] in
+            guard let self = self else { return }
             try? FileManager.default.removeItem(at: subdirectory)
+            self.accessLog.removeValue(forKey: subdirName)
+            self.saveAccessLog()
         }
     }
 
@@ -424,7 +437,11 @@ class ThumbsManager: ObservableObject {
             return
         }
         let cacheSubdir = cacheSubdirectory(for: path)
+        let isNew = !FileManager.default.fileExists(atPath: cacheSubdir.path)
         try? FileManager.default.createDirectory(at: cacheSubdir, withIntermediateDirectories: true)
+        if isNew {
+            registerCacheSubdirectory(cacheSubdir.lastPathComponent)
+        }
         let filename = diskFilename(for: path)
         let diskPath = cacheSubdir.appendingPathComponent("\(filename).jpg")
         try? jpegData.write(to: diskPath)
@@ -496,29 +513,74 @@ class ThumbsManager: ObservableObject {
         }
         priorityQueue = newQueue
     }
+
+    // MARK: - Disk Cache Size Management
+
+    private func loadAccessLog() {
+        guard let data = try? Data(contentsOf: accessLogURL),
+              let raw = try? JSONDecoder().decode([String: Date].self, from: data) else {
+            return
+        }
+        accessLog = raw
+    }
+
+    private func saveAccessLog() {
+        diskQueue.async { [weak self] in
+            guard let self = self,
+                  let data = try? JSONEncoder().encode(self.accessLog) else { return }
+            try? data.write(to: self.accessLogURL, options: .atomic)
+        }
+    }
+
+    /// Called the first time a cache subdirectory is created for a folder.
+    /// Records the creation date in the access log.
+    private func registerCacheSubdirectory(_ subdirName: String) {
+        guard accessLog[subdirName] == nil else { return }
+        accessLog[subdirName] = Date()
+        saveAccessLog()
+    }
+
+    private func totalDiskCacheSize() -> Int64 {
+        guard let enumerator = FileManager.default.enumerator(
+            at: cacheDirectory,
+            includingPropertiesForKeys: [.fileSizeKey],
+            options: [.skipsHiddenFiles]
+        ) else { return 0 }
+
+        var total: Int64 = 0
+        for case let url as URL in enumerator {
+            if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+                total += Int64(size)
+            }
+        }
+        return total
+    }
+
+    private func evictDiskCacheIfNeeded() {
+        diskQueue.async { [weak self] in
+            guard let self = self else { return }
+
+            let totalSize = self.totalDiskCacheSize()
+            guard totalSize > self.diskCacheLimitBytes else { return }
+
+            // Sort subdirectories oldest-first using the access log
+            let sorted = self.accessLog.sorted { $0.value < $1.value }
+
+            // Delete the oldest third
+            let deleteCount = max(1, sorted.count / 3)
+            let toDelete = sorted.prefix(deleteCount)
+
+            for (subdirName, _) in toDelete {
+                let subdirURL = self.cacheDirectory.appendingPathComponent(subdirName)
+                try? FileManager.default.removeItem(at: subdirURL)
+                self.accessLog.removeValue(forKey: subdirName)
+            }
+
+            self.saveAccessLog()
+
+            let deletedMB = (totalSize - self.totalDiskCacheSize()) / (1024 * 1024)
+            print("🗑️ Cache eviction: removed \(deleteCount) folder(s), freed ~\(deletedMB) MB")
+        }
+    }
 }
 
-// MARK: - Cache Statistics (for debugging)
-//extension ThumbsManager {
-//    var memoryCacheCount: Int {
-//        return cacheQueue.sync {
-//            return memoryCache.count
-//        }
-//    }
-//
-//    var diskCacheSize: Int64 {
-//        guard let enumerator = FileManager.default.enumerator(at: cacheDirectory,
-//                                                              includingPropertiesForKeys: [.fileSizeKey]) else {
-//            return 0
-//        }
-//
-//        var totalSize: Int64 = 0
-//        for case let fileURL as URL in enumerator {
-//            if let resourceValues = try? fileURL.resourceValues(forKeys: [.fileSizeKey]),
-//               let fileSize = resourceValues.fileSize {
-//                totalSize += Int64(fileSize)
-//            }
-//        }
-//        return totalSize
-//    }
-//}
