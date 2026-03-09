@@ -72,7 +72,8 @@ struct ContentView: View {
                 } else {
                     // Normal app interface when folders exist
                     navigationSplitView
-                        .navigationTitle(navigationTitle)
+                        .navigationTitle("Imagin Raw")
+                        .navigationSubtitle(navigationTitle)
                         .onChange(of: columnVisibilityStorage) { _, newValue in
                             isSidebarCollapsed = (newValue == "doubleColumn")
                         }
@@ -93,15 +94,20 @@ struct ContentView: View {
 
     private var navigationTitle: String {
         let url: URL
+        let isPhoto: Bool
         if let photo = filesModel.selectedPhoto {
             url = URL(fileURLWithPath: photo.path)
+            isPhoto = true
         } else if let folder = navigationDocumentURL {
             url = folder
+            isPhoto = false
         } else {
             return "Imagin Raw"
         }
         let pathComponents = url.pathComponents.filter { $0 != "/" }
-        return pathComponents.joined(separator: " › ")
+        let folders = pathComponents.dropLast().map { "📁 \($0)" }
+        let last = isPhoto ? "\(pathComponents.last ?? "")" : "📁 \(pathComponents.last ?? "")"
+        return (folders + [last]).joined(separator: " › ")
     }
 
     private var navigationSplitView: some View {
