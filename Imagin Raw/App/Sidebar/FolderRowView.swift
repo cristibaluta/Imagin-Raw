@@ -157,6 +157,13 @@ struct FolderRowView: View {
 
                     Divider()
 
+                    Button(action: {
+                        let cacheURL = ThumbsManager.shared.cacheURL(for: folder.url)
+                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
+                    }) {
+                        Label("Reveal Cache in Finder", systemImage: "folder.badge.questionmark")
+                    }
+
                     Button(role: .destructive, action: {
                         ThumbsManager.shared.purgeCache(for: folder.url)
                     }) {
@@ -196,6 +203,13 @@ struct FolderRowView: View {
                 }
 
                 Divider()
+
+                Button(action: {
+                    let cacheURL = ThumbsManager.shared.cacheURL(for: folder.url)
+                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
+                }) {
+                    Label("Reveal Cache in Finder", systemImage: "folder.badge.questionmark")
+                }
 
                 Button(role: .destructive, action: {
                     ThumbsManager.shared.purgeCache(for: folder.url)

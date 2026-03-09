@@ -224,6 +224,12 @@ class ThumbsManager: ObservableObject {
         }
     }
 
+    /// Returns the disk cache subdirectory URL for a given folder
+    func cacheURL(for folderURL: URL) -> URL {
+        let directoryHash = persistentHash(for: folderURL.path)
+        return cacheDirectory.appendingPathComponent("\(folderURL.lastPathComponent)_\(directoryHash)")
+    }
+
     /// Purge all cached thumbnails for a specific folder (both memory and disk)
     func purgeCache(for folderURL: URL) {
         let folderPath = folderURL.path
