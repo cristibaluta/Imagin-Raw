@@ -23,6 +23,7 @@ struct ThumbGridView: View {
     @State private var showSortPopover = false
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
+    @State private var showDuplicatesSheet = false
 
     init(filesModel: FilesModel,
          searchPhotoResults: [PhotoItem]? = nil,
@@ -61,6 +62,9 @@ struct ThumbGridView: View {
         .sheet(item: $renameSheetPhotos) { item in
             RenameView(photosToRename: item.photos)
                 .interactiveDismissDisabled(false)
+        }
+        .sheet(isPresented: $showDuplicatesSheet) {
+            DuplicatesResultSheet(viewModel: viewModel)
         }
         .onAppear {
             openSelectedPhotosCallback = { [viewModel] in
@@ -276,6 +280,19 @@ struct ThumbGridView: View {
             .onChange(of: viewModel.sortOption) { _, _ in
                 viewModel.saveSortOption()
             }
+
+            // Find Duplicates button
+            Button(action: {
+                viewModel.findDuplicates()
+                showDuplicatesSheet = true
+            }) {
+                Image(systemName: "rectangle.on.rectangle.angled")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(viewModel.isFindingDuplicates ? .orange : .primary)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .disabled(viewModel.isFindingDuplicates)
+            .help("Find duplicate or similar photos")
 
             // Filter section
             HStack(spacing: 2) {

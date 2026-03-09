@@ -19,6 +19,9 @@ class ThumbGridViewModel: ObservableObject {
     @Published var lastSelectedIndex: Int?
     @Published var cachingQueueCount: Int = 0
     @Published var isLoadingMetadata: Bool = false
+    @Published var isFindingDuplicates: Bool = false
+    @Published var duplicateScanProgress: (done: Int, total: Int) = (0, 0)
+    @Published var duplicateScanResult: DuplicateScanResult? = nil
 
     // Cached filtered photos to avoid recalculating on every access
     @Published private(set) var filteredPhotos: [PhotoItem] = []
@@ -115,7 +118,7 @@ class ThumbGridViewModel: ObservableObject {
         }
         .store(in: &cancellables)
     }
-// TODO this is called too often, when i just label a photo
+    // TODO this is called too often, when i just label a photo
     private func updateFilteredPhotos() {
         var result = photos
 
@@ -1045,4 +1048,40 @@ class ThumbGridViewModel: ObservableObject {
         // Manually trigger filteredPhotos update to ensure UI reflects changes immediately
         updateFilteredPhotos()
     }
+
+    // MARK: - Duplicate Finding
+
+    func findDuplicates() {
+        guard !isFindingDuplicates else { return }
+        let photosToScan = filteredPhotos
+        guard !photosToScan.isEmpty else { return }
+
+        isFindingDuplicates = true
+        duplicateScanProgress = (0, photosToScan.count)
+        duplicateScanResult = nil
+
+        // Must use Task.detached so the main actor is free while DuplicateFinderService
+        // runs its DispatchQueue.main.async continuation internally. A plain Task {}
+        // would block the main actor and deadlock the continuation.
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let result = await DuplicateFinderService.findDuplicates(
+                in: photosToScan,
+                progress: { done, total in
+                    DispatchQueue.main.async {
+                        self?.duplicateScanProgress = (done, total)
+                    }
+                }
+            )
+            await MainActor.run {
+                self?.duplicateScanResult = result
+                self?.isFindingDuplicates = false
+                print("🔍 Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", result.duration))s")
+                for (i, group) in result.groups.enumerated() {
+                    let names = group.photos.map { URL(fileURLWithPath: $0.path).lastPathComponent }.joined(separator: ", ")
+                    print("  Group \(i+1) (dist \(String(format: "%.3f", group.distance))): \(names)")
+                }
+            }
+        }
+    }
+
 }
