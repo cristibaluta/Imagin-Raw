@@ -554,6 +554,140 @@ class ThumbGridViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Key Handling
+
+    func handleKeyPress(_ keyPress: KeyPress,
+                        scrollTo: (UUID) -> Void,
+                        openPhotos: ([PhotoItem]) -> Void,
+                        onToggleSidebar: (() -> Void)?) -> KeyPress.Result {
+
+        guard !filteredPhotos.isEmpty else {
+            return .ignored
+        }
+
+        let currentIndex = filteredPhotos.firstIndex {
+            $0.id == filesModel.selectedPhoto?.id
+        } ?? 0
+        var newIndex = currentIndex
+
+        switch keyPress.key {
+        case .leftArrow:
+            newIndex = max(0, currentIndex - 1)
+        case .rightArrow:
+            newIndex = min(filteredPhotos.count - 1, currentIndex + 1)
+        case .upArrow:
+            newIndex = max(0, currentIndex - gridType.columnCount)
+        case .downArrow:
+            newIndex = min(filteredPhotos.count - 1, currentIndex + gridType.columnCount)
+        case .return:
+            handleReturnKey(openPhotos: openPhotos)
+            return .handled
+        default:
+            return handleOtherKeys(keyPress, onToggleSidebar: onToggleSidebar)
+        }
+
+        if newIndex != currentIndex {
+            navigateToPhoto(at: newIndex)
+            scrollTo(filteredPhotos[newIndex].id)
+            return .handled
+        }
+
+        return .ignored
+    }
+
+    private func handleReturnKey(openPhotos: ([PhotoItem]) -> Void) {
+        let photosToOpen: [PhotoItem]
+        if selectedPhotos.count > 1 {
+            photosToOpen = filteredPhotos.filter { selectedPhotos.contains($0.id) }
+        } else if let selectedPhoto = filesModel.selectedPhoto {
+            photosToOpen = [selectedPhoto]
+        } else {
+            return
+        }
+        openPhotos(photosToOpen)
+    }
+
+    private func handleOtherKeys(_ keyPress: KeyPress, onToggleSidebar: (() -> Void)?) -> KeyPress.Result {
+        let key = keyPress.characters
+
+        // Toggle sidebar (works regardless of selection)
+        if key == "c" || key == "C" {
+            onToggleSidebar?()
+            return .handled
+        }
+
+        // Toggle grid type (works regardless of selection)
+        if key == "g" || key == "G" {
+            toggleGridType()
+            return .handled
+        }
+
+        let photos = getSelectedPhotosForBulkAction()
+        guard !photos.isEmpty else { return .ignored }
+
+        // Command+A for Select All
+        if keyPress.modifiers.contains(.command) && keyPress.characters == "a" {
+            selectAll()
+            return .handled
+        }
+
+        // Command+Z for Undo last trash
+        if keyPress.modifiers.contains(.command) && keyPress.characters == "z" {
+            undoLastTrash()
+            return .handled
+        }
+
+        // Cmd+Delete — immediately trash selected photos
+        if keyPress.modifiers.contains(.command) &&
+            (keyPress.key == .delete || keyPress.characters == "\u{7F}") {
+            movePhotosToTrash(photos)
+            return .handled
+        }
+
+        // Toggle reject state (X key, works for all files)
+        let rawPhotos = photos.filter { $0.isRawFile }
+        guard !rawPhotos.isEmpty else { return .ignored }
+
+        // Rating keys (1-5)
+        if let rating = Int(key), rating >= 1 && rating <= 5 {
+            applyRating(rating, to: rawPhotos)
+            return .handled
+        }
+
+        // Label keys (6-0)
+        let labelMap: [String: String] = [
+            "6": "Select",
+            "7": "Second",
+            "8": "Approved",
+            "9": "Review",
+            "0": "To Do"
+        ]
+
+        if let label = labelMap[key] {
+            applyLabel(label, to: rawPhotos)
+            return .handled
+        }
+
+        // Remove label
+        if key == "-" {
+            removeLabels(from: rawPhotos)
+            return .handled
+        }
+
+        // Toggle reject state (X key)
+        if key == "x" || key == "X" {
+            toggleDeleteState(for: photos)
+            return .handled
+        }
+
+        if key == "a" || key == "A" {
+            applyLabel(labelMap["8"]!, to: rawPhotos)
+            return .handled
+        }
+
+        return .ignored
+    }
+
     // MARK: - Persistence
     func saveSortOption() {
         appPrefs.set(sortOption.rawValue, forKey: .sortOption)

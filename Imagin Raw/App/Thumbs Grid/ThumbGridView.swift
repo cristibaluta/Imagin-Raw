@@ -156,7 +156,16 @@ struct ThumbGridView: View {
                 .focusEffectDisabled()
                 .focused($isFocused)
                 .onKeyPress { keyPress in
-                    handleKeyPress(keyPress, proxy: proxy)
+                    viewModel.handleKeyPress(keyPress,
+                                             scrollTo: { photoId in
+                                                Task {
+                                                    proxy.scrollTo(photoId, anchor: .center)
+                                                }
+                                            },
+                                             openPhotos: { photos in
+                                                externalAppManager.openPhotos(photos)
+                                            },
+                                             onToggleSidebar: { onToggleSidebar?() })
                 }
                 .onAppear {
                     isFocused = true
@@ -386,138 +395,6 @@ struct ThumbGridView: View {
         } else {
             externalAppManager.openPhotos([photo])
         }
-    }
-
-    private func handleKeyPress(_ keyPress: KeyPress, proxy: ScrollViewProxy) -> KeyPress.Result {
-        guard !viewModel.filteredPhotos.isEmpty else {
-            return .ignored
-        }
-
-        let currentIndex = viewModel.filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
-        var newIndex = currentIndex
-
-        switch keyPress.key {
-        case .leftArrow:
-            newIndex = max(0, currentIndex - 1)
-        case .rightArrow:
-            newIndex = min(viewModel.filteredPhotos.count - 1, currentIndex + 1)
-        case .upArrow:
-            newIndex = max(0, currentIndex - viewModel.gridType.columnCount)
-        case .downArrow:
-            newIndex = min(viewModel.filteredPhotos.count - 1, currentIndex + viewModel.gridType.columnCount)
-        case .return:
-            handleReturnKey()
-            return .handled
-        case .space:
-            if filesModel.selectedPhoto != nil {
-                onEnterReviewMode?()
-            }
-            return .handled
-        case .delete:
-            return handleOtherKeys(keyPress)
-        default:
-            return handleOtherKeys(keyPress)
-        }
-
-        if newIndex != currentIndex {
-            Task {
-                viewModel.navigateToPhoto(at: newIndex)
-                proxy.scrollTo(viewModel.filteredPhotos[newIndex].id, anchor: .center)
-            }
-            return .handled
-        }
-
-        return .ignored
-    }
-
-    private func handleReturnKey() {
-        if viewModel.selectedPhotos.count > 1 {
-            let selectedPhotoItems = viewModel.filteredPhotos.filter { viewModel.selectedPhotos.contains($0.id) }
-            externalAppManager.openPhotos(selectedPhotoItems)
-        } else if let selectedPhoto = filesModel.selectedPhoto {
-            externalAppManager.openPhotos([selectedPhoto])
-        }
-    }
-
-    private func handleOtherKeys(_ keyPress: KeyPress) -> KeyPress.Result {
-        let key = keyPress.characters
-
-        // Toggle sidebar (works regardless of selection)
-        if key == "c" || key == "C" {
-            onToggleSidebar?()
-            return .handled
-        }
-
-        // Toggle grid type (works regardless of selection)
-        if key == "g" || key == "G" {
-            viewModel.toggleGridType()
-            return .handled
-        }
-
-        let photos = viewModel.getSelectedPhotosForBulkAction()
-        guard !photos.isEmpty else { return .ignored }
-
-        // Command+A for Select All
-        if keyPress.modifiers.contains(.command) && keyPress.characters == "a" {
-            viewModel.selectAll()
-            return .handled
-        }
-
-        // Command+Z for Undo last trash
-        if keyPress.modifiers.contains(.command) && keyPress.characters == "z" {
-            viewModel.undoLastTrash()
-            return .handled
-        }
-
-        // Cmd+Delete — immediately trash selected photos
-        // The Delete (backspace) key sends \u{7F}, also check keyPress.key == .delete
-        if keyPress.modifiers.contains(.command) &&
-            (keyPress.key == .delete || keyPress.characters == "\u{7F}") {
-            viewModel.movePhotosToTrash(photos)
-            return .handled
-        }
-
-        // Toggle reject state (X key, works for all files)
-        let rawPhotos = photos.filter { $0.isRawFile }
-        guard !rawPhotos.isEmpty else { return .ignored }
-
-        // Rating keys (1-5)
-        if let rating = Int(key), rating >= 1 && rating <= 5 {
-            viewModel.applyRating(rating, to: rawPhotos)
-            return .handled
-        }
-
-        // Label keys (6-0)
-        let labelMap: [String: String] = [
-            "6": "Select",
-            "7": "Second",
-            "8": "Approved",
-            "9": "Review",
-            "0": "To Do"
-        ]
-
-        if let label = labelMap[key] {
-            viewModel.applyLabel(label, to: rawPhotos)
-            return .handled
-        }
-
-        // Remove label
-        if key == "-" {
-            viewModel.removeLabels(from: rawPhotos)
-            return .handled
-        }
-
-        // Toggle reject state (X key, works for all files)
-        if key == "x" || key == "X" {
-            viewModel.toggleDeleteState(for: photos)
-            return .handled
-        }
-        if key == "a" || key == "A" {
-            viewModel.applyLabel(labelMap["8"]!, to: rawPhotos)
-            return .handled
-        }
-
-        return .ignored
     }
 
     private func configureScrollView() {
