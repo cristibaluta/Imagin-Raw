@@ -147,25 +147,29 @@ struct ThumbGridView: View {
     private func duplicateGroupHeader(group: DuplicateGroup, index: Int, total: Int) -> some View {
         let pct = max(0, min(100, Int(((1.0 - Double(group.distance)) * 100).rounded())))
         return HStack(spacing: 8) {
-            Text("Group \(index + 1) of \(total)")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(.primary)
-            Text("·")
-                .foregroundColor(.secondary)
-            Text("\(group.photos.count) photos")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            Text("·")
-                .foregroundColor(.secondary)
-            Text("\(pct)% similar")
-                .font(.caption)
-                .foregroundColor(pct >= 90 ? .orange : .secondary)
+            HStack(spacing: 8) {
+                Text("Group \(index + 1)")
+                    .font(.caption)
+                    .foregroundColor(.primary)
+                Text("·")
+                    .foregroundColor(.secondary)
+                Text("\(pct)% similarity")
+                    .font(.caption)
+                    .foregroundColor(pct >= 90 ? .orange : .secondary)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 4, style: .circular)
+                    .foregroundColor(.black)
+            )
+            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+
             Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color(NSColor.windowBackgroundColor).opacity(0.95))
+        .background(.clear)
     }
 
     // MARK: - Empty State
@@ -330,17 +334,19 @@ struct ThumbGridView: View {
             .buttonStyle(PlainButtonStyle())
             .padding(.leading, 8)
 
-            Button(action: { showSortPopover.toggle() }) {
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.primary)
-            }
-            .buttonStyle(PlainButtonStyle())
-            .popover(isPresented: $showSortPopover) {
-                SortPopoverView(sortOption: $viewModel.sortOption)
-            }
-            .onChange(of: viewModel.sortOption) { _, _ in
-                viewModel.saveSortOption()
+            if !viewModel.isDuplicateMode {
+                Button(action: { showSortPopover.toggle() }) {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.primary)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .popover(isPresented: $showSortPopover) {
+                    SortPopoverView(sortOption: $viewModel.sortOption)
+                }
+                .onChange(of: viewModel.sortOption) { _, _ in
+                    viewModel.saveSortOption()
+                }
             }
 
             // Find Duplicates / Exit Duplicates button
@@ -360,7 +366,8 @@ struct ThumbGridView: View {
             .disabled(viewModel.isFindingDuplicates)
             .help(viewModel.isDuplicateMode ? "Exit duplicate view" : "Find duplicate or similar photos")
 
-            HStack(spacing: 2) {
+            if !viewModel.isDuplicateMode {
+                HStack(spacing: 2) {
                 Button(action: { showFilterPopover.toggle() }) {
                     Image(systemName: "line.3.horizontal.decrease")
                         .font(.system(size: 14, weight: .medium))
@@ -409,6 +416,7 @@ struct ThumbGridView: View {
                     .stroke(Color.gray.opacity(0.5), lineWidth: 1)
             )
             .layoutPriority(1)
+            } // end if !isDuplicateMode
 
             Spacer()
 
@@ -420,7 +428,14 @@ struct ThumbGridView: View {
 
     private var photoCountText: some View {
         Group {
-            if viewModel.isLoadingMetadata {
+            if viewModel.isDuplicateMode {
+                if let result = viewModel.duplicateScanResult {
+                    let totalDupePhotos = result.groups.reduce(0) { $0 + $1.photos.count }
+                    Text("\(result.groups.count) group(s), \(totalDupePhotos) duplicates")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+            } else if viewModel.isLoadingMetadata {
                 Text("Collecting metadata...")
                     .font(.caption)
                     .foregroundColor(.orange)
