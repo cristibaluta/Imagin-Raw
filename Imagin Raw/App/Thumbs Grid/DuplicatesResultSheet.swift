@@ -98,15 +98,22 @@ struct DuplicatesResultSheet: View {
 private struct DuplicateGroupRow: View {
     let group: DuplicateGroup
 
+    private var similarityPercent: Int {
+        // Vision feature print distance is in the range 0.0–1.0.
+        // 0.0 = identical, 1.0 = completely different.
+        let pct = (1.0 - Double(group.distance)) * 100
+        return max(0, min(100, Int(pct.rounded())))
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("\(group.photos.count) similar photos")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text("(max distance: \(String(format: "%.3f", group.distance)))")
+                Text("(\(similarityPercent)% similar)")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(similarityPercent >= 90 ? .orange : .secondary)
                 Spacer()
             }
 
