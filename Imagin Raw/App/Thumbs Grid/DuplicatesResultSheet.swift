@@ -166,14 +166,9 @@ private struct DuplicatePhotoTile: View {
 
     private func loadThumbnail() {
         let path = photo.path
-        Task.detached(priority: .utility) {
-            if let cached = await ThumbsManager.shared.getCachedThumbnail(for: path) {
-                await MainActor.run { thumbnail = cached }
-                return
-            }
-            // Fall back to reading the file directly at a small size
-            if let img = NSImage(contentsOfFile: path) {
-                await MainActor.run { thumbnail = img }
+        ThumbsManager.shared.loadThumbnail(for: path, priority: .high) { image in
+            DispatchQueue.main.async {
+                thumbnail = image
             }
         }
     }
