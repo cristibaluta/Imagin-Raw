@@ -138,12 +138,11 @@ struct RenameView: View {
                                 .padding(8)
                                 .background(Color(NSColor.textBackgroundColor))
                                 .cornerRadius(4)
+                            Spacer()
                         }
                     }
 
                     Spacer()
-
-                    Divider()
 
                     HStack(spacing: 12) {
                         Button("Cancel") { dismiss() }
