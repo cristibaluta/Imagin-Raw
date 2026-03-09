@@ -19,6 +19,11 @@ class SpotlightSearcher: ObservableObject {
 
     private var query: NSMetadataQuery?
     private var observers: [NSObjectProtocol] = []
+    private let backgroundQueue: OperationQueue = {
+        let q = OperationQueue()
+        q.qualityOfService = .userInitiated
+        return q
+    }()
 
     deinit {
         query?.stop()
@@ -50,17 +55,15 @@ class SpotlightSearcher: ObservableObject {
 
         let finished = NotificationCenter.default.addObserver(forName: .NSMetadataQueryDidFinishGathering,
                                                               object: q,
-                                                              queue: .main) { _ in
-            Task { await MainActor.run { [weak self] in
-                self?.handleResults()
-            }}
+                                                              queue: backgroundQueue) { [weak self] notification in
+            guard let q = notification.object as? NSMetadataQuery else { return }
+            self?.handleResults(q)
         }
         let updated = NotificationCenter.default.addObserver(forName: .NSMetadataQueryDidUpdate,
                                                              object: q,
-                                                             queue: .main) { _ in
-            Task { await MainActor.run { [weak self] in
-                self?.handleResults()
-            }}
+                                                             queue: backgroundQueue) { [weak self] notification in
+            guard let q = notification.object as? NSMetadataQuery else { return }
+            self?.handleResults(q)
         }
         observers = [finished, updated]
         q.start()
@@ -76,38 +79,34 @@ class SpotlightSearcher: ObservableObject {
         isSearching = false
     }
 
-    private func handleResults() {
-        guard let q = query else { return }
+    nonisolated private func handleResults(_ q: NSMetadataQuery) {
         q.disableUpdates()
 
+        let supportedExtensions = FilesExtensions.all
         var folderItems: [FolderItem] = []
         var photos: [PhotoItem] = []
-        let supportedExtensions = FilesExtensions.all
 
         for result in q.results {
             guard let item = result as? NSMetadataItem,
                   let path = item.value(forAttribute: kMDItemPath as String) as? String else { continue }
-
             let url = URL(fileURLWithPath: path)
             let contentType = item.value(forAttribute: kMDItemContentType as String) as? String ?? ""
-
             if contentType == "public.folder" {
                 folderItems.append(FolderItem(url: url, children: nil))
             } else if supportedExtensions.contains(url.pathExtension.lowercased()) {
                 let date = (item.value(forAttribute: kMDItemFSCreationDate as String) as? Date) ?? Date()
-                photos.append(PhotoItem(path: path,
-                                        xmp: nil,
-                                        dateCreated: date,
-                                        hasACR: false,
-                                        hasJPG: false,
-                                        inCameraRating: nil))
+                photos.append(PhotoItem(path: path, xmp: nil, dateCreated: date,
+                                        hasACR: false, hasJPG: false, inCameraRating: nil))
             }
         }
 
-        results = folderItems
-        photoResults = photos
-        isSearching = !(query?.isGathering == false)
-
+        let isStillGathering = q.isGathering
         q.enableUpdates()
+
+        DispatchQueue.main.async { [weak self] in
+            self?.results = folderItems
+            self?.photoResults = photos
+            self?.isSearching = isStillGathering
+        }
     }
 }
