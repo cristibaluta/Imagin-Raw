@@ -44,37 +44,53 @@ enum DuplicateFinderService {
             return DuplicateScanResult(groups: [], totalScanned: total, duration: 0)
         }
 
-        // Pre-extract embedded JPEGs for RAW files.
-        // Must happen on the main actor because RawWrapper.shared() is @MainActor-isolated.
-        // We use a continuation instead of await MainActor.run to avoid re-entrant
-        // deadlock when findDuplicates is called from @MainActor code (e.g. ThumbGridViewModel).
-        print("🔍 Pre-extracting embedded JPEGs...")
+        // Resolve thumbnail URLs on the main actor.
+        // For each photo: if the thumb is already on disk, use it directly.
+        // If not, generate it now via ThumbsManager (which also caches it for future use).
+        print("🔍 Resolving thumbnail URLs...")
         let imageURLs: [Int: URL] = await withCheckedContinuation { continuation in
             DispatchQueue.main.async {
+                let group = DispatchGroup()
                 var urls: [Int: URL] = [:]
+                let lock = NSLock()
+
                 for (index, photo) in photos.enumerated() {
-                    let url = URL(fileURLWithPath: photo.path)
-                    let ext = url.pathExtension.lowercased()
-                    if FilesExtensions.raw.contains(ext) {
-                        if let jpegData = RawWrapper.shared().extractEmbeddedJPEG(photo.path),
-                           let tempURL = writeTempJPEG(jpegData, name: "\(index)_\(url.deletingPathExtension().lastPathComponent)") {
-                            urls[index] = tempURL
-                        } else {
-                            print("  ⚠️ JPEG extraction failed for \(url.lastPathComponent), falling back to RAW")
-                            urls[index] = url
-                        }
+                    let diskURL = ThumbsManager.shared.diskCacheURL(for: photo.path)
+
+                    if FileManager.default.fileExists(atPath: diskURL.path) {
+                        // Thumbnail already on disk — use it directly, no I/O needed
+                        lock.lock()
+                        urls[index] = diskURL
+                        lock.unlock()
+                        print("  ✅ Cached thumb [\(index+1)/\(total)]: \(diskURL.lastPathComponent)")
                     } else {
-                        urls[index] = url
+                        // Generate the thumbnail now; ThumbsManager caches it to disk automatically
+                        print("  ⏳ Generating thumb [\(index+1)/\(total)]: \(URL(fileURLWithPath: photo.path).lastPathComponent)")
+                        group.enter()
+                        ThumbsManager.shared.loadThumbnail(for: photo.path, priority: .high) { _ in
+                            // After generation the file is on disk at diskURL
+                            if FileManager.default.fileExists(atPath: diskURL.path) {
+                                lock.lock()
+                                urls[index] = diskURL
+                                lock.unlock()
+                            } else {
+                                print("  ⚠️ Thumb still missing after generation: \(diskURL.lastPathComponent)")
+                            }
+                            group.leave()
+                        }
                     }
                 }
-                continuation.resume(returning: urls)
+
+                group.notify(queue: .main) {
+                    print("🔍 Thumbnail URLs ready: \(urls.count)/\(total)")
+                    continuation.resume(returning: urls)
+                }
             }
         }
-        print("🔍 Image URLs ready (\(imageURLs.count)/\(total))")
 
-        // Run entirely serial and detached — no TaskGroup, no thread pool exhaustion.
-        // Progress is reported via DispatchQueue.main.async (fire-and-forget) to avoid
-        // any await inside the detached task which could re-enter the main actor.
+        // Run Vision serially on a background thread.
+        // VNImageRequestHandler.perform is synchronous + CPU-bound; using a plain
+        // DispatchQueue avoids cooperative-thread-pool exhaustion.
         let prints: [Int: VNFeaturePrintObservation] = await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 var results: [Int: VNFeaturePrintObservation] = [:]
@@ -82,24 +98,18 @@ enum DuplicateFinderService {
 
                 for (i, index) in indices.enumerated() {
                     guard let imageURL = imageURLs[index] else { continue }
-                    let filename = imageURL.lastPathComponent
 
-                    guard FileManager.default.fileExists(atPath: imageURL.path) else {
-                        print("  ❌ File not found: \(imageURL.path)")
-                        DispatchQueue.main.async { progress(i + 1, total) }
-                        continue
-                    }
                     guard FileManager.default.isReadableFile(atPath: imageURL.path) else {
-                        print("  ❌ File not readable: \(imageURL.path)")
+                        print("  ❌ Not readable: \(imageURL.path)")
                         DispatchQueue.main.async { progress(i + 1, total) }
                         continue
                     }
 
                     if let observation = featurePrint(at: imageURL) {
                         results[index] = observation
-                        print("  ✅ [\(i+1)/\(total)] \(filename)")
+                        print("  ✅ [\(i+1)/\(total)] \(imageURL.lastPathComponent)")
                     } else {
-                        print("  ⚠️ [\(i+1)/\(total)] No feature print: \(filename)")
+                        print("  ⚠️ [\(i+1)/\(total)] No feature print: \(imageURL.lastPathComponent)")
                     }
 
                     DispatchQueue.main.async { progress(i + 1, total) }
@@ -123,7 +133,7 @@ enum DuplicateFinderService {
     @available(macOS 10.15, *)
     private static func featurePrint(at imageURL: URL) -> VNFeaturePrintObservation? {
         let request = VNGenerateImageFeaturePrintRequest()
-        request.imageCropAndScaleOption = .scaleFill
+        request.imageCropAndScaleOption = .scaleFit
 
         // Try loading image data first to catch corrupt/unreadable files early
         guard let data = try? Data(contentsOf: imageURL), !data.isEmpty else {
@@ -144,21 +154,6 @@ enum DuplicateFinderService {
             if let underlying = error.userInfo[NSUnderlyingErrorKey] as? Error {
                 print("     Underlying: \(underlying)")
             }
-            return nil
-        }
-    }
-
-    // MARK: - Temp JPEG
-
-    private static func writeTempJPEG(_ data: Data, name: String) -> URL? {
-        let safe = name.replacingOccurrences(of: "/", with: "_")
-        let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("imagin_fp_\(safe).jpg")
-        do {
-            try data.write(to: tmp, options: .atomic)
-            return tmp
-        } catch {
-            print("  ❌ Failed to write temp JPEG '\(name)': \(error)")
             return nil
         }
     }

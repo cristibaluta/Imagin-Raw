@@ -193,6 +193,13 @@ class ThumbsManager: ObservableObject {
         return getCachedImage(for: cacheKey)
     }
 
+    /// Returns the disk cache URL for a photo's thumbnail (may or may not exist yet).
+    func diskCacheURL(for path: String) -> URL {
+        let subdirectory = cacheSubdirectory(for: path)
+        let filename = diskFilename(for: path)
+        return subdirectory.appendingPathComponent("\(filename).jpg")
+    }
+
     /// Delete cached thumbnail for a specific photo (both memory and disk)
     func deleteCachedThumbnail(for path: String) {
         let key = cacheKey(for: path)
