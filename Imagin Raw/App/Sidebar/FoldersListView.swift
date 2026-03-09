@@ -100,14 +100,4 @@ struct FoldersListView: View {
         }
     }
 
-    private func isDescendant(_ childURL: URL, of parentFolder: FolderItem) -> Bool {
-        if let children = parentFolder.children {
-            for child in children {
-                if child.url == childURL || isDescendant(childURL, of: child) {
-                    return true
-                }
-            }
-        }
-        return false
-    }
 }

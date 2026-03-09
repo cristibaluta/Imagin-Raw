@@ -187,10 +187,6 @@ class FileSystemMonitor {
         // 2. Directory changes (new folders)
         let isRelevant = (isPhotoFile && (isFileCreated || isFileRemoved || isFileRenamed)) || isDirectoryChange
 
-        if isRelevant {
-        } else if fileExtension == "xmp" {
-        }
-
         return isRelevant
     }
 
@@ -544,33 +540,6 @@ final class FilesModel: ObservableObject, FileSystemMonitorDelegate {
                 }
             }
         }
-    }
-
-    private func refreshFolderRecursively(folder: FolderItem, changedURL: URL) -> FolderItem? {
-        // Check if this is the folder that changed
-        if folder.url == changedURL {
-            // Refresh this folder's children
-            let refreshedTree = loadFolderTree(at: folder.url, maxDepth: 2, currentDepth: 0, bookmarkData: folder.bookmarkData)
-            return refreshedTree
-        }
-
-        // Check if the changed URL is a child of this folder
-        if changedURL.path.hasPrefix(folder.url.path) {
-            // Recursively refresh children
-            var updatedChildren: [FolderItem]? = nil
-            if let children = folder.children {
-                updatedChildren = children.compactMap { child in
-                    refreshFolderRecursively(folder: child, changedURL: changedURL)
-                }
-                // If no children were updated, keep the original children
-                if updatedChildren?.isEmpty == true {
-                    updatedChildren = children
-                }
-            }
-            return FolderItem(url: folder.url, children: updatedChildren, bookmarkData: folder.bookmarkData)
-        }
-
-        return nil // This folder wasn't affected by the change
     }
 
     func addFolder(at url: URL) {

@@ -184,24 +184,6 @@ class ThumbsManager: ObservableObject {
         return getCachedImage(for: cacheKey)
     }
 
-    /// Clear memory cache
-    func clearMemoryCache() {
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            self?.memoryCache.removeAll()
-            self?.cacheAccessOrder.removeAll()
-        }
-    }
-
-    /// Clear disk cache
-    func clearDiskCache() {
-        diskQueue.async { [weak self] in
-            guard let self = self else { return }
-            try? FileManager.default.removeItem(at: self.cacheDirectory)
-            try? FileManager.default.createDirectory(at: self.cacheDirectory,
-                                                   withIntermediateDirectories: true)
-        }
-    }
-
     /// Delete cached thumbnail for a specific photo (both memory and disk)
     func deleteCachedThumbnail(for path: String) {
         let key = cacheKey(for: path)

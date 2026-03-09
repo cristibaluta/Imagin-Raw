@@ -21,7 +21,6 @@ struct ThumbGridView: View {
 
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
-    @State private var showGridTypePopover = false
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
 
@@ -405,14 +404,6 @@ struct ThumbGridView: View {
                 scrollView.autohidesScrollers = false
             }
         }
-    }
-}
-
-struct ViewOffsetKey: PreferenceKey {
-    typealias Value = CGFloat
-    static var defaultValue = CGFloat.zero
-    static func reduce(value: inout Value, nextValue: () -> Value) {
-        value += nextValue()
     }
 }
 
