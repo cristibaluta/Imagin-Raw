@@ -92,14 +92,16 @@ struct ContentView: View {
     }
 
     private var navigationTitle: String {
-        guard let url = navigationDocumentURL else {
+        let url: URL
+        if let photo = filesModel.selectedPhoto {
+            url = URL(fileURLWithPath: photo.path)
+        } else if let folder = navigationDocumentURL {
+            url = folder
+        } else {
             return "Imagin Raw"
         }
-        // Create a breadcrumb-style path
         let pathComponents = url.pathComponents.filter { $0 != "/" }
-        let breadcrumb = pathComponents.joined(separator: " › ")
-
-        return breadcrumb.isEmpty ? url.lastPathComponent : breadcrumb
+        return pathComponents.joined(separator: " › ")
     }
 
     private var navigationSplitView: some View {
