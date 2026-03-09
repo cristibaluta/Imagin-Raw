@@ -451,17 +451,10 @@ class ThumbsManager: ObservableObject {
         let url = URL(fileURLWithPath: path)
         let fileExtension = url.pathExtension.lowercased()
 
-        // Define RAW file extensions
-        let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
-                           "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
-                           "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
-                           "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
-
-        // Wrap entire thumbnail generation in autoreleasepool
         autoreleasepool {
             var originalImage: NSImage?
 
-            if rawExtensions.contains(fileExtension) {
+            if FilesExtensions.raw.contains(fileExtension) {
                 // Generate thumbnail from RAW file using RawWrapper
                 guard let data = RawWrapper.shared().extractEmbeddedJPEG(path) else {
                     completion(nil)

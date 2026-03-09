@@ -20,8 +20,6 @@ class SpotlightSearcher: ObservableObject {
     private var query: NSMetadataQuery?
     private var observers: [NSObjectProtocol] = []
 
-    private let imageExtensions: Set<String> = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
-                                                 "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
                                                  "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
                                                  "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d",
                                                  "jpg", "jpeg", "png", "heic", "tiff", "tif"]
@@ -54,12 +52,16 @@ class SpotlightSearcher: ObservableObject {
         q.searchScopes = rootFolders.map { $0.url.path as NSString }
         q.sortDescriptors = [NSSortDescriptor(key: "kMDItemDisplayName", ascending: true)]
 
-        let finished = NotificationCenter.default.addObserver(
-            forName: .NSMetadataQueryDidFinishGathering, object: q, queue: .main
-        ) { [weak self] _ in self?.handleResults() }
-        let updated = NotificationCenter.default.addObserver(
-            forName: .NSMetadataQueryDidUpdate, object: q, queue: .main
-        ) { [weak self] _ in self?.handleResults() }
+        let finished = NotificationCenter.default.addObserver(forName: .NSMetadataQueryDidFinishGathering,
+                                                              object: q,
+                                                              queue: .main) { [weak self] _ in
+            self?.handleResults()
+        }
+        let updated = NotificationCenter.default.addObserver(forName: .NSMetadataQueryDidUpdate,
+                                                             object: q,
+                                                             queue: .main) { [weak self] _ in
+            self?.handleResults()
+        }
         observers = [finished, updated]
         q.start()
     }
@@ -67,7 +69,9 @@ class SpotlightSearcher: ObservableObject {
     func stopSearch() {
         query?.stop()
         query = nil
-        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers.forEach {
+            NotificationCenter.default.removeObserver($0)
+        }
         observers = []
         isSearching = false
     }
@@ -78,6 +82,7 @@ class SpotlightSearcher: ObservableObject {
 
         var folderItems: [FolderItem] = []
         var photos: [PhotoItem] = []
+        let supportedExtensions = FilesExtensions.all
 
         for result in q.results {
             guard let item = result as? NSMetadataItem,
@@ -88,9 +93,14 @@ class SpotlightSearcher: ObservableObject {
 
             if contentType == "public.folder" {
                 folderItems.append(FolderItem(url: url, children: nil))
-            } else if imageExtensions.contains(url.pathExtension.lowercased()) {
+            } else if supportedExtensions.contains(url.pathExtension.lowercased()) {
                 let date = (item.value(forAttribute: kMDItemFSCreationDate as String) as? Date) ?? Date()
-                photos.append(PhotoItem(path: path, xmp: nil, dateCreated: date, hasACR: false, hasJPG: false, inCameraRating: nil))
+                photos.append(PhotoItem(path: path,
+                                        xmp: nil,
+                                        dateCreated: date,
+                                        hasACR: false,
+                                        hasJPG: false,
+                                        inCameraRating: nil))
             }
         }
 

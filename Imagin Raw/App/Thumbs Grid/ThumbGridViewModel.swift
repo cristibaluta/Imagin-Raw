@@ -415,10 +415,6 @@ class ThumbGridViewModel: ObservableObject {
     private var undoStack: [[(trashedURL: URL, originalURL: URL)]] = []
 
     func movePhotosToTrash(_ photos: [PhotoItem]) {
-        let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
-                           "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
-                           "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
-                           "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
 
         var undoEntry: [(trashedURL: URL, originalURL: URL)] = []
 
@@ -440,7 +436,7 @@ class ThumbGridViewModel: ObservableObject {
                 ThumbsManager.shared.deleteCachedThumbnail(for: photo.path)
 
                 // If this is a RAW file, also delete associated files
-                if rawExtensions.contains(fileExtension) {
+                if FilesExtensions.raw.contains(fileExtension) {
                     for jpgExt in ["jpg", "jpeg", "JPG", "JPEG"] {
                         let jpgURL = directory.appendingPathComponent("\(baseName).\(jpgExt)")
                         if FileManager.default.fileExists(atPath: jpgURL.path) {

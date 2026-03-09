@@ -74,11 +74,7 @@ class LargePreviewViewModel: ObservableObject {
     private static func loadImageWithExif(from path: String) async -> (NSImage?, ExifInfo?) {
         let url = URL(fileURLWithPath: path)
         let fileExtension = url.pathExtension.lowercased()
-        let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
-                             "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
-                             "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
-                             "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
-        if rawExtensions.contains(fileExtension) {
+        if FilesExtensions.raw.contains(fileExtension) {
             guard let rawPhoto = RawWrapper.shared().extractRawPhoto(path) else {
                 return (nil, nil)
             }

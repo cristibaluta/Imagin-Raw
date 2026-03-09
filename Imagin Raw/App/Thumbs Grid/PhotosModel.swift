@@ -85,10 +85,6 @@ final class PhotosModel: ObservableObject {
     /// Returns basic info immediately, then enriches with metadata.
     static func loadPhotos(for urls: [URL]) async -> [PhotoItem] {
         let fm = FileManager.default
-        let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
-                             "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
-                             "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
-                             "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
 
         // Build basic PhotoItems first
         var basicPhotos: [PhotoItem] = urls.map { url in
@@ -102,7 +98,7 @@ final class PhotosModel: ObservableObject {
                 group.addTask {
                     let url = URL(fileURLWithPath: photo.path)
                     let ext = url.pathExtension.lowercased()
-                    let isRaw = rawExtensions.contains(ext)
+                    let isRaw = FilesExtensions.raw.contains(ext)
 
                     // Try XMP sidecar
                     let xmpURL = url.deletingPathExtension().appendingPathExtension("xmp")
@@ -152,13 +148,7 @@ final class PhotosModel: ObservableObject {
 
     private static func loadPhotosBasic(in folder: FolderItem) -> [PhotoItem] {
         let fm = FileManager.default
-        let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
-                             "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
-                             "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
-                             "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
-        let jpgExtensions = ["jpg", "jpeg"]
-        let otherExtensions = ["png", "heic", "tiff", "tif"]
-        let allowed = rawExtensions + jpgExtensions + otherExtensions
+        let allowed = FilesExtensions.all
 
         let files = (try? fm.contentsOfDirectory(
             at: folder.url,
@@ -168,7 +158,7 @@ final class PhotosModel: ObservableObject {
 
         // Create a set of base filenames that have RAW versions
         let rawBaseNames = Set(files
-            .filter { rawExtensions.contains($0.pathExtension.lowercased()) }
+            .filter { FilesExtensions.raw.contains($0.pathExtension.lowercased()) }
             .map { $0.deletingPathExtension().lastPathComponent })
 
         // Separate image files from XMP and ACR files, filtering out JPGs with RAW counterparts
@@ -177,7 +167,7 @@ final class PhotosModel: ObservableObject {
             guard allowed.contains(ext) else { return false }
 
             // If it's a JPG and a RAW version exists, skip it
-            if jpgExtensions.contains(ext) {
+            if ["jpg", "jpeg"].contains(ext) {
                 let baseName = file.deletingPathExtension().lastPathComponent
                 return !rawBaseNames.contains(baseName)
             }
@@ -185,7 +175,7 @@ final class PhotosModel: ObservableObject {
             return true
         }
         let acrFiles = files.filter { $0.pathExtension.lowercased() == "acr" }
-        let jpgFiles = files.filter { jpgExtensions.contains($0.pathExtension.lowercased()) }
+        let jpgFiles = files.filter { ["jpg", "jpeg"].contains($0.pathExtension.lowercased()) }
 
         var acrLookup: Set<String> = Set()
         for acrFile in acrFiles {
@@ -228,10 +218,6 @@ final class PhotosModel: ObservableObject {
 
     private static func loadPhotosMetadataAsync(in folder: FolderItem, photos: [PhotoItem]) async -> [PhotoItem] {
         let fm = FileManager.default
-        let rawExtensions = ["arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
-                             "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
-                             "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
-                             "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"]
 
         let files = (try? fm.contentsOfDirectory(
             at: folder.url,
@@ -257,7 +243,7 @@ final class PhotosModel: ObservableObject {
                     let url = URL(fileURLWithPath: photo.path)
                     let baseName = url.deletingPathExtension().lastPathComponent
                     let fileExtension = url.pathExtension.lowercased()
-                    let isRaw = rawExtensions.contains(fileExtension)
+                    let isRaw = FilesExtensions.raw.contains(fileExtension)
 
                     let xmp: XmpMetadata? = if let xmpContent = xmpLookup[baseName] {
                         XmpParser.parseMetadata(from: xmpContent)

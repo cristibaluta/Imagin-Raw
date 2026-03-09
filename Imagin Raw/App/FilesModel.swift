@@ -165,13 +165,7 @@ class FileSystemMonitor {
             return false
         }
 
-        // Check if it's a photo file extension
-        let photoExtensions = ["jpg", "jpeg", "png", "heic", "tiff", "tif", "arw", "orf", "rw2",
-                              "cr2", "cr3", "crw", "nef", "nrw", "srf", "sr2", "raw", "raf",
-                              "pef", "ptx", "dng", "3fr", "fff", "iiq", "mef", "mos", "x3f",
-                              "srw", "dcr", "kdc", "k25", "kc2", "mrw", "erf", "bay", "ndd",
-                              "sti", "rwl", "r3d"]
-        let isPhotoFile = photoExtensions.contains(fileExtension)
+        let isPhotoFile = FilesExtensions.all.contains(fileExtension)
 
         // We're only interested in photo files being created or removed (not modified)
         let isFileCreated = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated)) != 0
