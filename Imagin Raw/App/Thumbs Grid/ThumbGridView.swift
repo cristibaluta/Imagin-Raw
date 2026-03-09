@@ -12,7 +12,6 @@ struct ThumbGridView: View {
     @EnvironmentObject var externalAppManager: ExternalAppManager
     @EnvironmentObject var filesModel: FilesModel
 
-    let selectedApp: PhotoApp?
     let searchPhotoResults: [PhotoItem]?
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
     let onEnterReviewMode: (() -> Void)?
@@ -26,9 +25,13 @@ struct ThumbGridView: View {
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
 
-    init(filesModel: FilesModel, selectedApp: PhotoApp?, searchPhotoResults: [PhotoItem]? = nil, onOpenSelectedPhotos: (([PhotoItem]) -> Void)?, onEnterReviewMode: (() -> Void)?, onToggleSidebar: (() -> Void)? = nil, openSelectedPhotosCallback: Binding<(() -> Void)?>) {
+    init(filesModel: FilesModel,
+         searchPhotoResults: [PhotoItem]? = nil,
+         onOpenSelectedPhotos: (([PhotoItem]) -> Void)?,
+         onEnterReviewMode: (() -> Void)?,
+         onToggleSidebar: (() -> Void)? = nil,
+         openSelectedPhotosCallback: Binding<(() -> Void)?>) {
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
-        self.selectedApp = selectedApp
         self.searchPhotoResults = searchPhotoResults
         self.onOpenSelectedPhotos = onOpenSelectedPhotos
         self.onEnterReviewMode = onEnterReviewMode
@@ -39,14 +42,10 @@ struct ThumbGridView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Main thumbnail grid
-            ScrollViewReader { proxy in
-                GeometryReader { geometry in
-                    if viewModel.filteredPhotos.isEmpty {
-                        emptyStateView
-                    } else {
-                        photoGridView(proxy: proxy, geometry: geometry)
-                    }
-                }
+            if viewModel.filteredPhotos.isEmpty {
+                emptyStateView
+            } else {
+                photoGridView
             }
 
             // Filter and Sort bar
@@ -142,55 +141,51 @@ struct ThumbGridView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func photoGridView(proxy: ScrollViewProxy, geometry: GeometryProxy) -> some View {
-        let content = ScrollView(.vertical) {
-            LazyVGrid(columns: viewModel.dynamicColumns, spacing: 8) {
-                ForEach(viewModel.filteredPhotos, id: \.id) { photo in
-                    createThumbCell(for: photo)
+    private var photoGridView: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                LazyVGrid(columns: viewModel.dynamicColumns, spacing: 8) {
+                    ForEach(viewModel.filteredPhotos, id: \.id) { photo in
+                        createThumbCell(for: photo)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(scrollViewConfig)
+                .focusable()
+                .focusEffectDisabled()
+                .focused($isFocused)
+                .onKeyPress { keyPress in
+                    handleKeyPress(keyPress, proxy: proxy)
+                }
+                .onAppear {
+                    isFocused = true
+                    viewModel.initializeSelection()
+                }
+                .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
+                    if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
+                        filesModel.selectedPhoto = newPhotos.first
+                        viewModel.selectedPhotos.removeAll()
+                        viewModel.selectedPhotos.insert(newPhotos.first!.id)
+                        viewModel.lastSelectedIndex = 0
+                    }
+                }
+                .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
+                    if oldValue == true && newValue == false {
+                        viewModel.clearInvalidFilters()
+                    }
+                }
+                .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
+                    if let firstPhoto = viewModel.filteredPhotos.first {
+                        filesModel.selectedPhoto = firstPhoto
+                        viewModel.selectedPhotos.removeAll()
+                        viewModel.selectedPhotos.insert(firstPhoto.id)
+                        viewModel.lastSelectedIndex = 0
+                        proxy.scrollTo(firstPhoto.id, anchor: .top)
+                    }
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
         }
-
-        return content
-            .background(scrollViewConfig)
-            .focusable()
-            .focusEffectDisabled()
-            .focused($isFocused)
-            .onKeyPress { keyPress in
-                handleKeyPress(keyPress, proxy: proxy, viewportHeight: geometry.size.height)
-            }
-            .onAppear {
-                isFocused = true
-                viewModel.initializeSelection()
-            }
-            .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
-                if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
-                    filesModel.selectedPhoto = newPhotos.first
-                    viewModel.selectedPhotos.removeAll()
-                    viewModel.selectedPhotos.insert(newPhotos.first!.id)
-                    viewModel.lastSelectedIndex = 0
-                }
-            }
-            .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
-                print("🔔 isLoadingMetadata changed: \(oldValue) -> \(newValue)")
-                // When metadata loading completes, clear invalid filters
-                if oldValue == true && newValue == false {
-                    print("🎯 Calling clearInvalidFilters()")
-                    viewModel.clearInvalidFilters()
-                }
-            }
-            .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
-                // Scroll to top and select first photo when folder changes
-                if let firstPhoto = viewModel.filteredPhotos.first {
-                    filesModel.selectedPhoto = firstPhoto
-                    viewModel.selectedPhotos.removeAll()
-                    viewModel.selectedPhotos.insert(firstPhoto.id)
-                    viewModel.lastSelectedIndex = 0
-                    proxy.scrollTo(firstPhoto.id, anchor: .top)
-                }
-            }
     }
 
     private func createThumbCell(for photo: PhotoItem) -> some View {
@@ -279,13 +274,11 @@ struct ThumbGridView: View {
                 Button(action: {
                     showFilterPopover.toggle()
                 }) {
-                    Text("Filter")
-                        .font(.caption)
+                    Image(systemName: "line.3.horizontal.decrease")
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.primary)
-                        .lineLimit(1)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
                 }
+                .padding(4)
                 .buttonStyle(PlainButtonStyle())
                 .popover(isPresented: $showFilterPopover) {
                     FilterPopoverView(selectedLabels: $viewModel.selectedLabels,
@@ -325,8 +318,10 @@ struct ThumbGridView: View {
                     .buttonStyle(PlainButtonStyle())
                     .help("Filter by all ratings")
                 }
+
+                Spacer()
+                    .frame(width: 4)
             }
-            .padding(.horizontal, 4)
             .overlay(
                 RoundedRectangle(cornerRadius: 3)
                     .stroke(Color.gray.opacity(0.5), lineWidth: 1)
@@ -384,15 +379,19 @@ struct ThumbGridView: View {
     private func handleDoubleClick(photo: PhotoItem) {
         filesModel.selectedPhoto = photo
         if viewModel.selectedPhotos.count > 1 {
-            let selectedPhotoItems = viewModel.filteredPhotos.filter { viewModel.selectedPhotos.contains($0.id) }
-            externalAppManager.openPhotos(selectedPhotoItems, with: selectedApp)
+            let selectedPhotoItems = viewModel.filteredPhotos.filter {
+                viewModel.selectedPhotos.contains($0.id)
+            }
+            externalAppManager.openPhotos(selectedPhotoItems)
         } else {
-            externalAppManager.openPhoto(photo, with: selectedApp)
+            externalAppManager.openPhotos([photo])
         }
     }
 
-    private func handleKeyPress(_ keyPress: KeyPress, proxy: ScrollViewProxy, viewportHeight: CGFloat) -> KeyPress.Result {
-        guard !viewModel.filteredPhotos.isEmpty else { return .ignored }
+    private func handleKeyPress(_ keyPress: KeyPress, proxy: ScrollViewProxy) -> KeyPress.Result {
+        guard !viewModel.filteredPhotos.isEmpty else {
+            return .ignored
+        }
 
         let currentIndex = viewModel.filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
         var newIndex = currentIndex
@@ -421,8 +420,10 @@ struct ThumbGridView: View {
         }
 
         if newIndex != currentIndex {
-            viewModel.navigateToPhoto(at: newIndex)
-            proxy.scrollTo(viewModel.filteredPhotos[newIndex].id, anchor: .center)
+            Task {
+                viewModel.navigateToPhoto(at: newIndex)
+                proxy.scrollTo(viewModel.filteredPhotos[newIndex].id, anchor: .center)
+            }
             return .handled
         }
 
@@ -432,9 +433,9 @@ struct ThumbGridView: View {
     private func handleReturnKey() {
         if viewModel.selectedPhotos.count > 1 {
             let selectedPhotoItems = viewModel.filteredPhotos.filter { viewModel.selectedPhotos.contains($0.id) }
-            externalAppManager.openPhotos(selectedPhotoItems, with: selectedApp)
+            externalAppManager.openPhotos(selectedPhotoItems)
         } else if let selectedPhoto = filesModel.selectedPhoto {
-            externalAppManager.openPhoto(selectedPhoto, with: selectedApp)
+            externalAppManager.openPhotos([selectedPhoto])
         }
     }
 

@@ -23,7 +23,6 @@ struct ContentView: View {
     @StateObject private var externalAppManager = ExternalAppManager()
     @StateObject private var searcher = SpotlightSearcher()
     @State private var searchText = ""
-    @State private var selectedApp: PhotoApp?
     @SceneStorage("columnVisibility") private var columnVisibilityStorage: String = "all"
     @State private var showFolderPopover = false
     @State private var isSidebarCollapsed = false
@@ -81,12 +80,6 @@ struct ContentView: View {
                             toolbarContent
                         }
                         .onAppear {
-                            // Load photo apps and selected app through ExternalAppManager
-                            externalAppManager.loadPhotoApps {
-                                selectedApp = externalAppManager.loadSelectedApp()
-                            }
-
-                            // Set initial sidebar collapsed state based on restored column visibility
                             isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
                         }
                         .frame(minWidth: 1200, minHeight: 800)
@@ -125,7 +118,6 @@ struct ContentView: View {
             // Middle: thumbnails
             ThumbGridView(
                 filesModel: filesModel,
-                selectedApp: selectedApp,
                 searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
                 onOpenSelectedPhotos: { photos in
                     openMultiplePhotosInExternalApp(photos: photos)
@@ -204,12 +196,11 @@ struct ContentView: View {
         Menu {
             ForEach(externalAppManager.discoveredPhotoApps) { photoApp in
                 Button(action: {
-                    selectedApp = photoApp
                     externalAppManager.saveSelectedApp(photoApp)
                 }) {
                     HStack {
                         Text(photoApp.displayName)
-                        if selectedApp?.id == photoApp.id {
+                        if externalAppManager.selectedApp?.id == photoApp.id {
                             Spacer()
                             Image(systemName: "checkmark")
                         }
@@ -220,14 +211,13 @@ struct ContentView: View {
                 Divider()
             }
             Button("Default App") {
-                selectedApp = nil
                 externalAppManager.saveSelectedApp(nil)
             }
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "arrow.up.forward.app")
                     .font(.system(size: 12, weight: .regular))
-                Text("Open in \(selectedApp?.displayName ?? "Default App")")
+                Text("Open in \(externalAppManager.selectedApp?.displayName ?? "Default App")")
             }
         } primaryAction: {
             openSelectedPhotosCallback?()
@@ -252,6 +242,6 @@ struct ContentView: View {
     }
 
     private func openMultiplePhotosInExternalApp(photos: [PhotoItem]) {
-        externalAppManager.openPhotos(photos, with: selectedApp)
+        externalAppManager.openPhotos(photos)
     }
 }

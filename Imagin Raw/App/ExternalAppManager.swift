@@ -11,12 +11,13 @@ import AppKit
 class ExternalAppManager: ObservableObject {
 
     @Published var discoveredPhotoApps: [PhotoApp] = []
+    @Published var selectedApp: PhotoApp?
 
-    init() {}
+    init() {
+        loadPhotoApps()
+    }
 
-    // MARK: - Photo App Discovery
-
-    func loadPhotoApps(completion: @escaping () -> Void = {}) {
+    private func loadPhotoApps() {
         let query = NSMetadataQuery()
         query.searchScopes = [NSMetadataQueryLocalComputerScope]
         query.predicate = NSPredicate(
@@ -86,27 +87,23 @@ class ExternalAppManager: ObservableObject {
             // Sort apps by name and update the discovered apps list
             self.discoveredPhotoApps = apps.sorted { $0.name < $1.name }
 
-            // Call completion handler
-            completion()
+            self.selectedApp = self.loadSelectedApp()
         }
     }
 
-    // MARK: - Selected App Management
-
     func saveSelectedApp(_ app: PhotoApp?) {
         appPrefs.set(app?.bundleIdentifier ?? "", forKey: .selectedExternalApp)
+        selectedApp = loadSelectedApp()
     }
 
-    func loadSelectedApp() -> PhotoApp? {
+    private func loadSelectedApp() -> PhotoApp? {
         let savedBundleID = appPrefs.string(.selectedExternalApp)
         guard !savedBundleID.isEmpty else { return nil }
         return discoveredPhotoApps.first { $0.bundleIdentifier == savedBundleID }
     }
 
-    // MARK: - Photo Opening
-
     /// Opens multiple photos in an external app or the default system app
-    func openPhotos(_ photos: [PhotoItem], with selectedApp: PhotoApp?) {
+    func openPhotos(_ photos: [PhotoItem]) {
         let urls = photos.map { URL(fileURLWithPath: $0.path) }
 
         guard !urls.isEmpty else { return }
@@ -122,11 +119,6 @@ class ExternalAppManager: ObservableObject {
         } else {
             openPhotosWithDefaultApp(urls)
         }
-    }
-
-    /// Opens a single photo in an external app or the default system app
-    func openPhoto(_ photo: PhotoItem, with selectedApp: PhotoApp?) {
-        openPhotos([photo], with: selectedApp)
     }
 
     private func openPhotosWithDefaultApp(_ urls: [URL]) {
