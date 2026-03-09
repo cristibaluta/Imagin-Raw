@@ -155,6 +155,14 @@ struct FolderRowView: View {
                         Label("Show in Finder", systemImage: "folder")
                     }
 
+                    Divider()
+
+                    Button(role: .destructive, action: {
+                        ThumbsManager.shared.purgeCache(for: folder.url)
+                    }) {
+                        Label("Purge Cache", systemImage: "trash")
+                    }
+
                     // Only show eject option for root folders in /Volumes
                     if isVolume {
                         Divider()
@@ -185,6 +193,14 @@ struct FolderRowView: View {
                     NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
                 }) {
                     Label("Reveal in Finder", systemImage: "folder")
+                }
+
+                Divider()
+
+                Button(role: .destructive, action: {
+                    ThumbsManager.shared.purgeCache(for: folder.url)
+                }) {
+                    Label("Purge Cache", systemImage: "trash")
                 }
 
                 // Only show eject option for root folders in /Volumes

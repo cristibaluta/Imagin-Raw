@@ -224,6 +224,29 @@ class ThumbsManager: ObservableObject {
         }
     }
 
+    /// Purge all cached thumbnails for a specific folder (both memory and disk)
+    func purgeCache(for folderURL: URL) {
+        let folderPath = folderURL.path
+        let directoryHash = persistentHash(for: folderPath)
+        let subdirectory = cacheDirectory.appendingPathComponent("\(folderURL.lastPathComponent)_\(directoryHash)")
+
+        // Remove matching entries from memory cache
+        cacheQueue.async(flags: .barrier) { [weak self] in
+            guard let self = self else { return }
+            let prefix = "\(directoryHash)_"
+            let keysToRemove = self.memoryCache.keys.filter { $0.hasPrefix(prefix) }
+            keysToRemove.forEach {
+                self.memoryCache.removeValue(forKey: $0)
+                self.cacheAccessOrder.removeAll { $0 == $0 }
+            }
+        }
+
+        // Remove subdirectory from disk
+        diskQueue.async {
+            try? FileManager.default.removeItem(at: subdirectory)
+        }
+    }
+
     /// Stop all pending thumbnail requests and clear the queue
     /// Useful when switching folders to prevent processing thumbnails for old folder
     func stopQueue() {
