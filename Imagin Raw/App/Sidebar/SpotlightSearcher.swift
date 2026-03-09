@@ -20,10 +20,6 @@ class SpotlightSearcher: ObservableObject {
     private var query: NSMetadataQuery?
     private var observers: [NSObjectProtocol] = []
 
-                                                 "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
-                                                 "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d",
-                                                 "jpg", "jpeg", "png", "heic", "tiff", "tif"]
-
     deinit {
         query?.stop()
         observers.forEach { NotificationCenter.default.removeObserver($0) }
