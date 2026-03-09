@@ -91,6 +91,7 @@ struct ThumbGridView: View {
             guard let folder = newFolder, oldFolder?.url != newFolder?.url else { return }
             viewModel.clearSearchResults()
             viewModel.loadPhotosForFolder(folder)
+            viewModel.exitDuplicateMode()
             filesModel.selectedPhoto = nil
             viewModel.selectedPhotos.removeAll()
         }
@@ -349,23 +350,6 @@ struct ThumbGridView: View {
                 }
             }
 
-            // Find Duplicates / Exit Duplicates button
-            Button(action: {
-                if viewModel.isDuplicateMode {
-                    viewModel.exitDuplicateMode()
-                } else {
-                    viewModel.findDuplicates()
-                    showDuplicatesSheet = true
-                }
-            }) {
-                Image(systemName: viewModel.isDuplicateMode ? "xmark.circle" : "rectangle.on.rectangle.angled")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(viewModel.isFindingDuplicates ? .orange : viewModel.isDuplicateMode ? .blue : .primary)
-            }
-            .buttonStyle(PlainButtonStyle())
-            .disabled(viewModel.isFindingDuplicates)
-            .help(viewModel.isDuplicateMode ? "Exit duplicate view" : "Find duplicate or similar photos")
-
             if !viewModel.isDuplicateMode {
                 HStack(spacing: 2) {
                 Button(action: { showFilterPopover.toggle() }) {
@@ -418,9 +402,43 @@ struct ThumbGridView: View {
             .layoutPriority(1)
             } // end if !isDuplicateMode
 
-            Spacer()
+            if viewModel.isDuplicateMode {
+                Spacer()
+            }
 
-            photoCountText
+            // Find Duplicates / Exit Duplicates button
+            Button(action: {
+                if viewModel.isDuplicateMode {
+                    viewModel.exitDuplicateMode()
+                } else {
+                    viewModel.findDuplicates()
+                    showDuplicatesSheet = true
+                }
+            }) {
+                Image(systemName: viewModel.isDuplicateMode ? "xmark.circle" : "rectangle.on.rectangle.angled")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(viewModel.isFindingDuplicates ? .orange : viewModel.isDuplicateMode ? .blue : .primary)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .disabled(viewModel.isFindingDuplicates)
+            .help(viewModel.isDuplicateMode ? "Exit duplicate view" : "Find duplicate or similar photos")
+
+            if !viewModel.isDuplicateMode {
+                Spacer()
+            }
+
+            if viewModel.isDuplicateMode {
+                if let result = viewModel.duplicateScanResult {
+                    let totalDupePhotos = result.groups.reduce(0) { $0 + $1.photos.count }
+                    Text("\(result.groups.count) group(s), \(totalDupePhotos) duplicates")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .lineLimit(1)
+                        .padding(.trailing, 8)
+                }
+            } else {
+                photoCountText
+            }
         }
         .frame(height: 40)
         .background(Color(NSColor.controlBackgroundColor))
@@ -428,14 +446,7 @@ struct ThumbGridView: View {
 
     private var photoCountText: some View {
         Group {
-            if viewModel.isDuplicateMode {
-                if let result = viewModel.duplicateScanResult {
-                    let totalDupePhotos = result.groups.reduce(0) { $0 + $1.photos.count }
-                    Text("\(result.groups.count) group(s), \(totalDupePhotos) duplicates")
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                }
-            } else if viewModel.isLoadingMetadata {
+            if viewModel.isLoadingMetadata {
                 Text("Collecting metadata...")
                     .font(.caption)
                     .foregroundColor(.orange)
