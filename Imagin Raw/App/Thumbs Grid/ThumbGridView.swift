@@ -423,6 +423,32 @@ struct ThumbGridView: View {
             .disabled(viewModel.isFindingDuplicates)
             .help(viewModel.isDuplicateMode ? "Exit duplicate view" : "Find duplicate or similar photos")
 
+            // Similarity mode buttons — only visible in duplicate mode
+            if viewModel.isDuplicateMode {
+                HStack(spacing: 0) {
+                    ForEach(DuplicateFinderService.SimilarityMode.allCases, id: \.self) { mode in
+                        Button(action: { viewModel.setSimilarityMode(mode) }) {
+                            Text(mode.label)
+                                .font(.system(size: 12, weight: viewModel.similarityMode == mode ? .semibold : .regular))
+                                .foregroundColor(viewModel.similarityMode == mode ? .primary : .secondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(viewModel.similarityMode == mode ? Color.accentColor.opacity(0.15) : Color.clear)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        if mode != DuplicateFinderService.SimilarityMode.allCases.last {
+                            Rectangle()
+                                .fill(Color.secondary.opacity(0.3))
+                                .frame(width: 1, height: 14)
+                        }
+                    }
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color.secondary.opacity(0.4), lineWidth: 1)
+                )
+            }
+
             if !viewModel.isDuplicateMode {
                 Spacer()
             }

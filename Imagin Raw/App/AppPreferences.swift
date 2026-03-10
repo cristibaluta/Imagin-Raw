@@ -20,6 +20,7 @@ enum AppPreference: String, RCPreferencesProtocol {
     // MARK: - Thumbs Grid
     case sortOption = "SelectedSortOption"
     case gridType = "SelectedGridType"
+    case similarityMode = "SelectedSimilarityMode"
 
     // MARK: - External App
     case selectedExternalApp = "SelectedExternalApp"
@@ -49,6 +50,7 @@ enum AppPreference: String, RCPreferencesProtocol {
         case .selectedFolder:           return Data()
         case .sortOption:               return "name"
         case .gridType:                 return "threeColumns"
+        case .similarityMode:           return 65
         case .selectedExternalApp:      return ""
         case .userFolderBookmarks:      return Data()
         case .copyToRenameByExifDate:   return false
