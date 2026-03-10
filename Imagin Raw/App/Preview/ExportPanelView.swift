@@ -78,7 +78,7 @@ struct ExportPanelView: View {
                         .font(.system(size: 12, weight: .medium).monospacedDigit())
                         .foregroundColor(.primary)
                 }
-                Slider(value: $padding, in: 0...500, step: 10)
+                Slider(value: $padding, in: 0...100, step: 5)
                     .controlSize(.small)
             }
 
@@ -168,8 +168,9 @@ struct ExportPanelView: View {
     }
 
     private var sourceSize: CGSize? {
-        guard let img = NSImage(contentsOfFile: photo.path) else { return nil }
-        return img.size
+        guard let img = NSImage(contentsOfFile: photo.path),
+              let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        return CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
     }
 
     // MARK: - Export

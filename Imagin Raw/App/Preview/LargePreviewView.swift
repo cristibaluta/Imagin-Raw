@@ -124,9 +124,15 @@ private struct ExportCanvasPreview: View {
     let targetRatio: ExportAspectRatio
     let padding: Double
 
+    /// Actual pixel dimensions (not logical points which are 2x smaller on Retina)
+    private var pixelSize: CGSize {
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return image.size
+        }
+        return CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
+    }
+
     private struct Layout {
-        let canvasW: CGFloat
-        let canvasH: CGFloat
         let dispCanvasW: CGFloat
         let dispCanvasH: CGFloat
         let dispImgW: CGFloat
@@ -136,11 +142,10 @@ private struct ExportCanvasPreview: View {
     }
 
     private func layout(in available: CGSize) -> Layout {
-        let srcW = image.size.width
-        let srcH = image.size.height
+        let src = pixelSize
         let pad = CGFloat(padding)
-        let paddedW = srcW + pad * 2
-        let paddedH = srcH + pad * 2
+        let paddedW = src.width + pad * 2
+        let paddedH = src.height + pad * 2
 
         let canvasW: CGFloat
         let canvasH: CGFloat
@@ -164,11 +169,10 @@ private struct ExportCanvasPreview: View {
         let scale = min((available.width - 16) / canvasW, (available.height - 16) / canvasH)
         let dispCanvasW = canvasW * scale
         let dispCanvasH = canvasH * scale
-        let dispImgW = srcW * scale
-        let dispImgH = srcH * scale
+        let dispImgW = src.width * scale
+        let dispImgH = src.height * scale
 
         return Layout(
-            canvasW: canvasW, canvasH: canvasH,
             dispCanvasW: dispCanvasW, dispCanvasH: dispCanvasH,
             dispImgW: dispImgW, dispImgH: dispImgH,
             imgOffX: (dispCanvasW - dispImgW) / 2,
