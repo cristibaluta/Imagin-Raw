@@ -7,6 +7,7 @@ import SwiftUI
 
 struct ExportPanelView: View {
     let photo: PhotoItem
+    let pixelSize: CGSize
     @Binding var isPresented: Bool
     @Binding var selectedRatio: ExportAspectRatio
     @Binding var padding: Double
@@ -148,9 +149,8 @@ struct ExportPanelView: View {
     // MARK: - Canvas preview
 
     private var canvasInfo: String? {
-        guard let size = sourceSize else { return nil }
-        let srcW = size.width
-        let srcH = size.height
+        let srcW = pixelSize.width
+        let srcH = pixelSize.height
         let pad = CGFloat(Int(padding))
         let paddedW = srcW + pad * 2
         let paddedH = srcH + pad * 2
@@ -165,12 +165,6 @@ struct ExportPanelView: View {
             }
         }
         return "\(Int(canvasW)) × \(Int(canvasH))"
-    }
-
-    private var sourceSize: CGSize? {
-        guard let img = NSImage(contentsOfFile: photo.path),
-              let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
-        return CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
     }
 
     // MARK: - Export

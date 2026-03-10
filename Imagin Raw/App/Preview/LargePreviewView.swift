@@ -25,21 +25,21 @@ struct LargePreviewView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if let fullRes = model.fullResImage {
-//                    let _ = print("🔎 [zoom] rendering ZoomPanView  imageSize=\(fullRes.size)  reps=\(fullRes.representations.count)")
+                    let _ = print("🔎 [zoom] rendering ZoomPanView  imageSize=\(fullRes.size)  reps=\(fullRes.representations.count)")
                     ZoomPanView(image: fullRes, initialMousePosition: mousePosition)
                 } else if let nsImage = model.preview {
-                    if showExportPanel {
-                        ExportCanvasPreview(
-                            image: nsImage,
-                            targetRatio: exportRatio,
-                            padding: exportPadding
-                        )
-                    } else {
-                        Image(nsImage: nsImage)
-                            .resizable()
-                            .scaledToFit()
-                            .padding(2)
-                    }
+                    // Both views are always in the tree — swap via opacity, no view teardown
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .scaledToFit()
+                        .padding(2)
+                        .opacity(showExportPanel ? 0 : 1)
+                    ExportCanvasPreview(
+                        image: nsImage,
+                        targetRatio: exportRatio,
+                        padding: exportPadding
+                    )
+                    .opacity(showExportPanel ? 1 : 0)
                 } else if model.isLoading {
                     ProgressView("Loading...")
                         .progressViewStyle(CircularProgressViewStyle())
@@ -74,6 +74,7 @@ struct LargePreviewView: View {
                             Spacer()
                             ExportPanelView(
                                 photo: photo,
+                                pixelSize: exportPixelSize(for: model.preview),
                                 isPresented: $showExportPanel,
                                 selectedRatio: $exportRatio,
                                 padding: $exportPadding
@@ -81,12 +82,10 @@ struct LargePreviewView: View {
                             .padding(12)
                         }
                     }
-                    .transition(.opacity.combined(with: .move(edge: .trailing)))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
-            .animation(.easeInOut(duration: 0.18), value: showExportPanel)
             .background(MouseTrackingView(onMouseMoved: { point, viewSize in
                 let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
                 let ny = viewSize.height > 0 ? max(0, min(1, 1 - point.y / viewSize.height)) : 0.5
@@ -132,7 +131,11 @@ struct LargePreviewView: View {
                     Rectangle()
                         .fill(Color.secondary.opacity(0.25))
                         .frame(width: 1, height: 14)
-                    Button(action: { showExportPanel.toggle() }) {
+                    Button(action: {
+                        print("⏱ [export] button tapped showExportPanel=\(showExportPanel) at \(String(format: "%.4f", Date().timeIntervalSinceReferenceDate))")
+                        showExportPanel.toggle()
+                        print("⏱ [export] toggle done at \(String(format: "%.4f", Date().timeIntervalSinceReferenceDate))")
+                    }) {
                         Image(systemName: "rectangle.center.inset.filled")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(showExportPanel ? .accentColor : .secondary)
@@ -177,17 +180,40 @@ struct LargePreviewView: View {
 
 // MARK: - Live Canvas Preview
 
+private func exportPixelSize(for image: NSImage?) -> CGSize {
+    guard let image else { return .zero }
+    if let rep = image.representations.first as? NSBitmapImageRep {
+        return CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
+    }
+    if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+        return CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
+    }
+    return image.size
+}
+
 private struct ExportCanvasPreview: View {
     let image: NSImage
     let targetRatio: ExportAspectRatio
     let padding: Double
 
-    /// Actual pixel dimensions (not logical points which are 2x smaller on Retina)
-    private var pixelSize: CGSize {
-        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return image.size
+    /// Computed once at init — avoids calling cgImage() on every layout pass
+    private let pixelSize: CGSize
+
+    init(image: NSImage, targetRatio: ExportAspectRatio, padding: Double) {
+        self.image = image
+        self.targetRatio = targetRatio
+        self.padding = padding
+        let t = Date()
+        if let rep = image.representations.first as? NSBitmapImageRep {
+            self.pixelSize = CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
+            print("⏱ [ExportCanvasPreview] pixelSize from BitmapRep (instant): \(self.pixelSize)")
+        } else if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            self.pixelSize = CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
+            print("⏱ [ExportCanvasPreview] pixelSize from cgImage took \(Date().timeIntervalSince(t) * 1000)ms: \(self.pixelSize)")
+        } else {
+            self.pixelSize = image.size
+            print("⏱ [ExportCanvasPreview] pixelSize fallback to image.size: \(self.pixelSize)")
         }
-        return CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
     }
 
     private struct Layout {
@@ -239,8 +265,12 @@ private struct ExportCanvasPreview: View {
     }
 
     var body: some View {
+        let _ = print("⏱ [ExportCanvasPreview] body evaluated at \(String(format: "%.4f", Date().timeIntervalSinceReferenceDate))")
         GeometryReader { geo in
+            let _ = print("⏱ [ExportCanvasPreview] GeometryReader at \(String(format: "%.4f", Date().timeIntervalSinceReferenceDate)) size=\(geo.size)")
+            let t0 = Date()
             let l = layout(in: geo.size)
+            let _ = print("⏱ [ExportCanvasPreview] layout() took \(Date().timeIntervalSince(t0) * 1000)ms")
             ZStack(alignment: .topLeading) {
                 Rectangle()
                     .fill(Color.black)
