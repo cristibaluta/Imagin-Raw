@@ -11,8 +11,8 @@ struct LargePreviewView: View {
     let photo: PhotoItem
     @StateObject private var model = LargePreviewViewModel()
     @State private var showExportPanel = false
-    @State private var exportRatio: ExportAspectRatio = .original
-    @State private var exportPadding: Double = 0
+    @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .original
+    @State private var exportPadding: Double = appPrefs.get(.exportPadding)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -110,6 +110,12 @@ struct LargePreviewView: View {
         .onChange(of: photo) { _, newPhoto in
             model.setPhoto(newPhoto)
             showExportPanel = false
+        }
+        .onChange(of: exportRatio) { _, newVal in
+            appPrefs.set(newVal.rawValue, forKey: .exportRatio)
+        }
+        .onChange(of: exportPadding) { _, newVal in
+            appPrefs.set(newVal, forKey: .exportPadding)
         }
     }
 }
