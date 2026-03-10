@@ -39,7 +39,7 @@ struct ThumbCell: View {
         VStack(spacing: 4) {
             ZStack {
                 Rectangle()
-                    .fill(Color(.black))
+                    .fill(Color(red: 41/255, green: 41/255, blue: 41/255))
 
                 if let image = thumbnailImage {
                     Image(nsImage: image)
