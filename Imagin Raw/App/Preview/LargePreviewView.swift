@@ -28,18 +28,14 @@ struct LargePreviewView: View {
                     let _ = print("🔎 [zoom] rendering ZoomPanView  imageSize=\(fullRes.size)  reps=\(fullRes.representations.count)")
                     ZoomPanView(image: fullRes, initialMousePosition: mousePosition)
                 } else if let nsImage = model.preview {
-                    // Both views are always in the tree — swap via opacity, no view teardown
-                    Image(nsImage: nsImage)
-                        .resizable()
-                        .scaledToFit()
-                        .padding(2)
-                        .opacity(showExportPanel ? 0 : 1)
+                    // Always show ExportCanvasPreview — animate padding/ratio so the
+                    // canvas smoothly grows/shrinks around the image
                     ExportCanvasPreview(
                         image: nsImage,
-                        targetRatio: exportRatio,
-                        padding: exportPadding
+                        targetRatio: showExportPanel ? exportRatio : .original,
+                        padding: showExportPanel ? exportPadding : 0
                     )
-                    .opacity(showExportPanel ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.35), value: showExportPanel)
                 } else if model.isLoading {
                     ProgressView("Loading...")
                         .progressViewStyle(CircularProgressViewStyle())
@@ -82,6 +78,8 @@ struct LargePreviewView: View {
                             .padding(12)
                         }
                     }
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.15), value: showExportPanel)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -191,10 +189,15 @@ private func exportPixelSize(for image: NSImage?) -> CGSize {
     return image.size
 }
 
-private struct ExportCanvasPreview: View {
+private struct ExportCanvasPreview: View, Animatable {
     let image: NSImage
     let targetRatio: ExportAspectRatio
-    let padding: Double
+    var padding: Double
+
+    var animatableData: Double {
+        get { padding }
+        set { padding = newValue }
+    }
 
     /// Computed once at init — avoids calling cgImage() on every layout pass
     private let pixelSize: CGSize
@@ -250,7 +253,8 @@ private struct ExportCanvasPreview: View {
             canvasH = paddedH
         }
 
-        let scale = min((available.width - 16) / canvasW, (available.height - 16) / canvasH)
+        let inset: CGFloat = padding > 0 ? 16 : 0
+        let scale = min((available.width - inset) / canvasW, (available.height - inset) / canvasH)
         let dispCanvasW = canvasW * scale
         let dispCanvasH = canvasH * scale
         let dispImgW = src.width * scale
@@ -282,6 +286,5 @@ private struct ExportCanvasPreview: View {
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
         }
-        .padding(8)
     }
 }
