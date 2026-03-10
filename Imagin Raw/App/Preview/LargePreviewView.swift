@@ -53,7 +53,7 @@ struct LargePreviewView: View {
 
             // EXIF bottom bar
             if let exifInfo = model.exifInfo {
-                ExifBarView(exifInfo: exifInfo)
+                ExifBarView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes)
             }
         }
         .onAppear {

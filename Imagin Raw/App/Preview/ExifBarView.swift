@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ExifBarView: View {
     let exifInfo: ExifInfo
+    var fileSize: Int64?
 
     private var shutterText: String? {
         guard let shutter = exifInfo.shutterSpeed else { return nil }
@@ -46,6 +47,11 @@ struct ExifBarView: View {
             // Lens
             if let lens = exifInfo.lensModel {
                 exifItem(label: lens)
+                if fileSize != nil { divider }
+            }
+            // File size
+            if let size = fileSize {
+                exifItem(label: ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
             }
 
             Spacer()
