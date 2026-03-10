@@ -17,15 +17,15 @@ struct ZoomPanView: View {
     private var pixelSize: CGSize {
         if let rep = image.representations.first as? NSBitmapImageRep {
             let s = CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
-            print("🔎 [zoom] pixelSize from BitmapRep: \(s.width)×\(s.height)")
+//            print("🔎 [zoom] pixelSize from BitmapRep: \(s.width)×\(s.height)")
             return s
         }
         if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
             let s = CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
-            print("🔎 [zoom] pixelSize from CGImage: \(s.width)×\(s.height)")
+//            print("🔎 [zoom] pixelSize from CGImage: \(s.width)×\(s.height)")
             return s
         }
-        print("🔎 [zoom] pixelSize fallback to image.size: \(image.size)")
+//        print("🔎 [zoom] pixelSize fallback to image.size: \(image.size)")
         return image.size
     }
 
@@ -40,7 +40,7 @@ struct ZoomPanView: View {
             let offsetX = -overflowX * mousePosition.x
             let offsetY = -overflowY * mousePosition.y
 
-            let _ = print("🔎 [zoom] view=\(Int(viewW))×\(Int(viewH))  img=\(Int(imgW))×\(Int(imgH))  overflow=\(Int(overflowX))×\(Int(overflowY))  mouse=(\(String(format:"%.2f",mousePosition.x)),\(String(format:"%.2f",mousePosition.y)))  offset=(\(Int(offsetX)),\(Int(offsetY)))")
+//            let _ = print("🔎 [zoom] view=\(Int(viewW))×\(Int(viewH))  img=\(Int(imgW))×\(Int(imgH))  overflow=\(Int(overflowX))×\(Int(overflowY))  mouse=(\(String(format:"%.2f",mousePosition.x)),\(String(format:"%.2f",mousePosition.y)))  offset=(\(Int(offsetX)),\(Int(offsetY)))")
 
             Image(nsImage: image)
                 .resizable()
@@ -51,7 +51,7 @@ struct ZoomPanView: View {
                 .background(MouseTrackingView(onMouseMoved: { point, viewSize in
                     let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
                     let ny = viewSize.height > 0 ? max(0, min(1, 1 - point.y / viewSize.height)) : 0.5
-                    print("🔎 [zoom] mouse raw=(\(Int(point.x)),\(Int(point.y))) viewSize=\(Int(viewSize.width))×\(Int(viewSize.height)) norm=(\(String(format:"%.2f",nx)),\(String(format:"%.2f",ny)))")
+//                    print("🔎 [zoom] mouse raw=(\(Int(point.x)),\(Int(point.y))) viewSize=\(Int(viewSize.width))×\(Int(viewSize.height)) norm=(\(String(format:"%.2f",nx)),\(String(format:"%.2f",ny)))")
                     mousePosition = CGPoint(x: nx, y: ny)
                 }))
         }

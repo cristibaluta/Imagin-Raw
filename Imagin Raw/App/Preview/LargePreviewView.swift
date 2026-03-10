@@ -25,7 +25,7 @@ struct LargePreviewView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if let fullRes = model.fullResImage {
-                    let _ = print("🔎 [zoom] rendering ZoomPanView  imageSize=\(fullRes.size)  reps=\(fullRes.representations.count)")
+//                    let _ = print("🔎 [zoom] rendering ZoomPanView  imageSize=\(fullRes.size)  reps=\(fullRes.representations.count)")
                     ZoomPanView(image: fullRes, initialMousePosition: mousePosition)
                 } else if let nsImage = model.preview {
                     if showExportPanel {
