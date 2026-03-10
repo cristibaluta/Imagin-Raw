@@ -14,8 +14,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (instancetype)shared;
 - (nullable RawPhoto *)extractRawPhoto:(NSString *)path;
-- (nullable NSData *)extractEmbeddedJPEG:(NSString *)path; // Keep for backward compatibility
-- (nullable NSDictionary *)extractMetadata:(NSString *)path; // Extract rating, width, and height (returns @{@"rating": NSNumber, @"width": NSNumber, @"height": NSNumber})
+- (nullable NSData *)extractEmbeddedJPEG:(NSString *)path;
+- (nullable NSDictionary *)extractMetadata:(NSString *)path;
+- (nullable NSImage *)extractFullResolution:(NSString *)path; // Full demosaiced decode via LibRaw (half_size)
 
 @end
 

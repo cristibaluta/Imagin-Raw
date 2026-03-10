@@ -4,6 +4,7 @@
 #include "../libraw/libraw.h"
 #import <ImageIO/ImageIO.h>
 #import <CoreGraphics/CoreGraphics.h>
+#import <AppKit/AppKit.h>
 
 @implementation RawWrapper
 
@@ -84,6 +85,103 @@
 
     dispatch_sync([[self class] librawQueue], ^{
         result = [self _extractRawPhotoSynchronized:path];
+    });
+
+    return result;
+}
+
+- (nullable NSImage *)extractFullResolution:(NSString *)path {
+    __block NSImage *result = nil;
+
+    dispatch_sync([[self class] librawQueue], ^{
+        NSDate *t0 = [NSDate date];
+        LibRaw *raw = new LibRaw();
+        @try {
+            if (raw->open_file(path.UTF8String) != LIBRAW_SUCCESS) {
+                NSLog(@"[FullRes] open_file failed");
+                delete raw; return;
+            }
+            NSLog(@"[FullRes] open_file: %.3fs", -[t0 timeIntervalSinceNow]);
+
+            raw->imgdata.params.use_camera_wb  = 1;
+            raw->imgdata.params.use_auto_wb    = 0;
+            raw->imgdata.params.no_auto_bright = 1;
+            raw->imgdata.params.output_bps     = 8;
+            raw->imgdata.params.half_size      = 1; // 2x faster: demosaic at half width/height
+            raw->imgdata.params.output_color   = 1; // sRGB
+
+            if (raw->unpack() != LIBRAW_SUCCESS) {
+                NSLog(@"[FullRes] unpack failed");
+                raw->recycle(); delete raw; return;
+            }
+            NSLog(@"[FullRes] unpack: %.3fs", -[t0 timeIntervalSinceNow]);
+
+            if (raw->dcraw_process() != LIBRAW_SUCCESS) {
+                NSLog(@"[FullRes] dcraw_process failed");
+                raw->recycle(); delete raw; return;
+            }
+            NSLog(@"[FullRes] dcraw_process: %.3fs", -[t0 timeIntervalSinceNow]);
+
+            libraw_processed_image_t *img = raw->dcraw_make_mem_image();
+            if (!img) { NSLog(@"[FullRes] dcraw_make_mem_image returned nil"); raw->recycle(); delete raw; return; }
+            NSLog(@"[FullRes] make_mem_image: %.3fs  size=%ux%u colors=%d", -[t0 timeIntervalSinceNow], img->width, img->height, img->colors);
+
+            if (img->type == LIBRAW_IMAGE_BITMAP && img->colors == 3) {
+                size_t w = img->width;
+                size_t h = img->height;
+                size_t bytesPerRow = w * 4;
+                uint8_t *buf = (uint8_t *)calloc(h * bytesPerRow, 1);
+                if (buf) {
+                    uint8_t *src = img->data;
+                    for (size_t row = 0; row < h; row++) {
+                        uint8_t *dst = buf + row * bytesPerRow;
+                        uint8_t *s   = src + row * w * 3;
+                        for (size_t col = 0; col < w; col++) {
+                            dst[col*4+0] = s[col*3+0];
+                            dst[col*4+1] = s[col*3+1];
+                            dst[col*4+2] = s[col*3+2];
+                            dst[col*4+3] = 255;
+                        }
+                    }
+                    NSLog(@"[FullRes] RGB→RGBX copy: %.3fs", -[t0 timeIntervalSinceNow]);
+
+                    // Pass the buffer directly via planes pointer array
+                    uint8_t *planes[1] = { buf };
+                    NSBitmapImageRep *rep = [[NSBitmapImageRep alloc]
+                        initWithBitmapDataPlanes:planes
+                        pixelsWide:(NSInteger)w
+                        pixelsHigh:(NSInteger)h
+                        bitsPerSample:8
+                        samplesPerPixel:3
+                        hasAlpha:NO
+                        isPlanar:NO
+                        colorSpaceName:NSDeviceRGBColorSpace
+                        bytesPerRow:(NSInteger)(w * 4)
+                        bitsPerPixel:32];
+
+                    if (rep) {
+                        // rep now holds a copy of buf; safe to free buf after this point
+                        NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize((CGFloat)w, (CGFloat)h)];
+                        [image addRepresentation:rep];
+                        result = image;
+                        NSLog(@"[FullRes] NSImage built: %.3fs  size=%lux%lu", -[t0 timeIntervalSinceNow], w, h);
+                    } else {
+                        NSLog(@"[FullRes] ❌ NSBitmapImageRep init failed for size=%lux%lu bpr=%lu", w, h, w*4);
+                    }
+                    free(buf);
+                }
+            }
+
+            LibRaw::dcraw_clear_mem(img);
+            raw->recycle();
+            delete raw;
+            NSLog(@"[FullRes] total: %.3fs", -[t0 timeIntervalSinceNow]);
+        }
+        @catch (NSException *e) {
+            NSLog(@"[FullRes] exception: %@", e);
+            raw->recycle();
+            delete raw;
+        }
     });
 
     return result;

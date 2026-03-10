@@ -23,8 +23,11 @@ struct LargePreviewView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if let nsImage = model.preview {
+                if let fullRes = model.fullResImage {
+                    let _ = print("🔎 [zoom] rendering ZoomPanView  imageSize=\(fullRes.size)  reps=\(fullRes.representations.count)")
+                    ZoomPanView(image: fullRes)
+                } else if let nsImage = model.preview {
                     if showExportPanel {
-                        // Live export canvas preview
                         ExportCanvasPreview(
                             image: nsImage,
                             targetRatio: exportRatio,
@@ -47,7 +50,7 @@ struct LargePreviewView: View {
                 // Alignment button
                 VStack {
                     HStack {
-                        if !showExportPanel {
+                        if !showExportPanel && model.fullResImage == nil {
                             Button(action: { model.toggleAlignment() }) {
                                 Image(systemName: model.alignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
                                     .font(.title2)
@@ -89,6 +92,37 @@ struct LargePreviewView: View {
                 HStack(spacing: 0) {
                     ExifBarView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes)
                     Spacer()
+
+                    // Zoom button
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.25))
+                        .frame(width: 1, height: 14)
+                    Button(action: {
+                        if model.fullResImage != nil {
+                            model.exitZoom()
+                        } else {
+                            model.loadFullResolution()
+                        }
+                    }) {
+                        ZStack {
+                            if model.isLoadingFullRes {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .frame(width: 14, height: 14)
+                            } else {
+                                Image(systemName: model.fullResImage != nil ? "minus.magnifyingglass" : "plus.magnifyingglass")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(model.fullResImage != nil ? .accentColor : .secondary)
+                            }
+                        }
+                        .frame(width: 20, height: 20)
+                        .padding(.horizontal, 10)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(model.isLoadingFullRes)
+                    .help(model.fullResImage != nil ? "Exit zoom" : "Zoom to 100% (full resolution)")
+
+                    // Export button
                     Rectangle()
                         .fill(Color.secondary.opacity(0.25))
                         .frame(width: 1, height: 14)
