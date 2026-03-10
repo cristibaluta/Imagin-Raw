@@ -16,13 +16,28 @@ enum ExportAspectRatio: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Width/height ratio, or nil for original
     var ratio: CGFloat? {
         switch self {
         case .original: return nil
         case .r1x1:     return 1.0
         case .r3x4:     return 3.0 / 4.0
         case .r4x5:     return 4.0 / 5.0
+        }
+    }
+}
+
+enum ExportAlignment: String, CaseIterable, Identifiable {
+    case left   = "Left"
+    case center = "Center"
+    case right  = "Right"
+
+    var id: String { rawValue }
+
+    var systemImage: String {
+        switch self {
+        case .left:   return "align.horizontal.left"
+        case .center: return "align.horizontal.center"
+        case .right:  return "align.horizontal.right"
         }
     }
 }
@@ -39,6 +54,7 @@ enum ExportService {
         sourcePath: String,
         targetRatio: ExportAspectRatio,
         padding: Int,
+        alignment: ExportAlignment,
         outputURL: URL
     ) throws {
 
@@ -48,26 +64,15 @@ enum ExportService {
 
         let srcW = CGFloat(cgImage.width)
         let srcH = CGFloat(cgImage.height)
-
-        // Step 1: apply padding to the source dimensions
-        // Padding is added to the longest side; both sides get the same total border
-        let padded: CGSize
         let pad = CGFloat(padding)
-        if srcW >= srcH {
-            padded = CGSize(width: srcW + pad * 2, height: srcH + pad * 2)
-        } else {
-            padded = CGSize(width: srcW + pad * 2, height: srcH + pad * 2)
-        }
+        let padded = CGSize(width: srcW + pad * 2, height: srcH + pad * 2)
 
-        // Step 2: expand canvas to match the target ratio (never shrink)
         let canvas: CGSize
         if let ratio = targetRatio.ratio {
             let paddedRatio = padded.width / padded.height
             if paddedRatio > ratio {
-                // Image is wider — add top/bottom bars
                 canvas = CGSize(width: padded.width, height: padded.width / ratio)
             } else if paddedRatio < ratio {
-                // Image is taller — add left/right bars
                 canvas = CGSize(width: padded.height * ratio, height: padded.height)
             } else {
                 canvas = padded
@@ -76,7 +81,6 @@ enum ExportService {
             canvas = padded
         }
 
-        // Step 3: render
         let intW = Int(canvas.width.rounded())
         let intH = Int(canvas.height.rounded())
 
@@ -92,12 +96,16 @@ enum ExportService {
             throw ExportError.contextCreationFailed
         }
 
-        // Black background
         ctx.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
         ctx.fill(CGRect(x: 0, y: 0, width: intW, height: intH))
 
-        // Draw source image centered
-        let x = (canvas.width - srcW) / 2
+        // Horizontal position based on alignment
+        let x: CGFloat
+        switch alignment {
+        case .left:   x = pad
+        case .center: x = (canvas.width - srcW) / 2
+        case .right:  x = canvas.width - srcW - pad
+        }
         let y = (canvas.height - srcH) / 2
         ctx.draw(cgImage, in: CGRect(x: x, y: y, width: srcW, height: srcH))
 

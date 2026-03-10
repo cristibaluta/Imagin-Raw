@@ -13,6 +13,7 @@ struct LargePreviewView: View {
     @State private var showExportPanel = false
     @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .original
     @State private var exportPadding: Double = appPrefs.get(.exportPadding)
+    @State private var exportAlignment: ExportAlignment = ExportAlignment(rawValue: appPrefs.string(.exportAlignment)) ?? .center
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
     @FocusState private var isFocused: Bool
 
@@ -33,7 +34,8 @@ struct LargePreviewView: View {
                     ExportCanvasPreview(
                         image: nsImage,
                         targetRatio: showExportPanel ? exportRatio : .original,
-                        padding: showExportPanel ? exportPadding : 0
+                        padding: showExportPanel ? exportPadding : 0,
+                        alignment: showExportPanel ? exportAlignment : .center
                     )
                     .animation(.easeInOut(duration: 0.35), value: showExportPanel)
                 } else if model.isLoading {
@@ -73,7 +75,8 @@ struct LargePreviewView: View {
                                 pixelSize: exportPixelSize(for: model.preview),
                                 isPresented: $showExportPanel,
                                 selectedRatio: $exportRatio,
-                                padding: $exportPadding
+                                padding: $exportPadding,
+                                alignment: $exportAlignment
                             )
                             .padding(12)
                         }
@@ -173,6 +176,9 @@ struct LargePreviewView: View {
         .onChange(of: exportPadding) { _, newVal in
             appPrefs.set(newVal, forKey: .exportPadding)
         }
+        .onChange(of: exportAlignment) { _, newVal in
+            appPrefs.set(newVal.rawValue, forKey: .exportAlignment)
+        }
     }
 }
 
@@ -193,19 +199,20 @@ private struct ExportCanvasPreview: View, Animatable {
     let image: NSImage
     let targetRatio: ExportAspectRatio
     var padding: Double
+    let alignment: ExportAlignment
 
     var animatableData: Double {
         get { padding }
         set { padding = newValue }
     }
 
-    /// Computed once at init — avoids calling cgImage() on every layout pass
     private let pixelSize: CGSize
 
-    init(image: NSImage, targetRatio: ExportAspectRatio, padding: Double) {
+    init(image: NSImage, targetRatio: ExportAspectRatio, padding: Double, alignment: ExportAlignment) {
         self.image = image
         self.targetRatio = targetRatio
         self.padding = padding
+        self.alignment = alignment
         let t = Date()
         if let rep = image.representations.first as? NSBitmapImageRep {
             self.pixelSize = CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
@@ -260,11 +267,19 @@ private struct ExportCanvasPreview: View, Animatable {
         let dispImgW = src.width * scale
         let dispImgH = src.height * scale
 
+        // Horizontal offset based on alignment
+        let imgOffX: CGFloat
+        switch alignment {
+        case .left:   imgOffX = pad * scale
+        case .center: imgOffX = (dispCanvasW - dispImgW) / 2
+        case .right:  imgOffX = dispCanvasW - dispImgW - pad * scale
+        }
+        let imgOffY = (dispCanvasH - dispImgH) / 2
+
         return Layout(
             dispCanvasW: dispCanvasW, dispCanvasH: dispCanvasH,
             dispImgW: dispImgW, dispImgH: dispImgH,
-            imgOffX: (dispCanvasW - dispImgW) / 2,
-            imgOffY: (dispCanvasH - dispImgH) / 2
+            imgOffX: imgOffX, imgOffY: imgOffY
         )
     }
 

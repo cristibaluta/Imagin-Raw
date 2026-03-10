@@ -11,6 +11,7 @@ struct ExportPanelView: View {
     @Binding var isPresented: Bool
     @Binding var selectedRatio: ExportAspectRatio
     @Binding var padding: Double
+    @Binding var alignment: ExportAlignment
 
     @State private var isExporting = false
     @State private var exportResult: ExportResult? = nil
@@ -81,6 +82,35 @@ struct ExportPanelView: View {
                 }
                 Slider(value: $padding, in: 0...100, step: 5)
                     .controlSize(.small)
+            }
+
+            // Alignment picker
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Alignment")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                HStack(spacing: 0) {
+                    ForEach(ExportAlignment.allCases) { option in
+                        Button(action: { alignment = option }) {
+                            Image(systemName: option.systemImage)
+                                .font(.system(size: 13, weight: alignment == option ? .semibold : .regular))
+                                .foregroundColor(alignment == option ? .primary : .secondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 5)
+                                .background(alignment == option ? Color.accentColor.opacity(0.15) : Color.clear)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        if option != ExportAlignment.allCases.last {
+                            Rectangle()
+                                .fill(Color.secondary.opacity(0.3))
+                                .frame(width: 1, height: 14)
+                        }
+                    }
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color.secondary.opacity(0.4), lineWidth: 1)
+                )
             }
 
             // Canvas preview label
@@ -175,6 +205,7 @@ struct ExportPanelView: View {
         let path = photo.path
         let ratio = selectedRatio
         let pad = Int(padding)
+        let align = alignment
         let outputURL = ExportService.outputURL(for: path)
 
         Task.detached(priority: .userInitiated) {
@@ -183,6 +214,7 @@ struct ExportPanelView: View {
                     sourcePath: path,
                     targetRatio: ratio,
                     padding: pad,
+                    alignment: align,
                     outputURL: outputURL
                 )
                 await MainActor.run {

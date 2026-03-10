@@ -14,6 +14,7 @@ enum AppPreference: String, RCPreferencesProtocol {
     case alignToTopLeft = "ImageAlignmentTopLeft"
     case exportRatio    = "ExportAspectRatio"
     case exportPadding  = "ExportPadding"
+    case exportAlignment = "ExportAlignment"
 
     // MARK: - Sidebar
     case expandedFolders = "ExpandedFolders"
@@ -50,6 +51,7 @@ enum AppPreference: String, RCPreferencesProtocol {
         case .alignToTopLeft:           return false
         case .exportRatio:              return ExportAspectRatio.r4x5.rawValue
         case .exportPadding:            return 0.0
+        case .exportAlignment:          return ExportAlignment.center.rawValue
         case .expandedFolders:          return Data()
         case .selectedFolder:           return Data()
         case .sortOption:               return "name"
