@@ -93,17 +93,14 @@ struct LargePreviewView: View {
                         .fill(Color.secondary.opacity(0.25))
                         .frame(width: 1, height: 14)
                     Button(action: { showExportPanel.toggle() }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 11))
-                            Text("Export")
-                                .font(.caption)
-                        }
-                        .foregroundColor(showExportPanel ? .accentColor : .secondary)
-                        .padding(.horizontal, 10)
+                        Image(systemName: "rectangle.center.inset.filled")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(showExportPanel ? .accentColor : .secondary)
+                            .padding(.trailing, 12)
+                            .padding(.leading, 10)
                     }
                     .buttonStyle(PlainButtonStyle())
-                    .help("Export for Instagram")
+                    .help("Export: add borders / change canvas")
                 }
                 .frame(height: 40)
                 .background(Color(NSColor.controlBackgroundColor))
