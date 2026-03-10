@@ -22,7 +22,6 @@ struct LargePreviewView: View {
                     .fill(Color.clear)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                if let nsImage = model.preview {
                 if let fullRes = model.fullResImage {
                     let _ = print("🔎 [zoom] rendering ZoomPanView  imageSize=\(fullRes.size)  reps=\(fullRes.representations.count)")
                     ZoomPanView(image: fullRes)
