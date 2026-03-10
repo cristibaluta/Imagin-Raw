@@ -13,6 +13,8 @@ struct LargePreviewView: View {
     @State private var showExportPanel = false
     @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .original
     @State private var exportPadding: Double = appPrefs.get(.exportPadding)
+    @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,7 +26,7 @@ struct LargePreviewView: View {
 
                 if let fullRes = model.fullResImage {
                     let _ = print("🔎 [zoom] rendering ZoomPanView  imageSize=\(fullRes.size)  reps=\(fullRes.representations.count)")
-                    ZoomPanView(image: fullRes)
+                    ZoomPanView(image: fullRes, initialMousePosition: mousePosition)
                 } else if let nsImage = model.preview {
                     if showExportPanel {
                         ExportCanvasPreview(
@@ -85,6 +87,11 @@ struct LargePreviewView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
             .animation(.easeInOut(duration: 0.18), value: showExportPanel)
+            .background(MouseTrackingView(onMouseMoved: { point, viewSize in
+                let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
+                let ny = viewSize.height > 0 ? max(0, min(1, 1 - point.y / viewSize.height)) : 0.5
+                mousePosition = CGPoint(x: nx, y: ny)
+            }))
 
             // EXIF bottom bar
             if let exifInfo = model.exifInfo {
@@ -139,10 +146,25 @@ struct LargePreviewView: View {
                 .background(Color(NSColor.controlBackgroundColor))
             }
         }
-        .onAppear { model.setPhoto(photo) }
+        .onAppear {
+            model.setPhoto(photo)
+            isFocused = true
+        }
         .onChange(of: photo) { _, newPhoto in
             model.setPhoto(newPhoto)
             showExportPanel = false
+            isFocused = true
+        }
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .onKeyPress("z") {
+            if model.fullResImage != nil {
+                model.exitZoom()
+            } else if !model.isLoadingFullRes {
+                model.loadFullResolution()
+            }
+            return .handled
         }
         .onChange(of: exportRatio) { _, newVal in
             appPrefs.set(newVal.rawValue, forKey: .exportRatio)

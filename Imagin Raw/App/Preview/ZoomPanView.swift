@@ -10,8 +10,8 @@ import AppKit
 /// The viewport pans automatically as the mouse moves — no click-drag needed.
 struct ZoomPanView: View {
     let image: NSImage
+    var initialMousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
 
-    /// Mouse position in the view's coordinate space (0,0 = top-left)
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
 
     private var pixelSize: CGSize {
@@ -55,12 +55,15 @@ struct ZoomPanView: View {
                     mousePosition = CGPoint(x: nx, y: ny)
                 }))
         }
+        .onAppear {
+            mousePosition = initialMousePosition
+        }
     }
 }
 
 // MARK: - NSView mouse tracker
 
-private struct MouseTrackingView: NSViewRepresentable {
+struct MouseTrackingView: NSViewRepresentable {
     let onMouseMoved: (CGPoint, CGSize) -> Void
 
     func makeNSView(context: Context) -> TrackerNSView {
@@ -74,7 +77,7 @@ private struct MouseTrackingView: NSViewRepresentable {
     }
 }
 
-private class TrackerNSView: NSView {
+class TrackerNSView: NSView {
     var onMouseMoved: ((CGPoint, CGSize) -> Void)?
     private var trackingArea: NSTrackingArea?
 
