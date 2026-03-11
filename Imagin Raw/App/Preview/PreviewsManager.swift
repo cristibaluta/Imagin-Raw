@@ -13,7 +13,7 @@ class PreviewsManager {
     static let shared = PreviewsManager()
 
     /// Swap decoder implementation if needed
-    var decoder: RawDecoder = CoreGraphicsDecoder()
+    var decoder: RawDecoder = LibRawDecoder()
 
     // MARK: - Config
 
