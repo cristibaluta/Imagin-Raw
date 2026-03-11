@@ -285,27 +285,8 @@ class PreviewsManager {
 
     private func loadFromDisk(for path: String) -> NSImage? {
         let url = diskCacheURL(for: path)
-        guard FileManager.default.fileExists(atPath: url.path),
-              let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let cg = CGImageSourceCreateImageAtIndex(src, 0, [
-                  kCGImageSourceShouldCacheImmediately: true
-              ] as CFDictionary) else { return nil }
-
-        // Normalize to sRGB — JPEG from disk is YCbCr which NSImage can render black
-        let srgb = CGColorSpaceCreateDeviceRGB()
-        let bitmapInfo = CGImageAlphaInfo.noneSkipLast.rawValue
-        guard let ctx = CGContext(data: nil,
-                                  width: cg.width,
-                                  height: cg.height,
-                                  bitsPerComponent: 8,
-                                  bytesPerRow: 0,
-                                  space: srgb,
-                                  bitmapInfo: bitmapInfo),
-              let normalized = { ctx.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height)); return ctx.makeImage() }()
-        else {
-            return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
-        }
-        return NSImage(cgImage: normalized, size: NSSize(width: normalized.width, height: normalized.height))
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return NSImage(contentsOf: url)
     }
 
     // MARK: - Memory Cache
