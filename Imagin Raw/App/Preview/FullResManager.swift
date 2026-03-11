@@ -49,7 +49,6 @@ class FullResManager {
             let image: NSImage?
 
             if FilesExtensions.raw.contains(ext) {
-                // image = RawWrapper.shared().extractFullResolution(path)
                 // CoreGraphics RAW decode — uses Apple's hardware-accelerated RAW engine,
                 // typically 2-4x faster than LibRaw's software demosaic.
                 // kCGImageSourceShouldAllowFloat: false  → 8-bit output
@@ -62,13 +61,11 @@ class FullResManager {
                    ] as CFDictionary) {
                     // Normalize from YCbCr/native RAW color space to sRGB for display
                     let srgb = CGColorSpaceCreateDeviceRGB()
-                    if let ctx = CGContext(
-                        data: nil,
-                        width: cg.width, height: cg.height,
-                        bitsPerComponent: 8, bytesPerRow: 0,
-                        space: srgb,
-                        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
-                    ) {
+                    if let ctx = CGContext(data: nil,
+                                            width: cg.width, height: cg.height,
+                                            bitsPerComponent: 8, bytesPerRow: 0,
+                                            space: srgb,
+                                            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) {
                         ctx.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
                         if let normalized = ctx.makeImage() {
                             image = NSImage(cgImage: normalized, size: NSSize(width: normalized.width, height: normalized.height))
@@ -79,7 +76,8 @@ class FullResManager {
                         image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
                     }
                 } else {
-                    image = nil
+                    // Fallback to RawWrapper
+                    image = RawWrapper.shared().extractFullResolution(path)
                 }
                 print("🔎 [FullResManager] CoreGraphics RAW done \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  success=\(image != nil)  size=\(image?.size ?? .zero)")
             } else {
