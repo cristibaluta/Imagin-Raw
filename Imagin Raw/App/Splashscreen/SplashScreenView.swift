@@ -21,16 +21,9 @@ struct SplashScreenView: View {
                     .font(.system(size: 80, weight: .light))
                     .foregroundColor(.accentColor)
 
-                VStack(spacing: 8) {
-                    Text("RAW")
-                        .font(.largeTitle)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
-
-                    Text("The Raw Photo Browser")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
-                }
+                Text("THE RAW PHOTOS ORGANIZER")
+                    .font(.title3)
+                    .foregroundColor(.secondary)
             }
 
             // Welcome content
