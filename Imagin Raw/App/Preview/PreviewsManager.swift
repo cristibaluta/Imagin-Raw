@@ -12,6 +12,9 @@ import CryptoKit
 class PreviewsManager {
     static let shared = PreviewsManager()
 
+    /// Swap decoder implementation if needed
+    var decoder: RawDecoder = CoreGraphicsDecoder()
+
     // MARK: - Config
 
     private let previewSize: CGFloat = 1024
@@ -168,116 +171,33 @@ class PreviewsManager {
     // MARK: - Generation
 
     private func generate(for path: String, cacheKey: String, completion: @escaping (NSImage?) -> Void) {
-        let url = URL(fileURLWithPath: path)
-        let ext = url.pathExtension.lowercased()
-        let filename = url.lastPathComponent
+        let filename = URL(fileURLWithPath: path).lastPathComponent
         let t0 = Date()
 
         autoreleasepool {
-            // 1. Get source CGImage — embedded JPEG for RAW, CGImageSource for others
-            let sourceCG: CGImage?
-            var exifOrientation: Int32 = 1
+            guard let image = decoder.extractPreview(at: path, maxSize: previewSize) else {
+                print("🖼 [PreviewsManager] generate failed \(filename)")
+                completion(nil)
+                return
+            }
+            print("🖼 [PreviewsManager] generate done \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
-            if FilesExtensions.raw.contains(ext) {
-                guard let data = RawWrapper.shared().extractEmbeddedJPEG(path) else {
-                    print("🖼 [PreviewsManager] extractEmbeddedJPEG failed \(filename)")
-                    completion(nil);
-                    return
-                }
-                print("🖼 [PreviewsManager] extractEmbeddedJPEG done \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  bytes=\(data.count)")
-                if let src = CGImageSourceCreateWithData(data as CFData, nil) {
-                    sourceCG = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
-                    if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
-                       let orientation = props[kCGImagePropertyOrientation] as? Int32 {
-                        exifOrientation = orientation
+            // Encode to JPEG and save to disk via CGImageDestination (no TIFF round-trip)
+            if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                let mutable = NSMutableData()
+                if let dest = CGImageDestinationCreateWithData(mutable, "public.jpeg" as CFString, 1, nil) {
+                    CGImageDestinationAddImage(dest, cg, [kCGImageDestinationLossyCompressionQuality: jpegQuality] as CFDictionary)
+                    if CGImageDestinationFinalize(dest) {
+                        let subdir = cacheSubdirectory(for: path)
+                        try? FileManager.default.createDirectory(at: subdir, withIntermediateDirectories: true)
+                        let diskURL = subdir.appendingPathComponent("\(diskFilename(for: path)).jpg")
+                        try? (mutable as Data).write(to: diskURL)
+                        print("🖼 [PreviewsManager] saved \(filename) \(mutable.length / 1024)KB  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
                     }
-                } else {
-                    sourceCG = nil
                 }
-            } else {
-                guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
-                    completion(nil);
-                    return
-                }
-                sourceCG = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
-                if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
-                   let orientation = props[kCGImagePropertyOrientation] as? Int32 {
-                    exifOrientation = orientation
-                }
-                print("🖼 [PreviewsManager] loaded non-RAW \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
             }
 
-            guard let cg = sourceCG else {
-                completion(nil);
-                return
-            }
-            print("🖼 [PreviewsManager] cg bitsPerComponent=\(cg.bitsPerComponent) bitsPerPixel=\(cg.bitsPerPixel) colorSpace=\(String(describing: cg.colorSpace)) alphaInfo=\(cg.alphaInfo.rawValue)")
-
-            // 2. Apply EXIF orientation
-            guard let oriented = cg.applyingOrientation(exifOrientation) else {
-                return
-            }
-            let srcW = CGFloat(oriented.width)
-            let srcH = CGFloat(oriented.height)
-            print("🖼 [PreviewsManager] source pixels=\(Int(srcW))×\(Int(srcH)) orientation=\(exifOrientation)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
-
-            let finalCG: CGImage
-            let maxDim = max(srcW, srcH)
-            if maxDim <= previewSize {
-                finalCG = oriented
-                print("🖼 [PreviewsManager] skip resize  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
-            } else {
-                let scale = previewSize / maxDim
-                let dstW = Int((srcW * scale).rounded())
-                let dstH = Int((srcH * scale).rounded())
-                let cs = CGColorSpaceCreateDeviceRGB()
-                let bitmapInfo = CGImageAlphaInfo.noneSkipLast.rawValue
-                guard let ctx = CGContext(data: nil,
-                                          width: dstW,
-                                          height: dstH,
-                                          bitsPerComponent: 8,
-                                          bytesPerRow: 0,
-                                          space: cs,
-                                          bitmapInfo: bitmapInfo) else {
-                    completion(nil);
-                    return
-                }
-                ctx.interpolationQuality = .high
-                ctx.draw(oriented, in: CGRect(x: 0, y: 0, width: dstW, height: dstH))
-                guard let resized = ctx.makeImage() else {
-                    completion(nil);
-                    return
-                }
-                finalCG = resized
-                print("🖼 [PreviewsManager] resized to \(dstW)×\(dstH)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
-            }
-
-            // 3. Encode directly to JPEG via CGImageDestination (no TIFF round-trip)
-            let mutable = NSMutableData()
-            guard let dest = CGImageDestinationCreateWithData(mutable, "public.jpeg" as CFString, 1, nil) else {
-                completion(nil);
-                return
-            }
-            CGImageDestinationAddImage(dest, finalCG, [
-                kCGImageDestinationLossyCompressionQuality: jpegQuality
-            ] as CFDictionary)
-            guard CGImageDestinationFinalize(dest) else {
-                completion(nil);
-                return
-            }
-            let jpegData = mutable as Data
-            print("🖼 [PreviewsManager] JPEG encoded \(filename) \(jpegData.count / 1024)KB  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
-
-            // 4. Save to disk
-            let subdir = cacheSubdirectory(for: path)
-            try? FileManager.default.createDirectory(at: subdir, withIntermediateDirectories: true)
-            let diskURL = subdir.appendingPathComponent("\(diskFilename(for: path)).jpg")
-            try? jpegData.write(to: diskURL)
-            print("🖼 [PreviewsManager] written to disk  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
-
-            // 5. Return NSImage
-            let result = NSImage(cgImage: finalCG, size: NSSize(width: finalCG.width, height: finalCG.height))
-            completion(result)
+            completion(image)
         }
     }
 
