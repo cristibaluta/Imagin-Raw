@@ -8,6 +8,7 @@
 import Foundation
 import AppKit
 import CryptoKit
+import AVFoundation
 
 // MARK: - Supporting Data Structures
 
@@ -457,6 +458,23 @@ class ThumbsManager: ObservableObject {
     private func generateThumbnail(for path: String, cacheKey: String, completion: @escaping (NSImage?) -> Void) {
         let url = URL(fileURLWithPath: path)
         let fileExtension = url.pathExtension.lowercased()
+
+        // Video thumbnail via AVFoundation
+        if FilesExtensions.video.contains(fileExtension) {
+            let asset = AVURLAsset(url: url)
+            let gen = AVAssetImageGenerator(asset: asset)
+            gen.appliesPreferredTrackTransform = true
+            gen.maximumSize = CGSize(width: thumbSize * 2, height: thumbSize * 2)
+            if let cg = try? gen.copyCGImage(at: .zero, actualTime: nil) {
+                let image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+                let thumbnail = image.resized(maxSize: thumbSize) ?? image
+                saveToDisk(thumbnail, cacheKey: cacheKey, forPath: path)
+                completion(thumbnail)
+            } else {
+                completion(nil)
+            }
+            return
+        }
 
         autoreleasepool {
             var originalImage: NSImage?

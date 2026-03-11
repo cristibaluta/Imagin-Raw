@@ -23,6 +23,11 @@ struct PhotoItem: Identifiable, Hashable {
     let cameraModel: String? // Camera model (e.g., "Canon EOS R5")
     var toDelete: Bool = false // Transient property, not saved to XMP
 
+    var isVideo: Bool {
+        let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
+        return FilesExtensions.video.contains(ext)
+    }
+
     init(path: String, xmp: XmpMetadata? = nil, dateCreated: Date, hasACR: Bool = false, hasJPG: Bool = false, inCameraRating: Int? = nil, isRawFile: Bool = false, fileSizeBytes: Int64? = nil, width: Int? = nil, height: Int? = nil, cameraMake: String? = nil, cameraModel: String? = nil) {
         self.id = UUID()
         self.path = path

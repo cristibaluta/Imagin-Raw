@@ -15,8 +15,12 @@ enum FilesExtensions {
         "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"
     ]
 
-    static let nonRaw: Set<String> = ["jpg", "jpeg", "png", "heic", "tiff", "tif"]
+    static let jpg: Set<String> = ["jpg", "jpeg"]
 
-    /// All supported image extensions (RAW + non-RAW)
-    static let all: Set<String> = raw.union(nonRaw)
+    static let other: Set<String> = ["png", "heic", "tiff", "tif"]
+
+    static let video: Set<String> = ["mp4", "mov", "m4v", "avi", "mkv", "hevc"]
+
+    /// All supported extensions (RAW + JPG + other + video)
+    static let all: Set<String> = raw.union(jpg).union(other).union(video)
 }

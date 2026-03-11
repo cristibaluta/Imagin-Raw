@@ -17,6 +17,15 @@ struct LargePreviewView: View {
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
 
     var body: some View {
+        if photo.isVideo {
+            VideoPreviewView(photo: photo)
+        } else {
+            photoPreviewBody
+        }
+    }
+
+    @ViewBuilder
+    private var photoPreviewBody: some View {
         VStack(spacing: 0) {
             // Image area
             ZStack(alignment: model.alignToTopLeft ? .topLeading : .center) {
