@@ -565,6 +565,12 @@ class ThumbGridViewModel: ObservableObject {
                         openPhotos: ([PhotoItem]) -> Void,
                         onToggleSidebar: (() -> Void)?) -> KeyPress.Result {
 
+        // Z — toggle zoom in LargePreviewView
+        if keyPress.key == KeyEquivalent("z") {
+            NotificationCenter.default.post(name: .toggleZoom, object: nil)
+            return .handled
+        }
+
         guard !filteredPhotos.isEmpty else {
             return .ignored
         }

@@ -15,7 +15,6 @@ struct LargePreviewView: View {
     @State private var exportPadding: Double = appPrefs.get(.exportPadding)
     @State private var exportAlignment: ExportAlignment = ExportAlignment(rawValue: appPrefs.string(.exportAlignment)) ?? .center
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
-    @FocusState private var isFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -152,23 +151,17 @@ struct LargePreviewView: View {
         }
         .onAppear {
             model.setPhoto(photo)
-            isFocused = true
         }
         .onChange(of: photo) { _, newPhoto in
             model.setPhoto(newPhoto)
             showExportPanel = false
-            isFocused = true
         }
-        .focusable()
-        .focusEffectDisabled()
-        .focused($isFocused)
-        .onKeyPress("z") {
+        .onReceive(NotificationCenter.default.publisher(for: .toggleZoom)) { _ in
             if model.fullResImage != nil {
                 model.exitZoom()
             } else if !model.isLoadingFullRes {
                 model.loadFullResolution()
             }
-            return .handled
         }
         .onChange(of: exportRatio) { _, newVal in
             appPrefs.set(newVal.rawValue, forKey: .exportRatio)
@@ -183,6 +176,10 @@ struct LargePreviewView: View {
 }
 
 // MARK: - Live Canvas Preview
+
+extension Notification.Name {
+    static let toggleZoom = Notification.Name("ro.imagin.raw.toggleZoom")
+}
 
 private func exportPixelSize(for image: NSImage?) -> CGSize {
     guard let image else { return .zero }
