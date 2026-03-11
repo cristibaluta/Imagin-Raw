@@ -48,48 +48,31 @@ class LargePreviewViewModel: ObservableObject {
         guard let photo = photo else { return }
         guard !isLoadingFullRes && fullResImage == nil else { return }
         let path = photo.path
+
+        // Check memory cache first — instant if recently viewed
+        if let cached = FullResManager.shared.cachedImage(for: path) {
+            print("🔎 [zoom] cache hit \(URL(fileURLWithPath: path).lastPathComponent)")
+            self.fullResImage = cached
+            return
+        }
+
         isLoadingFullRes = true
         print("🔎 [zoom] starting full-res load: \(URL(fileURLWithPath: path).lastPathComponent)")
         let t0 = Date()
 
         fullResTask = Task {
-            let image = await Self.decodeFullResolution(from: path, t0: t0)
+            let image: NSImage? = await withCheckedContinuation { continuation in
+                FullResManager.shared.loadFullRes(for: path) { img in
+                    continuation.resume(returning: img)
+                }
+            }
             guard !Task.isCancelled else {
                 print("🔎 [zoom] cancelled")
                 return
             }
-            print("🔎 [zoom] image ready, assigning to view  +\(String(format: "%.3f", -t0.timeIntervalSinceNow))s")
+            print("🔎 [zoom] done  +\(String(format: "%.3f", -t0.timeIntervalSinceNow))s")
             self.fullResImage = image
             self.isLoadingFullRes = false
-            print("🔎 [zoom] done  +\(String(format: "%.3f", -t0.timeIntervalSinceNow))s")
-        }
-    }
-
-    private static func decodeFullResolution(from path: String, t0: Date) async -> NSImage? {
-        let url = URL(fileURLWithPath: path)
-        let ext = url.pathExtension.lowercased()
-        print("🔎 [zoom] decodeFullResolution start  +\(String(format: "%.3f", -t0.timeIntervalSinceNow))s")
-
-        if FilesExtensions.raw.contains(ext) {
-            let image: NSImage? = await withCheckedContinuation { continuation in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    print("🔎 [zoom] calling RawWrapper  +\(String(format: "%.3f", -t0.timeIntervalSinceNow))s")
-                    let img = RawWrapper.shared().extractFullResolution(path)
-                    print("🔎 [zoom] RawWrapper returned \(img != nil ? "image" : "nil")  +\(String(format: "%.3f", -t0.timeIntervalSinceNow))s")
-                    continuation.resume(returning: img)
-                }
-            }
-            return image
-        } else {
-            guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-                  let cgImg = CGImageSourceCreateImageAtIndex(src, 0, [
-                      kCGImageSourceShouldCacheImmediately: true
-                  ] as CFDictionary) else {
-                print("🔎 [zoom] CGImageSource failed")
-                return nil
-            }
-            print("🔎 [zoom] non-RAW CGImage ready  +\(String(format: "%.3f", -t0.timeIntervalSinceNow))s")
-            return NSImage(cgImage: cgImg, size: .zero)
         }
     }
 
