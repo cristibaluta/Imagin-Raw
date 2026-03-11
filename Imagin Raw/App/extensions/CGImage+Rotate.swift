@@ -21,7 +21,6 @@ extension CGImage {
             return nil
         }
 
-        var orientedImage: CGImage?
         var degreesToRotate: Double = 0.0
         var swapWidthHeight: Bool = false
         var mirrored: Bool = false
@@ -83,10 +82,11 @@ extension CGImage {
             contextRef?.translateBy(x: -orientedSize.width / 2.0, y: -orientedSize.height / 2.0)
         }
 
-        contextRef?.draw(self, in: CGRect(x: 0.0, y: 0.0, width: CGFloat(originalWidth), height: CGFloat(originalHeight)))
+        contextRef?.draw(self, in: CGRect(x: 0.0,
+                                          y: 0.0,
+                                          width: CGFloat(originalWidth),
+                                          height: CGFloat(originalHeight)))
 
-        orientedImage = contextRef?.makeImage()
-
-        return orientedImage
+        return contextRef?.makeImage()
     }
 }
