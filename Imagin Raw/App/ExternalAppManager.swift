@@ -36,7 +36,7 @@ class ExternalAppManager: ObservableObject {
             // Keywords to identify photo editing applications
             let photoKeywords = [
                 "lightroom", "photoshop", "After-Effects", "Premiere-Pro",
-                "com.dxo", "captureone", "photoraw",
+                "com.dxo", "captureone", "photoraw", "darktable",
                 ".luminar", "affinity", "pixelmator", "gimp", "sketch", "canva",
                 ".on1.", "topaz", "nik", "hdr", "panorama", "preview"
             ]
