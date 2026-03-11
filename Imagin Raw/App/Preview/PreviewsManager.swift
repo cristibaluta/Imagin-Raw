@@ -15,9 +15,9 @@ class PreviewsManager {
     // MARK: - Config
 
     private let previewSize: CGFloat = 1024
-    private let jpegQuality: CGFloat = 0.92
+    private let jpegQuality: CGFloat = 0.85
     private let maxMemoryCacheSize = 20
-    private let processingLimit = 2
+    private let processingLimit = 5
 
     // MARK: - Cache
 
@@ -50,9 +50,13 @@ class PreviewsManager {
 
     func loadPreview(for path: String, completion: @escaping (NSImage?, ExifInfo?) -> Void) {
         let key = cacheKey(for: path)
+        let filename = URL(fileURLWithPath: path).lastPathComponent
+        let t0 = Date()
+        print("🖼 [PreviewsManager] loadPreview \(filename)")
 
         // 1. Memory cache hit
         if let cached = getCachedImage(for: key) {
+            print("🖼 [PreviewsManager] memory hit \(filename)")
             DispatchQueue.main.async { completion(cached, nil) }
             return
         }
@@ -60,6 +64,7 @@ class PreviewsManager {
         // 2. Enqueue
         requestQueue.async { [weak self] in
             guard let self else { return }
+            print("🖼 [PreviewsManager] enqueued \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
             self.requestCounter += 1
             let order = self.requestCounter
 
@@ -130,19 +135,26 @@ class PreviewsManager {
     }
 
     private func processRequest(_ request: ThumbnailRequest) {
+        let filename = URL(fileURLWithPath: request.path).lastPathComponent
+        let t0 = Date()
+        print("🖼 [PreviewsManager] processRequest \(filename)")
         processingSemaphore.wait()
+        print("🖼 [PreviewsManager] semaphore acquired \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
         autoreleasepool {
             // Disk hit
             if let img = loadFromDisk(for: request.path) {
+                print("🖼 [PreviewsManager] disk hit \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
                 setCachedImage(img, for: request.cacheKey)
                 DispatchQueue.main.async { request.completion(img) }
                 processingSemaphore.signal()
                 return
             }
+            print("🖼 [PreviewsManager] disk miss, generating \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
             // Generate
             generate(for: request.path, cacheKey: request.cacheKey) { [weak self] img in
                 defer { self?.processingSemaphore.signal() }
+                print("🖼 [PreviewsManager] generate done \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  image=\(img != nil)")
                 guard let img else {
                     DispatchQueue.main.async { request.completion(nil) }
                     return
@@ -158,26 +170,114 @@ class PreviewsManager {
     private func generate(for path: String, cacheKey: String, completion: @escaping (NSImage?) -> Void) {
         let url = URL(fileURLWithPath: path)
         let ext = url.pathExtension.lowercased()
+        let filename = url.lastPathComponent
+        let t0 = Date()
 
         autoreleasepool {
-            var original: NSImage?
+            // 1. Get source CGImage — embedded JPEG for RAW, CGImageSource for others
+            let sourceCG: CGImage?
+            var exifOrientation: Int32 = 1
 
             if FilesExtensions.raw.contains(ext) {
                 guard let data = RawWrapper.shared().extractEmbeddedJPEG(path) else {
-                    completion(nil); return
+                    print("🖼 [PreviewsManager] extractEmbeddedJPEG failed \(filename)")
+                    completion(nil);
+                    return
                 }
-                original = NSImage(data: data)
+                print("🖼 [PreviewsManager] extractEmbeddedJPEG done \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  bytes=\(data.count)")
+                if let src = CGImageSourceCreateWithData(data as CFData, nil) {
+                    sourceCG = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
+                    if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+                       let orientation = props[kCGImagePropertyOrientation] as? Int32 {
+                        exifOrientation = orientation
+                    }
+                } else {
+                    sourceCG = nil
+                }
             } else {
-                original = NSImage(contentsOfFile: path)
+                guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+                    completion(nil);
+                    return
+                }
+                sourceCG = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
+                if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+                   let orientation = props[kCGImagePropertyOrientation] as? Int32 {
+                    exifOrientation = orientation
+                }
+                print("🖼 [PreviewsManager] loaded non-RAW \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
             }
 
-            guard let src = original else { completion(nil); return }
+            guard let cg = sourceCG else {
+                completion(nil);
+                return
+            }
+            print("🖼 [PreviewsManager] cg bitsPerComponent=\(cg.bitsPerComponent) bitsPerPixel=\(cg.bitsPerPixel) colorSpace=\(String(describing: cg.colorSpace)) alphaInfo=\(cg.alphaInfo.rawValue)")
 
-            let preview: NSImage? = autoreleasepool { src.resized(maxSize: previewSize) }
-            guard let final = preview else { completion(nil); return }
+            // 2. Apply EXIF orientation
+            guard let oriented = cg.applyingOrientation(exifOrientation) else {
+                return
+            }
+            let srcW = CGFloat(oriented.width)
+            let srcH = CGFloat(oriented.height)
+            print("🖼 [PreviewsManager] source pixels=\(Int(srcW))×\(Int(srcH)) orientation=\(exifOrientation)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
-            saveToDisk(final, for: path)
-            completion(final)
+            let finalCG: CGImage
+            let maxDim = max(srcW, srcH)
+            if maxDim <= previewSize {
+                finalCG = oriented
+                print("🖼 [PreviewsManager] skip resize  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+            } else {
+                let scale = previewSize / maxDim
+                let dstW = Int((srcW * scale).rounded())
+                let dstH = Int((srcH * scale).rounded())
+                let cs = CGColorSpaceCreateDeviceRGB()
+                let bitmapInfo = CGImageAlphaInfo.noneSkipLast.rawValue
+                guard let ctx = CGContext(data: nil,
+                                          width: dstW,
+                                          height: dstH,
+                                          bitsPerComponent: 8,
+                                          bytesPerRow: 0,
+                                          space: cs,
+                                          bitmapInfo: bitmapInfo) else {
+                    completion(nil);
+                    return
+                }
+                ctx.interpolationQuality = .high
+                ctx.draw(oriented, in: CGRect(x: 0, y: 0, width: dstW, height: dstH))
+                guard let resized = ctx.makeImage() else {
+                    completion(nil);
+                    return
+                }
+                finalCG = resized
+                print("🖼 [PreviewsManager] resized to \(dstW)×\(dstH)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+            }
+
+            // 3. Encode directly to JPEG via CGImageDestination (no TIFF round-trip)
+            let mutable = NSMutableData()
+            guard let dest = CGImageDestinationCreateWithData(mutable, "public.jpeg" as CFString, 1, nil) else {
+                completion(nil);
+                return
+            }
+            CGImageDestinationAddImage(dest, finalCG, [
+                kCGImageDestinationLossyCompressionQuality: jpegQuality
+            ] as CFDictionary)
+            guard CGImageDestinationFinalize(dest) else {
+                completion(nil);
+                return
+            }
+            let jpegData = mutable as Data
+            print("🖼 [PreviewsManager] JPEG encoded \(filename) \(jpegData.count / 1024)KB  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+
+            // 4. Save to disk
+            let subdir = cacheSubdirectory(for: path)
+            try? FileManager.default.createDirectory(at: subdir, withIntermediateDirectories: true)
+            let diskURL = subdir.appendingPathComponent("\(diskFilename(for: path)).jpg")
+            try? jpegData.write(to: diskURL)
+            print("🖼 [PreviewsManager] written to disk  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+
+            // 5. Return NSImage
+            let result = NSImage(cgImage: finalCG, size: NSSize(width: finalCG.width, height: finalCG.height))
+            completion(result)
         }
     }
 
@@ -186,19 +286,26 @@ class PreviewsManager {
     private func loadFromDisk(for path: String) -> NSImage? {
         let url = diskCacheURL(for: path)
         guard FileManager.default.fileExists(atPath: url.path),
-              let data = try? Data(contentsOf: url),
-              let img = NSImage(data: data) else { return nil }
-        return img
-    }
+              let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let cg = CGImageSourceCreateImageAtIndex(src, 0, [
+                  kCGImageSourceShouldCacheImmediately: true
+              ] as CFDictionary) else { return nil }
 
-    private func saveToDisk(_ image: NSImage, for path: String) {
-        guard let tiff = image.tiffRepresentation,
-              let rep = NSBitmapImageRep(data: tiff),
-              let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: jpegQuality]) else { return }
-        let subdir = cacheSubdirectory(for: path)
-        try? FileManager.default.createDirectory(at: subdir, withIntermediateDirectories: true)
-        let diskURL = subdir.appendingPathComponent("\(diskFilename(for: path)).jpg")
-        try? jpeg.write(to: diskURL)
+        // Normalize to sRGB — JPEG from disk is YCbCr which NSImage can render black
+        let srgb = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.noneSkipLast.rawValue
+        guard let ctx = CGContext(data: nil,
+                                  width: cg.width,
+                                  height: cg.height,
+                                  bitsPerComponent: 8,
+                                  bytesPerRow: 0,
+                                  space: srgb,
+                                  bitmapInfo: bitmapInfo),
+              let normalized = { ctx.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height)); return ctx.makeImage() }()
+        else {
+            return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+        }
+        return NSImage(cgImage: normalized, size: NSSize(width: normalized.width, height: normalized.height))
     }
 
     // MARK: - Memory Cache

@@ -96,9 +96,12 @@ class LargePreviewViewModel: ObservableObject {
     private func loadPreview() {
         guard let photo = photo else { return }
         let path = photo.path
+        let t0 = Date()
+        let filename = URL(fileURLWithPath: path).lastPathComponent
+        print("🖼 [preview] start \(filename)")
 
-        // Check memory cache first (instant)
         if let (cachedImage, cachedExif) = Self.imageCache[path] {
+            print("🖼 [preview] memory cache hit \(filename)")
             self.preview = cachedImage
             self.exifInfo = cachedExif
             self.isLoading = false
@@ -114,24 +117,30 @@ class LargePreviewViewModel: ObservableObject {
         exifInfo = nil
 
         loadingTask = Task(priority: .userInitiated) { [path] in
-            // Load EXIF in parallel with the preview
-            async let exifTask = Self.loadExifOnly(from: path)
+            print("🖼 [preview] task start  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
-            // Ask PreviewsManager — it checks its own disk cache first,
-            // generates a 1024px JPEG if missing, then returns
+            // Step 1: get preview image from PreviewsManager
             let previewImage: NSImage? = await withCheckedContinuation { continuation in
                 PreviewsManager.shared.loadPreview(for: path) { image, _ in
+                    print("🖼 [preview] PreviewsManager callback  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  image=\(image != nil)")
                     continuation.resume(returning: image)
                 }
             }
-
-            let extractedExif = await exifTask
+            print("🖼 [preview] image ready  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
             guard !Task.isCancelled else { return }
 
+            // Show image immediately — don't wait for EXIF
             self.preview = previewImage
-            self.exifInfo = extractedExif
             self.isLoading = false
+            print("🖼 [preview] assigned to view  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+
+            // Step 2: load EXIF separately after image is visible
+            let extractedExif = await Self.loadExifOnly(from: path)
+            print("🖼 [preview] exif ready  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+
+            guard !Task.isCancelled else { return }
+            self.exifInfo = extractedExif
 
             if let img = previewImage {
                 Self.imageCache[path] = (img, extractedExif)
@@ -144,6 +153,7 @@ class LargePreviewViewModel: ObservableObject {
                     Self.imageCache.removeValue(forKey: oldest)
                 }
             }
+            print("🖼 [preview] done  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
         }
     }
 
