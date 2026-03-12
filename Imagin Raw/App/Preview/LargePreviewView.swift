@@ -20,7 +20,7 @@ struct LargePreviewView: View {
     let photo: PhotoItem
     @StateObject private var model = LargePreviewViewModel()
     @State private var showExportPanel = false
-    @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .original
+    @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .r4x5
     @State private var exportPadding: Double = appPrefs.get(.exportPadding)
     @State private var exportAlignment: ExportAlignment = ExportAlignment(rawValue: appPrefs.string(.exportAlignment)) ?? .center
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)

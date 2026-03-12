@@ -89,13 +89,13 @@ struct ExportPanelView: View {
                 Text("Alignment")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                HStack(spacing: 0) {
+                HStack(spacing: 6) {
                     ForEach(ExportAlignment.allCases) { option in
                         Button(action: { alignment = option }) {
                             Image(systemName: option.systemImage)
                                 .font(.system(size: 13, weight: alignment == option ? .semibold : .regular))
                                 .foregroundColor(alignment == option ? .primary : .secondary)
-                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
                                 .background(alignment == option ? Color.accentColor.opacity(0.15) : Color.clear)
                         }

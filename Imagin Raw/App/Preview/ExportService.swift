@@ -9,7 +9,6 @@ import ImageIO
 import UniformTypeIdentifiers
 
 enum ExportAspectRatio: String, CaseIterable, Identifiable {
-    case original  = "Original"
     case r1x1      = "1:1"
     case r3x4      = "3:4"
     case r4x5      = "4:5"
@@ -18,7 +17,6 @@ enum ExportAspectRatio: String, CaseIterable, Identifiable {
 
     var ratio: CGFloat? {
         switch self {
-        case .original: return nil
         case .r1x1:     return 1.0
         case .r3x4:     return 3.0 / 4.0
         case .r4x5:     return 4.0 / 5.0
