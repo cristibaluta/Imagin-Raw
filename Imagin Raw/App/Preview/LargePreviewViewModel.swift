@@ -4,11 +4,11 @@ import RCPreferences
 
 @MainActor
 class LargePreviewViewModel: ObservableObject {
-    @Published var preview: NSImage?
+    @Published var preview: IRImage?
     @Published var isLoading = false
     @Published var exifInfo: ExifInfo?
     @Published var alignToTopLeft: Bool = appPrefs.bool(.alignToTopLeft)
-    @Published var fullResImage: NSImage? = nil
+    @Published var fullResImage: IRImage? = nil
     @Published var isLoadingFullRes = false
 
     private(set) var photo: PhotoItem?
@@ -16,7 +16,7 @@ class LargePreviewViewModel: ObservableObject {
     private var fullResTask: Task<Void, Never>?
 
     private static let cacheLimit = 10
-    private static var imageCache: [String: (NSImage, ExifInfo?)] = [:]
+    private static var imageCache: [String: (IRImage, ExifInfo?)] = [:]
     private static var cacheOrder: [String] = [] // Most recent at end
 
     func setPhoto(_ photo: PhotoItem) {
@@ -61,7 +61,7 @@ class LargePreviewViewModel: ObservableObject {
         let t0 = Date()
 
         fullResTask = Task {
-            let image: NSImage? = await withCheckedContinuation { continuation in
+            let image: IRImage? = await withCheckedContinuation { continuation in
                 FullResManager.shared.loadFullRes(for: path) { img in
                     continuation.resume(returning: img)
                 }
@@ -103,7 +103,7 @@ class LargePreviewViewModel: ObservableObject {
             print("🖼 [preview] task start  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
             // Step 1: get preview image from PreviewsManager
-            let previewImage: NSImage? = await withCheckedContinuation { continuation in
+            let previewImage: IRImage? = await withCheckedContinuation { continuation in
                 PreviewsManager.shared.loadPreview(for: path) { image, _ in
                     print("🖼 [preview] PreviewsManager callback  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  image=\(image != nil)")
                     continuation.resume(returning: image)

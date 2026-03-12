@@ -17,7 +17,7 @@ struct ThumbCell: View {
     let onRenameTo: (PhotoItem) -> Void
     let onMoveAllMarkedToTrash: (() -> (count: Int, action: () -> Void))?
     let size: CGFloat  // Now accepts size as a parameter
-    @State private var thumbnailImage: NSImage?
+    @State private var thumbnailImage: IRImage?
     @State private var isLoading = false
     @State private var clickCount = 0
     @State private var clickTimer: Timer?

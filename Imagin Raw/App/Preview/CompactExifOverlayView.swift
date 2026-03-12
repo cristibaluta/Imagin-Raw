@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct CompactExifOverlayView: View {
-    let nsImage: NSImage
+    let nsImage: IRImage
     let exifInfo: ExifInfo
 
     var body: some View {

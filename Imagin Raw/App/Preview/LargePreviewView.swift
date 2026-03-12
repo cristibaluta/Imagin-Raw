@@ -166,7 +166,7 @@ extension Notification.Name {
     static let toggleZoom = Notification.Name("ro.imagin.raw.toggleZoom")
 }
 
-private func exportPixelSize(for image: NSImage?) -> CGSize {
+private func exportPixelSize(for image: IRImage?) -> CGSize {
     guard let image else { return .zero }
     if let rep = image.representations.first as? NSBitmapImageRep {
         return CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
@@ -178,7 +178,7 @@ private func exportPixelSize(for image: NSImage?) -> CGSize {
 }
 
 private struct ExportCanvasPreview: View, Animatable {
-    let image: NSImage
+    let image: IRImage
     var geo: GeometryProxy
     let targetRatio: ExportAspectRatio
     var padding: Double
@@ -191,7 +191,7 @@ private struct ExportCanvasPreview: View, Animatable {
 
     private let pixelSize: CGSize
 
-    init(image: NSImage, geo: GeometryProxy, targetRatio: ExportAspectRatio, padding: Double, alignment: ExportAlignment) {
+    init(image: IRImage, geo: GeometryProxy, targetRatio: ExportAspectRatio, padding: Double, alignment: ExportAlignment) {
         self.image = image
         self.geo = geo
         self.targetRatio = targetRatio

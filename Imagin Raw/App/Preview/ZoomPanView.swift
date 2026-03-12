@@ -9,7 +9,7 @@ import AppKit
 /// Displays an image at 100% pixel resolution (1 image pixel = 1 screen point).
 /// The viewport pans automatically as the mouse moves — no click-drag needed.
 struct ZoomPanView: View {
-    let image: NSImage
+    let image: IRImage
     var initialMousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
 
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)

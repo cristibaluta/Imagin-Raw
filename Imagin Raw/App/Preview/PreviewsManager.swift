@@ -51,7 +51,7 @@ class PreviewsManager {
 
     // MARK: - Public Interface
 
-    func loadPreview(for path: String, completion: @escaping (NSImage?, ExifInfo?) -> Void) {
+    func loadPreview(for path: String, completion: @escaping (IRImage?, ExifInfo?) -> Void) {
         let key = cacheKey(for: path)
         let filename = URL(fileURLWithPath: path).lastPathComponent
         let t0 = Date()
@@ -170,7 +170,7 @@ class PreviewsManager {
 
     // MARK: - Generation
 
-    private func generate(for path: String, cacheKey: String, completion: @escaping (NSImage?) -> Void) {
+    private func generate(for path: String, cacheKey: String, completion: @escaping (IRImage?) -> Void) {
         let filename = URL(fileURLWithPath: path).lastPathComponent
         let t0 = Date()
 
@@ -203,15 +203,15 @@ class PreviewsManager {
 
     // MARK: - Disk I/O
 
-    private func loadFromDisk(for path: String) -> NSImage? {
+    private func loadFromDisk(for path: String) -> IRImage? {
         let url = diskCacheURL(for: path)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return NSImage(contentsOf: url)
+        return IRImage(contentsOf: url)
     }
 
     // MARK: - Memory Cache
 
-    private func getCachedImage(for key: String) -> NSImage? {
+    private func getCachedImage(for key: String) -> IRImage? {
         cacheQueue.sync {
             guard let entry = memoryCache[key] else { return nil }
             updateAccessOrder(for: key)
@@ -219,7 +219,7 @@ class PreviewsManager {
         }
     }
 
-    private func setCachedImage(_ image: NSImage, for key: String) {
+    private func setCachedImage(_ image: IRImage, for key: String) {
         cacheQueue.async(flags: .barrier) { [weak self] in
             guard let self else { return }
             memoryCache[key] = CacheEntry(image: image, lastAccessed: Date())

@@ -6,14 +6,11 @@
 //
 
 import Foundation
-import AppKit
 import CryptoKit
 import AVFoundation
 
-// MARK: - Supporting Data Structures
-
 struct CacheEntry {
-    let image: NSImage
+    let image: IRImage
     let lastAccessed: Date
 }
 
@@ -24,7 +21,7 @@ struct ThumbnailRequest: Comparable {
     let priority: Priority
     let timestamp: Date = Date()
     let requestOrder: Int // Order in which request was made
-    let completion: (NSImage?) -> Void
+    let completion: (IRImage?) -> Void
 
     enum Priority: Int, Comparable {
         case high = 3    // Currently visible
@@ -129,7 +126,7 @@ class ThumbsManager: ObservableObject {
 
     /// Load thumbnail with priority for given file path
     /// Returns cached image immediately if available, otherwise loads asynchronously
-    func loadThumbnail(for path: String, priority: ThumbnailRequest.Priority = .medium, completion: @escaping (NSImage?) -> Void) {
+    func loadThumbnail(for path: String, priority: ThumbnailRequest.Priority = .medium, completion: @escaping (IRImage?) -> Void) {
         let cacheKey = cacheKey(for: path)
 
         // 1. Check memory cache first
@@ -184,12 +181,12 @@ class ThumbsManager: ObservableObject {
     }
 
     /// Load thumbnail for given file path (legacy method for compatibility)
-    func loadThumbnail(for path: String, completion: @escaping (NSImage?) -> Void) {
+    func loadThumbnail(for path: String, completion: @escaping (IRImage?) -> Void) {
         loadThumbnail(for: path, priority: .medium, completion: completion)
     }
 
     /// Synchronous version for immediate use (checks memory cache only)
-    func getCachedThumbnail(for path: String) -> NSImage? {
+    func getCachedThumbnail(for path: String) -> IRImage? {
         let cacheKey = cacheKey(for: path)
         return getCachedImage(for: cacheKey)
     }
@@ -306,7 +303,7 @@ class ThumbsManager: ObservableObject {
         return URL(fileURLWithPath: path).lastPathComponent
     }
 
-    private func getCachedImage(for cacheKey: String) -> NSImage? {
+    private func getCachedImage(for cacheKey: String) -> IRImage? {
         return cacheQueue.sync {
             guard let entry = memoryCache[cacheKey] else { return nil }
             updateAccessOrder(for: cacheKey)
@@ -314,7 +311,7 @@ class ThumbsManager: ObservableObject {
         }
     }
 
-    private func setCachedImage(_ image: NSImage, for cacheKey: String) {
+    private func setCachedImage(_ image: IRImage, for cacheKey: String) {
         cacheQueue.async(flags: .barrier) { [weak self] in
             guard let self = self else { return }
             self.memoryCache[cacheKey] = CacheEntry(image: image, lastAccessed: Date())
@@ -425,23 +422,21 @@ class ThumbsManager: ObservableObject {
         }
     }
 
-    private func loadFromDisk(cacheKey: String, forPath path: String) -> NSImage? {
+    private func loadFromDisk(cacheKey: String, forPath path: String) -> IRImage? {
         let cacheSubdir = cacheSubdirectory(for: path)
         let filename = diskFilename(for: path)
         let diskPath = cacheSubdir.appendingPathComponent("\(filename).jpg")
 
         guard FileManager.default.fileExists(atPath: diskPath.path),
               let data = try? Data(contentsOf: diskPath),
-              let image = NSImage(data: data) else {
+              let image = IRImage(data: data) else {
             return nil
         }
         return image
     }
 
-    private func saveToDisk(_ image: NSImage, cacheKey: String, forPath path: String) {
-        guard let tiffData = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiffData),
-              let jpegData = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) else {
+    private func saveToDisk(_ image: IRImage, cacheKey: String, forPath path: String) {
+        guard let jpegData = image.bitmapRepresentation() else {
             return
         }
         let cacheSubdir = cacheSubdirectory(for: path)
@@ -455,7 +450,7 @@ class ThumbsManager: ObservableObject {
         try? jpegData.write(to: diskPath)
     }
 
-    private func generateThumbnail(for path: String, cacheKey: String, completion: @escaping (NSImage?) -> Void) {
+    private func generateThumbnail(for path: String, cacheKey: String, completion: @escaping (IRImage?) -> Void) {
         let url = URL(fileURLWithPath: path)
         let fileExtension = url.pathExtension.lowercased()
 
@@ -466,8 +461,8 @@ class ThumbsManager: ObservableObject {
             gen.appliesPreferredTrackTransform = true
             gen.maximumSize = CGSize(width: thumbSize * 2, height: thumbSize * 2)
             if let cg = try? gen.copyCGImage(at: .zero, actualTime: nil) {
-                let image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
-                let thumbnail = image.resized(maxSize: thumbSize) ?? image
+                let image = IRImage(cgImage: cg, size: IRSize(width: cg.width, height: cg.height))
+                let thumbnail = image.resized(maxSize: thumbSize)
                 saveToDisk(thumbnail, cacheKey: cacheKey, forPath: path)
                 completion(thumbnail)
             } else {
@@ -477,7 +472,7 @@ class ThumbsManager: ObservableObject {
         }
 
         autoreleasepool {
-            var originalImage: NSImage?
+            var originalImage: IRImage?
 
             if FilesExtensions.raw.contains(fileExtension) {
                 // Generate thumbnail from RAW file using RawWrapper
@@ -488,12 +483,12 @@ class ThumbsManager: ObservableObject {
 
                 // Create image in its own autoreleasepool
                 autoreleasepool {
-                    originalImage = NSImage(data: data)
+                    originalImage = IRImage(data: data)
                 }
             } else {
                 // Load regular image file directly from disk
                 autoreleasepool {
-                    originalImage = NSImage(contentsOfFile: path)
+                    originalImage = IRImage(contentsOfFile: path)
                 }
             }
 
@@ -503,7 +498,7 @@ class ThumbsManager: ObservableObject {
             }
 
             // Resize in its own autoreleasepool to release the original image ASAP
-            let thumbnail: NSImage? = autoreleasepool {
+            let thumbnail: IRImage? = autoreleasepool {
                 return image.resized(maxSize: thumbSize)
             }
 

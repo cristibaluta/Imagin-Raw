@@ -16,7 +16,7 @@ class FullResManager {
     var decoder: RawDecoder = CoreGraphicsDecoder()
 
     private let cacheLimit = 5
-    private var cache: [String: NSImage] = [:]
+    private var cache: [String: IRImage] = [:]
     private var order: [String] = []
 
     private let decodeQueue = DispatchQueue(label: "ro.imagin.fullres.decode", qos: .userInitiated)
@@ -25,11 +25,11 @@ class FullResManager {
 
     // MARK: - Public
 
-    func cachedImage(for path: String) -> NSImage? {
+    func cachedImage(for path: String) -> IRImage? {
         cache[path]
     }
 
-    func loadFullRes(for path: String, completion: @escaping (NSImage?) -> Void) {
+    func loadFullRes(for path: String, completion: @escaping (IRImage?) -> Void) {
         if let cached = cache[path] {
             print("🔎 [FullResManager] cache hit \(URL(fileURLWithPath: path).lastPathComponent)")
             DispatchQueue.main.async { completion(cached) }
@@ -44,7 +44,7 @@ class FullResManager {
             guard let self else { return }
 
             let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
-            let image: NSImage?
+            let image: IRImage?
 
             if FilesExtensions.raw.contains(ext) {
                 image = decoder.decodeFullRes(at: path)
@@ -52,7 +52,7 @@ class FullResManager {
                 // Non-RAW: load via CGImageSource at full size
                 if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
                    let cg = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) {
-                    image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+                    image = IRImage(cgImage: cg, size: IRSize(width: cg.width, height: cg.height))
                 } else {
                     image = nil
                 }
@@ -73,7 +73,7 @@ class FullResManager {
 
     // MARK: - Private
 
-    private func store(_ image: NSImage, for path: String) {
+    private func store(_ image: IRImage, for path: String) {
         if cache[path] != nil {
             order.removeAll { $0 == path }
             order.append(path)
