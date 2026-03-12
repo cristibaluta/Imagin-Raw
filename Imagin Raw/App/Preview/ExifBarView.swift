@@ -18,21 +18,27 @@ struct ExifBarView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // Aperture
-            if let aperture = exifInfo.aperture {
-                exifItem(label: "ƒ/\(String(format: "%.1f", aperture))")
-                divider
+            HStack {
+                // Aperture
+                if let aperture = exifInfo.aperture {
+                    exifItem(label: "ƒ/\(String(format: "%.1f", aperture))")
+                }
+                // Shutter
+                if let shutter = shutterText {
+                    exifItem(label: shutter)
+                }
+                // ISO
+                if let iso = exifInfo.iso {
+                    exifItem(label: "ISO \(iso)")
+                }
             }
-            // Shutter
-            if let shutter = shutterText {
-                exifItem(label: shutter)
-                divider
-            }
-            // ISO
-            if let iso = exifInfo.iso {
-                exifItem(label: "ISO \(iso)")
-                divider
-            }
+            .padding(4)
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(Color.gray, lineWidth: 1)
+            )
+            .padding(.horizontal, 8)
+
             // Focal length
             if let focal = exifInfo.focalLength {
                 exifItem(label: "\(String(format: "%.0f", focal))mm")
@@ -63,14 +69,14 @@ struct ExifBarView: View {
     private func exifItem(label: String) -> some View {
         Text(label)
             .font(.caption)
-            .foregroundColor(.secondary)
+            .foregroundColor(.primary)
             .lineLimit(1)
-            .padding(.horizontal, 10)
     }
 
     private var divider: some View {
         Rectangle()
             .fill(Color.secondary.opacity(0.25))
             .frame(width: 1, height: 14)
+            .padding(.horizontal, 4)
     }
 }
