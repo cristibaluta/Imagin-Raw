@@ -19,20 +19,10 @@ struct VideoPreviewView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Video area
-            VideoPlayer(player: player)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .onDisappear {
-                    teardownPlayer()
-                }
-
-            // Bottom bar — same height as photo preview bar
-            HStack(spacing: 0) {
-
-            }
-            .frame(height: 40)
-            .background(Color(NSColor.controlBackgroundColor))
+        VideoPlayer(player: player)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onDisappear {
+            teardownPlayer()
         }
         .onChange(of: photo) { _, newPhoto in
             switchVideo(to: newPhoto)

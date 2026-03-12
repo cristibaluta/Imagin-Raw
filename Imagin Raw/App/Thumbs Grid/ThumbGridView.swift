@@ -40,6 +40,7 @@ struct ThumbGridView: View {
     }
 
     var body: some View {
+        let _ = Self._printChanges()
         VStack(spacing: 0) {
             if viewModel.isDuplicateMode {
                 duplicateGridView
@@ -48,7 +49,6 @@ struct ThumbGridView: View {
             } else {
                 photoGridView
             }
-
             if !viewModel.photos.isEmpty {
                 filterSortBar
             }

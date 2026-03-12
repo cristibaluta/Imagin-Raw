@@ -36,6 +36,7 @@ struct ThumbCell: View {
     }
 
     var body: some View {
+        let _ = Self._printChanges()
         VStack(spacing: 4) {
             ZStack {
                 Rectangle()
