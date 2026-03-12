@@ -50,17 +50,23 @@ struct LargePreviewView: View {
                             if !model.alignToTopLeft { Spacer(minLength: 0) }
                             VStack {
                                 if !model.alignToTopLeft { Spacer(minLength: 0) }
-                                ExportCanvasPreview(
-                                    image: nsImage,
-                                    geo: geo,
-                                    targetRatio: showExportPanel ? exportRatio : .original,
-                                    padding: showExportPanel ? exportPadding : 0,
-                                    alignment: showExportPanel ? exportAlignment : .center
-                                )
-                                //                                .animation(.easeInOut(duration: 0.35), value: showExportPanel)
-                                Spacer()
+                                if showExportPanel {
+                                    ExportCanvasPreview(
+                                        image: nsImage,
+                                        geo: geo,
+                                        targetRatio: showExportPanel ? exportRatio : .original,
+                                        padding: showExportPanel ? exportPadding : 0,
+                                        alignment: showExportPanel ? exportAlignment : .center
+                                    )
+                                } else {
+                                    Image(nsImage: nsImage)
+                                        .resizable()
+                                        .scaledToFit()
+                                }
+                                //.animation(.easeInOut(duration: 0.35), value: showExportPanel)
+                                Spacer(minLength: 0)
                             }
-                            Spacer()
+                            Spacer(minLength: 0)
                         }
                     } else if model.isLoading {
                         ProgressView("Loading...")
@@ -225,8 +231,7 @@ private struct ExportCanvasPreview: View, Animatable {
             canvasH = paddedH
         }
 
-        let inset: CGFloat = padding > 0 ? 16 : 0
-        let scale = min((available.width - inset) / canvasW, (available.height - inset) / canvasH)
+        let scale = min(available.width / canvasW, available.height / canvasH)
         let dispCanvasW = canvasW * scale
         let dispCanvasH = canvasH * scale
         let dispImgW = src.width * scale
@@ -235,12 +240,13 @@ private struct ExportCanvasPreview: View, Animatable {
         // Horizontal offset based on alignment
         let imgOffX: CGFloat
         switch alignment {
-        case .left:   imgOffX = pad * scale
-        case .center: imgOffX = (dispCanvasW - dispImgW) / 2
-        case .right:  imgOffX = dispCanvasW - dispImgW - pad * scale
+            case .left:   imgOffX = pad * scale
+            case .center: imgOffX = (dispCanvasW - dispImgW) / 2
+            case .right:  imgOffX = dispCanvasW - dispImgW - pad * scale
         }
         let imgOffY = (dispCanvasH - dispImgH) / 2
-print("\(dispCanvasW) \(dispCanvasH)")
+        print("dispCanvas: \(dispCanvasW) \(dispCanvasH), dispImg: \(dispImgW) \(dispImgH), imgOff: \(imgOffX) \(imgOffY)")
+
         return Layout(
             dispCanvasW: dispCanvasW, dispCanvasH: dispCanvasH,
             dispImgW: dispImgW, dispImgH: dispImgH,
@@ -249,6 +255,7 @@ print("\(dispCanvasW) \(dispCanvasH)")
     }
 
     var body: some View {
+        let _ = Self._printChanges()
         let l = layout(in: geo.size)
         ZStack {
             Rectangle()
