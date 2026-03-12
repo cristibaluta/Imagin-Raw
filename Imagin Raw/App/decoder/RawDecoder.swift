@@ -65,67 +65,31 @@ struct CoreGraphicsDecoder: RawDecoder {
         let filename = url.lastPathComponent
         let t0 = Date()
 
-        let sourceCG: CGImage?
-        var exifOrientation: Int32 = 1
-
-        if FilesExtensions.raw.contains(ext) {
-            guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-            // CreateThumbnailAtIndex with a large maxPixelSize extracts the embedded JPEG
-            // without triggering a full RAW demosaic — same fast path as decodeFullRes
-            sourceCG = CGImageSourceCreateThumbnailAtIndex(src, 0, [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceShouldCacheImmediately: true,
-                kCGImageSourceCreateThumbnailWithTransform: false, // we handle orientation ourselves
-                kCGImageSourceThumbnailMaxPixelSize: maxSize
-            ] as CFDictionary)
-            if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
-               let o = props[kCGImagePropertyOrientation] as? Int32 {
-                exifOrientation = o
-            }
-            print("🖼 [CoreGraphicsDecoder] extractPreview RAW \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
-        } else {
-            // Non-RAW: load directly via CGImageSource
-            guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-            sourceCG = CGImageSourceCreateImageAtIndex(src, 0, [
-                kCGImageSourceShouldCacheImmediately: true
-            ] as CFDictionary)
-            if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
-               let o = props[kCGImagePropertyOrientation] as? Int32 {
-                exifOrientation = o
-            }
-            print("🖼 [CoreGraphicsDecoder] extractPreview non-RAW \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+        if !FilesExtensions.raw.contains(ext) {
+            // Non-RAW: let ImageIO handle orientation + resize in one shot.
+            // kCGImageSourceCreateThumbnailWithTransform applies EXIF orientation natively
+            // without any CGContext bitmap format issues (PNG alpha, CMYK, etc.)
+            return loadNonRAW(url: url, maxSize: maxSize, label: "CoreGraphicsDecoder", t0: t0)
         }
+
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        var exifOrientation: Int32 = 1
+        if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+           let o = props[kCGImagePropertyOrientation] as? Int32 {
+            exifOrientation = o
+        }
+        let sourceCG = CGImageSourceCreateThumbnailAtIndex(src, 0, [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailWithTransform: false, // we rotate ourselves below
+            kCGImageSourceThumbnailMaxPixelSize: maxSize
+        ] as CFDictionary)
+        print("🖼 [CoreGraphicsDecoder] extractPreview RAW \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
         guard let cg = sourceCG else { return nil }
-
         guard let oriented = cg.applyingOrientation(exifOrientation) else { return nil }
         print("🖼 [CoreGraphicsDecoder] oriented \(oriented.width)×\(oriented.height) orientation=\(exifOrientation)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
-
-        let srcW = CGFloat(oriented.width)
-        let srcH = CGFloat(oriented.height)
-        let maxDim = max(srcW, srcH)
-
-        let finalCG: CGImage
-        if maxDim <= maxSize {
-            finalCG = oriented
-        } else {
-            let scale = maxSize / maxDim
-            let dstW = Int((srcW * scale).rounded())
-            let dstH = Int((srcH * scale).rounded())
-            let cs = CGColorSpaceCreateDeviceRGB()
-            guard let ctx = CGContext(
-                data: nil, width: dstW, height: dstH,
-                bitsPerComponent: 8, bytesPerRow: 0, space: cs,
-                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
-            ) else { return nil }
-            ctx.interpolationQuality = .high
-            ctx.draw(oriented, in: CGRect(x: 0, y: 0, width: dstW, height: dstH))
-            guard let resized = ctx.makeImage() else { return nil }
-            finalCG = resized
-            print("🖼 [CoreGraphicsDecoder] resized to \(dstW)×\(dstH)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
-        }
-
-        return NSImage(cgImage: finalCG, size: NSSize(width: finalCG.width, height: finalCG.height))
+        return NSImage(cgImage: oriented, size: NSSize(width: oriented.width, height: oriented.height))
     }
 
     /// Normalize any CGImage to sRGB + noneSkipLast (no alpha).
@@ -140,6 +104,24 @@ struct CoreGraphicsDecoder: RawDecoder {
         ctx.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
         return ctx.makeImage() ?? cg
     }
+}
+
+// MARK: - Shared non-RAW loader
+
+/// Loads a non-RAW image via CGImageSource, letting ImageIO handle orientation
+/// and resize in one pass. Avoids any CGContext bitmap format issues (PNG alpha,
+/// CMYK, wide gamut, etc.) that arise when manually calling applyingOrientation.
+private func loadNonRAW(url: URL, maxSize: CGFloat, label: String, t0: Date) -> NSImage? {
+    let filename = url.lastPathComponent
+    guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+          let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, [
+              kCGImageSourceCreateThumbnailFromImageAlways: true,
+              kCGImageSourceShouldCacheImmediately: true,
+              kCGImageSourceCreateThumbnailWithTransform: true, // applies EXIF orientation
+              kCGImageSourceThumbnailMaxPixelSize: maxSize
+          ] as CFDictionary) else { return nil }
+    print("🖼 [\(label)] non-RAW \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  \(cg.width)×\(cg.height)")
+    return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
 }
 
 // MARK: - LibRaw implementation
@@ -160,31 +142,22 @@ struct LibRawDecoder: RawDecoder {
         let filename = url.lastPathComponent
         let t0 = Date()
 
-        let sourceCG: CGImage?
-        var exifOrientation: Int32 = 1
+        if !FilesExtensions.raw.contains(ext) {
+            return loadNonRAW(url: url, maxSize: maxSize, label: "LibRawDecoder", t0: t0)
+        }
 
-        if FilesExtensions.raw.contains(ext) {
-            // RawWrapper extracts the embedded JPEG bytes from the RAW container
-            guard let data = RawWrapper.shared().extractEmbeddedJPEG(path) else {
-                print("🖼 [LibRawDecoder] extractEmbeddedJPEG failed \(filename)")
-                return nil
-            }
-            print("🖼 [LibRawDecoder] extractEmbeddedJPEG \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  bytes=\(data.count)")
-            guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-            sourceCG = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
-            if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
-               let o = props[kCGImagePropertyOrientation] as? Int32 {
-                exifOrientation = o
-            }
-        } else {
-            // Non-RAW: RawWrapper not involved, load via CGImageSource
-            guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-            sourceCG = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
-            if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
-               let o = props[kCGImagePropertyOrientation] as? Int32 {
-                exifOrientation = o
-            }
-            print("🖼 [LibRawDecoder] extractPreview non-RAW \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+        // RAW: RawWrapper extracts embedded JPEG, then we apply orientation
+        guard let data = RawWrapper.shared().extractEmbeddedJPEG(path) else {
+            print("🖼 [LibRawDecoder] extractEmbeddedJPEG failed \(filename)")
+            return nil
+        }
+        print("🖼 [LibRawDecoder] extractEmbeddedJPEG \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  bytes=\(data.count)")
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let sourceCG = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
+        var exifOrientation: Int32 = 1
+        if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+           let o = props[kCGImagePropertyOrientation] as? Int32 {
+            exifOrientation = o
         }
 
         guard let cg = sourceCG else { return nil }
@@ -194,27 +167,22 @@ struct LibRawDecoder: RawDecoder {
         let srcW = CGFloat(oriented.width)
         let srcH = CGFloat(oriented.height)
         let maxDim = max(srcW, srcH)
-
-        let finalCG: CGImage
-        if maxDim <= maxSize {
-            finalCG = oriented
-        } else {
-            let scale = maxSize / maxDim
-            let dstW = Int((srcW * scale).rounded())
-            let dstH = Int((srcH * scale).rounded())
-            let cs = CGColorSpaceCreateDeviceRGB()
-            guard let ctx = CGContext(
-                data: nil, width: dstW, height: dstH,
-                bitsPerComponent: 8, bytesPerRow: 0, space: cs,
-                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
-            ) else { return nil }
-            ctx.interpolationQuality = .high
-            ctx.draw(oriented, in: CGRect(x: 0, y: 0, width: dstW, height: dstH))
-            guard let resized = ctx.makeImage() else { return nil }
-            finalCG = resized
-            print("🖼 [LibRawDecoder] resized to \(dstW)×\(dstH)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+        guard maxDim > maxSize else {
+            return NSImage(cgImage: oriented, size: NSSize(width: oriented.width, height: oriented.height))
         }
-
-        return NSImage(cgImage: finalCG, size: NSSize(width: finalCG.width, height: finalCG.height))
+        let scale = maxSize / maxDim
+        let dstW = Int((srcW * scale).rounded())
+        let dstH = Int((srcH * scale).rounded())
+        let cs = CGColorSpaceCreateDeviceRGB()
+        guard let ctx = CGContext(
+            data: nil, width: dstW, height: dstH,
+            bitsPerComponent: 8, bytesPerRow: 0, space: cs,
+            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+        ) else { return nil }
+        ctx.interpolationQuality = .high
+        ctx.draw(oriented, in: CGRect(x: 0, y: 0, width: dstW, height: dstH))
+        guard let resized = ctx.makeImage() else { return nil }
+        print("🖼 [LibRawDecoder] resized to \(dstW)×\(dstH)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+        return NSImage(cgImage: resized, size: NSSize(width: resized.width, height: resized.height))
     }
 }
