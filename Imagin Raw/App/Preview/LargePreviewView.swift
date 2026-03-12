@@ -54,9 +54,9 @@ struct LargePreviewView: View {
                                     ExportCanvasPreview(
                                         image: nsImage,
                                         geo: geo,
-                                        targetRatio: showExportPanel ? exportRatio : .original,
-                                        padding: showExportPanel ? exportPadding : 0,
-                                        alignment: showExportPanel ? exportAlignment : .center
+                                        targetRatio: exportRatio,
+                                        padding: exportPadding,
+                                        alignment: exportAlignment
                                     )
                                 } else {
                                     Image(nsImage: nsImage)
@@ -238,14 +238,15 @@ private struct ExportCanvasPreview: View, Animatable {
         let dispImgH = src.height * scale
 
         // Horizontal offset based on alignment
+        let extraSpace = (dispCanvasW - dispImgW) / 2
         let imgOffX: CGFloat
         switch alignment {
-            case .left:   imgOffX = pad * scale
-            case .center: imgOffX = (dispCanvasW - dispImgW) / 2
-            case .right:  imgOffX = dispCanvasW - dispImgW - pad * scale
+            case .left:   imgOffX = -extraSpace + pad * scale
+            case .center: imgOffX = 0
+            case .right:  imgOffX = extraSpace - pad * scale
         }
-        let imgOffY = (dispCanvasH - dispImgH) / 2
-        print("dispCanvas: \(dispCanvasW) \(dispCanvasH), dispImg: \(dispImgW) \(dispImgH), imgOff: \(imgOffX) \(imgOffY)")
+        let imgOffY = 0.0
+//        print("alignment: \(alignment), dispCanvas: \(dispCanvasW) \(dispCanvasH), dispImg: \(dispImgW) \(dispImgH), imgOff: \(imgOffX) \(imgOffY)")
 
         return Layout(
             dispCanvasW: dispCanvasW, dispCanvasH: dispCanvasH,
