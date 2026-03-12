@@ -7,6 +7,15 @@
 
 import SwiftUI
 
+struct Layout {
+    let dispCanvasW: CGFloat
+    let dispCanvasH: CGFloat
+    let dispImgW: CGFloat
+    let dispImgH: CGFloat
+    let imgOffX: CGFloat
+    let imgOffY: CGFloat
+}
+
 struct LargePreviewView: View {
     let photo: PhotoItem
     @StateObject private var model = LargePreviewViewModel()
@@ -28,131 +37,95 @@ struct LargePreviewView: View {
     private var photoPreviewBody: some View {
         VStack(spacing: 0) {
             // Image area
-            ZStack(alignment: model.alignToTopLeft ? .topLeading : .center) {
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            GeometryReader { geo in
+                ZStack(alignment: .center) {
+                    Rectangle()
+                        .fill(Color.clear)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                if let fullRes = model.fullResImage {
-                    ZoomPanView(image: fullRes, initialMousePosition: mousePosition)
-                } else if let nsImage = model.preview {
-                    // Always show ExportCanvasPreview — animate padding/ratio so the
-                    // canvas smoothly grows/shrinks around the image
-                    ExportCanvasPreview(
-                        image: nsImage,
-                        targetRatio: showExportPanel ? exportRatio : .original,
-                        padding: showExportPanel ? exportPadding : 0,
-                        alignment: showExportPanel ? exportAlignment : .center
-                    )
-                    .animation(.easeInOut(duration: 0.35), value: showExportPanel)
-                } else if model.isLoading {
-                    ProgressView("Loading...")
-                        .progressViewStyle(CircularProgressViewStyle())
-                } else {
-                    Text("Failed to load image")
-                        .foregroundColor(.secondary)
-                }
-
-                // Alignment button
-                VStack {
-                    HStack {
-                        if !showExportPanel && model.fullResImage == nil {
-                            Button(action: { model.toggleAlignment() }) {
-                                Image(systemName: model.alignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
-                                    .font(.title2)
-                                    .foregroundColor(model.alignToTopLeft ? .white.opacity(0.4) : .gray)
-                                    .padding()
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .help(model.alignToTopLeft ? "Center image" : "Align to top-left")
-                        }
-                        Spacer()
-                    }
-                    Spacer()
-                }
-
-                // Export panel overlay — bottom-right
-                if showExportPanel {
-                    VStack {
-                        Spacer()
+                    if let fullRes = model.fullResImage {
+                        ZoomPanView(image: fullRes, initialMousePosition: mousePosition)
+                    } else if let nsImage = model.preview {
                         HStack {
+                            if !model.alignToTopLeft { Spacer(minLength: 0) }
+                            VStack {
+                                if !model.alignToTopLeft { Spacer(minLength: 0) }
+                                ExportCanvasPreview(
+                                    image: nsImage,
+                                    geo: geo,
+                                    targetRatio: showExportPanel ? exportRatio : .original,
+                                    padding: showExportPanel ? exportPadding : 0,
+                                    alignment: showExportPanel ? exportAlignment : .center
+                                )
+                                //                                .animation(.easeInOut(duration: 0.35), value: showExportPanel)
+                                Spacer()
+                            }
                             Spacer()
-                            ExportPanelView(
-                                photo: photo,
-                                pixelSize: exportPixelSize(for: model.preview),
-                                isPresented: $showExportPanel,
-                                selectedRatio: $exportRatio,
-                                padding: $exportPadding,
-                                alignment: $exportAlignment
-                            )
-                            .padding(12)
                         }
+                    } else if model.isLoading {
+                        ProgressView("Loading...")
+                            .progressViewStyle(CircularProgressViewStyle())
+                    } else {
+                        Text("Failed to load image")
+                            .foregroundColor(.secondary)
                     }
-                    .transition(.opacity)
-                    .animation(.easeInOut(duration: 0.15), value: showExportPanel)
+
+                    // Alignment button
+                    VStack {
+                        HStack {
+                            if !showExportPanel && model.fullResImage == nil {
+                                Button(action: { model.toggleAlignment() }) {
+                                    Image(systemName: model.alignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
+                                        .font(.title2)
+                                        .foregroundColor(model.alignToTopLeft ? .white.opacity(0.4) : .gray)
+                                        .padding()
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .help(model.alignToTopLeft ? "Center image" : "Align to top-left")
+                            }
+                            Spacer()
+                        }
+                        Spacer()
+                    }
+
+                    // Export panel overlay — bottom-right
+                    if showExportPanel {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                ExportPanelView(
+                                    photo: photo,
+                                    pixelSize: exportPixelSize(for: model.preview),
+                                    isPresented: $showExportPanel,
+                                    selectedRatio: $exportRatio,
+                                    padding: $exportPadding,
+                                    alignment: $exportAlignment
+                                )
+                                .padding(12)
+                            }
+                        }
+                        .transition(.opacity)
+                        .animation(.easeInOut(duration: 0.15), value: showExportPanel)
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .background(MouseTrackingView(onMouseMoved: { point, viewSize in
+                    let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
+                    let ny = viewSize.height > 0 ? max(0, min(1, 1 - point.y / viewSize.height)) : 0.5
+                    mousePosition = CGPoint(x: nx, y: ny)
+                }))
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
-            .background(MouseTrackingView(onMouseMoved: { point, viewSize in
-                let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
-                let ny = viewSize.height > 0 ? max(0, min(1, 1 - point.y / viewSize.height)) : 0.5
-                mousePosition = CGPoint(x: nx, y: ny)
-            }))
 
             // EXIF bottom bar
             if let exifInfo = model.exifInfo {
-                HStack(spacing: 0) {
-                    ExifBarView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes)
-                    Spacer()
-
-                    // Zoom button
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.25))
-                        .frame(width: 1, height: 14)
-                    Button(action: {
-                        if model.fullResImage != nil {
-                            model.exitZoom()
-                        } else {
-                            model.loadFullResolution()
-                        }
-                    }) {
-                        ZStack {
-                            if model.isLoadingFullRes {
-                                ProgressView()
-                                    .controlSize(.small)
-                                    .frame(width: 14, height: 14)
-                            } else {
-                                Image(systemName: model.fullResImage != nil ? "minus.magnifyingglass" : "plus.magnifyingglass")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(model.fullResImage != nil ? .accentColor : .secondary)
-                            }
-                        }
-                        .frame(width: 20, height: 20)
-                        .padding(.horizontal, 10)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .disabled(model.isLoadingFullRes)
-                    .help(model.fullResImage != nil ? "Exit zoom" : "Zoom to 100% (full resolution)")
-
-                    // Export button
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.25))
-                        .frame(width: 1, height: 14)
-                    Button(action: {
-                        showExportPanel.toggle()
-                    }) {
-                        Image(systemName: "rectangle.center.inset.filled")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(showExportPanel ? .accentColor : .secondary)
-                            .padding(.trailing, 12)
-                            .padding(.leading, 10)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .help("Export: add borders / change canvas")
-                }
-                .frame(height: 40)
-                .background(Color(NSColor.controlBackgroundColor))
+                PreviewBottomBar(
+                                    photo: photo,
+                                    exifInfo: exifInfo,
+                                    model: model,
+                                    showExportPanel: $showExportPanel
+                                )
             }
         }
         .onAppear {
@@ -200,6 +173,7 @@ private func exportPixelSize(for image: NSImage?) -> CGSize {
 
 private struct ExportCanvasPreview: View, Animatable {
     let image: NSImage
+    var geo: GeometryProxy
     let targetRatio: ExportAspectRatio
     var padding: Double
     let alignment: ExportAlignment
@@ -211,12 +185,12 @@ private struct ExportCanvasPreview: View, Animatable {
 
     private let pixelSize: CGSize
 
-    init(image: NSImage, targetRatio: ExportAspectRatio, padding: Double, alignment: ExportAlignment) {
+    init(image: NSImage, geo: GeometryProxy, targetRatio: ExportAspectRatio, padding: Double, alignment: ExportAlignment) {
         self.image = image
+        self.geo = geo
         self.targetRatio = targetRatio
         self.padding = padding
         self.alignment = alignment
-        let t = Date()
         if let rep = image.representations.first as? NSBitmapImageRep {
             self.pixelSize = CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
         } else if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
@@ -224,15 +198,6 @@ private struct ExportCanvasPreview: View, Animatable {
         } else {
             self.pixelSize = image.size
         }
-    }
-
-    private struct Layout {
-        let dispCanvasW: CGFloat
-        let dispCanvasH: CGFloat
-        let dispImgW: CGFloat
-        let dispImgH: CGFloat
-        let imgOffX: CGFloat
-        let imgOffY: CGFloat
     }
 
     private func layout(in available: CGSize) -> Layout {
@@ -275,7 +240,7 @@ private struct ExportCanvasPreview: View, Animatable {
         case .right:  imgOffX = dispCanvasW - dispImgW - pad * scale
         }
         let imgOffY = (dispCanvasH - dispImgH) / 2
-
+print("\(dispCanvasW) \(dispCanvasH)")
         return Layout(
             dispCanvasW: dispCanvasW, dispCanvasH: dispCanvasH,
             dispImgW: dispImgW, dispImgH: dispImgH,
@@ -284,19 +249,16 @@ private struct ExportCanvasPreview: View, Animatable {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            let t0 = Date()
-            let l = layout(in: geo.size)
-            ZStack(alignment: .topLeading) {
-                Rectangle()
-                    .fill(Color.black)
-                    .frame(width: l.dispCanvasW, height: l.dispCanvasH)
-                Image(nsImage: image)
-                    .resizable()
-                    .frame(width: l.dispImgW, height: l.dispImgH)
-                    .offset(x: l.imgOffX, y: l.imgOffY)
-            }
-            .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
+        let l = layout(in: geo.size)
+        ZStack {
+            Rectangle()
+                .fill(Color.black)
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: l.dispImgW, height: l.dispImgH)
+                .offset(x: l.imgOffX, y: l.imgOffY)
         }
+        .frame(width: l.dispCanvasW, height: l.dispCanvasH)
     }
 }
