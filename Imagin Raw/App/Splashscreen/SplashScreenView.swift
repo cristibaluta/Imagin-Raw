@@ -17,9 +17,15 @@ struct SplashScreenView: View {
 
             // App icon/logo area
             VStack(spacing: 20) {
-                Image("Logo")
-                    .font(.system(size: 80, weight: .light))
-                    .foregroundColor(.accentColor)
+                HStack {
+                    Spacer()
+                    Image("Logo")
+                        .resizable()
+                        .scaledToFit()
+//                        .font(.system(size: 80, weight: .light))
+                        .foregroundColor(.accentColor)
+                    Spacer()
+                }
 
                 Text("THE RAW PHOTOS ORGANIZER")
                     .font(.title3)
@@ -71,8 +77,10 @@ struct SplashScreenView: View {
 
             Spacer().frame(height: 40)
         }
+        #if os(macOS)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(IRColor.windowBackgroundColor))
+        #endif
         .fileImporter(
             isPresented: $showingFolderPicker,
             allowedContentTypes: [.folder],

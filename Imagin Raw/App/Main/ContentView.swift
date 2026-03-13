@@ -60,13 +60,16 @@ struct ContentView: View {
     }
 
     var body: some View {
+        return Text("Hello")
         ZStack {
             // Main app content
             Group {
                 // Show splash screen if no folders are added
                 if filesModel.rootFolders.isEmpty {
                     SplashScreenView()
+                        #if os(macOS)
                         .frame(minWidth: 800, minHeight: 600)
+                        #endif
                         .preferredColorScheme(.dark)
                         .environmentObject(filesModel)
                 } else {
