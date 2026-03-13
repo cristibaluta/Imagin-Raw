@@ -63,7 +63,7 @@ struct ExifBarView: View {
             Spacer()
         }
         .frame(height: 40)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color(IRColor.controlBackgroundColor))
     }
 
     private func exifItem(label: String) -> some View {

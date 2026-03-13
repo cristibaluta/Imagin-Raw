@@ -4,7 +4,6 @@
 //
 
 import Foundation
-import AppKit
 import CryptoKit
 
 /// Manages a persistent disk + memory cache of 1024px preview images.
@@ -183,6 +182,7 @@ class PreviewsManager {
             print("🖼 [PreviewsManager] generate done \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
             // Encode to JPEG and save to disk via CGImageDestination (no TIFF round-trip)
+            #if os(macOS)
             if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
                 let mutable = NSMutableData()
                 if let dest = CGImageDestinationCreateWithData(mutable, "public.jpeg" as CFString, 1, nil) {
@@ -196,7 +196,7 @@ class PreviewsManager {
                     }
                 }
             }
-
+            #endif
             completion(image)
         }
     }

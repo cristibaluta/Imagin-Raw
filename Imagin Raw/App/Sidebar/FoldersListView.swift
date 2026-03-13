@@ -93,11 +93,17 @@ struct FoldersListView: View {
         return nil
     }
 
+    #if os(macOS)
     private func deleteFolders(offsets: IndexSet) {
         for index in offsets {
             let folder = filesModel.rootFolders[index]
             filesModel.removeFolder(at: folder.url)
         }
     }
+    #elseif os(iOS)
+    private func deleteFolders(offsets: IndexSet) {
+        
+    }
+    #endif
 
 }

@@ -4,16 +4,15 @@
 //
 
 import SwiftUI
-import AppKit
 
 /// Displays an image at 100% pixel resolution (1 image pixel = 1 screen point).
 /// The viewport pans automatically as the mouse moves — no click-drag needed.
+#if os(macOS)
 struct ZoomPanView: View {
     let image: IRImage
     var initialMousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
 
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
-
     private var pixelSize: CGSize {
         if let rep = image.representations.first as? NSBitmapImageRep {
             let s = CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
@@ -40,8 +39,6 @@ struct ZoomPanView: View {
             let offsetX = -overflowX * mousePosition.x
             let offsetY = -overflowY * mousePosition.y
 
-//            let _ = print("🔎 [zoom] view=\(Int(viewW))×\(Int(viewH))  img=\(Int(imgW))×\(Int(imgH))  overflow=\(Int(overflowX))×\(Int(overflowY))  mouse=(\(String(format:"%.2f",mousePosition.x)),\(String(format:"%.2f",mousePosition.y)))  offset=(\(Int(offsetX)),\(Int(offsetY)))")
-
             Image(nsImage: image)
                 .resizable()
                 .frame(width: imgW, height: imgH)
@@ -51,7 +48,6 @@ struct ZoomPanView: View {
                 .background(MouseTrackingView(onMouseMoved: { point, viewSize in
                     let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
                     let ny = viewSize.height > 0 ? max(0, min(1, 1 - point.y / viewSize.height)) : 0.5
-//                    print("🔎 [zoom] mouse raw=(\(Int(point.x)),\(Int(point.y))) viewSize=\(Int(viewSize.width))×\(Int(viewSize.height)) norm=(\(String(format:"%.2f",nx)),\(String(format:"%.2f",ny)))")
                     mousePosition = CGPoint(x: nx, y: ny)
                 }))
         }
@@ -99,3 +95,4 @@ class TrackerNSView: NSView {
         onMouseMoved?(point, bounds.size)
     }
 }
+#endif

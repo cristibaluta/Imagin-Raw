@@ -5,6 +5,7 @@
 //  Created by Cristian Baluta on 06.02.2026.
 //
 
+import Foundation
 import SwiftUI
 import Combine
 
@@ -326,6 +327,7 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     // MARK: - Selection Management
+    #if os(macOS)
     func handlePhotoTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
         let photoIndex = filteredPhotos.firstIndex(where: { $0.id == photo.id }) ?? 0
 
@@ -356,6 +358,7 @@ class ThumbGridViewModel: ObservableObject {
             lastSelectedIndex = photoIndex
         }
     }
+    #endif
 
     func selectAll() {
         selectedPhotos.removeAll()

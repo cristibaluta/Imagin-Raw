@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import AppKit
 
 // MARK: - Container
 
@@ -96,10 +95,10 @@ struct CopyOptionsView: View {
                 HStack(spacing: 12) {
                     Text("Organize by date").font(.body)
                     Spacer()
-                    Toggle("Year", isOn: $viewModel.organizeByYear).toggleStyle(.checkbox)
-                    Toggle("Month", isOn: $viewModel.organizeByMonth).toggleStyle(.checkbox)
+                    Toggle("Year", isOn: $viewModel.organizeByYear).toggleStyle(.automatic)
+                    Toggle("Month", isOn: $viewModel.organizeByMonth).toggleStyle(.automatic)
                         .disabled(!viewModel.organizeByYear)
-                    Toggle("Day", isOn: $viewModel.organizeByDay).toggleStyle(.checkbox)
+                    Toggle("Day", isOn: $viewModel.organizeByDay).toggleStyle(.automatic)
                         .disabled(!viewModel.organizeByMonth)
                 }
 
@@ -146,7 +145,7 @@ struct CopyOptionsView: View {
                         .font(.system(.caption, design: .monospaced))
                         .lineLimit(1).truncationMode(.head)
                         .padding(8)
-                        .background(Color(NSColor.textBackgroundColor))
+                        .background(Color(IRColor.textBackgroundColor))
                         .cornerRadius(4)
                 }
             }
@@ -165,6 +164,7 @@ struct CopyOptionsView: View {
         .padding(20)
     }
 
+    #if os(macOS)
     private func showFolderPicker(forBackup: Bool) {
         let panel = NSOpenPanel()
         panel.title = forBackup ? "Choose Backup Destination Folder" : "Choose Destination Folder"
@@ -179,6 +179,11 @@ struct CopyOptionsView: View {
             else         { viewModel.destinationURL = url }
         }
     }
+    #elseif os(iOS)
+    private func showFolderPicker(forBackup: Bool) {
+        print("Show folder picker")
+    }
+    #endif
 }
 
 // MARK: - Progress

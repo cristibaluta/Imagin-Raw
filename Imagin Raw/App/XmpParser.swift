@@ -23,6 +23,7 @@ struct XmpMetadata: Equatable, Hashable {
     let exposureBias: String?
 }
 
+#if os(macOS)
 class XmpParser {
 
     static let xmpTemplate = """
@@ -102,6 +103,33 @@ class XmpParser {
             return removeXmpAttributeXML(from: xmpContent, attribute: "xmp:Label")
         }
     }
+
+    /// Create a new XMP file with the given rating and label using the template
+    static func createXmpContent(rating: Int = 0, label: String? = nil) -> String {
+        var content = xmpTemplate
+
+        // Always set the rating (even if 0)
+        content = updateXmpAttributeXML(in: content, attribute: "xmp:Rating", value: "\(rating)")
+
+        // Handle label: set if provided, remove if not
+        if let label = label, !label.isEmpty {
+            content = updateXmpAttributeXML(in: content, attribute: "xmp:Label", value: label)
+        } else {
+            // Remove the empty label attribute from template
+            content = removeXmpAttributeXML(from: content, attribute: "xmp:Label")
+        }
+
+        // Update xmp:MetadataDate with current date
+        let currentDate = Date()
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withTimeZone, .withColonSeparatorInTimeZone]
+        dateFormatter.timeZone = TimeZone.current
+        let currentDateString = dateFormatter.string(from: currentDate)
+        content = updateXmpAttributeXML(in: content, attribute: "xmp:MetadataDate", value: currentDateString)
+
+        return content
+    }
+
 
     // MARK: - Private Methods
 
@@ -445,30 +473,26 @@ class XmpParser {
 
         return result
     }
-
-    /// Create a new XMP file with the given rating and label using the template
+}
+#elseif os(iOS)
+class XmpParser {
+    static func parseMetadata(from xmpContent: String) -> XmpMetadata? {
+        return nil
+    }
+    static func extractRating(from xmpContent: String) -> Int? {
+        nil
+    }
+    static func extractLabel(from xmpContent: String) -> Int? {
+        nil
+    }
+    static func updateRating(in xmpContent: String, rating: Int) -> String {
+        ""
+    }
+    static func updateLabel(in xmpContent: String, label: String?) -> String {
+        ""
+    }
     static func createXmpContent(rating: Int = 0, label: String? = nil) -> String {
-        var content = xmpTemplate
-
-        // Always set the rating (even if 0)
-        content = updateXmpAttributeXML(in: content, attribute: "xmp:Rating", value: "\(rating)")
-
-        // Handle label: set if provided, remove if not
-        if let label = label, !label.isEmpty {
-            content = updateXmpAttributeXML(in: content, attribute: "xmp:Label", value: label)
-        } else {
-            // Remove the empty label attribute from template
-            content = removeXmpAttributeXML(from: content, attribute: "xmp:Label")
-        }
-
-        // Update xmp:MetadataDate with current date
-        let currentDate = Date()
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = [.withInternetDateTime, .withTimeZone, .withColonSeparatorInTimeZone]
-        dateFormatter.timeZone = TimeZone.current
-        let currentDateString = dateFormatter.string(from: currentDate)
-        content = updateXmpAttributeXML(in: content, attribute: "xmp:MetadataDate", value: currentDateString)
-
-        return content
+        ""
     }
 }
+#endif

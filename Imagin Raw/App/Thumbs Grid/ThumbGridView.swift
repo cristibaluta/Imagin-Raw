@@ -271,13 +271,16 @@ struct ThumbGridView: View {
 
     // MARK: - Thumb Cell
 
-    private func createThumbCell(for photo: PhotoItem) -> some View {
+    #if os(macOS)
+    /*private func createThumbCell(for photo: PhotoItem) -> some View {
         ThumbCell(
             photo: photo,
             isSelected: viewModel.selectedPhotos.contains(photo.id),
+            #if os(macOS)
             onTap: { modifiers in
                 viewModel.handlePhotoTap(photo: photo, modifiers: modifiers)
             },
+            #endif
             onDoubleClick: {
                 handleDoubleClick(photo: photo)
             },
@@ -313,7 +316,12 @@ struct ThumbGridView: View {
         )
         .frame(width: viewModel.gridType.thumbSize, height: viewModel.gridType.cellHeight)
         .id(photo.id)
+    }*/
+    #elseif os(iOS)
+    private func createThumbCell(for photo: PhotoItem) -> some View {
+        Text("\(photo.id)")
     }
+    #endif
 
     private var scrollViewConfig: some View {
         GeometryReader { _ in
@@ -467,7 +475,7 @@ struct ThumbGridView: View {
             }
         }
         .frame(height: 40)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color(IRColor.controlBackgroundColor))
     }
 
     private var photoCountText: some View {
@@ -513,6 +521,7 @@ struct ThumbGridView: View {
     }
 
     private func configureScrollView() {
+        #if os(macOS)
         DispatchQueue.main.async {
             if let scrollView = NSApp.keyWindow?.contentView?.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView {
                 scrollView.scrollerStyle = .legacy
@@ -520,6 +529,7 @@ struct ThumbGridView: View {
                 scrollView.autohidesScrollers = false
             }
         }
+        #endif
     }
 }
 

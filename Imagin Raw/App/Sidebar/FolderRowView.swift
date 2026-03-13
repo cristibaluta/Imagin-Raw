@@ -82,6 +82,7 @@ struct FolderRowView: View {
         return nil
     }
 
+    #if os(macOS)
     private func ejectVolume() {
         guard let volumePath = volumePath else {
             return
@@ -104,6 +105,7 @@ struct FolderRowView: View {
             }
         }
     }
+    #endif
 
     var body: some View {
         if hasChildren {
@@ -115,7 +117,9 @@ struct FolderRowView: View {
                             expandedFolders.insert(folder.url)
                             // Trigger on-demand loading if this folder needs its children loaded
                             if needsToLoadChildren {
+                                #if os(macOS)
                                 filesModel.loadChildrenOnDemand(for: folder)
+                                #endif
                             }
                         } else {
                             expandedFolders.remove(folder.url)
@@ -148,6 +152,7 @@ struct FolderRowView: View {
                 .onDoubleClick {
                     onDoubleClick()
                 }
+                #if os(macOS)
                 .contextMenu {
                     Button(action: {
                         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
@@ -180,6 +185,7 @@ struct FolderRowView: View {
                         }
                     }
                 }
+                #endif
             }
         } else {
             Label {
@@ -195,6 +201,7 @@ struct FolderRowView: View {
             .onDoubleClick {
                 onDoubleClick()
             }
+            #if os(macOS)
             .contextMenu {
                 Button(action: {
                     NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
@@ -227,6 +234,7 @@ struct FolderRowView: View {
                     }
                 }
             }
+            #endif
         }
     }
 }

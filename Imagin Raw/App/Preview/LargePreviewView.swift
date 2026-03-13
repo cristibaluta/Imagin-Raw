@@ -44,7 +44,9 @@ struct LargePreviewView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                     if let fullRes = model.fullResImage {
+                        #if os(macOS)
                         ZoomPanView(image: fullRes, initialMousePosition: mousePosition)
+                        #endif
                     } else if let nsImage = model.preview {
                         HStack {
                             if !model.alignToTopLeft { Spacer(minLength: 0) }
@@ -117,11 +119,13 @@ struct LargePreviewView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
+                #if os(macOS)
                 .background(MouseTrackingView(onMouseMoved: { point, viewSize in
                     let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
                     let ny = viewSize.height > 0 ? max(0, min(1, 1 - point.y / viewSize.height)) : 0.5
                     mousePosition = CGPoint(x: nx, y: ny)
                 }))
+                #endif
             }
 
             // EXIF bottom bar
@@ -167,13 +171,17 @@ extension Notification.Name {
 }
 
 private func exportPixelSize(for image: IRImage?) -> CGSize {
-    guard let image else { return .zero }
+    guard let image else {
+        return .zero
+    }
+    #if os(macOS)
     if let rep = image.representations.first as? NSBitmapImageRep {
         return CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
     }
     if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
         return CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
     }
+    #endif
     return image.size
 }
 
@@ -197,6 +205,7 @@ private struct ExportCanvasPreview: View, Animatable {
         self.targetRatio = targetRatio
         self.padding = padding
         self.alignment = alignment
+        #if os(macOS)
         if let rep = image.representations.first as? NSBitmapImageRep {
             self.pixelSize = CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
         } else if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
@@ -204,6 +213,9 @@ private struct ExportCanvasPreview: View, Animatable {
         } else {
             self.pixelSize = image.size
         }
+        #else
+        self.pixelSize = image.size
+        #endif
     }
 
     private func layout(in available: CGSize) -> Layout {

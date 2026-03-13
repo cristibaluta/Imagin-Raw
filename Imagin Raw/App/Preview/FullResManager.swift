@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import AppKit
 
 class FullResManager {
     static let shared = FullResManager()

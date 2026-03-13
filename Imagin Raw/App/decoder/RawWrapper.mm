@@ -4,7 +4,9 @@
 #include "../libraw/libraw.h"
 #import <ImageIO/ImageIO.h>
 #import <CoreGraphics/CoreGraphics.h>
+#if TARGET_OS_OSX
 #import <AppKit/AppKit.h>
+#endif
 
 @implementation RawWrapper
 
@@ -90,6 +92,7 @@
     return result;
 }
 
+#if TARGET_OS_OSX
 - (nullable NSImage *)extractFullResolution:(NSString *)path {
     __block NSImage *result = nil;
 
@@ -186,6 +189,7 @@
 
     return result;
 }
+#endif
 
 - (RawPhoto *)_extractRawPhotoSynchronized:(NSString *)path {
     LibRaw *raw = new LibRaw();

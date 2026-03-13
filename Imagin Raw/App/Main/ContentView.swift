@@ -71,22 +71,22 @@ struct ContentView: View {
                         .environmentObject(filesModel)
                 } else {
                     // Normal app interface when folders exist
-                    navigationSplitView
-                        .navigationTitle("Imagin Raw")
-                        .navigationSubtitle(navigationTitle)
-                        .onChange(of: columnVisibilityStorage) { _, newValue in
-                            isSidebarCollapsed = (newValue == "doubleColumn")
-                        }
-                        .toolbar {
-                            toolbarContent
-                        }
-                        .onAppear {
-                            isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
-                        }
-                        .frame(minWidth: 1200, minHeight: 800)
-                        .preferredColorScheme(.dark)
-                        .focusable()
-                        .focusEffectDisabled()
+//                    navigationSplitView
+//                        .navigationTitle("Imagin Raw")
+//                        .navigationSubtitle(navigationTitle)
+//                        .onChange(of: columnVisibilityStorage) { _, newValue in
+//                            isSidebarCollapsed = (newValue == "doubleColumn")
+//                        }
+//                        .toolbar {
+//                            toolbarContent
+//                        }
+//                        .onAppear {
+//                            isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
+//                        }
+//                        .frame(minWidth: 1200, minHeight: 800)
+//                        .preferredColorScheme(.dark)
+//                        .focusable()
+//                        .focusEffectDisabled()
                 }
             }
         }

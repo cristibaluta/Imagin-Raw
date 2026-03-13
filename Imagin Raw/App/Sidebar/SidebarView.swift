@@ -73,7 +73,7 @@ struct SidebarView: View {
                 .padding(.vertical, 5)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(NSColor.windowBackgroundColor))
+                        .fill(Color(IRColor.windowBackgroundColor))
                         .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
                 )
                 .padding(.horizontal, 10)
@@ -124,7 +124,9 @@ struct SidebarView: View {
                     if let selectedFolder = filesModel.selectedFolder {
                         // Only remove if the selected folder is a root folder
                         if isRootFolder(selectedFolder.url) {
+                            #if os(macOS)
                             filesModel.removeFolder(at: selectedFolder.url)
+                            #endif
                         }
                     }
                 }) {
@@ -148,7 +150,7 @@ struct SidebarView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
-            .background(Color(NSColor.controlBackgroundColor))
+            .background(Color(IRColor.controlBackgroundColor))
         }
         .fileImporter(
             isPresented: $showingFolderPicker,
@@ -158,7 +160,9 @@ struct SidebarView: View {
             switch result {
             case .success(let urls):
                 if let url = urls.first {
+                    #if os(macOS)
                     filesModel.addFolder(at: url)
+                    #endif
                 }
             case .failure(_):
                 break
@@ -175,6 +179,7 @@ struct SidebarView: View {
         return isRootFolder(selectedFolder.url)
     }
 
+    #if os(macOS)
     private func addVolumesFolder() {
         // Instead of adding /Volumes directly (which won't work in sandboxed apps),
         // open a file picker at /Volumes to let user select which volume to add
@@ -194,4 +199,9 @@ struct SidebarView: View {
             }
         }
     }
+    #elseif os(iOS)
+    private func addVolumesFolder() {
+        print("Not implemented on iOS")
+    }
+    #endif
 }

@@ -9,7 +9,9 @@ import SwiftUI
 struct ThumbCell: View {
     let photo: PhotoItem
     let isSelected: Bool
+    #if os(macOS)
     let onTap: (NSEvent.ModifierFlags) -> Void
+    #endif
     let onDoubleClick: () -> Void
     let onRatingChanged: (Int) -> Void
     let onMoveToTrash: (PhotoItem) -> Void
@@ -105,6 +107,7 @@ struct ThumbCell: View {
                     }
                 }
             )
+            #if os(macOS)
             .onTapGesture {
                 clickCount += 1
 
@@ -127,6 +130,7 @@ struct ThumbCell: View {
                     onDoubleClick()
                 }
             }
+            #endif
             .onAppear {
                 loadThumbnail()
             }
@@ -162,11 +166,13 @@ struct ThumbCell: View {
             isHovering = photo.isRawFile && hovering
         }
         .contextMenu {
+            #if os(macOS)
             Button(action: {
                 NSWorkspace.shared.selectFile(photo.path, inFileViewerRootedAtPath: "")
             }) {
                 Label("Show in Finder", systemImage: "folder")
             }
+            #endif
 
             Button(action: {
                 onCopyTo(photo)

@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import AppKit
 
 /// Uses NSMetadataQuery (Spotlight) to search for folders and image files by name.
 /// Results are scoped to the root folders the user has added to the sidebar.
@@ -87,6 +86,7 @@ class SpotlightSearcher: ObservableObject {
         var photos: [PhotoItem] = []
 
         for result in q.results {
+            #if os(macOS)
             guard let item = result as? NSMetadataItem,
                   let path = item.value(forAttribute: kMDItemPath as String) as? String else { continue }
             let url = URL(fileURLWithPath: path)
@@ -98,6 +98,7 @@ class SpotlightSearcher: ObservableObject {
                 photos.append(PhotoItem(path: path, xmp: nil, dateCreated: date,
                                         hasACR: false, hasJPG: false, inCameraRating: nil))
             }
+            #endif
         }
 
         let isStillGathering = q.isGathering

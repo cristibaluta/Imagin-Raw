@@ -72,7 +72,7 @@ struct SplashScreenView: View {
             Spacer().frame(height: 40)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(Color(IRColor.windowBackgroundColor))
         .fileImporter(
             isPresented: $showingFolderPicker,
             allowedContentTypes: [.folder],
@@ -81,7 +81,9 @@ struct SplashScreenView: View {
             switch result {
             case .success(let urls):
                 if let url = urls.first {
+                    #if os(macOS)
                     filesModel.addFolder(at: url)
+                    #endif
                 }
             case .failure(_):
                 break

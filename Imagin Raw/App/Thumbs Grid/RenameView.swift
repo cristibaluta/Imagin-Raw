@@ -136,7 +136,7 @@ struct RenameView: View {
                                 .lineLimit(1)
                                 .truncationMode(.head)
                                 .padding(8)
-                                .background(Color(NSColor.textBackgroundColor))
+                                .background(Color(IRColor.textBackgroundColor))
                                 .cornerRadius(4)
                             Spacer()
                         }

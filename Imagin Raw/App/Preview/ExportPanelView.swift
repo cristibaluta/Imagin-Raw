@@ -171,7 +171,7 @@ struct ExportPanelView: View {
         .frame(width: 320)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color(NSColor.windowBackgroundColor))
+                .fill(Color(IRColor.windowBackgroundColor))
                 .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 4)
         )
     }

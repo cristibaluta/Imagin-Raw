@@ -4,7 +4,6 @@
 //
 
 import Foundation
-import AppKit
 
 class CopyToViewModel: ObservableObject, Identifiable {
     let id = UUID()
@@ -292,15 +291,23 @@ class CopyToViewModel: ObservableObject, Identifiable {
     // MARK: - Bookmark helpers
 
     static func urlFromBookmark(_ data: Data) -> URL? {
+        #if os(macOS)
         var isStale = false
         guard let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope,
                                  relativeTo: nil, bookmarkDataIsStale: &isStale), !isStale else { return nil }
         _ = url.startAccessingSecurityScopedResource()
         return url
+        #else
+        return nil
+        #endif
     }
 
     static func bookmarkFromURL(_ url: URL) -> Data? {
+        #if os(macOS)
         try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+        #else
+        return nil
+        #endif
     }
 }
 

@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import AppKit
 
+#if os(macOS)
 class ExternalAppManager: ObservableObject {
 
     @Published var discoveredPhotoApps: [PhotoApp] = []
@@ -140,3 +140,17 @@ class ExternalAppManager: ObservableObject {
         }
     }
 }
+#elseif os(iOS)
+class ExternalAppManager: ObservableObject {
+
+    @Published var discoveredPhotoApps: [PhotoApp] = []
+    @Published var selectedApp: PhotoApp?
+
+    func openPhotos(_ photos: [PhotoItem]) {
+        
+    }
+    func saveSelectedApp(_ app: PhotoApp?) {
+        
+    }
+}
+#endif

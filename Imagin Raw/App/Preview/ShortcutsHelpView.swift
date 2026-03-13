@@ -46,7 +46,7 @@ struct ShortcutsHelpView: View {
                                 .foregroundColor(.primary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color(NSColor.controlBackgroundColor))
+                                .background(Color(IRColor.controlBackgroundColor))
                                 .cornerRadius(4)
                                 .frame(minWidth: 60, alignment: .center)
 
@@ -63,7 +63,7 @@ struct ShortcutsHelpView: View {
                                 .foregroundColor(.primary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color(NSColor.controlBackgroundColor))
+                                .background(Color(IRColor.controlBackgroundColor))
                                 .cornerRadius(4)
                                 .frame(minWidth: 60, alignment: .center)
                             Text("Reject (mark for deletion)")
@@ -78,7 +78,7 @@ struct ShortcutsHelpView: View {
                                 .foregroundColor(.primary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color(NSColor.controlBackgroundColor))
+                                .background(Color(IRColor.controlBackgroundColor))
                                 .cornerRadius(4)
                                 .frame(minWidth: 60, alignment: .center)
                             Text("Move to trash immediately")
@@ -90,7 +90,7 @@ struct ShortcutsHelpView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
+                .background(Color(IRColor.controlBackgroundColor).opacity(0.3))
                 .cornerRadius(8)
             }
 
@@ -98,7 +98,7 @@ struct ShortcutsHelpView: View {
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(Color(IRColor.windowBackgroundColor))
     }
 }
 

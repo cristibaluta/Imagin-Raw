@@ -3,7 +3,6 @@
 //  Imagin Raw
 //
 
-import AppKit
 import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers

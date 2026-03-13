@@ -1,6 +1,12 @@
 {
   "images" : [
     {
+      "filename" : "M-iOS-Default-1024x1024@1x 1.png",
+      "idiom" : "universal",
+      "platform" : "ios",
+      "size" : "1024x1024"
+    },
+    {
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "16x16"

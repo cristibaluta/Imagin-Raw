@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import AppKit
 
 extension View {
     /// Adds a double click handler to this view (macOS only)
@@ -23,6 +22,7 @@ extension View {
     }
 }
 
+#if os(macOS)
 struct DoubleClickHandler: ViewModifier {
     let handler: () -> Void
 
@@ -64,3 +64,13 @@ class DoubleClickListeningView: NSView {
         }
     }
 }
+#elseif os(iOS)
+struct DoubleClickHandler: ViewModifier {
+    let handler: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+    }
+}
+
+#endif

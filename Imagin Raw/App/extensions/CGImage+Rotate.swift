@@ -5,7 +5,7 @@
 //  Created by Cristian Baluta on 11.03.2026.
 //
 
-import AppKit
+import Foundation
 import CoreGraphics
 
 extension CGImage {

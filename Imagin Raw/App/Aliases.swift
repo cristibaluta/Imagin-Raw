@@ -13,6 +13,7 @@ import Cocoa
 typealias IRImage = NSImage
 typealias IRSize = NSSize
 typealias IRRect = NSRect
+typealias IRColor = NSColor
 
 #elseif os(iOS)
 
@@ -21,5 +22,6 @@ import UIKit
 typealias IRImage = UIImage
 typealias IRSize = CGSize
 typealias IRRect = CGRect
+typealias IRColor = UIColor
 
 #endif

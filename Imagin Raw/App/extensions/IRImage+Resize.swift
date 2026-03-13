@@ -4,10 +4,12 @@
 //
 //  Created by Cristian Baluta on 29.01.2026.
 //
-import AppKit
+import Foundation
+import SwiftUI
 
 extension IRImage {
 
+    #if os(macOS)
     func resized(maxSize: CGFloat) -> IRImage {
         let ratio = min(maxSize / size.width, maxSize / size.height)
         let newSize = IRSize(
@@ -31,4 +33,29 @@ extension IRImage {
 
         return bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.8])
     }
+    #elseif os(iOS)
+    convenience init(cgImage: CGImage, size: IRSize) {
+        self.init(cgImage: cgImage)
+    }
+    convenience init?(contentsOf: URL) {
+        guard let data = try? Data(contentsOf: contentsOf) else {
+            return nil
+        }
+        self.init(data: data)
+    }
+    func resized(maxSize: CGFloat) -> IRImage {
+        return self
+    }
+    func bitmapRepresentation() -> Data? {
+        nil
+    }
+    #endif
+}
+
+extension Image {
+    #if os(iOS)
+    init(nsImage: IRImage) {
+        self.init(uiImage: nsImage)
+    }
+    #endif
 }
