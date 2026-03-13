@@ -60,7 +60,6 @@ struct ContentView: View {
     }
 
     var body: some View {
-        return Text("Hello")
         ZStack {
             // Main app content
             Group {
@@ -70,7 +69,6 @@ struct ContentView: View {
                         #if os(macOS)
                         .frame(minWidth: 800, minHeight: 600)
                         #endif
-                        .preferredColorScheme(.dark)
                         .environmentObject(filesModel)
                 } else {
                     // Normal app interface when folders exist
@@ -87,12 +85,12 @@ struct ContentView: View {
 //                            isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
 //                        }
 //                        .frame(minWidth: 1200, minHeight: 800)
-//                        .preferredColorScheme(.dark)
 //                        .focusable()
 //                        .focusEffectDisabled()
                 }
             }
         }
+        .preferredColorScheme(.dark)
     }
 
     private var navigationTitle: String {
