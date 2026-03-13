@@ -272,15 +272,13 @@ struct ThumbGridView: View {
     // MARK: - Thumb Cell
 
     #if os(macOS)
-    /*private func createThumbCell(for photo: PhotoItem) -> some View {
+    private func createThumbCell(for photo: PhotoItem) -> some View {
         ThumbCell(
             photo: photo,
             isSelected: viewModel.selectedPhotos.contains(photo.id),
-            #if os(macOS)
             onTap: { modifiers in
                 viewModel.handlePhotoTap(photo: photo, modifiers: modifiers)
             },
-            #endif
             onDoubleClick: {
                 handleDoubleClick(photo: photo)
             },
@@ -316,7 +314,7 @@ struct ThumbGridView: View {
         )
         .frame(width: viewModel.gridType.thumbSize, height: viewModel.gridType.cellHeight)
         .id(photo.id)
-    }*/
+    }
     #elseif os(iOS)
     private func createThumbCell(for photo: PhotoItem) -> some View {
         Text("\(photo.id)")

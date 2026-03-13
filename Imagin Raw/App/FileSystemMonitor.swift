@@ -5,6 +5,7 @@
 //  Created by Cristian Baluta on 13.03.2026.
 //
 import Foundation
+import Combine
 #if os(macOS)
 import AppKit
 
