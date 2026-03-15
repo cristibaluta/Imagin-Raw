@@ -4,14 +4,13 @@
 //
 //  Created by Cristian Baluta on 30.01.2026.
 //
+import Foundation
 import SwiftUI
 
 struct ThumbCell: View {
     let photo: PhotoItem
     let isSelected: Bool
-    #if os(macOS)
     let onTap: (NSEvent.ModifierFlags) -> Void
-    #endif
     let onDoubleClick: () -> Void
     let onRatingChanged: (Int) -> Void
     let onMoveToTrash: (PhotoItem) -> Void
@@ -107,8 +106,8 @@ struct ThumbCell: View {
                     }
                 }
             )
-            #if os(macOS)
             .onTapGesture {
+                #if os(macOS)
                 clickCount += 1
 
                 // Get current modifier keys from NSApp
@@ -129,8 +128,11 @@ struct ThumbCell: View {
                     clickCount = 0
                     onDoubleClick()
                 }
+                #elseif os(iOS)
+                let modifiers = NSEvent.ModifierFlags.none
+                onTap(modifiers)
+                #endif
             }
-            #endif
             .onAppear {
                 loadThumbnail()
             }

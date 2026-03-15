@@ -271,7 +271,6 @@ struct ThumbGridView: View {
 
     // MARK: - Thumb Cell
 
-    #if os(macOS)
     private func createThumbCell(for photo: PhotoItem) -> some View {
         ThumbCell(
             photo: photo,
@@ -312,14 +311,11 @@ struct ThumbGridView: View {
             } : nil,
             size: viewModel.gridType.thumbSize
         )
+        #if os(macOS)
         .frame(width: viewModel.gridType.thumbSize, height: viewModel.gridType.cellHeight)
+        #endif
         .id(photo.id)
     }
-    #elseif os(iOS)
-    private func createThumbCell(for photo: PhotoItem) -> some View {
-        Text("\(photo.id)")
-    }
-    #endif
 
     private var scrollViewConfig: some View {
         GeometryReader { _ in

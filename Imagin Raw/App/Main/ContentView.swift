@@ -86,9 +86,11 @@ struct ContentView: View {
                         .onAppear {
                             isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
                         }
+                        #if os(macOS)
                         .frame(minWidth: 1200, minHeight: 800)
                         .focusable()
                         .focusEffectDisabled()
+                        #endif
                 }
             }
         }
@@ -120,7 +122,9 @@ struct ContentView: View {
                     columnVisibilityStorage = "doubleColumn"
                 }
             )
+            #if os(macOS)
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 250)
+            #endif
             .environmentObject(filesModel)
         } content: {
             // Middle: thumbnails
@@ -145,14 +149,18 @@ struct ContentView: View {
             .onPreferenceChange(GridWidthPreferenceKey.self) { width in
                 contentColumnWidth = width
             }
+            #if os(macOS)
             .navigationSplitViewColumnWidth(
                 min: contentColumnWidth,
                 ideal: contentColumnWidth,
                 max: contentColumnWidth
             )
+            #endif
         } detail: {
             detailView
+            #if os(macOS)
             .navigationSplitViewColumnWidth(min: 400, ideal: 600)
+            #endif
         }
         .environmentObject(filesModel)
         .environmentObject(externalAppManager)
