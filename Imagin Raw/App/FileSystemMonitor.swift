@@ -193,6 +193,16 @@ class FileSystemMonitor {
 protocol FileSystemMonitorDelegate: AnyObject {
     func folderContentsDidChange(at url: URL)
 }
+#elseif os(iOS)
+class FileSystemMonitor {
+    func startMonitoring(url: URL) {
+    }
+    func stopMonitoring(url: URL) {
+    }
+    func stopAllMonitoring() {
+    }
+}
+#endif
 
 // MARK: - Security-Scoped Bookmark Management
 
@@ -207,11 +217,15 @@ struct FolderBookmark: Codable {
 
 func createSecurityScopedBookmark(for url: URL) -> Data? {
     do {
+        #if os(macOS)
         let bookmarkData = try url.bookmarkData(
             options: [.withSecurityScope],
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )
+        #elseif os(iOS)
+        let bookmarkData = try url.bookmarkData()
+        #endif
         return bookmarkData
     } catch {
         return nil
@@ -221,15 +235,22 @@ func createSecurityScopedBookmark(for url: URL) -> Data? {
 func restoreSecurityScopedAccess(from bookmarkData: Data) -> URL? {
     var isStale = false
     do {
+        #if os(macOS)
         let url = try URL(
             resolvingBookmarkData: bookmarkData,
             options: [.withSecurityScope, .withoutUI],
             relativeTo: nil,
             bookmarkDataIsStale: &isStale
         )
-
+        #elseif os(iOS)
+        let url = try URL(
+            resolvingBookmarkData: bookmarkData,
+            bookmarkDataIsStale: &isStale
+        )
+        #endif
         if isStale {
             // TODO: Handle stale bookmarks by re-requesting access
+            print("Bookmark stale, need to request access again")
         }
 
         // Start accessing the security-scoped resource
@@ -241,6 +262,12 @@ func restoreSecurityScopedAccess(from bookmarkData: Data) -> URL? {
     } catch {
         return nil
     }
+}
+
+func loadFolderChildren(for folder: FolderItem) -> [FolderItem] {
+    // Load children on demand (2 levels deep from this folder)
+    let childTree = loadFolderTree(at: folder.url, maxDepth: 2, currentDepth: 0)
+    return childTree.children ?? []
 }
 
 func loadFolderTree(at url: URL, maxDepth: Int = 2, currentDepth: Int = 0, bookmarkData: Data? = nil) -> FolderItem {
@@ -303,14 +330,3 @@ func hasDirectSubfolders(at url: URL) -> Bool {
     }
     return false
 }
-
-func loadFolderChildren(for folder: FolderItem) -> [FolderItem] {
-    // Load children on demand (2 levels deep from this folder)
-    let childTree = loadFolderTree(at: folder.url, maxDepth: 2, currentDepth: 0)
-    return childTree.children ?? []
-}
-#elseif os(iOS)
-class FileSystemMonitor {
-    
-}
-#endif

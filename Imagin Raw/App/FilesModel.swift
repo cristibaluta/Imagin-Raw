@@ -15,20 +15,20 @@ final class FilesModel: ObservableObject {
     @Published var selectedPhoto: PhotoItem?
     @Published var folderContentDidChange: FolderItem?
 
-    #if os(macOS)
+    // Store all folders (including unmounted ones) and track which are currently available
+    private var allFolderBookmarks: [FolderBookmark] = []
+    private var accessedURLs: Set<URL> = []
     // Flag to prevent photo loading when in copy mode
     var isInCopyMode: Bool = false
 
-    private var accessedURLs: Set<URL> = []
     private let fileMonitor = FileSystemMonitor()
 
-    // Store all folders (including unmounted ones) and track which are currently available
-    private var allFolderBookmarks: [FolderBookmark] = []
-
     init() {
+        #if os(macOS)
         fileMonitor.delegate = self
-        loadUserFolders()
         setupVolumeMonitoring()
+        #endif
+        loadUserFolders()
     }
 
     deinit {
@@ -79,7 +79,6 @@ final class FilesModel: ObservableObject {
 
         // Start monitoring for file system changes
         fileMonitor.startMonitoring(url: url)
-
         // Save to UserDefaults
         saveUserFolders()
     }
@@ -160,7 +159,6 @@ final class FilesModel: ObservableObject {
             }
         }
     }
-    #endif
 }
 
 #if os(macOS)
@@ -311,7 +309,6 @@ extension FilesModel: FileSystemMonitorDelegate {
     }
 
     private func refreshFolderTree(for changedURL: URL) {
-
         // Find the closest monitored parent folder that contains this changed path
         var refreshURL = changedURL
         var foundMonitoredParent = false

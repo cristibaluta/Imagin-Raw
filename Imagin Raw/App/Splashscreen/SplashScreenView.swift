@@ -89,9 +89,7 @@ struct SplashScreenView: View {
             switch result {
             case .success(let urls):
                 if let url = urls.first {
-                    #if os(macOS)
                     filesModel.addFolder(at: url)
-                    #endif
                 }
             case .failure(_):
                 break
