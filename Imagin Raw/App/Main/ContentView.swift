@@ -29,6 +29,8 @@ struct ContentView: View {
     @State private var openSelectedPhotosCallback: (() -> Void)?
     @State private var contentColumnWidth: CGFloat = 450
 
+    @State private var selectedPhoto: PhotoItem?
+
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
         Binding(
@@ -113,62 +115,82 @@ struct ContentView: View {
     }
 
     private var navigationSplitView: some View {
+        #if os(macOS)
         NavigationSplitView(columnVisibility: columnVisibility) {
             // Left sidebar: folders
-            SidebarView(
-                searcher: searcher,
-                searchText: $searchText,
-                onDoubleClick: {
-                    columnVisibilityStorage = "doubleColumn"
-                }
-            )
-            #if os(macOS)
+            sidebarView
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 250)
-            #endif
             .environmentObject(filesModel)
         } content: {
             // Middle: thumbnails
-            ThumbGridView(
-                filesModel: filesModel,
-                searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
-                onOpenSelectedPhotos: { photos in
-                    openMultiplePhotosInExternalApp(photos: photos)
-                },
-                onEnterReviewMode: {
-
-                },
-                onToggleSidebar: {
-                    if columnVisibilityStorage == "doubleColumn" {
-                        columnVisibilityStorage = "all"
-                    } else {
-                        columnVisibilityStorage = "doubleColumn"
-                    }
-                },
-                openSelectedPhotosCallback: $openSelectedPhotosCallback
-            )
+            thumbGridView
             .onPreferenceChange(GridWidthPreferenceKey.self) { width in
                 contentColumnWidth = width
             }
-            #if os(macOS)
             .navigationSplitViewColumnWidth(
                 min: contentColumnWidth,
                 ideal: contentColumnWidth,
                 max: contentColumnWidth
             )
-            #endif
-        } detail: {
+        }
+        detail: {
             detailView
-            #if os(macOS)
             .navigationSplitViewColumnWidth(min: 400, ideal: 600)
-            #endif
         }
         .environmentObject(filesModel)
         .environmentObject(externalAppManager)
+        #elseif os(iOS)
+        NavigationSplitView(columnVisibility: columnVisibility) {
+            // Left sidebar: folders
+            sidebarView
+        } detail: {
+            NavigationStack {
+                thumbGridView
+                    .navigationDestination(item: $selectedPhoto) { photo in
+                        LargePreviewView(photo: photo)
+                    }
+            }
+        }
+        .environmentObject(filesModel)
+        .environmentObject(externalAppManager)
+        #endif
+    }
+
+    private var sidebarView: some View {
+        SidebarView(
+            searcher: searcher,
+            searchText: $searchText,
+            onDoubleClick: {
+                columnVisibilityStorage = "doubleColumn"
+            }
+        )
+    }
+
+    private var thumbGridView: some View {
+        ThumbGridView(
+            filesModel: filesModel,
+            selectedPhoto: $selectedPhoto,
+            searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
+            onOpenSelectedPhotos: { photos in
+                openMultiplePhotosInExternalApp(photos: photos)
+            },
+            onEnterReviewMode: {
+
+            },
+            onToggleSidebar: {
+                if columnVisibilityStorage == "doubleColumn" {
+                    columnVisibilityStorage = "all"
+                } else {
+                    columnVisibilityStorage = "doubleColumn"
+                }
+            },
+            openSelectedPhotosCallback: $openSelectedPhotosCallback
+        )
     }
 
     private var detailView: some View {
         Group {
-            if let photo = filesModel.selectedPhoto {
+            if let photo = selectedPhoto {
                 LargePreviewView(photo: photo)
                     .id(photo.id)
             } else {
