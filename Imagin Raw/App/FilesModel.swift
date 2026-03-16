@@ -20,6 +20,7 @@ final class FilesModel: ObservableObject {
     private var accessedURLs: Set<URL> = []
     // Flag to prevent photo loading when in copy mode
     var isInCopyMode: Bool = false
+    var lastDeletedFiles: [URL] = []
 
     private let fileMonitor = FileSystemMonitor()
 
@@ -294,6 +295,11 @@ extension FilesModel: FileSystemMonitorDelegate {
     func folderContentsDidChange(at url: URL) {
         guard !isInCopyMode else {
             print("Ignore folder contents change event in copy mode")
+            return
+        }
+        if lastDeletedFiles.contains(url) {
+            print("Ignore folder contents change event for deleted file: \(url)")
+            lastDeletedFiles.removeAll()
             return
         }
         // Find and refresh the affected folder in our tree

@@ -25,18 +25,15 @@ struct ThumbGridView: View {
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
     @State private var showDuplicatesSheet = false
 
-    @State private var selectedPhoto: Binding<PhotoItem?>
     @State private var hasAppeared = false
 
     init(filesModel: FilesModel,
-         selectedPhoto: Binding<PhotoItem?>,
          searchPhotoResults: [PhotoItem]? = nil,
          onOpenSelectedPhotos: (([PhotoItem]) -> Void)?,
          onEnterReviewMode: (() -> Void)?,
          onToggleSidebar: (() -> Void)? = nil,
          openSelectedPhotosCallback: Binding<(() -> Void)?>) {
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
-        self.selectedPhoto = selectedPhoto
         self.searchPhotoResults = searchPhotoResults
         self.onOpenSelectedPhotos = onOpenSelectedPhotos
         self.onEnterReviewMode = onEnterReviewMode
@@ -75,7 +72,7 @@ struct ThumbGridView: View {
             // Only run once
             guard !hasAppeared else { return }
             hasAppeared = true
-            
+
             openSelectedPhotosCallback = { [viewModel] in
                 let selectedPhotoItems = viewModel.getSelectedPhotosForBulkAction()
                 onOpenSelectedPhotos?(selectedPhotoItems)
@@ -286,7 +283,6 @@ struct ThumbGridView: View {
             isSelected: viewModel.selectedPhotos.contains(photo.id),
             onTap: { modifiers in
                 viewModel.handlePhotoTap(photo: photo, modifiers: modifiers)
-                self.selectedPhoto.wrappedValue = photo
             },
             onDoubleClick: {
                 handleDoubleClick(photo: photo)

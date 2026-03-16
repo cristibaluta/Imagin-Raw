@@ -64,7 +64,7 @@ class FileSystemMonitor {
         fileChangeSubject
             .debounce(for: .seconds(2), scheduler: DispatchQueue.main)
             .sink { [weak self] url in
-                Task { @MainActor in
+                Task {
                     self?.delegate?.folderContentsDidChange(at: url)
                 }
             }
@@ -76,20 +76,12 @@ class FileSystemMonitor {
     }
 
     func startMonitoring(url: URL) {
-        // Don't monitor the same folder twice
         if monitoredPaths.contains(url.path) {
             return
         }
-
-        // Stop existing stream if running
         stopAllMonitoring()
-
-        // Add new path
         monitoredPaths.append(url.path)
-
-        // Create new stream with all paths
         startFSEventStream()
-
     }
 
     func stopMonitoring(url: URL) {
@@ -182,14 +174,11 @@ class FileSystemMonitor {
         return isRelevant
     }
 
-    // ...existing isRelevantChange method...
-
     deinit {
         stopAllMonitoring()
     }
 }
 
-@MainActor
 protocol FileSystemMonitorDelegate: AnyObject {
     func folderContentsDidChange(at url: URL)
 }

@@ -443,6 +443,7 @@ class ThumbGridViewModel: ObservableObject {
 
                 // Delete the cached thumbnail
                 ThumbsManager.shared.deleteCachedThumbnail(for: photo.path)
+//                PreviewsManager.shared.deleteCachedPreview(for: photo.path)
 
                 // If this is a RAW file, also delete associated files
                 if FilesExtensions.raw.contains(fileExtension) {
@@ -479,6 +480,7 @@ class ThumbGridViewModel: ObservableObject {
                 // Remove from photos array
                 if let index = photosModel?.photos.firstIndex(where: { $0.id == photo.id }) {
                     photosModel?.photos.remove(at: index)
+                    filesModel.lastDeletedFiles.append(url)
                 }
             } catch {
                 // Silently handle errors
@@ -512,9 +514,7 @@ class ThumbGridViewModel: ObservableObject {
             }
 
             let photoToSelect = filteredPhotos[targetIndex]
-            filesModel.selectedPhoto = photoToSelect
-            selectedPhotos.insert(photoToSelect.id)
-            lastSelectedIndex = targetIndex
+            handlePhotoTap(photo: photoToSelect, modifiers: [])
         } else {
             filesModel.selectedPhoto = nil
             lastSelectedIndex = nil
@@ -526,8 +526,6 @@ class ThumbGridViewModel: ObservableObject {
         for item in lastEntry {
             do {
                 try FileManager.default.moveItem(at: item.trashedURL, to: item.originalURL)
-                // Invalidate the cached thumbnail so it gets regenerated on reload
-                ThumbsManager.shared.deleteCachedThumbnail(for: item.originalURL.path)
             } catch {
                 // Silently handle errors
             }

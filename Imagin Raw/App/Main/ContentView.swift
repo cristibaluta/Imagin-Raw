@@ -29,9 +29,6 @@ struct ContentView: View {
     @State private var openSelectedPhotosCallback: (() -> Void)?
     @State private var contentColumnWidth: CGFloat = 450
 
-    @State private var selectedPhoto: PhotoItem?
-
-
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
         Binding(
             get: {
@@ -169,7 +166,6 @@ struct ContentView: View {
     private var thumbGridView: some View {
         ThumbGridView(
             filesModel: filesModel,
-            selectedPhoto: $selectedPhoto,
             searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
             onOpenSelectedPhotos: { photos in
                 openMultiplePhotosInExternalApp(photos: photos)
@@ -190,7 +186,7 @@ struct ContentView: View {
 
     private var detailView: some View {
         Group {
-            if let photo = selectedPhoto {
+            if let photo = filesModel.selectedPhoto {
                 LargePreviewView(photo: photo)
                     .id(photo.id)
             } else {
