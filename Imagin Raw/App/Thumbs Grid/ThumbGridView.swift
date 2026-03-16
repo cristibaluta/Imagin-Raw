@@ -224,10 +224,42 @@ struct ThumbGridView: View {
         CollectionThumbGridView(
             photos: viewModel.filteredPhotos,
             itemSize: viewModel.gridType.thumbSize,
-            onSelect: { photo in
-                filesModel.selectedPhoto = photo
-                viewModel.selectedPhotos = [photo.id]
-            }
+            cellHeight: viewModel.gridType.cellHeight,
+            selectedPhotos: viewModel.selectedPhotos,
+            callbacks: ThumbCellCallbacks(
+                onTap: { photo, modifiers in
+                    viewModel.handlePhotoTap(photo: photo, modifiers: modifiers)
+                },
+                onDoubleClick: { photo in
+                    handleDoubleClick(photo: photo)
+                },
+                onRatingChanged: { photo, rating in
+                    viewModel.applyRating(rating, to: [photo])
+                },
+                onMoveToTrash: { rightClickedPhoto in
+                    let photosToTrash = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
+                        ? viewModel.getSelectedPhotosForBulkAction()
+                        : [rightClickedPhoto]
+                    viewModel.movePhotosToTrash(photosToTrash)
+                },
+                onCopyTo: { rightClickedPhoto in
+                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
+                        ? viewModel.getSelectedPhotosForBulkAction()
+                        : [rightClickedPhoto]
+                    copyToViewModel = CopyToViewModel(photos: photos)
+                },
+                onRenameTo: { rightClickedPhoto in
+                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
+                        ? viewModel.getSelectedPhotosForBulkAction()
+                        : [rightClickedPhoto]
+                    renameSheetPhotos = PhotosSheetItem(photos: photos)
+                },
+                onMoveAllMarkedToTrash: { photo in
+                    guard photo.toDelete else { return nil }
+                    let marked = viewModel.getPhotosMarkedForDeletion()
+                    return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
+                }
+            )
         )
     }
 
