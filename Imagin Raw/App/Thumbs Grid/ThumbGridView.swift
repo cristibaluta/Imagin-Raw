@@ -49,7 +49,8 @@ struct ThumbGridView: View {
             } else if viewModel.filteredPhotos.isEmpty {
                 emptyStateView
             } else {
-                photoGridView
+//                photoGridView
+                collectionPhotoGridView
             }
             if !viewModel.photos.isEmpty {
                 filterSortBar
@@ -218,6 +219,17 @@ struct ThumbGridView: View {
     }
 
     // MARK: - Photo Grid
+    // NSCollectionView-based grid
+    private var collectionPhotoGridView: some View {
+        CollectionThumbGridView(
+            photos: viewModel.filteredPhotos,
+            itemSize: viewModel.gridType.thumbSize,
+            onSelect: { photo in
+                filesModel.selectedPhoto = photo
+                viewModel.selectedPhotos = [photo.id]
+            }
+        )
+    }
 
     private var photoGridView: some View {
         ScrollViewReader { proxy in
