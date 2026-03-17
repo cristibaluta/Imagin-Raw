@@ -23,6 +23,7 @@ struct ThumbGridView: View {
     @State private var scrollToPhotoId: UUID? = nil
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
+    @State private var showDuplicatesSheet: Bool = false
 
     @State private var hasAppeared = false
 
@@ -56,7 +57,7 @@ struct ThumbGridView: View {
                 }
             }
             if !viewModel.photos.isEmpty {
-                ThumbsBottomBar(viewModel: viewModel)
+                ThumbsBottomBar(viewModel: viewModel, showDuplicatesSheet: $showDuplicatesSheet)
             }
         }
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth+16)
@@ -69,9 +70,9 @@ struct ThumbGridView: View {
             RenameView(photosToRename: item.photos)
                 .interactiveDismissDisabled(false)
         }
-//        .sheet(isPresented: $showDuplicatesSheet) {
-//            DuplicatesResultSheet(viewModel: viewModel)
-//        }
+        .sheet(isPresented: $showDuplicatesSheet) {
+            DuplicatesResultSheet(viewModel: viewModel)
+        }
         .onAppear {
             // Only run once
             guard !hasAppeared else { return }
@@ -369,14 +370,18 @@ struct ThumbGridView: View {
     private var scrollViewConfig: some View {
         GeometryReader { _ in
             Color.clear.onAppear {
-                configureScrollView()
+                #if os(macOS)
+                DispatchQueue.main.async {
+                    if let scrollView = NSApp.keyWindow?.contentView?.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView {
+                        scrollView.scrollerStyle = .overlay
+                        scrollView.hasVerticalScroller = true
+                        scrollView.autohidesScrollers = true
+                    }
+                }
+                #endif
             }
         }
     }
-
-    // MARK: - Filter/Sort Bar
-
-    
 
     // MARK: - Event Handlers
 
@@ -390,18 +395,6 @@ struct ThumbGridView: View {
         } else {
             externalAppManager.openPhotos([photo])
         }
-    }
-
-    private func configureScrollView() {
-        #if os(macOS)
-        DispatchQueue.main.async {
-            if let scrollView = NSApp.keyWindow?.contentView?.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView {
-                scrollView.scrollerStyle = .legacy
-                scrollView.hasVerticalScroller = true
-                scrollView.autohidesScrollers = false
-            }
-        }
-        #endif
     }
 }
 

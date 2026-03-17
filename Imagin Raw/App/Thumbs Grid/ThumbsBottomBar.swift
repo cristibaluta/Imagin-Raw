@@ -9,9 +9,9 @@ import SwiftUI
 
 struct ThumbsBottomBar: View {
     @StateObject var viewModel: ThumbGridViewModel
+    @Binding var showDuplicatesSheet: Bool
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
-    @State private var showDuplicatesSheet = false
 
     var body: some View {
         HStack(spacing: 12) {
