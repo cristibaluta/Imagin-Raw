@@ -67,15 +67,9 @@ final class PhotosModel: ObservableObject {
         }
     }
 
-    /// Reload photos (called when folder contents change)
     func reloadPhotos() {
-        // Cancel any pending metadata loading
         metadataTask?.cancel()
-
-        // Stop any pending thumbnail generation
         ThumbsManager.shared.stopQueue()
-
-        // Reload photos
         loadPhotos()
     }
 
