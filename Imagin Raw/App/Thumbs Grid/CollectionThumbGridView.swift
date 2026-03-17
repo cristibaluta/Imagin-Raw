@@ -20,6 +20,20 @@ struct ThumbCellCallbacks {
     let onMoveAllMarkedToTrash: (PhotoItem) -> (count: Int, action: () -> Void)?
 }
 
+// MARK: - KeyableCollectionView
+
+private final class KeyableCollectionView: NSCollectionView {
+    var onKeyDown: ((NSEvent) -> Bool)?
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        if onKeyDown?(event) != true {
+            super.keyDown(with: event)
+        }
+    }
+}
+
 // MARK: - SwiftUI Wrapper
 
 struct CollectionThumbGridView: NSViewRepresentable {
@@ -28,6 +42,8 @@ struct CollectionThumbGridView: NSViewRepresentable {
     let cellHeight: CGFloat
     let selectedPhotos: Set<UUID>
     let callbacks: ThumbCellCallbacks
+    @Binding var scrollToPhotoId: UUID?
+    var onKeyPress: ((NSEvent) -> Bool)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(itemSize: itemSize, cellHeight: cellHeight, callbacks: callbacks)
@@ -40,7 +56,8 @@ struct CollectionThumbGridView: NSViewRepresentable {
         scrollView.scrollerStyle = .legacy
         scrollView.backgroundColor = NSColor(red: 30/255, green: 30/255, blue: 30/255, alpha: 1)
 
-        let cv = NSCollectionView()
+        let cv = KeyableCollectionView()
+        cv.onKeyDown = { event in context.coordinator.onKeyDown?(event) ?? false }
         cv.collectionViewLayout = context.coordinator.makeLayout(itemSize: itemSize, cellHeight: cellHeight)
         cv.dataSource = context.coordinator
         cv.delegate = context.coordinator
@@ -51,6 +68,10 @@ struct CollectionThumbGridView: NSViewRepresentable {
 
         context.coordinator.collectionView = cv
         scrollView.documentView = cv
+
+        // Make collection view first responder so it receives key events
+        DispatchQueue.main.async { cv.window?.makeFirstResponder(cv) }
+
         return scrollView
     }
 
@@ -67,6 +88,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
         c.cellHeight = cellHeight
         c.selectedPhotos = selectedPhotos
         c.callbacks = callbacks
+        c.onKeyDown = { event in self.onKeyPress?(event) ?? false }
 
         if sizeChanged {
             cv?.collectionViewLayout = c.makeLayout(itemSize: itemSize, cellHeight: cellHeight)
@@ -74,13 +96,20 @@ struct CollectionThumbGridView: NSViewRepresentable {
         if photosChanged || sizeChanged {
             cv?.reloadData()
         } else if selectionChanged {
-            // Update only visible items without full reload
             cv?.visibleItems().forEach { item in
                 guard let thumbItem = item as? ThumbCollectionItem,
                       let path = thumbItem.currentPath,
                       let photo = c.photos.first(where: { $0.path == path }) else { return }
                 thumbItem.updateSelection(isSelected: selectedPhotos.contains(photo.id))
             }
+        }
+
+        // Scroll to requested photo
+        if let photoId = scrollToPhotoId,
+           let index = photos.firstIndex(where: { $0.id == photoId }) {
+            cv?.scrollToItems(at: [IndexPath(item: index, section: 0)],
+                              scrollPosition: .centeredVertically)
+            DispatchQueue.main.async { self.scrollToPhotoId = nil }
         }
     }
 
@@ -92,6 +121,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
         var cellHeight: CGFloat
         var selectedPhotos: Set<UUID> = []
         var callbacks: ThumbCellCallbacks
+        var onKeyDown: ((NSEvent) -> Bool)?
         weak var collectionView: NSCollectionView?
 
         init(itemSize: CGFloat, cellHeight: CGFloat, callbacks: ThumbCellCallbacks) {

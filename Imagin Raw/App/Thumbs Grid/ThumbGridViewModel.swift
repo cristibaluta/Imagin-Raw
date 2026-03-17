@@ -514,7 +514,9 @@ class ThumbGridViewModel: ObservableObject {
             }
 
             let photoToSelect = filteredPhotos[targetIndex]
-            handlePhotoTap(photo: photoToSelect, modifiers: [])
+            filesModel.selectedPhoto = photoToSelect
+            selectedPhotos.insert(photoToSelect.id)
+            lastSelectedIndex = targetIndex
         } else {
             filesModel.selectedPhoto = nil
             lastSelectedIndex = nil
@@ -526,6 +528,8 @@ class ThumbGridViewModel: ObservableObject {
         for item in lastEntry {
             do {
                 try FileManager.default.moveItem(at: item.trashedURL, to: item.originalURL)
+                // Invalidate the cached thumbnail so it gets regenerated on reload
+                ThumbsManager.shared.deleteCachedThumbnail(for: item.originalURL.path)
             } catch {
                 // Silently handle errors
             }
@@ -558,6 +562,69 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     // MARK: - Key Handling
+
+    func handleKeyEvent(_ event: NSEvent,
+                        scrollTo: (UUID) -> Void,
+                        openPhotos: ([PhotoItem]) -> Void,
+                        onToggleSidebar: (() -> Void)?) -> Bool {
+        let chars = event.charactersIgnoringModifiers ?? ""
+        let key: KeyEquivalent
+        switch event.keyCode {
+        case 123: key = .leftArrow
+        case 124: key = .rightArrow
+        case 125: key = .downArrow
+        case 126: key = .upArrow
+        case 36, 76: key = .return
+        default:
+            guard let first = chars.first else { return false }
+            key = KeyEquivalent(first)
+        }
+
+        // Z — toggle zoom
+        if key == KeyEquivalent("z") {
+            NotificationCenter.default.post(name: .toggleZoom, object: nil)
+            return true
+        }
+
+        guard !filteredPhotos.isEmpty else { return false }
+
+        let currentIndex = filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
+        var newIndex = currentIndex
+
+        switch key {
+        case .leftArrow:  newIndex = max(0, currentIndex - 1)
+        case .rightArrow: newIndex = min(filteredPhotos.count - 1, currentIndex + 1)
+        case .upArrow:    newIndex = max(0, currentIndex - gridType.columnCount)
+        case .downArrow:  newIndex = min(filteredPhotos.count - 1, currentIndex + gridType.columnCount)
+        case .return:
+            handleReturnKey(openPhotos: openPhotos)
+            return true
+        default:
+            let mods = event.modifierFlags
+            if mods.contains(.command) && chars == "a" { selectAll(); return true }
+            if mods.contains(.command) && chars == "z" { undoLastTrash(); return true }
+            if chars == "c" || chars == "C" { onToggleSidebar?(); return true }
+            if chars == "g" || chars == "G" { toggleGridType(); return true }
+            let photos = getSelectedPhotosForBulkAction()
+            guard !photos.isEmpty else { return false }
+            if let rating = Int(chars), rating >= 0 && rating <= 5 { applyRating(rating, to: photos); return true }
+            if chars == "x" || chars == "X" { toggleDeleteState(for: photos); return true }
+//            if chars == "u" || chars == "U" { removeLabel(from: photos); return true }
+            if chars == "r" || chars == "R" { applyLabel("Select", to: photos); return true }
+            if chars == "y" || chars == "Y" { applyLabel("Second", to: photos); return true }
+            if chars == "o" || chars == "O" { applyLabel("Approved", to: photos); return true }
+            if chars == "b" || chars == "B" { applyLabel("Review", to: photos); return true }
+            if chars == "p" || chars == "P" { applyLabel("To Do", to: photos); return true }
+            return false
+        }
+
+        if newIndex != currentIndex {
+            navigateToPhoto(at: newIndex)
+            scrollTo(filteredPhotos[newIndex].id)
+            return true
+        }
+        return false
+    }
 
     func handleKeyPress(_ keyPress: KeyPress,
                         scrollTo: (UUID) -> Void,

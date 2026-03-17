@@ -19,6 +19,8 @@ struct ThumbGridView: View {
     @FocusState private var isFocused: Bool
     @Binding var openSelectedPhotosCallback: (() -> Void)?
 
+    @State private var useCollectionView = true
+    @State private var scrollToPhotoId: UUID? = nil
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
     @State private var copyToViewModel: CopyToViewModel? = nil
@@ -49,8 +51,7 @@ struct ThumbGridView: View {
             } else if viewModel.filteredPhotos.isEmpty {
                 emptyStateView
             } else {
-//                photoGridView
-                collectionPhotoGridView
+                photoGridView
             }
             if !viewModel.photos.isEmpty {
                 filterSortBar
@@ -259,11 +260,55 @@ struct ThumbGridView: View {
                     let marked = viewModel.getPhotosMarkedForDeletion()
                     return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
                 }
-            )
+            ),
+            scrollToPhotoId: $scrollToPhotoId,
+            onKeyPress: { event in
+                viewModel.handleKeyEvent(
+                    event,
+                    scrollTo: { photoId in scrollToPhotoId = photoId },
+                    openPhotos: { photos in externalAppManager.openPhotos(photos) },
+                    onToggleSidebar: { onToggleSidebar?() }
+                )
+            }
         )
+        .onAppear {
+            viewModel.initializeSelection()
+        }
+        .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
+            if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
+                filesModel.selectedPhoto = newPhotos.first
+                viewModel.selectedPhotos.removeAll()
+                viewModel.selectedPhotos.insert(newPhotos.first!.id)
+                viewModel.lastSelectedIndex = 0
+            }
+        }
+        .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
+            if oldValue == true && newValue == false {
+                viewModel.clearInvalidFilters()
+            }
+        }
+        .onChange(of: filesModel.selectedFolder) { _, _ in
+            if let firstPhoto = viewModel.filteredPhotos.first {
+                filesModel.selectedPhoto = firstPhoto
+                viewModel.selectedPhotos.removeAll()
+                viewModel.selectedPhotos.insert(firstPhoto.id)
+                viewModel.lastSelectedIndex = 0
+                scrollToPhotoId = firstPhoto.id
+            }
+        }
     }
 
     private var photoGridView: some View {
+        Group {
+            if useCollectionView {
+                collectionPhotoGridView
+            } else {
+                swiftUIPhotoGridView
+            }
+        }
+    }
+
+    private var swiftUIPhotoGridView: some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical) {
                 LazyVGrid(columns: viewModel.dynamicColumns, spacing: 8) {
