@@ -7,6 +7,28 @@
 import Foundation
 import AppKit
 
+class PaddedTextFieldCell: NSTextFieldCell {
+    // Define your padding/insets here
+    var textInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
+
+    // 1. Adjust where the text is drawn
+    override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
+        let insetRect = cellFrame.insetBy(dx: textInsets.left, dy: textInsets.top)
+        super.drawInterior(withFrame: insetRect, in: controlView)
+    }
+
+    // 2. Adjust the typing area for editing mode
+    override func select(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?, start selStart: Int, length selLength: Int) {
+        let insetRect = rect.insetBy(dx: textInsets.left, dy: textInsets.top)
+        super.select(withFrame: insetRect, in: controlView, editor: textObj, delegate: delegate, start: selStart, length: selLength)
+    }
+
+    override func edit(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?, event: NSEvent?) {
+        let insetRect = rect.insetBy(dx: textInsets.left, dy: textInsets.top)
+        super.edit(withFrame: insetRect, in: controlView, editor: textObj, delegate: delegate, event: event)
+    }
+}
+
 final class ThumbCollectionItem: NSCollectionViewItem {
     static let identifier = NSUserInterfaceItemIdentifier("ThumbCollectionItem")
 
@@ -15,6 +37,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     private let filenameLabel   = NSTextField(labelWithString: "")
     private let trashOverlay    = NSImageView()
     private let selectionBorder = NSView()
+    private let badgeStack      = NSStackView()
     private let acrBadge        = NSImageView()
     private let jpgBadge        = NSTextField(labelWithString: "+JPG")
     private var starView: AppKitStarRatingView?
@@ -27,7 +50,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     private var clickTimer: Timer?
     private var callbacks: ThumbCellCallbacks?
     private var itemSize: CGFloat = 100
-    private var currentImageSize: CGSize = .zero // actual pixel size of loaded image
+    private var currentImageSize: CGSize = .zero
 
     // MARK: loadView
 
@@ -36,18 +59,12 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         root.wantsLayer = true
         self.view = root
 
-        // Thumb
         thumbView.imageScaling = .scaleProportionallyUpOrDown
         thumbView.imageAlignment = .alignCenter
         thumbView.wantsLayer = true
 
-        // Selection border (inside thumb)
         selectionBorder.wantsLayer = true
-        selectionBorder.layer?.borderColor = NSColor.systemBlue.cgColor
-        selectionBorder.layer?.borderWidth = 0
-        selectionBorder.isHidden = true
 
-        // Trash overlay
         trashOverlay.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
         trashOverlay.contentTintColor = .systemRed
         trashOverlay.imageScaling = .scaleProportionallyUpOrDown
@@ -58,44 +75,72 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         acrBadge.contentTintColor = .white
         acrBadge.imageScaling = .scaleProportionallyUpOrDown
         acrBadge.wantsLayer = true
-        acrBadge.layer?.backgroundColor = NSColor.systemGray.withAlphaComponent(0.8).cgColor
-        acrBadge.layer?.cornerRadius = 3
-        acrBadge.isHidden = true
+        acrBadge.setContentHuggingPriority(.required, for: .horizontal)
 
         // JPG badge
         jpgBadge.font = NSFont.boldSystemFont(ofSize: 8)
         jpgBadge.textColor = .white
         jpgBadge.alignment = .center
+        jpgBadge.isBordered = false
+        jpgBadge.drawsBackground = false
         jpgBadge.wantsLayer = true
-        jpgBadge.layer?.backgroundColor = NSColor.systemBlue.withAlphaComponent(0.8).cgColor
-        jpgBadge.layer?.cornerRadius = 3
-        jpgBadge.isHidden = true
+        jpgBadge.setContentHuggingPriority(.required, for: .horizontal)
+        jpgBadge.cell = PaddedTextFieldCell(textCell: "+JPG")
 
-        // Filename
+        // Badge stack
+        badgeStack.orientation = .horizontal
+        badgeStack.spacing = 6
+        badgeStack.alignment = .centerY
+        badgeStack.distribution = .fill
+        badgeStack.addArrangedSubview(acrBadge)
+        badgeStack.addArrangedSubview(jpgBadge)
+        badgeStack.isHidden = true
+
         filenameLabel.font = NSFont.systemFont(ofSize: 11)
         filenameLabel.textColor = .labelColor
         filenameLabel.lineBreakMode = .byTruncatingMiddle
         filenameLabel.alignment = .center
         filenameLabel.wantsLayer = true
-        filenameLabel.layer?.cornerRadius = 4
 
-        for sub in [thumbView, selectionBorder, trashOverlay, acrBadge, jpgBadge, filenameLabel] as [NSView] {
+        for sub in [thumbView, selectionBorder, trashOverlay, badgeStack, filenameLabel] as [NSView] {
             root.addSubview(sub)
         }
 
-        // Click gesture
         let click = NSClickGestureRecognizer(target: self, action: #selector(handleClick(_:)))
         click.numberOfClicksRequired = 1
         root.addGestureRecognizer(click)
-
-        // Hover tracking added in viewDidLayout when size is known
     }
-
-    // MARK: Layout
 
     override func viewDidLayout() {
         super.viewDidLayout()
+        configureLayers()
         layoutSubviews()
+    }
+
+    private func configureLayers() {
+        selectionBorder.layer?.borderColor = NSColor.systemBlue.cgColor
+        selectionBorder.layer?.borderWidth = selectionBorder.isHidden ? 0 : 2
+
+        if let layer = acrBadge.layer {
+            layer.backgroundColor = NSColor.darkGray.withAlphaComponent(0.8).cgColor
+            layer.cornerRadius = 3
+            layer.shadowColor = NSColor.black.cgColor
+            layer.shadowOpacity = 0.5
+            layer.shadowRadius = 2.0
+            layer.shadowOffset = CGSize(width: 5, height: -5) // Downward
+        }
+
+        if let layer = jpgBadge.layer {
+            layer.backgroundColor = NSColor.systemBlue.withAlphaComponent(0.8).cgColor
+            layer.cornerRadius = 3
+            layer.masksToBounds = true
+            layer.shadowColor = NSColor.black.cgColor
+            layer.shadowOpacity = 0.5
+            layer.shadowRadius = 2.0
+            layer.shadowOffset = CGSize(width: 0, height: -1) // Downward
+        }
+
+        filenameLabel.layer?.cornerRadius = 4
     }
 
     private func layoutSubviews() {
@@ -110,14 +155,24 @@ final class ThumbCollectionItem: NSCollectionViewItem {
 
         thumbView.frame = CGRect(x: 0, y: thumbY, width: w, height: size)
 
-        // Compute the actual drawn image rect within the thumb square
         let imageRect = actualImageRect(in: CGRect(x: 0, y: thumbY, width: w, height: size))
         selectionBorder.frame = imageRect
+        trashOverlay.frame = CGRect(x: imageRect.midX - 12, y: imageRect.midY - 12, width: 24, height: 24)
 
-        trashOverlay.frame = CGRect(x: w/2 - 12, y: thumbY + size/2 - 12, width: 24, height: 24)
-        acrBadge.frame = CGRect(x: imageRect.maxX - 22, y: imageRect.maxY - 22, width: 18, height: 18)
-        jpgBadge.frame = CGRect(x: imageRect.maxX - 28, y: imageRect.maxY - 22, width: 28, height: 14)
-        filenameLabel.frame = CGRect(x: 0, y: labelY, width: w, height: labelH)
+        // Badge stack — top-right of image rect
+        let stackSize = badgeStack.fittingSize
+        let stackW = stackSize.width > 0 ? stackSize.width : 44
+        let stackH: CGFloat = 16
+        badgeStack.frame = CGRect(
+            x: imageRect.maxX - stackW - 4,
+            y: imageRect.maxY - stackH - 4,
+            width: stackW,
+            height: stackH
+        )
+
+        filenameLabel.sizeToFit()
+        let adaptiveWidth = min(filenameLabel.frame.width, w)
+        filenameLabel.frame = CGRect(x: (w-adaptiveWidth)/2, y: labelY, width: adaptiveWidth, height: labelH)
 
         // Star view
         if photo.isRawFile {
@@ -132,27 +187,26 @@ final class ThumbCollectionItem: NSCollectionViewItem {
                 view.addSubview(sv)
                 starView = sv
             }
-            starView?.rating = currentRating(for: photo)
+            let rating = currentRating(for: photo)
+            starView?.rating = rating
             starView?.frame = CGRect(x: 0, y: labelY - starH - 2, width: w, height: starH)
-            starView?.isHidden = false
+            starView?.isHidden = rating == 0
         } else {
             starView?.isHidden = true
         }
     }
 
-    /// Returns the rect that NSImageView actually draws the image in (aspect-fit within the frame)
     private func actualImageRect(in frame: CGRect) -> CGRect {
-        guard currentImageSize.width > 0, currentImageSize.height > 0 else {
-            return frame // fallback: no image loaded yet
-        }
-        let imgW = currentImageSize.width
-        let imgH = currentImageSize.height
-        let scale = min(frame.width / imgW, frame.height / imgH)
-        let drawW = imgW * scale
-        let drawH = imgH * scale
-        let drawX = frame.minX + (frame.width - drawW) / 2
-        let drawY = frame.minY + (frame.height - drawH) / 2
-        return CGRect(x: drawX, y: drawY, width: drawW, height: drawH)
+        guard currentImageSize.width > 0, currentImageSize.height > 0 else { return frame }
+        let scale = min(frame.width / currentImageSize.width, frame.height / currentImageSize.height)
+        let drawW = currentImageSize.width * scale
+        let drawH = currentImageSize.height * scale
+        return CGRect(
+            x: frame.minX + (frame.width - drawW) / 2,
+            y: frame.minY + (frame.height - drawH) / 2,
+            width: drawW,
+            height: drawH
+        )
     }
 
     private func setupTrackingArea() {
@@ -176,11 +230,11 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         currentPath = photo.path
         currentPhoto = photo
 
-        // Thumbnail
         if pathChanged {
             loadTask?.cancel()
             loadTask = nil
             thumbView.image = nil
+            currentImageSize = .zero
 
             if let cached = ThumbsManager.shared.getCachedThumbnail(for: photo.path) {
                 thumbView.image = cached
@@ -204,28 +258,20 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         }
 
         updateSelection(isSelected: isSelected)
-
-        // Trash
         trashOverlay.isHidden = !photo.toDelete
 
-        // Badges
-        acrBadge.isHidden = !photo.hasACR
-        jpgBadge.isHidden = !(photo.isRawFile && photo.hasJPG)
+        let showACR = true//photo.hasACR
+        let showJPG = true//photo.isRawFile && photo.hasJPG
+        acrBadge.isHidden = !showACR
+        jpgBadge.isHidden = !showJPG
+        badgeStack.isHidden = !showACR && !showJPG
 
-        // Filename + label color
         filenameLabel.stringValue = URL(fileURLWithPath: photo.path).lastPathComponent
         applyLabelStyle(for: photo)
-
-        // Update star rating — layoutSubviews will position and update it
         starView?.rating = currentRating(for: photo)
-
-        // Context menu
         view.menu = makeContextMenu(for: photo)
 
-        // Setup tracking area once per cell reuse
         if view.trackingAreas.isEmpty { setupTrackingArea() }
-
-        // Manually lay out since configure may be called outside of a layout pass
         if view.bounds.width > 0 { layoutSubviews() }
     }
 
@@ -234,12 +280,11 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         selectionBorder.layer?.borderWidth = isSelected ? 2 : 0
     }
 
-    // MARK: Click handling
+    // MARK: Click
 
     @objc private func handleClick(_ recognizer: NSClickGestureRecognizer) {
         guard let photo = currentPhoto else { return }
         let modifiers = NSApp.currentEvent?.modifierFlags ?? []
-
         clickCount += 1
         if clickCount == 1 {
             callbacks?.onTap(photo, modifiers)
@@ -253,7 +298,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         }
     }
 
-    // MARK: Hover (show/hide stars on hover)
+    // MARK: Hover
 
     override func mouseEntered(with event: NSEvent) {
         starView?.isHidden = !(currentPhoto?.isRawFile ?? false)
@@ -268,32 +313,25 @@ final class ThumbCollectionItem: NSCollectionViewItem {
 
     private func makeContextMenu(for photo: PhotoItem) -> NSMenu {
         let menu = NSMenu()
-
         let finder = NSMenuItem(title: "Show in Finder", action: #selector(menuShowInFinder), keyEquivalent: "")
         finder.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
         menu.addItem(finder)
-
         let copy = NSMenuItem(title: "Copy to...", action: #selector(menuCopyTo), keyEquivalent: "")
         copy.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
         menu.addItem(copy)
-
         let rename = NSMenuItem(title: "Rename...", action: #selector(menuRenameTo), keyEquivalent: "")
         rename.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: nil)
         menu.addItem(rename)
-
         menu.addItem(.separator())
-
         let trash = NSMenuItem(title: "Move to Trash", action: #selector(menuMoveToTrash), keyEquivalent: "")
         trash.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
         menu.addItem(trash)
-
         if photo.toDelete, let info = callbacks?.onMoveAllMarkedToTrash(photo) {
             let all = NSMenuItem(title: "Move to Trash all Rejected Photos (\(info.count))",
                                  action: #selector(menuMoveAllToTrash), keyEquivalent: "")
             all.image = NSImage(systemSymbolName: "trash.fill", accessibilityDescription: nil)
             menu.addItem(all)
         }
-
         return menu
     }
 
@@ -301,22 +339,10 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         guard let path = currentPath else { return }
         NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: "")
     }
-    @objc private func menuCopyTo() {
-        guard let photo = currentPhoto else { return }
-        callbacks?.onCopyTo(photo)
-    }
-    @objc private func menuRenameTo() {
-        guard let photo = currentPhoto else { return }
-        callbacks?.onRenameTo(photo)
-    }
-    @objc private func menuMoveToTrash() {
-        guard let photo = currentPhoto else { return }
-        callbacks?.onMoveToTrash(photo)
-    }
-    @objc private func menuMoveAllToTrash() {
-        guard let photo = currentPhoto else { return }
-        callbacks?.onMoveAllMarkedToTrash(photo)?.action()
-    }
+    @objc private func menuCopyTo() { guard let p = currentPhoto else { return }; callbacks?.onCopyTo(p) }
+    @objc private func menuRenameTo() { guard let p = currentPhoto else { return }; callbacks?.onRenameTo(p) }
+    @objc private func menuMoveToTrash() { guard let p = currentPhoto else { return }; callbacks?.onMoveToTrash(p) }
+    @objc private func menuMoveAllToTrash() { guard let p = currentPhoto else { return }; callbacks?.onMoveAllMarkedToTrash(p)?.action() }
 
     // MARK: Helpers
 
@@ -328,33 +354,19 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     private func applyLabelStyle(for photo: PhotoItem) {
         if photo.toDelete {
             filenameLabel.layer?.backgroundColor = NSColor.systemRed.cgColor
-            filenameLabel.textColor = .black
-            return
+            filenameLabel.textColor = .black; return
         }
         guard let label = photo.xmp?.label, !label.isEmpty else {
             filenameLabel.layer?.backgroundColor = NSColor.clear.cgColor
-            filenameLabel.textColor = .labelColor
-            return
+            filenameLabel.textColor = .labelColor; return
         }
         switch label {
-        case "Select":
-            filenameLabel.layer?.backgroundColor = NSColor.systemRed.cgColor
-            filenameLabel.textColor = .white
-        case "Second":
-            filenameLabel.layer?.backgroundColor = NSColor.systemYellow.cgColor
-            filenameLabel.textColor = .black
-        case "Approved":
-            filenameLabel.layer?.backgroundColor = NSColor(red: 133/255, green: 199/255, blue: 102/255, alpha: 1).cgColor
-            filenameLabel.textColor = .black
-        case "Review":
-            filenameLabel.layer?.backgroundColor = NSColor.systemBlue.cgColor
-            filenameLabel.textColor = .white
-        case "To Do":
-            filenameLabel.layer?.backgroundColor = NSColor.systemPurple.cgColor
-            filenameLabel.textColor = .white
-        default:
-            filenameLabel.layer?.backgroundColor = NSColor.clear.cgColor
-            filenameLabel.textColor = .labelColor
+        case "Select":   filenameLabel.layer?.backgroundColor = NSColor.systemRed.cgColor;    filenameLabel.textColor = .white
+        case "Second":   filenameLabel.layer?.backgroundColor = NSColor.systemYellow.cgColor; filenameLabel.textColor = .black
+        case "Approved": filenameLabel.layer?.backgroundColor = NSColor(red: 133/255, green: 199/255, blue: 102/255, alpha: 1).cgColor; filenameLabel.textColor = .black
+        case "Review":   filenameLabel.layer?.backgroundColor = NSColor.systemBlue.cgColor;   filenameLabel.textColor = .white
+        case "To Do":    filenameLabel.layer?.backgroundColor = NSColor.systemPurple.cgColor; filenameLabel.textColor = .white
+        default:         filenameLabel.layer?.backgroundColor = NSColor.clear.cgColor;         filenameLabel.textColor = .labelColor
         }
     }
 
@@ -371,6 +383,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         selectionBorder.layer?.borderWidth = 0
         selectionBorder.isHidden = true
         trashOverlay.isHidden = true
+        badgeStack.isHidden = true
         acrBadge.isHidden = true
         jpgBadge.isHidden = true
         starView?.removeFromSuperview()
