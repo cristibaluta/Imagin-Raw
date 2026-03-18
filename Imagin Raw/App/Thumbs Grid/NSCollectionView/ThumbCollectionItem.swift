@@ -27,6 +27,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     private var clickTimer: Timer?
     private var callbacks: ThumbCellCallbacks?
     private var itemSize: CGFloat = 100
+    private var currentImageSize: CGSize = .zero // actual pixel size of loaded image
 
     // MARK: loadView
 
@@ -39,7 +40,6 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         thumbView.imageScaling = .scaleProportionallyUpOrDown
         thumbView.imageAlignment = .alignCenter
         thumbView.wantsLayer = true
-        thumbView.layer?.backgroundColor = NSColor(red: 41/255, green: 41/255, blue: 41/255, alpha: 1).cgColor
 
         // Selection border (inside thumb)
         selectionBorder.wantsLayer = true
@@ -103,16 +103,20 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         let w = view.bounds.width
         let h = view.bounds.height
         let size = itemSize
-        let thumbY = h - size               // thumb sits at top
+        let thumbY = h - size
         let labelH: CGFloat = 16
         let starH: CGFloat = photo.isRawFile ? 14 : 0
         let labelY = thumbY - labelH - 2
 
         thumbView.frame = CGRect(x: 0, y: thumbY, width: w, height: size)
-        selectionBorder.frame = thumbView.frame
+
+        // Compute the actual drawn image rect within the thumb square
+        let imageRect = actualImageRect(in: CGRect(x: 0, y: thumbY, width: w, height: size))
+        selectionBorder.frame = imageRect
+
         trashOverlay.frame = CGRect(x: w/2 - 12, y: thumbY + size/2 - 12, width: 24, height: 24)
-        acrBadge.frame = CGRect(x: w - 46, y: thumbY + size - 22, width: 18, height: 18)
-        jpgBadge.frame = CGRect(x: w - 26, y: thumbY + size - 22, width: 24, height: 14)
+        acrBadge.frame = CGRect(x: imageRect.maxX - 22, y: imageRect.maxY - 22, width: 18, height: 18)
+        jpgBadge.frame = CGRect(x: imageRect.maxX - 28, y: imageRect.maxY - 22, width: 28, height: 14)
         filenameLabel.frame = CGRect(x: 0, y: labelY, width: w, height: labelH)
 
         // Star view
@@ -134,6 +138,21 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         } else {
             starView?.isHidden = true
         }
+    }
+
+    /// Returns the rect that NSImageView actually draws the image in (aspect-fit within the frame)
+    private func actualImageRect(in frame: CGRect) -> CGRect {
+        guard currentImageSize.width > 0, currentImageSize.height > 0 else {
+            return frame // fallback: no image loaded yet
+        }
+        let imgW = currentImageSize.width
+        let imgH = currentImageSize.height
+        let scale = min(frame.width / imgW, frame.height / imgH)
+        let drawW = imgW * scale
+        let drawH = imgH * scale
+        let drawX = frame.minX + (frame.width - drawW) / 2
+        let drawY = frame.minY + (frame.height - drawH) / 2
+        return CGRect(x: drawX, y: drawY, width: drawW, height: drawH)
     }
 
     private func setupTrackingArea() {
@@ -165,6 +184,8 @@ final class ThumbCollectionItem: NSCollectionViewItem {
 
             if let cached = ThumbsManager.shared.getCachedThumbnail(for: photo.path) {
                 thumbView.image = cached
+                currentImageSize = cached.size
+                layoutSubviews()
             } else {
                 let path = photo.path
                 let work = DispatchWorkItem { [weak self] in
@@ -172,6 +193,8 @@ final class ThumbCollectionItem: NSCollectionViewItem {
                         DispatchQueue.main.async {
                             guard self?.currentPath == path else { return }
                             self?.thumbView.image = image
+                            self?.currentImageSize = image?.size ?? .zero
+                            self?.layoutSubviews()
                         }
                     }
                 }
@@ -343,6 +366,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         loadTask = nil
         currentPath = nil
         currentPhoto = nil
+        currentImageSize = .zero
         thumbView.image = nil
         selectionBorder.layer?.borderWidth = 0
         selectionBorder.isHidden = true
