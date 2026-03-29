@@ -119,9 +119,7 @@ struct ThumbGridView: View {
     // NSCollectionView-based grid
     private var collectionPhotoGridView: some View {
         CollectionThumbGridView(
-            photos: viewModel.isDuplicateMode
-                ? (viewModel.duplicateScanResult?.groups.flatMap(\.photos) ?? [])
-                : viewModel.filteredPhotos,
+            photos: viewModel.filteredPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,
             selectedPhotos: viewModel.selectedPhotos,

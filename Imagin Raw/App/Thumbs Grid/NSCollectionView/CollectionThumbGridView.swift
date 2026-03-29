@@ -117,11 +117,14 @@ struct CollectionThumbGridView: NSViewRepresentable {
         let c = context.coordinator
         let cv = c.collectionView
 
-        let photosChanged   = c.photos.map(\.id) != photos.map(\.id)
-        let sizeChanged     = c.itemSize != itemSize || c.cellHeight != cellHeight
+        let photosChanged    = c.photos.map(\.id) != photos.map(\.id)
+        let contentChanged   = !photosChanged && c.photos != photos
+        let sizeChanged      = c.itemSize != itemSize || c.cellHeight != cellHeight
         let selectionChanged = c.selectedPhotos != selectedPhotos
-        let dupChanged      = c.duplicateResult?.groups.map(\.id) != duplicateResult?.groups.map(\.id)
+        let dupChanged       = c.duplicateResult?.groups.map(\.id) != duplicateResult?.groups.map(\.id)
 
+        // Build a lookup of latest PhotoItem state by id
+        let latestMap = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
         let oldPhotoMap = Dictionary(uniqueKeysWithValues: c.photos.map { ($0.id, $0) })
 
         c.photos = photos
@@ -130,6 +133,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
         c.selectedPhotos = selectedPhotos
         c.callbacks = callbacks
         c.duplicateResult = duplicateResult
+        c.photosById = Dictionary(uniqueKeysWithValues: photos.map { ($0.path, $0) })
         c.onKeyDown = { event in self.onKeyPress?(event) ?? false }
 
         if sizeChanged || dupChanged {
@@ -140,10 +144,11 @@ struct CollectionThumbGridView: NSViewRepresentable {
         if photosChanged || sizeChanged || dupChanged {
             cv?.reloadData()
         } else {
+            // Patch visible cells with latest photo state
             cv?.visibleItems().forEach { item in
                 guard let thumbItem = item as? ThumbCollectionItem,
                       let path = thumbItem.currentPath,
-                      let photo = photos.first(where: { $0.path == path }) else { return }
+                      let photo = latestMap.values.first(where: { $0.path == path }) else { return }
                 let isSelected = selectedPhotos.contains(photo.id)
                 if oldPhotoMap[photo.id] != photo {
                     thumbItem.configure(with: photo, isSelected: isSelected,
@@ -206,14 +211,14 @@ struct CollectionThumbGridView: NSViewRepresentable {
             return layout
         }
 
-        // MARK: Data source helpers
-
-        private var isDuplicateMode: Bool { duplicateResult != nil }
+        // photosById is the live source of truth (filteredPhotos)
+        var photosById: [String: PhotoItem] = [:]
 
         private func photosForSection(_ section: Int) -> [PhotoItem] {
             if let result = duplicateResult {
                 guard section < result.groups.count else { return [] }
-                return result.groups[section].photos
+                // Return live versions of photos, falling back to scan snapshot
+                return result.groups[section].photos.map { photosById[$0.path] ?? $0 }
             }
             return section == 0 ? photos : []
         }
