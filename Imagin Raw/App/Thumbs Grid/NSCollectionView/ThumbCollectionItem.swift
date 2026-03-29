@@ -11,14 +11,16 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     static let identifier = NSUserInterfaceItemIdentifier("ThumbCollectionItem")
 
     // Views
-    private let thumbView       = NSImageView()
-    private let filenameLabel   = NSTextField(labelWithString: "")
-    private let trashOverlay    = NSImageView()
-    private let selectionBorder = NSView()
-    private let badgeStack      = NSStackView()
-    private let acrBadgeContainer = NSView()
-    private let acrBadge        = NSImageView()
-    private let jpgBadge        = NSTextField(labelWithString: "+JPG")
+    private let thumbView           = NSImageView()
+    private let filenameLabel       = NSTextField(labelWithString: "")
+    private let trashContainer      = NSView()       // shadow lives here
+    private let trashOverlay        = NSImageView()  // icon inside container
+    private let selectionBorder     = NSView()
+    private let badgeStack          = NSStackView()
+    private let acrBadgeContainer   = NSView()
+    private let acrBadge            = NSImageView()
+    private let jpgBadgeContainer   = NSView()
+    private let jpgBadge            = NSTextField(labelWithString: "+JPG")
     private var starView: AppKitStarRatingView?
 
     // State
@@ -45,9 +47,14 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         let config = NSImage.SymbolConfiguration(pointSize: CGFloat.zero, weight: .bold)
         trashOverlay.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)?
             .withSymbolConfiguration(config)
-        trashOverlay.contentTintColor = .systemOrange
+        trashOverlay.contentTintColor = .orange
         trashOverlay.imageScaling = .scaleProportionallyUpOrDown
-        trashOverlay.isHidden = true
+
+        // trashContainer holds the shadow; trashOverlay is inside it
+        trashContainer.wantsLayer = true
+        trashContainer.layer?.masksToBounds = false
+        trashContainer.isHidden = true
+        trashContainer.addSubview(trashOverlay)
 
         // ACR badge
         acrBadge.image = NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: nil)
@@ -57,14 +64,12 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         acrBadge.setContentHuggingPriority(.required, for: .horizontal)
 
         acrBadgeContainer.wantsLayer = true
-        acrBadgeContainer.layer?.backgroundColor = NSColor.darkGray.withAlphaComponent(0.8).cgColor
-        acrBadgeContainer.layer?.cornerRadius = 3 // Adjust for desired roundness
         acrBadgeContainer.addSubview(acrBadge)
         acrBadge.translatesAutoresizingMaskIntoConstraints = false
-        let padding: CGFloat = 4.0
+        let padding: CGFloat = 2.0
         NSLayoutConstraint.activate([
-            acrBadge.topAnchor.constraint(equalTo: acrBadgeContainer.topAnchor, constant: padding),
-            acrBadge.bottomAnchor.constraint(equalTo: acrBadgeContainer.bottomAnchor, constant: -padding),
+            acrBadge.topAnchor.constraint(equalTo: acrBadgeContainer.topAnchor, constant: padding+2),
+            acrBadge.bottomAnchor.constraint(equalTo: acrBadgeContainer.bottomAnchor, constant: -padding-2),
             acrBadge.leadingAnchor.constraint(equalTo: acrBadgeContainer.leadingAnchor, constant: padding),
             acrBadge.trailingAnchor.constraint(equalTo: acrBadgeContainer.trailingAnchor, constant: -padding)
         ])
@@ -78,13 +83,24 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         jpgBadge.wantsLayer = true
         jpgBadge.setContentHuggingPriority(.required, for: .horizontal)
 
+        jpgBadgeContainer.wantsLayer = true
+        jpgBadgeContainer.addSubview(jpgBadge)
+        jpgBadge.translatesAutoresizingMaskIntoConstraints = false
+        let paddingJpg: CGFloat = 2
+        NSLayoutConstraint.activate([
+            jpgBadge.topAnchor.constraint(equalTo: jpgBadgeContainer.topAnchor, constant: paddingJpg),
+            jpgBadge.bottomAnchor.constraint(equalTo: jpgBadgeContainer.bottomAnchor, constant: -paddingJpg),
+            jpgBadge.leadingAnchor.constraint(equalTo: jpgBadgeContainer.leadingAnchor, constant: paddingJpg),
+            jpgBadge.trailingAnchor.constraint(equalTo: jpgBadgeContainer.trailingAnchor, constant: -paddingJpg)
+        ])
+
         // Badge stack
         badgeStack.orientation = .horizontal
         badgeStack.spacing = 6
         badgeStack.alignment = .centerY
         badgeStack.distribution = .fill
         badgeStack.addArrangedSubview(acrBadgeContainer)
-        badgeStack.addArrangedSubview(jpgBadge)
+        badgeStack.addArrangedSubview(jpgBadgeContainer)
         badgeStack.isHidden = true
 
         filenameLabel.font = NSFont.systemFont(ofSize: 11)
@@ -93,7 +109,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         filenameLabel.alignment = .center
         filenameLabel.wantsLayer = true
 
-        for sub in [thumbView, selectionBorder, trashOverlay, badgeStack, filenameLabel] as [NSView] {
+        for sub in [thumbView, selectionBorder, trashContainer, badgeStack, filenameLabel] as [NSView] {
             root.addSubview(sub)
         }
     }
@@ -108,29 +124,32 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         selectionBorder.layer?.borderColor = NSColor.systemBlue.cgColor
         selectionBorder.layer?.borderWidth = selectionBorder.isHidden ? 0 : 2
 
-        if let layer = trashOverlay.layer {
+        if let layer = trashContainer.layer {
+            layer.masksToBounds = false
             layer.shadowColor = NSColor.black.cgColor
-            layer.shadowOpacity = 1
-            layer.shadowRadius = 5.0
+            layer.shadowOpacity = 0.6
+            layer.shadowRadius = 3.0
             layer.shadowOffset = CGSize(width: 0, height: 0)
         }
 
         if let layer = acrBadgeContainer.layer {
-//            layer.masksToBounds = false
+            layer.masksToBounds = false
+            layer.cornerRadius = 3
+            layer.backgroundColor = NSColor.gray.cgColor
             layer.shadowColor = NSColor.black.cgColor
             layer.shadowOpacity = 0.5
             layer.shadowRadius = 2.0
-            layer.shadowOffset = CGSize(width: 5, height: -5) // Downward
+            layer.shadowOffset = CGSize(width: 0, height: 0)
         }
 
-        if let layer = jpgBadge.layer {
-            layer.backgroundColor = NSColor.systemBlue.withAlphaComponent(0.8).cgColor
+        if let layer = jpgBadgeContainer.layer {
             layer.cornerRadius = 3
             layer.masksToBounds = false
+            layer.backgroundColor = NSColor.systemBlue.withAlphaComponent(0.8).cgColor
             layer.shadowColor = NSColor.black.cgColor
             layer.shadowOpacity = 0.5
             layer.shadowRadius = 2.0
-            layer.shadowOffset = CGSize(width: 0, height: -1) // Downward
+            layer.shadowOffset = CGSize(width: 0, height: 0)
         }
 
         filenameLabel.layer?.cornerRadius = 4
@@ -150,7 +169,11 @@ final class ThumbCollectionItem: NSCollectionViewItem {
 
         let imageRect = actualImageRect(in: CGRect(x: 0, y: thumbY, width: w, height: size))
         selectionBorder.frame = imageRect
-        trashOverlay.frame = CGRect(x: imageRect.midX - 12, y: imageRect.midY - 12, width: 24, height: 24)
+        let iconSize: CGFloat = 24
+        trashContainer.frame = CGRect(x: imageRect.midX - iconSize/2,
+                                      y: imageRect.midY - iconSize/2,
+                                      width: iconSize, height: iconSize)
+        trashOverlay.frame = trashContainer.bounds
 
         // Badge stack — top-right of image rect
         let stackSize = badgeStack.fittingSize
@@ -249,12 +272,12 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         }
 
         updateSelection(isSelected: isSelected)
-        trashOverlay.isHidden = !photo.toDelete
+        trashContainer.isHidden = !photo.toDelete
 
-        let showACR = true//photo.hasACR
-        let showJPG = true//photo.isRawFile && photo.hasJPG
-        acrBadge.isHidden = !showACR
-        jpgBadge.isHidden = !showJPG
+        let showACR = photo.hasACR
+        let showJPG = photo.isRawFile && photo.hasJPG
+        acrBadgeContainer.isHidden = !showACR
+        jpgBadgeContainer.isHidden = !showJPG
         badgeStack.isHidden = !showACR && !showJPG
 
         filenameLabel.stringValue = URL(fileURLWithPath: photo.path).lastPathComponent
@@ -315,12 +338,14 @@ final class ThumbCollectionItem: NSCollectionViewItem {
 
     private func applyLabelStyle(for photo: PhotoItem) {
         if photo.toDelete {
-            filenameLabel.layer?.backgroundColor = NSColor.systemRed.cgColor
-            filenameLabel.textColor = .black; return
+            filenameLabel.layer?.backgroundColor = NSColor.orange.cgColor
+            filenameLabel.textColor = .black;
+            return
         }
         guard let label = photo.xmp?.label, !label.isEmpty else {
             filenameLabel.layer?.backgroundColor = NSColor.clear.cgColor
-            filenameLabel.textColor = .labelColor; return
+            filenameLabel.textColor = .labelColor;
+            return
         }
         switch label {
         case "Select":   filenameLabel.layer?.backgroundColor = NSColor.systemRed.cgColor;    filenameLabel.textColor = .white
@@ -344,10 +369,10 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         thumbView.image = nil
         selectionBorder.layer?.borderWidth = 0
         selectionBorder.isHidden = true
-        trashOverlay.isHidden = true
+        trashContainer.isHidden = true
         badgeStack.isHidden = true
-        acrBadge.isHidden = true
-        jpgBadge.isHidden = true
+        acrBadgeContainer.isHidden = true
+        jpgBadgeContainer.isHidden = true
         starView?.removeFromSuperview()
         starView = nil
         view.menu = nil
