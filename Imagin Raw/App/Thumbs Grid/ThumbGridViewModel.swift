@@ -607,14 +607,15 @@ class ThumbGridViewModel: ObservableObject {
             if chars == "g" || chars == "G" { toggleGridType(); return true }
             let photos = getSelectedPhotosForBulkAction()
             guard !photos.isEmpty else { return false }
-            if let rating = Int(chars), rating >= 0 && rating <= 5 { applyRating(rating, to: photos); return true }
+            // Ratings 1-5 (not 0, which is reserved for "To Do" label via labelMap)
+            if let rating = Int(chars), rating >= 1 && rating <= 5 { applyRating(rating, to: photos); return true }
+            // Toggle delete
             if chars == "x" || chars == "X" { toggleDeleteState(for: photos); return true }
-//            if chars == "u" || chars == "U" { removeLabel(from: photos); return true }
-            if chars == "r" || chars == "R" { applyLabel("Select", to: photos); return true }
-            if chars == "y" || chars == "Y" { applyLabel("Second", to: photos); return true }
-            if chars == "o" || chars == "O" { applyLabel("Approved", to: photos); return true }
-            if chars == "b" || chars == "B" { applyLabel("Review", to: photos); return true }
-            if chars == "p" || chars == "P" { applyLabel("To Do", to: photos); return true }
+            // Labels via number keys 6-0
+            let labelMap: [String: String] = ["6": "Select", "7": "Second", "8": "Approved", "9": "Review", "0": "To Do"]
+            if let label = labelMap[chars] { applyLabel(label, to: photos); return true }
+            // Remove label
+            if chars == "-" { removeLabels(from: photos); return true }
             return false
         }
 
