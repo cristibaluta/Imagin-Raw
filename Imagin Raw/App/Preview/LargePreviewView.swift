@@ -130,12 +130,10 @@ struct LargePreviewView: View {
 
             // EXIF bottom bar
             if let exifInfo = model.exifInfo {
-                PreviewBottomBar(
-                                    photo: photo,
-                                    exifInfo: exifInfo,
-                                    model: model,
-                                    showExportPanel: $showExportPanel
-                                )
+                PreviewBottomBar(photo: photo,
+                                 exifInfo: exifInfo,
+                                 model: model,
+                                 showExportPanel: $showExportPanel)
             }
         }
         .onAppear {

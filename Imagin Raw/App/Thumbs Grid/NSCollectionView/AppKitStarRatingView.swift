@@ -10,7 +10,7 @@ import AppKit
 final class AppKitStarRatingView: NSView {
     var rating: Int = 0 { didSet { if oldValue != rating { needsDisplay = true } } }
     var maxRating: Int = 5
-    var starSize: CGFloat = 10
+    var starSize: CGFloat = 14
     var onRatingChanged: ((Int) -> Void)?
 
     override var isFlipped: Bool { true }

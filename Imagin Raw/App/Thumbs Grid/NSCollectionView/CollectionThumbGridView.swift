@@ -62,7 +62,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
         cv.delegate = context.coordinator
         cv.isSelectable = true
         cv.allowsMultipleSelection = true
-//        cv.backgroundColors = [NSColor(red: 30/255, green: 30/255, blue: 30/255, alpha: 1)]
+        cv.backgroundColors = [NSColor.clear]
         cv.register(ThumbCollectionItem.self, forItemWithIdentifier: ThumbCollectionItem.identifier)
 
         context.coordinator.collectionView = cv

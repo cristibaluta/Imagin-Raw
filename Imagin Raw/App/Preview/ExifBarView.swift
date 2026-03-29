@@ -39,24 +39,34 @@ struct ExifBarView: View {
             )
             .padding(.horizontal, 8)
 
-            // Focal length
-            if let focal = exifInfo.focalLength {
-                exifItem(label: "\(String(format: "%.0f", focal))mm")
-                divider
+            HStack {
+                // Focal length
+                if let focal = exifInfo.focalLength {
+                    exifItem(label: "\(String(format: "%.0f", focal))mm")
+                    divider
+                }
+                // Lens
+                if let lens = exifInfo.lensModel {
+                    exifItem(label: lens)
+                }
             }
+            .padding(4)
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(Color.gray, lineWidth: 1)
+            )
+            .padding(.horizontal, 8)
+
             // Camera
             if let model = exifInfo.cameraModel {
                 let make = exifInfo.cameraMake ?? ""
                 exifItem(label: "\(make) \(model)".trimmingCharacters(in: .whitespaces))
-                divider
             }
-            // Lens
-            if let lens = exifInfo.lensModel {
-                exifItem(label: lens)
-                if fileSize != nil { divider }
-            }
+
             // File size
             if let size = fileSize {
+                divider
+                    .padding(.horizontal, 4)
                 exifItem(label: ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
             }
 

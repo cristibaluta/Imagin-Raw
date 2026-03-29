@@ -8,10 +8,8 @@ import Foundation
 import AppKit
 
 class PaddedTextFieldCell: NSTextFieldCell {
-    // Define your padding/insets here
     var textInsets = NSEdgeInsets(top: 2, left: 0, bottom: 2, right: 0)
 
-    // 1. Adjust where the text is drawn
     override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
         let insetRect = cellFrame.insetBy(dx: textInsets.left, dy: textInsets.top)
         super.drawInterior(withFrame: insetRect, in: controlView)
@@ -47,8 +45,6 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     private(set) var currentPath: String?
     private var currentPhoto: PhotoItem?
     private var loadTask: DispatchWorkItem?
-    private var clickCount = 0
-    private var clickTimer: Timer?
     private var callbacks: ThumbCellCallbacks?
     private var itemSize: CGFloat = 100
     private var currentImageSize: CGSize = .zero
@@ -119,10 +115,6 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         for sub in [thumbView, selectionBorder, trashOverlay, badgeStack, filenameLabel] as [NSView] {
             root.addSubview(sub)
         }
-
-        let click = NSClickGestureRecognizer(target: self, action: #selector(handleClick(_:)))
-        click.numberOfClicksRequired = 1
-        root.addGestureRecognizer(click)
     }
 
     override func viewDidLayout() {
@@ -191,8 +183,6 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         if photo.isRawFile {
             if starView == nil {
                 let sv = AppKitStarRatingView()
-                sv.maxRating = 5
-                sv.starSize = 10
                 sv.onRatingChanged = { [weak self] r in
                     guard let self, let p = self.currentPhoto else { return }
                     self.callbacks?.onRatingChanged(p, r)
@@ -293,39 +283,6 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         selectionBorder.layer?.borderWidth = isSelected ? 2 : 0
     }
 
-    // MARK: Click
-
-    @objc private func handleClick(_ recognizer: NSClickGestureRecognizer) {
-        guard let photo = currentPhoto else { return }
-        let modifiers = NSApp.currentEvent?.modifierFlags ?? []
-        clickCount += 1
-        if clickCount == 1 {
-            callbacks?.onTap(photo, modifiers)
-            clickTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
-                self?.clickCount = 0
-            }
-        } else if clickCount == 2 {
-            clickTimer?.invalidate()
-            clickCount = 0
-            callbacks?.onDoubleClick(photo)
-        }
-    }
-
-    // MARK: Hover
-
-    override func mouseEntered(with event: NSEvent) {
-        starView?.isHidden = !(currentPhoto?.isRawFile ?? false)
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        let rating = currentPhoto.map {
-            currentRating(for: $0)
-        } ?? 0
-        if rating == 0 {
-            starView?.isHidden = true
-        }
-    }
-
     // MARK: Context menu
 
     private func makeContextMenu(for photo: PhotoItem) -> NSMenu {
@@ -406,5 +363,32 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         starView?.removeFromSuperview()
         starView = nil
         view.menu = nil
+    }
+}
+
+extension ThumbCollectionItem {
+    override func mouseEntered(with event: NSEvent) {
+        starView?.isHidden = !(currentPhoto?.isRawFile ?? false)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        let rating = currentPhoto.map {
+            currentRating(for: $0)
+        } ?? 0
+        if rating == 0 {
+            starView?.isHidden = true
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        super.mouseDown(with: event)
+        guard let photo = currentPhoto else {
+            return
+        }
+        if event.clickCount == 1 {
+            callbacks?.onTap(photo, event.modifierFlags)
+        } else if event.clickCount == 2 {
+            callbacks?.onDoubleClick(photo)
+        }
     }
 }
