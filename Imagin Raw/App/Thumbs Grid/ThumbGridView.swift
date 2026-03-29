@@ -119,7 +119,9 @@ struct ThumbGridView: View {
     // NSCollectionView-based grid
     private var collectionPhotoGridView: some View {
         CollectionThumbGridView(
-            photos: viewModel.filteredPhotos,
+            photos: viewModel.isDuplicateMode
+                ? (viewModel.duplicateScanResult?.groups.flatMap(\.photos) ?? [])
+                : viewModel.filteredPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,
             selectedPhotos: viewModel.selectedPhotos,
@@ -157,6 +159,7 @@ struct ThumbGridView: View {
                     return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
                 }
             ),
+            duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
             scrollToPhotoId: $scrollToPhotoId,
             onKeyPress: { event in
                 viewModel.handleKeyEvent(
