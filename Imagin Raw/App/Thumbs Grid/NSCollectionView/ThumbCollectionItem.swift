@@ -199,7 +199,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         )
 
         filenameLabel.sizeToFit()
-        let adaptiveWidth = min(filenameLabel.frame.width + 8, w)
+        let adaptiveWidth = min(filenameLabel.frame.width, w)
         filenameLabel.frame = CGRect(x: (w - adaptiveWidth) / 2, y: labelY + 1, width: adaptiveWidth, height: labelH)
 
         // Star view
