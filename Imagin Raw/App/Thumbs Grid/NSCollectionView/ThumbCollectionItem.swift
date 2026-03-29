@@ -9,7 +9,7 @@ import AppKit
 
 class PaddedTextFieldCell: NSTextFieldCell {
     // Define your padding/insets here
-    var textInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
+    var textInsets = NSEdgeInsets(top: 2, left: 0, bottom: 2, right: 0)
 
     // 1. Adjust where the text is drawn
     override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
@@ -38,6 +38,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     private let trashOverlay    = NSImageView()
     private let selectionBorder = NSView()
     private let badgeStack      = NSStackView()
+    private let acrBadgeContainer = NSView()
     private let acrBadge        = NSImageView()
     private let jpgBadge        = NSTextField(labelWithString: "+JPG")
     private var starView: AppKitStarRatingView?
@@ -77,6 +78,19 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         acrBadge.wantsLayer = true
         acrBadge.setContentHuggingPriority(.required, for: .horizontal)
 
+        acrBadgeContainer.wantsLayer = true
+        acrBadgeContainer.layer?.backgroundColor = NSColor.darkGray.withAlphaComponent(0.8).cgColor
+        acrBadgeContainer.layer?.cornerRadius = 3 // Adjust for desired roundness
+        acrBadgeContainer.addSubview(acrBadge)
+        acrBadge.translatesAutoresizingMaskIntoConstraints = false
+        let padding: CGFloat = 4.0
+        NSLayoutConstraint.activate([
+            acrBadge.topAnchor.constraint(equalTo: acrBadgeContainer.topAnchor, constant: padding),
+            acrBadge.bottomAnchor.constraint(equalTo: acrBadgeContainer.bottomAnchor, constant: -padding),
+            acrBadge.leadingAnchor.constraint(equalTo: acrBadgeContainer.leadingAnchor, constant: padding),
+            acrBadge.trailingAnchor.constraint(equalTo: acrBadgeContainer.trailingAnchor, constant: -padding)
+        ])
+
         // JPG badge
         jpgBadge.font = NSFont.boldSystemFont(ofSize: 8)
         jpgBadge.textColor = .white
@@ -85,14 +99,14 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         jpgBadge.drawsBackground = false
         jpgBadge.wantsLayer = true
         jpgBadge.setContentHuggingPriority(.required, for: .horizontal)
-        jpgBadge.cell = PaddedTextFieldCell(textCell: "+JPG")
+//        jpgBadge.cell = PaddedTextFieldCell(textCell: "+JPG")
 
         // Badge stack
         badgeStack.orientation = .horizontal
         badgeStack.spacing = 6
         badgeStack.alignment = .centerY
         badgeStack.distribution = .fill
-        badgeStack.addArrangedSubview(acrBadge)
+        badgeStack.addArrangedSubview(acrBadgeContainer)
         badgeStack.addArrangedSubview(jpgBadge)
         badgeStack.isHidden = true
 
@@ -121,9 +135,8 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         selectionBorder.layer?.borderColor = NSColor.systemBlue.cgColor
         selectionBorder.layer?.borderWidth = selectionBorder.isHidden ? 0 : 2
 
-        if let layer = acrBadge.layer {
-            layer.backgroundColor = NSColor.darkGray.withAlphaComponent(0.8).cgColor
-            layer.cornerRadius = 3
+        if let layer = acrBadgeContainer.layer {
+//            layer.masksToBounds = false
             layer.shadowColor = NSColor.black.cgColor
             layer.shadowOpacity = 0.5
             layer.shadowRadius = 2.0
@@ -133,7 +146,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         if let layer = jpgBadge.layer {
             layer.backgroundColor = NSColor.systemBlue.withAlphaComponent(0.8).cgColor
             layer.cornerRadius = 3
-            layer.masksToBounds = true
+            layer.masksToBounds = false
             layer.shadowColor = NSColor.black.cgColor
             layer.shadowOpacity = 0.5
             layer.shadowRadius = 2.0
@@ -162,7 +175,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         // Badge stack — top-right of image rect
         let stackSize = badgeStack.fittingSize
         let stackW = stackSize.width > 0 ? stackSize.width : 44
-        let stackH: CGFloat = 16
+        let stackH: CGFloat = 16 + 8
         badgeStack.frame = CGRect(
             x: imageRect.maxX - stackW - 4,
             y: imageRect.maxY - stackH - 4,
@@ -305,8 +318,12 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     }
 
     override func mouseExited(with event: NSEvent) {
-        let rating = currentPhoto.map { currentRating(for: $0) } ?? 0
-        if rating == 0 { starView?.isHidden = true }
+        let rating = currentPhoto.map {
+            currentRating(for: $0)
+        } ?? 0
+        if rating == 0 {
+            starView?.isHidden = true
+        }
     }
 
     // MARK: Context menu
