@@ -82,6 +82,9 @@ struct CollectionThumbGridView: NSViewRepresentable {
         let sizeChanged = c.itemSize != itemSize || c.cellHeight != cellHeight
         let selectionChanged = c.selectedPhotos != selectedPhotos
 
+        // Build a lookup of old photo states for content-change detection
+        let oldPhotoMap = Dictionary(uniqueKeysWithValues: c.photos.map { ($0.id, $0) })
+
         c.photos = photos
         c.itemSize = itemSize
         c.cellHeight = cellHeight
@@ -92,14 +95,25 @@ struct CollectionThumbGridView: NSViewRepresentable {
         if sizeChanged {
             cv?.collectionViewLayout = c.makeLayout(itemSize: itemSize, cellHeight: cellHeight)
         }
+
         if photosChanged || sizeChanged {
             cv?.reloadData()
-        } else if selectionChanged {
+        } else {
+            // Reconfigure only visible cells whose photo content changed
             cv?.visibleItems().forEach { item in
                 guard let thumbItem = item as? ThumbCollectionItem,
                       let path = thumbItem.currentPath,
-                      let photo = c.photos.first(where: { $0.path == path }) else { return }
-                thumbItem.updateSelection(isSelected: selectedPhotos.contains(photo.id))
+                      let photo = photos.first(where: { $0.path == path }) else { return }
+
+                let isSelected = selectedPhotos.contains(photo.id)
+                let contentChanged = oldPhotoMap[photo.id] != photo
+
+                if contentChanged {
+                    thumbItem.configure(with: photo, isSelected: isSelected,
+                                        itemSize: itemSize, callbacks: callbacks)
+                } else if selectionChanged {
+                    thumbItem.updateSelection(isSelected: isSelected)
+                }
             }
         }
 

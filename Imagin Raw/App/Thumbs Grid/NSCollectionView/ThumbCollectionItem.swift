@@ -108,6 +108,13 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         selectionBorder.layer?.borderColor = NSColor.systemBlue.cgColor
         selectionBorder.layer?.borderWidth = selectionBorder.isHidden ? 0 : 2
 
+        if let layer = trashOverlay.layer {
+            layer.shadowColor = NSColor.black.cgColor
+            layer.shadowOpacity = 1
+            layer.shadowRadius = 5.0
+            layer.shadowOffset = CGSize(width: 0, height: 0)
+        }
+
         if let layer = acrBadgeContainer.layer {
 //            layer.masksToBounds = false
             layer.shadowColor = NSColor.black.cgColor
