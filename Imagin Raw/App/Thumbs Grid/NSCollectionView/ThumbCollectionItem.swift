@@ -7,6 +7,16 @@
 import Foundation
 import AppKit
 
+private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
+    override func drawingRect(forBounds rect: NSRect) -> NSRect {
+        let superRect = super.drawingRect(forBounds: rect)
+        let size = cellSize(forBounds: rect)
+        let dy = (superRect.height - size.height) / 2
+        return NSRect(x: superRect.minX, y: superRect.minY + dy,
+                      width: superRect.width, height: size.height)
+    }
+}
+
 final class ThumbCollectionItem: NSCollectionViewItem {
     static let identifier = NSUserInterfaceItemIdentifier("ThumbCollectionItem")
 
@@ -103,10 +113,12 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         badgeStack.addArrangedSubview(jpgBadgeContainer)
         badgeStack.isHidden = true
 
-        filenameLabel.font = NSFont.systemFont(ofSize: 11)
-        filenameLabel.textColor = .labelColor
-        filenameLabel.lineBreakMode = .byTruncatingMiddle
-        filenameLabel.alignment = .center
+        let labelCell = VerticallyCenteredTextFieldCell()
+        labelCell.font = NSFont.systemFont(ofSize: 11)
+        labelCell.textColor = .labelColor
+        labelCell.lineBreakMode = .byTruncatingMiddle
+        labelCell.alignment = .center
+        filenameLabel.cell = labelCell
         filenameLabel.wantsLayer = true
 
         for sub in [thumbView, selectionBorder, trashContainer, badgeStack, filenameLabel] as [NSView] {
@@ -187,8 +199,8 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         )
 
         filenameLabel.sizeToFit()
-        let adaptiveWidth = min(filenameLabel.frame.width, w)
-        filenameLabel.frame = CGRect(x: (w-adaptiveWidth)/2, y: labelY, width: adaptiveWidth, height: labelH)
+        let adaptiveWidth = min(filenameLabel.frame.width + 8, w)
+        filenameLabel.frame = CGRect(x: (w - adaptiveWidth) / 2, y: labelY + 1, width: adaptiveWidth, height: labelH)
 
         // Star view
         if photo.isRawFile {
