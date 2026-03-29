@@ -47,22 +47,30 @@ final class PhotosModel: ObservableObject {
         metadataTask = Task {
             print("🔄 Starting metadata loading for: \(folderName)")
 
-            let photosWithMetadata = await Self.loadPhotosMetadataAsync(in: folder, photos: basicPhotos)
+            var currentPhotos = basicPhotos
+            let batchCallback: @Sendable ([PhotoItem]) async -> Void = { [weak self] batch in
+                guard let self else { return }
+                await MainActor.run {
+                    self.photos = batch
+                }
+            }
 
-            // Check if task was cancelled
+            let photosWithMetadata = await Self.loadPhotosMetadataAsync(
+                in: folder,
+                photos: basicPhotos,
+                onBatch: batchCallback
+            )
+
             guard !Task.isCancelled else {
                 print("⚠️ Metadata loading cancelled for: \(folderName)")
-                await MainActor.run {
-                    self.isLoadingMetadata = false
-                }
+                await MainActor.run { self.isLoadingMetadata = false }
                 return
             }
 
             await MainActor.run {
-                print("📊 Updating photos with metadata for: \(folderName)")
+                print("✅ Metadata loading completed for: \(folderName)")
                 self.photos = photosWithMetadata
                 self.isLoadingMetadata = false
-                print("✅ Metadata loading completed for: \(folderName)")
             }
         }
     }
@@ -210,7 +218,11 @@ final class PhotosModel: ObservableObject {
         return result
     }
 
-    private static func loadPhotosMetadataAsync(in folder: FolderItem, photos: [PhotoItem]) async -> [PhotoItem] {
+    private static func loadPhotosMetadataAsync(
+        in folder: FolderItem,
+        photos: [PhotoItem],
+        onBatch: (@Sendable ([PhotoItem]) async -> Void)? = nil
+    ) async -> [PhotoItem] {
         let fm = FileManager.default
 
         let files = (try? fm.contentsOfDirectory(
@@ -219,42 +231,53 @@ final class PhotosModel: ObservableObject {
             options: [.skipsHiddenFiles]
         )) ?? []
 
-        let xmpFiles = files.filter { $0.pathExtension.lowercased() == "xmp" }
-
-        var xmpLookup: [String: String] = [:]
-        for xmpFile in xmpFiles {
-            let baseName = xmpFile.deletingPathExtension().lastPathComponent
-            if let xmpContent = try? String(contentsOf: xmpFile, encoding: .utf8) {
-                xmpLookup[baseName] = xmpContent
+        // Build XMP lookup off main thread
+        let xmpLookup: [String: String] = await Task.detached(priority: .utility) {
+            var lookup: [String: String] = [:]
+            for xmpFile in files where xmpFile.pathExtension.lowercased() == "xmp" {
+                let baseName = xmpFile.deletingPathExtension().lastPathComponent
+                if let content = try? String(contentsOf: xmpFile, encoding: .utf8) {
+                    lookup[baseName] = content
+                }
             }
+            return lookup
+        }.value
+
+        // Parse XMP off main thread
+        var xmpParsed: [String: XmpMetadata] = [:]
+        for (baseName, content) in xmpLookup {
+            xmpParsed[baseName] = XmpParser.parseMetadata(from: content)
         }
+
+        // File sizes off main thread
+        let fileSizes: [String: Int64] = await Task.detached(priority: .utility) {
+            var sizes: [String: Int64] = [:]
+            for photo in photos {
+                sizes[photo.path] = (try? fm.attributesOfItem(atPath: photo.path))?[.size] as? Int64
+            }
+            return sizes
+        }.value
 
         let startTime = Date()
 
-        return await withTaskGroup(of: (Int, XmpMetadata?, Int?, Bool, Int64?, Int?, Int?, String?, String?).self, returning: [PhotoItem].self) { group in
-            for (index, photo) in photos.enumerated() {
-                group.addTask {
-                    let url = URL(fileURLWithPath: photo.path)
-                    let baseName = url.deletingPathExtension().lastPathComponent
-                    let fileExtension = url.pathExtension.lowercased()
-                    let isRaw = FilesExtensions.raw.contains(fileExtension)
+        // Extract RAW metadata in batches on main actor, yielding between batches
+        // so thumbnails and previews can load concurrently
+        let batchSize = 20
+        var updatedPhotos = photos
 
-                    let xmp: XmpMetadata? = if let xmpContent = xmpLookup[baseName] {
-                        XmpParser.parseMetadata(from: xmpContent)
-                    } else {
-                        nil
-                    }
+        for batchStart in stride(from: 0, to: photos.count, by: batchSize) {
+            let batchEnd = min(batchStart + batchSize, photos.count)
+            let batch = Array(photos[batchStart..<batchEnd])
 
-                    // Get file size
-                    let fileSize: Int64? = (try? fm.attributesOfItem(atPath: photo.path))?[.size] as? Int64
-
-                    // Extract metadata (rating, width, height, camera info) in a single call
+            // Process one batch on main actor
+            let batchResults: [(Int, Int?, Int?, Int?, String?, String?)] = await MainActor.run {
+                batch.enumerated().map { (localIndex, photo) in
+                    let globalIndex = batchStart + localIndex
                     var inCameraRating: Int? = nil
                     var width: Int? = nil
                     var height: Int? = nil
                     var cameraMake: String? = nil
                     var cameraModel: String? = nil
-
                     if let metadata = RawWrapper.shared().extractMetadata(photo.path) {
                         inCameraRating = (metadata["rating"] as? NSNumber)?.intValue
                         width = (metadata["width"] as? NSNumber)?.intValue
@@ -262,23 +285,25 @@ final class PhotosModel: ObservableObject {
                         cameraMake = metadata["cameraMake"] as? String
                         cameraModel = metadata["cameraModel"] as? String
                     }
-
-                    return (index, xmp, inCameraRating, isRaw, fileSize, width, height, cameraMake, cameraModel)
+                    return (globalIndex, inCameraRating, width, height, cameraMake, cameraModel)
                 }
             }
 
-            var updatedPhotos = photos
-            for await (index, xmp, rating, isRaw, fileSize, width, height, cameraMake, cameraModel) in group {
+            for (index, rating, width, height, cameraMake, cameraModel) in batchResults {
+                let photo = photos[index]
+                let url = URL(fileURLWithPath: photo.path)
+                let baseName = url.deletingPathExtension().lastPathComponent
+                let fileExtension = url.pathExtension.lowercased()
                 updatedPhotos[index] = PhotoItem(
-                    id: photos[index].id,
-                    path: photos[index].path,
-                    xmp: xmp,
-                    dateCreated: photos[index].dateCreated,
-                    hasACR: photos[index].hasACR,
-                    hasJPG: photos[index].hasJPG,
+                    id: photo.id,
+                    path: photo.path,
+                    xmp: xmpParsed[baseName],
+                    dateCreated: photo.dateCreated,
+                    hasACR: photo.hasACR,
+                    hasJPG: photo.hasJPG,
                     inCameraRating: rating,
-                    isRawFile: isRaw,
-                    fileSizeBytes: fileSize,
+                    isRawFile: FilesExtensions.raw.contains(fileExtension),
+                    fileSizeBytes: fileSizes[photo.path],
                     width: width,
                     height: height,
                     cameraMake: cameraMake,
@@ -286,12 +311,20 @@ final class PhotosModel: ObservableObject {
                 )
             }
 
-            let totalTime = Date().timeIntervalSince(startTime)
-            print("📊 loadPhotosMetadataAsync Performance:")
-            print("   Total files: \(photos.count)")
-            print("   Total time: \(String(format: "%.3f", totalTime))s")
+            // Publish partial results so thumbs/preview update progressively
+            if let onBatch {
+                await onBatch(updatedPhotos)
+            }
 
-            return updatedPhotos
+            // Yield to let other tasks (thumb generation, preview loading) run
+            await Task.yield()
         }
+
+        let totalTime = Date().timeIntervalSince(startTime)
+        print("📊 loadPhotosMetadataAsync Performance:")
+        print("   Total files: \(photos.count)")
+        print("   Total time: \(String(format: "%.3f", totalTime))s")
+
+        return updatedPhotos
     }
 }
