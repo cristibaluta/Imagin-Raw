@@ -93,12 +93,19 @@ struct CollectionThumbGridView: NSViewRepresentable {
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay
+        context.coordinator.scrollView = scrollView
+        buildCollectionView(in: scrollView, context: context)
+        return scrollView
+    }
 
+    private func buildCollectionView(in scrollView: NSScrollView, context: Context) {
+        let c = context.coordinator
         let cv = KeyableCollectionView()
-        cv.onKeyDown = { event in context.coordinator.onKeyDown?(event) ?? false }
-        cv.collectionViewLayout = context.coordinator.makeLayout(itemSize: itemSize, cellHeight: cellHeight)
-        cv.dataSource = context.coordinator
-        cv.delegate = context.coordinator
+        cv.onKeyDown = { event in c.onKeyDown?(event) ?? false }
+        cv.collectionViewLayout = c.makeLayout(itemSize: itemSize, cellHeight: cellHeight,
+                                               headerHeight: duplicateResult != nil ? 32 : 0)
+        cv.dataSource = c
+        cv.delegate = c
         cv.isSelectable = true
         cv.allowsMultipleSelection = true
         cv.backgroundColors = [NSColor.clear]
@@ -106,16 +113,17 @@ struct CollectionThumbGridView: NSViewRepresentable {
         cv.register(DuplicateSectionHeaderView.self,
                     forSupplementaryViewOfKind: NSCollectionView.elementKindSectionHeader,
                     withIdentifier: DuplicateSectionHeaderView.identifier)
-
-        context.coordinator.collectionView = cv
+        c.collectionView = cv
         scrollView.documentView = cv
         DispatchQueue.main.async { cv.window?.makeFirstResponder(cv) }
-        return scrollView
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let c = context.coordinator
-        let cv = c.collectionView
+
+        let isDupNow  = duplicateResult != nil
+        let wasDup    = c.duplicateResult != nil
+        let modeChanged = isDupNow != wasDup
 
         let photosChanged    = c.photos.map(\.id) != photos.map(\.id)
         let contentChanged   = !photosChanged && c.photos != photos
@@ -123,10 +131,10 @@ struct CollectionThumbGridView: NSViewRepresentable {
         let selectionChanged = c.selectedPhotos != selectedPhotos
         let dupChanged       = c.duplicateResult?.groups.map(\.id) != duplicateResult?.groups.map(\.id)
 
-        // Build a lookup of latest PhotoItem state by id
-        let latestMap = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
+        let latestMap  = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
         let oldPhotoMap = Dictionary(uniqueKeysWithValues: c.photos.map { ($0.id, $0) })
 
+        // Update coordinator state FIRST
         c.photos = photos
         c.itemSize = itemSize
         c.cellHeight = cellHeight
@@ -136,15 +144,22 @@ struct CollectionThumbGridView: NSViewRepresentable {
         c.photosById = Dictionary(uniqueKeysWithValues: photos.map { ($0.path, $0) })
         c.onKeyDown = { event in self.onKeyPress?(event) ?? false }
 
-        if sizeChanged || dupChanged {
-            cv?.collectionViewLayout = c.makeLayout(itemSize: itemSize, cellHeight: cellHeight,
-                                                    headerHeight: duplicateResult != nil ? 32 : 0)
+        if modeChanged {
+            // Recreate the entire collection view to avoid NSCollectionViewData
+            // layout/section count inconsistency crashes when switching modes
+            buildCollectionView(in: scrollView, context: context)
+            return
         }
 
+        let cv = c.collectionView
+
         if photosChanged || sizeChanged || dupChanged {
+            if sizeChanged {
+                cv?.collectionViewLayout = c.makeLayout(itemSize: itemSize, cellHeight: cellHeight,
+                                                        headerHeight: duplicateResult != nil ? 32 : 0)
+            }
             cv?.reloadData()
         } else {
-            // Patch visible cells with latest photo state
             cv?.visibleItems().forEach { item in
                 guard let thumbItem = item as? ThumbCollectionItem,
                       let path = thumbItem.currentPath,
@@ -191,7 +206,9 @@ struct CollectionThumbGridView: NSViewRepresentable {
         var callbacks: ThumbCellCallbacks
         var duplicateResult: DuplicateScanResult? = nil
         var onKeyDown: ((NSEvent) -> Bool)?
+        var photosById: [String: PhotoItem] = [:]
         weak var collectionView: NSCollectionView?
+        weak var scrollView: NSScrollView?
 
         init(itemSize: CGFloat, cellHeight: CGFloat, callbacks: ThumbCellCallbacks) {
             self.itemSize = itemSize
@@ -210,9 +227,6 @@ struct CollectionThumbGridView: NSViewRepresentable {
             }
             return layout
         }
-
-        // photosById is the live source of truth (filteredPhotos)
-        var photosById: [String: PhotoItem] = [:]
 
         private func photosForSection(_ section: Int) -> [PhotoItem] {
             if let result = duplicateResult {
@@ -251,9 +265,10 @@ struct CollectionThumbGridView: NSViewRepresentable {
             guard kind == NSCollectionView.elementKindSectionHeader,
                   let result = duplicateResult,
                   indexPath.section < result.groups.count else {
-                return cv.makeSupplementaryView(ofKind: kind,
-                                                withIdentifier: NSUserInterfaceItemIdentifier(""),
-                                                for: indexPath)
+                // Return an empty registered view — never dequeue with empty identifier
+                let v = NSView()
+                v.frame = .zero
+                return v
             }
             let header = cv.makeSupplementaryView(
                 ofKind: kind,
