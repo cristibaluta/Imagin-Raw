@@ -179,7 +179,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
 
         thumbView.frame = CGRect(x: 0, y: thumbY, width: w, height: size)
 
-        let imageRect = actualImageRect(in: CGRect(x: 0, y: thumbY, width: w, height: size))
+        let imageRect = actualImageRect(in: thumbView.frame)
         selectionBorder.frame = imageRect
         let iconSize: CGFloat = 24
         trashContainer.frame = CGRect(x: imageRect.midX - iconSize/2,
@@ -199,7 +199,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         )
 
         filenameLabel.sizeToFit()
-        let adaptiveWidth = min(filenameLabel.frame.width, w)
+        let adaptiveWidth = filenameLabel.frame.width
         filenameLabel.frame = CGRect(x: (w - adaptiveWidth) / 2, y: labelY + 1, width: adaptiveWidth, height: labelH)
 
         // Star view
@@ -223,16 +223,25 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     }
 
     private func actualImageRect(in frame: CGRect) -> CGRect {
-        guard currentImageSize.width > 0, currentImageSize.height > 0 else { return frame }
-        let scale = min(frame.width / currentImageSize.width, frame.height / currentImageSize.height)
-        let drawW = currentImageSize.width * scale
-        let drawH = currentImageSize.height * scale
-        return CGRect(
-            x: frame.minX + (frame.width - drawW) / 2,
-            y: frame.minY + (frame.height - drawH) / 2,
-            width: drawW,
-            height: drawH
-        )
+        guard let image = thumbView.image else { return frame }
+        // Use pixel size from the best representation for accurate scaling
+        let pixelSize: CGSize
+        if let rep = image.bestRepresentation(for: frame, context: nil, hints: nil) {
+            pixelSize = CGSize(width: rep.pixelsWide > 0 ? CGFloat(rep.pixelsWide) : image.size.width,
+                               height: rep.pixelsHigh > 0 ? CGFloat(rep.pixelsHigh) : image.size.height)
+        } else {
+            pixelSize = image.size
+        }
+        // NSImageView scales proportionally — mirror its exact calculation
+        let viewScale = view.window?.backingScaleFactor ?? 1.0
+        let displayW = pixelSize.width / viewScale
+        let displayH = pixelSize.height / viewScale
+        let scale = min(frame.width / displayW, frame.height / displayH)
+        let drawW = (displayW * scale).rounded()
+        let drawH = (displayH * scale).rounded()
+        let x = (frame.minX + (frame.width - drawW) / 2).rounded()
+        let y = (frame.minY + (frame.height - drawH) / 2).rounded()
+        return CGRect(x: x, y: y, width: drawW, height: drawH)
     }
 
     private func setupTrackingArea() {
