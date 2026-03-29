@@ -43,7 +43,7 @@ struct PreviewBottomBar: View {
             }
             .buttonStyle(PlainButtonStyle())
             .disabled(model.isLoadingFullRes)
-            .help(model.fullResImage != nil ? "Exit zoom" : "Zoom to 100% (full resolution)")
+            .help(model.fullResImage != nil ? "Exit zoom (Z)" : "Zoom to 100% (Z)")
 
             // Export button
             Rectangle()

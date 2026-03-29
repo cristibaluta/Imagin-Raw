@@ -7,26 +7,6 @@
 import Foundation
 import AppKit
 
-class PaddedTextFieldCell: NSTextFieldCell {
-    var textInsets = NSEdgeInsets(top: 2, left: 0, bottom: 2, right: 0)
-
-    override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
-        let insetRect = cellFrame.insetBy(dx: textInsets.left, dy: textInsets.top)
-        super.drawInterior(withFrame: insetRect, in: controlView)
-    }
-
-    // 2. Adjust the typing area for editing mode
-    override func select(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?, start selStart: Int, length selLength: Int) {
-        let insetRect = rect.insetBy(dx: textInsets.left, dy: textInsets.top)
-        super.select(withFrame: insetRect, in: controlView, editor: textObj, delegate: delegate, start: selStart, length: selLength)
-    }
-
-    override func edit(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?, event: NSEvent?) {
-        let insetRect = rect.insetBy(dx: textInsets.left, dy: textInsets.top)
-        super.edit(withFrame: insetRect, in: controlView, editor: textObj, delegate: delegate, event: event)
-    }
-}
-
 final class ThumbCollectionItem: NSCollectionViewItem {
     static let identifier = NSUserInterfaceItemIdentifier("ThumbCollectionItem")
 
@@ -62,8 +42,10 @@ final class ThumbCollectionItem: NSCollectionViewItem {
 
         selectionBorder.wantsLayer = true
 
-        trashOverlay.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
-        trashOverlay.contentTintColor = .systemRed
+        let config = NSImage.SymbolConfiguration(pointSize: CGFloat.zero, weight: .bold)
+        trashOverlay.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)?
+            .withSymbolConfiguration(config)
+        trashOverlay.contentTintColor = .systemOrange
         trashOverlay.imageScaling = .scaleProportionallyUpOrDown
         trashOverlay.isHidden = true
 
@@ -95,7 +77,6 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         jpgBadge.drawsBackground = false
         jpgBadge.wantsLayer = true
         jpgBadge.setContentHuggingPriority(.required, for: .horizontal)
-//        jpgBadge.cell = PaddedTextFieldCell(textCell: "+JPG")
 
         // Badge stack
         badgeStack.orientation = .horizontal

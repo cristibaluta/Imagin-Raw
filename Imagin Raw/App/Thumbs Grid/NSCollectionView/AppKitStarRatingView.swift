@@ -8,7 +8,14 @@ import Foundation
 import AppKit
 
 final class AppKitStarRatingView: NSView {
-    var rating: Int = 0 { didSet { if oldValue != rating { needsDisplay = true } } }
+
+    var rating: Int = 0 {
+        didSet {
+            if oldValue != rating {
+                needsDisplay = true
+            }
+        }
+    }
     var maxRating: Int = 5
     var starSize: CGFloat = 14
     var onRatingChanged: ((Int) -> Void)?
@@ -47,6 +54,21 @@ final class AppKitStarRatingView: NSView {
         path.close()
         return path
     }
+
+//    override func mouseMoved(with event: NSEvent) {
+//        let loc = convert(event.locationInWindow, from: nil)
+//        let spacing: CGFloat = 2
+//        let total = CGFloat(maxRating) * starSize + CGFloat(maxRating - 1) * spacing
+//        let startX = (bounds.width - total) / 2
+//        for i in 1...maxRating {
+//            let x = startX + CGFloat(i - 1) * (starSize + spacing)
+//            if loc.x >= x && loc.x <= x + starSize {
+//                let newRating = (rating == i) ? 0 : i
+//                rating = newRating
+//                return
+//            }
+//        }
+//    }
 
     override func mouseDown(with event: NSEvent) {
         let loc = convert(event.locationInWindow, from: nil)
