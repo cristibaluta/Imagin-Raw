@@ -124,6 +124,19 @@ class ThumbGridViewModel: ObservableObject {
         }
         .store(in: &cancellables)
     }
+    var photoSortComparator: (PhotoItem, PhotoItem) -> Bool {
+        switch sortOption {
+        case .name:
+            return { photo1, photo2 in
+                let name1 = URL(fileURLWithPath: photo1.path).lastPathComponent
+                let name2 = URL(fileURLWithPath: photo2.path).lastPathComponent
+                return name1.localizedStandardCompare(name2) == .orderedAscending
+            }
+        case .dateCreated:
+            return { $0.dateCreated < $1.dateCreated }
+        }
+    }
+
     // TODO this is called too often, when i just label a photo
     private func updateFilteredPhotos() {
         var result = photos
@@ -174,18 +187,7 @@ class ThumbGridViewModel: ObservableObject {
         }
 
         // Apply sorting
-        switch sortOption {
-        case .name:
-            result = result.sorted { photo1, photo2 in
-                let name1 = URL(fileURLWithPath: photo1.path).lastPathComponent
-                let name2 = URL(fileURLWithPath: photo2.path).lastPathComponent
-                return name1.localizedStandardCompare(name2) == .orderedAscending
-            }
-        case .dateCreated:
-            result = result.sorted { photo1, photo2 in
-                return photo1.dateCreated < photo2.dateCreated
-            }
-        }
+        result = result.sorted(by: photoSortComparator)
 
         filteredPhotos = result
 
@@ -1150,7 +1152,7 @@ class ThumbGridViewModel: ObservableObject {
             await MainActor.run {
                 self.duplicateScanData = data
                 if let data {
-                    let result = data.recluster(threshold: self.similarityMode.distanceThreshold)
+                    let result = data.recluster(threshold: self.similarityMode.distanceThreshold, sortBy: self.photoSortComparator)
                     self.duplicateScanResult = result
                     print("🔍 Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", data.scanDuration))s")
                 }
@@ -1165,7 +1167,7 @@ class ThumbGridViewModel: ObservableObject {
         saveSimilarityMode()
         // Re-cluster instantly from cached distances — no Vision re-run
         if let data = duplicateScanData {
-            duplicateScanResult = data.recluster(threshold: mode.distanceThreshold)
+            duplicateScanResult = data.recluster(threshold: mode.distanceThreshold, sortBy: photoSortComparator)
         }
     }
 

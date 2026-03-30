@@ -28,7 +28,7 @@ struct DuplicateScanData {
     let distances: [[Float]]
     let scanDuration: TimeInterval
 
-    func recluster(threshold: Float) -> DuplicateScanResult {
+    func recluster(threshold: Float, sortBy: ((PhotoItem, PhotoItem) -> Bool)? = nil) -> DuplicateScanResult {
         let start = Date()
         let indices = photos.indices
         var assigned = Set<Int>()
@@ -49,16 +49,23 @@ struct DuplicateScanData {
             }
 
             if groupIndices.count > 1 {
-                groups.append(DuplicateGroup(
-                    photos: groupIndices.map { photos[$0] },
-                    distance: maxDist
-                ))
+                var groupPhotos = groupIndices.map { photos[$0] }
+                if let sortBy { groupPhotos.sort(by: sortBy) }
+                groups.append(DuplicateGroup(photos: groupPhotos, distance: maxDist))
                 assigned.formUnion(groupIndices)
             }
         }
 
-        let sorted = groups.sorted {
-            $0.photos.count != $1.photos.count ? $0.photos.count > $1.photos.count : $0.distance < $1.distance
+        let sorted: [DuplicateGroup]
+        if let sortBy {
+            sorted = groups.sorted { a, b in
+                guard let firstA = a.photos.first, let firstB = b.photos.first else { return false }
+                return sortBy(firstA, firstB)
+            }
+        } else {
+            sorted = groups.sorted {
+                $0.photos.count != $1.photos.count ? $0.photos.count > $1.photos.count : $0.distance < $1.distance
+            }
         }
         return DuplicateScanResult(groups: sorted, totalScanned: photos.count, duration: Date().timeIntervalSince(start))
     }
