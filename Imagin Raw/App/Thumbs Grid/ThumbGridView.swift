@@ -73,9 +73,9 @@ struct ThumbGridView: View {
             if !viewModel.photos.isEmpty {
                 ThumbsBottomBar(viewModel: viewModel, showDuplicatesSheet: $showDuplicatesSheet)
             }
-            Button("useCollectionView \(useCollectionView)", action: {
-                useCollectionView.toggle()
-            })
+//            Button("useCollectionView \(useCollectionView)", action: {
+//                useCollectionView.toggle()
+//            })
         }
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth+16)
         .sheet(item: $copyToViewModel) { vm in
