@@ -28,6 +28,7 @@ struct ContentView: View {
     @State private var isSidebarCollapsed = false
     @State private var openSelectedPhotosCallback: (() -> Void)?
     @State private var contentColumnWidth: CGFloat = 450
+    @State private var reviewGroup: ReviewGroupItem? = nil
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
         Binding(
@@ -70,7 +71,6 @@ struct ContentView: View {
                         #endif
                         .environmentObject(filesModel)
                 } else {
-                    // Normal app interface when folders exist
                     navigationSplitView
                         .navigationTitle("Imagin Raw")
                         #if os(macOS)
@@ -91,6 +91,20 @@ struct ContentView: View {
                         .focusEffectDisabled()
                         #endif
                 }
+            }
+
+            // Full-screen duplicate group review — covers entire app
+            if let rg = reviewGroup {
+                DuplicateGroupReviewView(
+                    group: rg.group,
+                    groupIndex: rg.index,
+                    onRatingChanged: rg.onRatingChanged,
+                    onApprove: rg.onApprove,
+                    onMarkForDeletion: rg.onMarkForDeletion,
+                    onDismiss: { withAnimation(.easeInOut(duration: 0.2)) { reviewGroup = nil } }
+                )
+                .transition(.opacity)
+                .zIndex(100)
             }
         }
         .preferredColorScheme(.dark)
@@ -180,7 +194,8 @@ struct ContentView: View {
                     columnVisibilityStorage = "doubleColumn"
                 }
             },
-            openSelectedPhotosCallback: $openSelectedPhotosCallback
+            openSelectedPhotosCallback: $openSelectedPhotosCallback,
+            reviewGroup: $reviewGroup
         )
     }
 

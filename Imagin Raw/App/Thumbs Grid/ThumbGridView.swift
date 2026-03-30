@@ -7,6 +7,19 @@
 
 import SwiftUI
 
+struct ReviewGroupItem: Identifiable {
+    let id = UUID()
+    let group: DuplicateGroup
+    let index: Int
+    let onRatingChanged: (PhotoItem, Int) -> Void
+    let onApprove: (PhotoItem) -> Void
+    let onMarkForDeletion: (PhotoItem) -> Void
+}
+
+private struct ReviewGroupItemID: Identifiable {
+    let id = UUID()
+}
+
 struct ThumbGridView: View {
     @StateObject private var viewModel: ThumbGridViewModel
     @EnvironmentObject var externalAppManager: ExternalAppManager
@@ -24,7 +37,7 @@ struct ThumbGridView: View {
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
     @State private var showDuplicatesSheet: Bool = false
-
+    @Binding var reviewGroup: ReviewGroupItem?
     @State private var hasAppeared = false
 
     init(filesModel: FilesModel,
@@ -32,7 +45,8 @@ struct ThumbGridView: View {
          onOpenSelectedPhotos: (([PhotoItem]) -> Void)?,
          onEnterReviewMode: (() -> Void)?,
          onToggleSidebar: (() -> Void)? = nil,
-         openSelectedPhotosCallback: Binding<(() -> Void)?>) {
+         openSelectedPhotosCallback: Binding<(() -> Void)?>,
+         reviewGroup: Binding<ReviewGroupItem?>) {
 
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
         self.searchPhotoResults = searchPhotoResults
@@ -40,6 +54,7 @@ struct ThumbGridView: View {
         self.onEnterReviewMode = onEnterReviewMode
         self.onToggleSidebar = onToggleSidebar
         self._openSelectedPhotosCallback = openSelectedPhotosCallback
+        self._reviewGroup = reviewGroup
     }
 
     var body: some View {
@@ -135,20 +150,20 @@ struct ThumbGridView: View {
                 },
                 onMoveToTrash: { rightClickedPhoto in
                     let photosToTrash = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                        ? viewModel.getSelectedPhotosForBulkAction()
-                        : [rightClickedPhoto]
+                    ? viewModel.getSelectedPhotosForBulkAction()
+                    : [rightClickedPhoto]
                     viewModel.movePhotosToTrash(photosToTrash)
                 },
                 onCopyTo: { rightClickedPhoto in
                     let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                        ? viewModel.getSelectedPhotosForBulkAction()
-                        : [rightClickedPhoto]
+                    ? viewModel.getSelectedPhotosForBulkAction()
+                    : [rightClickedPhoto]
                     copyToViewModel = CopyToViewModel(photos: photos)
                 },
                 onRenameTo: { rightClickedPhoto in
                     let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                        ? viewModel.getSelectedPhotosForBulkAction()
-                        : [rightClickedPhoto]
+                    ? viewModel.getSelectedPhotosForBulkAction()
+                    : [rightClickedPhoto]
                     renameSheetPhotos = PhotosSheetItem(photos: photos)
                 },
                 onMoveAllMarkedToTrash: { photo in
@@ -158,6 +173,15 @@ struct ThumbGridView: View {
                 }
             ),
             duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
+            onReview: { group, index in
+                reviewGroup = ReviewGroupItem(
+                    group: group,
+                    index: index,
+                    onRatingChanged: { photo, rating in viewModel.applyRating(rating, to: [photo]) },
+                    onApprove: { photo in viewModel.applyLabel("Approved", to: [photo]) },
+                    onMarkForDeletion: { photo in viewModel.toggleDeleteState(for: [photo]) }
+                )
+            },
             scrollToPhotoId: $scrollToPhotoId,
             onKeyPress: { event in
                 viewModel.handleKeyEvent(

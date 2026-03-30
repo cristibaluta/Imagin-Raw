@@ -25,11 +25,16 @@ struct ThumbCellCallbacks {
 final class DuplicateSectionHeaderView: NSView, NSCollectionViewElement {
     static let identifier = NSUserInterfaceItemIdentifier("DuplicateSectionHeader")
 
-    private let label = NSTextField(labelWithString: "")
-    private let pill  = NSView()
+    private let label      = NSTextField(labelWithString: "")
+    private let pill       = NSView()
+    private let actionBtn  = NSButton()
+    private var groupIndex = 0
+    private var group: DuplicateGroup?
+    var onReview: ((DuplicateGroup, Int) -> Void)?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
+
         pill.wantsLayer = true
         pill.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.75).cgColor
         pill.layer?.cornerRadius = 4
@@ -38,14 +43,34 @@ final class DuplicateSectionHeaderView: NSView, NSCollectionViewElement {
         label.font = NSFont.systemFont(ofSize: 10, weight: .medium)
         label.textColor = .white
         pill.addSubview(label)
+
+        actionBtn.bezelStyle = .rounded
+        actionBtn.title = "Select All"
+        actionBtn.font = NSFont.systemFont(ofSize: 10)
+        actionBtn.isBordered = false
+        actionBtn.wantsLayer = true
+        actionBtn.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.15).cgColor
+        actionBtn.layer?.cornerRadius = 3
+        actionBtn.contentTintColor = .white
+        actionBtn.target = self
+        actionBtn.action = #selector(actionTapped)
+        addSubview(actionBtn)
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    func configure(group: DuplicateGroup, index: Int) {
+    func configure(group: DuplicateGroup, index: Int, onReview: ((DuplicateGroup, Int) -> Void)?) {
+        self.group = group
+        self.groupIndex = index
+        self.onReview = onReview
         let pct = max(0, min(100, Int(((1.0 - Double(group.distance)) * 100).rounded())))
         label.stringValue = "Group \(index + 1)  ·  \(pct)% similarity"
         label.sizeToFit()
         needsLayout = true
+    }
+
+    @objc private func actionTapped() {
+        guard let group else { return }
+        onReview?(group, groupIndex)
     }
 
     override func layout() {
@@ -53,12 +78,22 @@ final class DuplicateSectionHeaderView: NSView, NSCollectionViewElement {
         let h: CGFloat = 20
         let hPad: CGFloat = 8
         let vPad: CGFloat = (bounds.height - h) / 2
+
         let pillW = label.frame.width + hPad * 2
         pill.frame = CGRect(x: 12, y: vPad, width: pillW, height: h)
-        label.frame = CGRect(x: hPad, y: (h - label.frame.height) / 2, width: label.frame.width, height: label.frame.height)
-        // Re-apply layer props after layout (layer may be reset)
+        label.frame = CGRect(x: hPad, y: (h - label.frame.height) / 2,
+                             width: label.frame.width, height: label.frame.height)
+
+        let btnW: CGFloat = 70
+        let btnH: CGFloat = 18
+        actionBtn.frame = CGRect(x: pill.frame.maxX + 8,
+                                 y: (bounds.height - btnH) / 2,
+                                 width: btnW, height: btnH)
+
         pill.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.75).cgColor
         pill.layer?.cornerRadius = 4
+        actionBtn.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.15).cgColor
+        actionBtn.layer?.cornerRadius = 3
     }
 }
 
@@ -81,6 +116,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
     let selectedPhotos: Set<UUID>
     let callbacks: ThumbCellCallbacks
     var duplicateResult: DuplicateScanResult? = nil
+    var onReview: ((DuplicateGroup, Int) -> Void)? = nil
     @Binding var scrollToPhotoId: UUID?
     var onKeyPress: ((NSEvent) -> Bool)?
 
@@ -141,6 +177,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
         c.selectedPhotos = selectedPhotos
         c.callbacks = callbacks
         c.duplicateResult = duplicateResult
+        c.onReview = onReview
         c.photosById = Dictionary(uniqueKeysWithValues: photos.map { ($0.path, $0) })
         c.onKeyDown = { event in self.onKeyPress?(event) ?? false }
 
@@ -206,6 +243,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
         var callbacks: ThumbCellCallbacks
         var duplicateResult: DuplicateScanResult? = nil
         var onKeyDown: ((NSEvent) -> Bool)?
+        var onReview: ((DuplicateGroup, Int) -> Void)?
         var photosById: [String: PhotoItem] = [:]
         weak var collectionView: NSCollectionView?
         weak var scrollView: NSScrollView?
@@ -231,7 +269,6 @@ struct CollectionThumbGridView: NSViewRepresentable {
         private func photosForSection(_ section: Int) -> [PhotoItem] {
             if let result = duplicateResult {
                 guard section < result.groups.count else { return [] }
-                // Return live versions of photos, falling back to scan snapshot
                 return result.groups[section].photos.map { photosById[$0.path] ?? $0 }
             }
             return section == 0 ? photos : []
@@ -274,7 +311,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
                 ofKind: kind,
                 withIdentifier: DuplicateSectionHeaderView.identifier,
                 for: indexPath) as! DuplicateSectionHeaderView
-            header.configure(group: result.groups[indexPath.section], index: indexPath.section)
+            header.configure(group: result.groups[indexPath.section], index: indexPath.section, onReview: onReview)
             return header
         }
     }
