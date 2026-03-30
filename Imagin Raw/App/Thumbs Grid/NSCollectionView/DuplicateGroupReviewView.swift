@@ -160,87 +160,91 @@ struct DuplicateGroupReviewView: View {
         max(0, min(100, Int(((1.0 - Double(group.distance)) * 100).rounded())))
     }
 
+    private var isPortrait: Bool {
+        guard let first = photos.first,
+              let w = first.width, let h = first.height else { return true }
+        return h > w
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Title bar
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Group \(groupIndex + 1) — \(photos.count) photos")
-                        .font(.headline)
-                    Text("\(similarity)% similarity")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.escape, modifiers: [])
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
-            .background(Color(NSColor.windowBackgroundColor))
-
-            Divider()
-
-            // Photo grid — scrollable horizontally if many photos
-            ScrollView(.horizontal, showsIndicators: true) {
-                LazyHStack(alignment: .top, spacing: 16) {
-                    ForEach(photos) { photo in
-                        ReviewPhotoCard(
-                            photo: photo,
-                            onRatingChanged: { rating in
-                                onRatingChanged(photo, rating)
-                                updatePhoto(photo, mutate: { $0 })
-                            },
-                            onApprove: {
-                                onApprove(photo)
-                                updatePhoto(photo, mutate: { $0 })
-                            },
-                            onMarkForDeletion: {
-                                onMarkForDeletion(photo)
-                                updatePhoto(photo, mutate: { $0 })
-                            }
-                        )
-                        .frame(width: cardWidth)
+        GeometryReader { geo in
+            VStack(spacing: 0) {
+                // Title bar
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Group \(groupIndex + 1) — \(photos.count) photos")
+                            .font(.headline)
+                        Text("\(similarity)% similarity")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
+
+                    Spacer()
+
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut(.escape, modifiers: [])
                 }
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+                .background(Color(NSColor.windowBackgroundColor))
+
+                Divider()
+
+                if isPortrait {
+                    // Portrait: horizontal scroll, cards fill screen height
+                    let cardH = geo.size.height - 14 - 1 - 80 // subtract titlebar + divider + controls
+                    let cardW = cardH * 2 / 3 // approximate 2:3 portrait ratio
+                    ScrollView(.horizontal, showsIndicators: true) {
+                        LazyHStack(alignment: .top, spacing: 16) {
+                            ForEach(photos) { photo in
+                                ReviewPhotoCard(
+                                    photo: photo,
+                                    onRatingChanged: { rating in onRatingChanged(photo, rating); bump() },
+                                    onApprove: { onApprove(photo); bump() },
+                                    onMarkForDeletion: { onMarkForDeletion(photo); bump() }
+                                )
+                                .frame(width: cardW)
+                            }
+                        }
+                        .padding(20)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(NSColor.underPageBackgroundColor))
+                } else {
+                    // Landscape: 2-column vertical scroll
+                    let hPad: CGFloat = 20
+                    let spacing: CGFloat = 16
+                    let cardW = (geo.size.width - hPad * 2 - spacing) / 2
+                    ScrollView(.vertical, showsIndicators: true) {
+                        LazyVGrid(columns: [
+                            GridItem(.fixed(cardW), spacing: spacing),
+                            GridItem(.fixed(cardW), spacing: spacing)
+                        ], spacing: 16) {
+                            ForEach(photos) { photo in
+                                ReviewPhotoCard(
+                                    photo: photo,
+                                    onRatingChanged: { rating in onRatingChanged(photo, rating); bump() },
+                                    onApprove: { onApprove(photo); bump() },
+                                    onMarkForDeletion: { onMarkForDeletion(photo); bump() }
+                                )
+                            }
+                        }
+                        .padding(hPad)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(NSColor.underPageBackgroundColor))
+                }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(NSColor.underPageBackgroundColor))
         }
         .frame(minWidth: 600, minHeight: 500)
     }
 
-    // Card width based on number of photos — fewer photos = wider cards
-    private var cardWidth: CGFloat {
-        switch photos.count {
-        case 1: return 500
-        case 2: return 420
-        case 3: return 340
-        case 4: return 280
-        default: return 240
-        }
-    }
-
-    // Refresh local photo state from viewModel after an action
-    private func updatePhoto(_ photo: PhotoItem, mutate: (PhotoItem) -> PhotoItem) {
-        // Force SwiftUI to re-evaluate cards by triggering a state update
-        // The actual updated data comes via onRatingChanged/onApprove/onMarkForDeletion callbacks
-        // which update the viewModel — we just need to trigger a local refresh
-        objectWillChange()
-    }
-
-    // Dummy publisher to force re-render — real data flows through callbacks
-    private func objectWillChange() {
-        // Trigger redraw by toggling a copy of photos
-        let copy = photos
-        photos = copy
+    private func bump() {
+        let copy = photos; photos = copy
     }
 }
