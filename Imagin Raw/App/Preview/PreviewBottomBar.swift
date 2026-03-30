@@ -13,7 +13,7 @@ struct PreviewBottomBar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            ExifBarView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes)
+            ExifBarView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
             Spacer()
 
             // Zoom button

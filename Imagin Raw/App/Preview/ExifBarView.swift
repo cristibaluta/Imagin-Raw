@@ -10,6 +10,14 @@ import SwiftUI
 struct ExifBarView: View {
     let exifInfo: ExifInfo
     var fileSize: Int64?
+    var dateCreated: Date?
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f
+    }()
 
     private var shutterText: String? {
         guard let shutter = exifInfo.shutterSpeed else { return nil }
@@ -66,8 +74,13 @@ struct ExifBarView: View {
             // File size
             if let size = fileSize {
                 divider
-                    .padding(.horizontal, 4)
                 exifItem(label: ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
+            }
+
+            // Date & time
+            if let date = dateCreated {
+                divider
+                exifItem(label: Self.dateFormatter.string(from: date))
             }
 
             Spacer()
