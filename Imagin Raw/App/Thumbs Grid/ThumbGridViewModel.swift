@@ -1143,6 +1143,12 @@ class ThumbGridViewModel: ObservableObject {
 
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
+
+            // Wait for thumb generation to finish before scanning
+            // (DuplicateFinderService reads from thumb cache)
+            while await self.cachingQueueCount > 0 {
+                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s
+            }
             let data = await DuplicateFinderService.scan(
                 photos: photosToScan,
                 progress: { done, total in
