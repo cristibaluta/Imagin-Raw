@@ -50,6 +50,17 @@ struct ContentView: View {
         )
     }
 
+    private var reviewSubtitle: String {
+        guard let rg = reviewGroup else { return "" }
+        let pct = max(0, min(100, Int(((1.0 - Double(rg.group.distance)) * 100).rounded())))
+        return "\(pct)% similarity"
+    }
+
+    private var reviewTitle: String {
+        guard let rg = reviewGroup else { return "" }
+        return "Group \(rg.index + 1) \u{2014} \(rg.group.photos.count) photos"
+    }
+
     private var navigationDocumentURL: URL? {
         return filesModel.selectedFolder?.url
     }
@@ -72,9 +83,9 @@ struct ContentView: View {
                         .environmentObject(filesModel)
                 } else {
                     navigationSplitView
-                        .navigationTitle("Imagin Raw")
+                        .navigationTitle(reviewGroup == nil ? "Imagin Raw" : reviewTitle)
                         #if os(macOS)
-                        .navigationSubtitle(navigationTitle)
+                        .navigationSubtitle(reviewGroup == nil ? navigationTitle : reviewSubtitle)
                         #endif
                         .onChange(of: columnVisibilityStorage) { _, newValue in
                             isSidebarCollapsed = (newValue == "doubleColumn")
@@ -213,11 +224,21 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItemGroup(placement: .navigation) {
-            navigationToolbarItems
-        }
-        ToolbarItemGroup(placement: .primaryAction) {
-            primaryActionToolbarItems
+        if reviewGroup != nil {
+            // Review mode — show only a close button
+            ToolbarItem(placement: .cancellationAction) {
+                Button(action: { withAnimation(.easeInOut(duration: 0.2)) { reviewGroup = nil } }) {
+                    Label("Close Review", systemImage: "xmark")
+                }
+                .keyboardShortcut(.escape, modifiers: [])
+            }
+        } else {
+            ToolbarItemGroup(placement: .navigation) {
+                navigationToolbarItems
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                primaryActionToolbarItems
+            }
         }
     }
 

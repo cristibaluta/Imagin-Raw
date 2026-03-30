@@ -168,37 +168,11 @@ struct DuplicateGroupReviewView: View {
 
     var body: some View {
         GeometryReader { geo in
-            VStack(spacing: 0) {
-                // Title bar
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Group \(groupIndex + 1) — \(photos.count) photos")
-                            .font(.headline)
-                        Text("\(similarity)% similarity")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Spacer()
-
-                    Button(action: onDismiss) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .keyboardShortcut(.escape, modifiers: [])
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
-                .background(Color(NSColor.windowBackgroundColor))
-
-                Divider()
-
+            Group {
                 if isPortrait {
                     // Portrait: horizontal scroll, cards fill screen height
-                    let cardH = geo.size.height - 14 - 1 - 80 // subtract titlebar + divider + controls
-                    let cardW = cardH * 2 / 3 // approximate 2:3 portrait ratio
+                    let cardH = geo.size.height - 80
+                    let cardW = cardH * 2 / 3
                     ScrollView(.horizontal, showsIndicators: true) {
                         LazyHStack(alignment: .top, spacing: 16) {
                             ForEach(photos) { photo in
