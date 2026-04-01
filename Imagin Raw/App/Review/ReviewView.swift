@@ -25,6 +25,9 @@ struct ReviewView: View {
     @State private var fullResImages: [String: IRImage] = [:]
     @State private var fullResLoading: Set<String> = []
 
+    // Focus
+    @FocusState private var isFocused: Bool
+
     init(group: DuplicateGroup,
          groupIndex: Int,
          onRatingChanged: @escaping (PhotoItem, Int) -> Void,
@@ -180,6 +183,20 @@ struct ReviewView: View {
             }
         }
         .frame(minWidth: 600, minHeight: 500)
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .onKeyPress(characters: CharacterSet(charactersIn: "zZ")) { _ in
+            toggleZoom()
+            return .handled
+        }
+        .onAppear {
+            // Delay focus grab so the view is fully in the window hierarchy
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isFocused = true
+            }
+        }
+        .onTapGesture { isFocused = true }
     }
 
     // MARK: - Zoom
