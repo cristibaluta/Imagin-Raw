@@ -190,6 +190,10 @@ struct ReviewView: View {
             toggleZoom()
             return .handled
         }
+        .onKeyPress(.escape) {
+            onDismiss()
+            return .handled
+        }
         .onAppear {
             // Delay focus grab so the view is fully in the window hierarchy
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
