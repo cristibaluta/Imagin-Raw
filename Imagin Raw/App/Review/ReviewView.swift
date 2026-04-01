@@ -28,6 +28,9 @@ struct ReviewView: View {
     // Focus
     @FocusState private var isFocused: Bool
 
+    // Hover tracking for keyboard shortcuts
+    @State private var hoveredPhotoId: UUID? = nil
+
     init(group: DuplicateGroup,
          groupIndex: Int,
          onRatingChanged: @escaping (PhotoItem, Int) -> Void,
@@ -112,6 +115,7 @@ struct ReviewView: View {
                                     fullResImage: fullResImages[photo.path],
                                     isFullResLoading: fullResLoading.contains(photo.path),
                                     syncedMousePosition: $syncedMousePosition,
+                                    hoveredPhotoId: $hoveredPhotoId,
                                     onRatingChanged: { rating in
                                         onRatingChanged(photo, rating)
                                         updateLocalPhoto(photo) { p in
@@ -194,6 +198,73 @@ struct ReviewView: View {
             onDismiss()
             return .handled
         }
+        .onKeyPress(characters: CharacterSet(charactersIn: "12345")) { press in
+            guard let photo = hoveredPhoto,
+                  let rating = Int(String(press.characters)) else { return .ignored }
+            onRatingChanged(photo, rating)
+            updateLocalPhoto(photo) { p in
+                let oldXmp = p.xmp
+                let newXmp = XmpMetadata(
+                    label: oldXmp?.label, rating: rating,
+                    creator: oldXmp?.creator, rights: oldXmp?.rights,
+                    createDate: oldXmp?.createDate, modifyDate: oldXmp?.modifyDate,
+                    cameraModel: oldXmp?.cameraModel, lens: oldXmp?.lens,
+                    focalLength: oldXmp?.focalLength, aperture: oldXmp?.aperture,
+                    shutterSpeed: oldXmp?.shutterSpeed, iso: oldXmp?.iso,
+                    exposureBias: oldXmp?.exposureBias
+                )
+                return PhotoItem(
+                    id: p.id, path: p.path, xmp: newXmp,
+                    dateCreated: p.dateCreated, toDelete: p.toDelete,
+                    hasACR: p.hasACR, hasJPG: p.hasJPG,
+                    inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
+                    fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
+                    cameraMake: p.cameraMake, cameraModel: p.cameraModel
+                )
+            }
+            return .handled
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "aA")) { _ in
+            guard let photo = hoveredPhoto else { return .ignored }
+            onApprove(photo)
+            updateLocalPhoto(photo) { p in
+                let oldXmp = p.xmp
+                let isApproved = oldXmp?.label == "Approved"
+                let newXmp = XmpMetadata(
+                    label: isApproved ? nil : "Approved", rating: oldXmp?.rating,
+                    creator: oldXmp?.creator, rights: oldXmp?.rights,
+                    createDate: oldXmp?.createDate, modifyDate: oldXmp?.modifyDate,
+                    cameraModel: oldXmp?.cameraModel, lens: oldXmp?.lens,
+                    focalLength: oldXmp?.focalLength, aperture: oldXmp?.aperture,
+                    shutterSpeed: oldXmp?.shutterSpeed, iso: oldXmp?.iso,
+                    exposureBias: oldXmp?.exposureBias
+                )
+                return PhotoItem(
+                    id: p.id, path: p.path, xmp: newXmp,
+                    dateCreated: p.dateCreated, toDelete: p.toDelete,
+                    hasACR: p.hasACR, hasJPG: p.hasJPG,
+                    inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
+                    fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
+                    cameraMake: p.cameraMake, cameraModel: p.cameraModel
+                )
+            }
+            return .handled
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "xX")) { _ in
+            guard let photo = hoveredPhoto else { return .ignored }
+            onMarkForDeletion(photo)
+            updateLocalPhoto(photo) { p in
+                return PhotoItem(
+                    id: p.id, path: p.path, xmp: p.xmp,
+                    dateCreated: p.dateCreated, toDelete: !p.toDelete,
+                    hasACR: p.hasACR, hasJPG: p.hasJPG,
+                    inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
+                    fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
+                    cameraMake: p.cameraMake, cameraModel: p.cameraModel
+                )
+            }
+            return .handled
+        }
         .onAppear {
             // Delay focus grab so the view is fully in the window hierarchy
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -229,5 +300,10 @@ struct ReviewView: View {
         if let idx = photos.firstIndex(where: { $0.id == photo.id }) {
             photos[idx] = transform(photos[idx])
         }
+    }
+
+    private var hoveredPhoto: PhotoItem? {
+        guard let id = hoveredPhotoId else { return nil }
+        return photos.first { $0.id == id }
     }
 }

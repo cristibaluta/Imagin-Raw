@@ -12,6 +12,7 @@ struct ReviewPhotoCard: View {
     var fullResImage: IRImage? = nil
     var isFullResLoading: Bool = false
     @Binding var syncedMousePosition: CGPoint
+    @Binding var hoveredPhotoId: UUID?
     let onRatingChanged: (Int) -> Void
     let onApprove: () -> Void
     let onMarkForDeletion: () -> Void
@@ -140,6 +141,9 @@ struct ReviewPhotoCard: View {
         )
         .onAppear { loadPreview() }
         .onChange(of: photo.path) { _, _ in loadPreview() }
+        .onHover { hovering in
+            hoveredPhotoId = hovering ? photo.id : nil
+        }
     }
 
     private func loadPreview() {
