@@ -106,7 +106,7 @@ struct ContentView: View {
 
             // Full-screen duplicate group review — covers entire app
             if let rg = reviewGroup {
-                DuplicateGroupReviewView(
+                ReviewView(
                     group: rg.group,
                     groupIndex: rg.index,
                     onRatingChanged: rg.onRatingChanged,
