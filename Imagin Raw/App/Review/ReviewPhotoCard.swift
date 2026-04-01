@@ -8,12 +8,17 @@ import SwiftUI
 
 struct ReviewPhotoCard: View {
     let photo: PhotoItem
+    var isZoomed: Bool = false
+    var fullResImage: IRImage? = nil
+    var isFullResLoading: Bool = false
+    @Binding var syncedMousePosition: CGPoint
     let onRatingChanged: (Int) -> Void
     let onApprove: () -> Void
     let onMarkForDeletion: () -> Void
 
     @State private var previewImage: IRImage? = nil
     @State private var isLoading = true
+    @State private var previewAspectRatio: CGFloat? = nil
 
     private var filename: String {
         URL(fileURLWithPath: photo.path).lastPathComponent
@@ -30,19 +35,45 @@ struct ReviewPhotoCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Preview image
+            // Preview / zoom image
             ZStack {
                 Color(red: 41/255, green: 41/255, blue: 41/255)
 
-                if let img = previewImage {
-                    Image(nsImage: img)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .transition(.opacity)
-                } else if isLoading {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .scaleEffect(0.7)
+                if isZoomed {
+                    // Zoomed 100% view
+                    if let fullRes = fullResImage {
+                        SyncedZoomView(image: fullRes, mousePosition: $syncedMousePosition)
+                            .transition(.opacity)
+                    } else if isFullResLoading {
+                        ZStack {
+                            if let img = previewImage {
+                                Image(nsImage: img)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .transition(.opacity)
+                            }
+                            ProgressView("Loading full res…")
+                                .progressViewStyle(.circular)
+                                .scaleEffect(0.7)
+                        }
+                    } else if let img = previewImage {
+                        Image(nsImage: img)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .transition(.opacity)
+                    }
+                } else {
+                    // Normal preview
+                    if let img = previewImage {
+                        Image(nsImage: img)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .transition(.opacity)
+                    } else if isLoading {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .scaleEffect(0.7)
+                    }
                 }
 
                 // Trash overlay
@@ -55,6 +86,7 @@ struct ReviewPhotoCard: View {
                     }
                 }
             }
+            .aspectRatio(previewAspectRatio, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 4))
 
             // Controls
@@ -116,7 +148,58 @@ struct ReviewPhotoCard: View {
             DispatchQueue.main.async {
                 self.previewImage = image
                 self.isLoading = false
+                if let image, image.size.height > 0 {
+                    self.previewAspectRatio = image.size.width / image.size.height
+                }
             }
         }
     }
 }
+
+// MARK: - SyncedZoomView
+
+/// Displays a full-res image at 100% pixel resolution.
+/// Uses a shared `mousePosition` binding so multiple instances pan in sync.
+#if os(macOS)
+struct SyncedZoomView: View {
+    let image: IRImage
+    @Binding var mousePosition: CGPoint
+
+    private var pixelSize: CGSize {
+        if let rep = image.representations.first as? NSBitmapImageRep {
+            return CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
+        }
+        if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            return CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
+        }
+        return image.size
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let imgW = pixelSize.width
+            let imgH = pixelSize.height
+            let viewW = geo.size.width
+            let viewH = geo.size.height
+            let overflowX = max(0, imgW - viewW)
+            let overflowY = max(0, imgH - viewH)
+            let offsetX = -overflowX * mousePosition.x
+            let offsetY = -overflowY * mousePosition.y
+
+            Image(nsImage: image)
+                .resizable()
+                .frame(width: imgW, height: imgH)
+                .offset(x: offsetX, y: offsetY)
+                .frame(width: viewW, height: viewH, alignment: .topLeading)
+                .clipped()
+                .background(
+                    MouseTrackingView(onMouseMoved: { point, viewSize in
+                        let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
+                        let ny = viewSize.height > 0 ? max(0, min(1, 1 - point.y / viewSize.height)) : 0.5
+                        mousePosition = CGPoint(x: nx, y: ny)
+                    })
+                )
+        }
+    }
+}
+#endif

@@ -19,6 +19,12 @@ struct ReviewView: View {
     // Live photo state — updated when actions are taken
     @State private var photos: [PhotoItem]
 
+    // Zoom state
+    @State private var isZoomed = false
+    @State private var syncedMousePosition = CGPoint(x: 0.5, y: 0.5)
+    @State private var fullResImages: [String: IRImage] = [:]
+    @State private var fullResLoading: Set<String> = []
+
     init(group: DuplicateGroup,
          groupIndex: Int,
          onRatingChanged: @escaping (PhotoItem, Int) -> Void,
@@ -48,39 +54,97 @@ struct ReviewView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            Group {
-                let hPad: CGFloat = 20
-                let spacing: CGFloat = 16
-                let cardW = (geo.size.width - hPad * 3 - spacing) / (isPortrait ? 3 : 2)
-                let columns = isPortrait
-                ? [
-                    GridItem(.fixed(cardW), spacing: spacing),
-                    GridItem(.fixed(cardW), spacing: spacing),
-                    GridItem(.fixed(cardW), spacing: spacing)
-                ]
-                : [
-                    GridItem(.fixed(cardW), spacing: spacing),
-                    GridItem(.fixed(cardW), spacing: spacing)
-                ]
-                ScrollView(.vertical, showsIndicators: true) {
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(photos) { photo in
-                            ReviewPhotoCard(
-                                photo: photo,
-                                onRatingChanged: { rating in onRatingChanged(photo, rating); bump() },
-                                onApprove: { onApprove(photo); bump() },
-                                onMarkForDeletion: { onMarkForDeletion(photo); bump() }
-                            )
-                        }
-                    }
-                    .padding(hPad)
+        VStack(spacing: 0) {
+            // Top bar
+            HStack {
+                Button(action: onDismiss) {
+                    Label("Close", systemImage: "xmark")
+                        .font(.callout)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(NSColor.underPageBackgroundColor))
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+
+                Spacer()
+
+                Text("Group \(groupIndex + 1) — \(similarity)% similar")
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                Button(action: toggleZoom) {
+                    Label(isZoomed ? "Fit" : "Zoom 100%",
+                          systemImage: isZoomed ? "arrow.down.right.and.arrow.up.left" : "plus.magnifyingglass")
+                        .font(.callout)
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(isZoomed ? .accentColor : .secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color(NSColor.windowBackgroundColor))
+
+            // Photo grid
+            GeometryReader { geo in
+                Group {
+                    let hPad: CGFloat = 20
+                    let spacing: CGFloat = 16
+                    let cardW = (geo.size.width - hPad * 3 - spacing) / (isPortrait ? 3 : 2)
+                    let columns = isPortrait
+                    ? [
+                        GridItem(.fixed(cardW), spacing: spacing),
+                        GridItem(.fixed(cardW), spacing: spacing),
+                        GridItem(.fixed(cardW), spacing: spacing)
+                    ]
+                    : [
+                        GridItem(.fixed(cardW), spacing: spacing),
+                        GridItem(.fixed(cardW), spacing: spacing)
+                    ]
+                    ScrollView(.vertical, showsIndicators: true) {
+                        LazyVGrid(columns: columns, spacing: 16) {
+                            ForEach(photos) { photo in
+                                ReviewPhotoCard(
+                                    photo: photo,
+                                    isZoomed: isZoomed,
+                                    fullResImage: fullResImages[photo.path],
+                                    isFullResLoading: fullResLoading.contains(photo.path),
+                                    syncedMousePosition: $syncedMousePosition,
+                                    onRatingChanged: { rating in onRatingChanged(photo, rating); bump() },
+                                    onApprove: { onApprove(photo); bump() },
+                                    onMarkForDeletion: { onMarkForDeletion(photo); bump() }
+                                )
+                            }
+                        }
+                        .padding(hPad)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(NSColor.underPageBackgroundColor))
+                }
             }
         }
         .frame(minWidth: 600, minHeight: 500)
+    }
+
+    // MARK: - Zoom
+
+    private func toggleZoom() {
+        isZoomed.toggle()
+        if isZoomed {
+            loadAllFullRes()
+        }
+    }
+
+    private func loadAllFullRes() {
+        for photo in photos {
+            guard fullResImages[photo.path] == nil else { continue }
+            fullResLoading.insert(photo.path)
+            FullResManager.shared.loadFullRes(for: photo.path) { image in
+                fullResLoading.remove(photo.path)
+                if let image {
+                    fullResImages[photo.path] = image
+                }
+            }
+        }
     }
 
     private func bump() {
