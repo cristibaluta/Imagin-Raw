@@ -45,7 +45,7 @@ final class DuplicateSectionHeaderView: NSView, NSCollectionViewElement {
         pill.addSubview(label)
 
         actionBtn.bezelStyle = .rounded
-        actionBtn.title = "Select All"
+        actionBtn.title = "Review"
         actionBtn.font = NSFont.systemFont(ofSize: 10)
         actionBtn.isBordered = false
         actionBtn.wantsLayer = true
