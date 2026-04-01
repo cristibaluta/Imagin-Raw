@@ -109,9 +109,66 @@ struct ReviewView: View {
                                     fullResImage: fullResImages[photo.path],
                                     isFullResLoading: fullResLoading.contains(photo.path),
                                     syncedMousePosition: $syncedMousePosition,
-                                    onRatingChanged: { rating in onRatingChanged(photo, rating); bump() },
-                                    onApprove: { onApprove(photo); bump() },
-                                    onMarkForDeletion: { onMarkForDeletion(photo); bump() }
+                                    onRatingChanged: { rating in
+                                        onRatingChanged(photo, rating)
+                                        updateLocalPhoto(photo) { p in
+                                            let oldXmp = p.xmp
+                                            let newXmp = XmpMetadata(
+                                                label: oldXmp?.label, rating: rating,
+                                                creator: oldXmp?.creator, rights: oldXmp?.rights,
+                                                createDate: oldXmp?.createDate, modifyDate: oldXmp?.modifyDate,
+                                                cameraModel: oldXmp?.cameraModel, lens: oldXmp?.lens,
+                                                focalLength: oldXmp?.focalLength, aperture: oldXmp?.aperture,
+                                                shutterSpeed: oldXmp?.shutterSpeed, iso: oldXmp?.iso,
+                                                exposureBias: oldXmp?.exposureBias
+                                            )
+                                            return PhotoItem(
+                                                id: p.id, path: p.path, xmp: newXmp,
+                                                dateCreated: p.dateCreated, toDelete: p.toDelete,
+                                                hasACR: p.hasACR, hasJPG: p.hasJPG,
+                                                inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
+                                                fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
+                                                cameraMake: p.cameraMake, cameraModel: p.cameraModel
+                                            )
+                                        }
+                                    },
+                                    onApprove: {
+                                        onApprove(photo)
+                                        updateLocalPhoto(photo) { p in
+                                            let oldXmp = p.xmp
+                                            let isApproved = oldXmp?.label == "Approved"
+                                            let newXmp = XmpMetadata(
+                                                label: isApproved ? nil : "Approved", rating: oldXmp?.rating,
+                                                creator: oldXmp?.creator, rights: oldXmp?.rights,
+                                                createDate: oldXmp?.createDate, modifyDate: oldXmp?.modifyDate,
+                                                cameraModel: oldXmp?.cameraModel, lens: oldXmp?.lens,
+                                                focalLength: oldXmp?.focalLength, aperture: oldXmp?.aperture,
+                                                shutterSpeed: oldXmp?.shutterSpeed, iso: oldXmp?.iso,
+                                                exposureBias: oldXmp?.exposureBias
+                                            )
+                                            return PhotoItem(
+                                                id: p.id, path: p.path, xmp: newXmp,
+                                                dateCreated: p.dateCreated, toDelete: p.toDelete,
+                                                hasACR: p.hasACR, hasJPG: p.hasJPG,
+                                                inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
+                                                fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
+                                                cameraMake: p.cameraMake, cameraModel: p.cameraModel
+                                            )
+                                        }
+                                    },
+                                    onMarkForDeletion: {
+                                        onMarkForDeletion(photo)
+                                        updateLocalPhoto(photo) { p in
+                                            return PhotoItem(
+                                                id: p.id, path: p.path, xmp: p.xmp,
+                                                dateCreated: p.dateCreated, toDelete: !p.toDelete,
+                                                hasACR: p.hasACR, hasJPG: p.hasJPG,
+                                                inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
+                                                fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
+                                                cameraMake: p.cameraMake, cameraModel: p.cameraModel
+                                            )
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -147,7 +204,9 @@ struct ReviewView: View {
         }
     }
 
-    private func bump() {
-        let copy = photos; photos = copy
+    private func updateLocalPhoto(_ photo: PhotoItem, transform: (PhotoItem) -> PhotoItem) {
+        if let idx = photos.firstIndex(where: { $0.id == photo.id }) {
+            photos[idx] = transform(photos[idx])
+        }
     }
 }
