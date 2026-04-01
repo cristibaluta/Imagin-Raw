@@ -81,6 +81,12 @@ struct ReviewPhotoCard: View {
                     .foregroundColor(.red)
                     .shadow(color: .black.opacity(0.8), radius: 4, x: 0, y: 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if isApproved {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundColor(.green)
+                    .shadow(color: .black.opacity(0.8), radius: 4, x: 0, y: 0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             // Hover controls overlay
