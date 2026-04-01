@@ -244,10 +244,13 @@ final class PhotosModel: ObservableObject {
         }.value
 
         // Parse XMP off main thread
-        var xmpParsed: [String: XmpMetadata] = [:]
-        for (baseName, content) in xmpLookup {
-            xmpParsed[baseName] = XmpParser.parseMetadata(from: content)
-        }
+        let xmpParsed: [String: XmpMetadata] = await Task.detached(priority: .utility) {
+            var parsed: [String: XmpMetadata] = [:]
+            for (baseName, content) in xmpLookup {
+                parsed[baseName] = XmpParser.parseMetadata(from: content)
+            }
+            return parsed
+        }.value
 
         // File sizes off main thread
         let fileSizes: [String: Int64] = await Task.detached(priority: .utility) {
@@ -269,8 +272,8 @@ final class PhotosModel: ObservableObject {
             let batchEnd = min(batchStart + batchSize, photos.count)
             let batch = Array(photos[batchStart..<batchEnd])
 
-            // Process one batch on main actor
-            let batchResults: [(Int, Int?, Int?, Int?, String?, String?)] = await MainActor.run {
+            // Process one batch off the main thread — extractMetadata is thread-safe
+            let batchResults: [(Int, Int?, Int?, Int?, String?, String?)] = await Task.detached(priority: .utility) {
                 batch.enumerated().map { (localIndex, photo) in
                     let globalIndex = batchStart + localIndex
                     var inCameraRating: Int? = nil
@@ -287,7 +290,7 @@ final class PhotosModel: ObservableObject {
                     }
                     return (globalIndex, inCameraRating, width, height, cameraMake, cameraModel)
                 }
-            }
+            }.value
 
             for (index, rating, width, height, cameraMake, cameraModel) in batchResults {
                 let photo = photos[index]
