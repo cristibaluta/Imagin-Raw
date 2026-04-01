@@ -84,7 +84,7 @@ final class DuplicateSectionHeaderView: NSView, NSCollectionViewElement {
         label.frame = CGRect(x: hPad, y: (h - label.frame.height) / 2,
                              width: label.frame.width, height: label.frame.height)
 
-        let btnW: CGFloat = 70
+        let btnW: CGFloat = 50
         let btnH: CGFloat = 18
         actionBtn.frame = CGRect(x: pill.frame.maxX + 8,
                                  y: (bounds.height - btnH) / 2,
@@ -92,7 +92,7 @@ final class DuplicateSectionHeaderView: NSView, NSCollectionViewElement {
 
         pill.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.75).cgColor
         pill.layer?.cornerRadius = 4
-        actionBtn.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.15).cgColor
+        actionBtn.layer?.backgroundColor = NSColor.systemBlue.cgColor
         actionBtn.layer?.cornerRadius = 3
     }
 }
