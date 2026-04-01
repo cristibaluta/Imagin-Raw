@@ -76,10 +76,11 @@ struct ReviewPhotoCard: View {
 
             // Reject overlay
             if photo.toDelete {
-                Color.black.opacity(0.45)
                 Image(systemName: "xmark")
                     .font(.system(size: 32, weight: .bold))
                     .foregroundColor(.red)
+                    .shadow(color: .black.opacity(0.8), radius: 4, x: 0, y: 0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             // Hover controls overlay
