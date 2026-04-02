@@ -91,56 +91,45 @@ struct ReviewPhotoCard: View {
 
             // Hover controls overlay
             if isHovered {
-                VStack(spacing: 0) {
-                    // Gradient fade into controls
-                    LinearGradient(
-                        colors: [.clear, .black.opacity(0.75)],
-                        startPoint: .top,
-                        endPoint: .bottom
+                HStack(spacing: 8) {
+                    // Filename
+                    Text(filename)
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Spacer()
+
+                    // Star rating
+                    StarRatingView(
+                        rating: currentRating,
+                        maxRating: 5,
+                        starSize: 12,
+                        onRatingChanged: onRatingChanged
                     )
-                    .frame(height: 40)
 
-                    HStack(spacing: 8) {
-                        // Filename
-                        Text(filename)
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                    Spacer()
 
-                        Spacer()
-
-                        // Star rating
-                        StarRatingView(
-                            rating: currentRating,
-                            maxRating: 5,
-                            starSize: 12,
-                            onRatingChanged: onRatingChanged
-                        )
-
-                        Spacer()
-
-                        // Approve
-                        Button(action: onApprove) {
-                            Image(systemName: "checkmark.circle\(isApproved ? ".fill" : "")")
-                                .foregroundColor(isApproved ? .green : .white)
-                        }
-                        .buttonStyle(.plain)
-                        .help(isApproved ? "Remove approval" : "Approve")
-
-                        // Reject
-                        Button(action: onMarkForDeletion) {
-                            Image(systemName: photo.toDelete ? "arrow.uturn.backward" : "xmark.circle")
-                                .foregroundColor(photo.toDelete ? .white : .red)
-                        }
-                        .buttonStyle(.plain)
-                        .help(photo.toDelete ? "Undo reject" : "Reject")
+                    // Approve
+                    Button(action: onApprove) {
+                        Image(systemName: "checkmark.circle\(isApproved ? ".fill" : "")")
+                            .foregroundColor(isApproved ? .green : .white)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(.black.opacity(0.75))
+                    .buttonStyle(.plain)
+                    .help(isApproved ? "Remove approval" : "Approve")
+
+                    // Reject
+                    Button(action: onMarkForDeletion) {
+                        Image(systemName: photo.toDelete ? "arrow.uturn.backward" : "xmark.circle")
+                            .foregroundColor(photo.toDelete ? .white : .red)
+                    }
+                    .buttonStyle(.plain)
+                    .help(photo.toDelete ? "Undo reject" : "Reject")
                 }
-                .transition(.opacity)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.black.opacity(0.75))
             }
         }
         .aspectRatio(previewAspectRatio, contentMode: .fit)

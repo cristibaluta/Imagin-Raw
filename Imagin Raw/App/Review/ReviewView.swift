@@ -95,7 +95,7 @@ struct ReviewView: View {
                 Group {
                     let hPad: CGFloat = 20
                     let spacing: CGFloat = 16
-                    let cardW = (geo.size.width - hPad * 3 - spacing) / (isPortrait ? 3 : 2)
+                    let cardW = (geo.size.width - hPad * 2 - spacing) / (isPortrait ? 3 : 2)
                     let columns = isPortrait
                     ? [
                         GridItem(.fixed(cardW), spacing: spacing),
