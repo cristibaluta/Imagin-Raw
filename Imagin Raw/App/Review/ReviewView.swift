@@ -59,6 +59,10 @@ struct ReviewView: View {
         return h > w
     }
 
+    private var nrOfColumns: Int {
+        (isPortrait && photos.count >= 3) ? 3 : 2
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Top bar
@@ -95,8 +99,8 @@ struct ReviewView: View {
                 Group {
                     let hPad: CGFloat = 20
                     let spacing: CGFloat = 16
-                    let cardW = (geo.size.width - hPad * 2 - spacing) / (isPortrait ? 3 : 2)
-                    let columns = isPortrait
+                    let cardW = (geo.size.width - hPad * 2 - spacing) / nrOfColumns
+                    let columns = nrOfColumns == 3
                     ? [
                         GridItem(.fixed(cardW), spacing: spacing),
                         GridItem(.fixed(cardW), spacing: spacing),

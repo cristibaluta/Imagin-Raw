@@ -378,8 +378,17 @@
         NSNumber *height = properties[(NSString *)kCGImagePropertyPixelHeight];
 
         if (width && height) {
-            metadata[@"width"] = width;
-            metadata[@"height"] = height;
+            // Check EXIF orientation — values 5,6,7,8 indicate 90° rotation
+            // where the displayed width/height are swapped from the raw pixel dimensions
+            NSNumber *orientation = properties[(NSString *)kCGImagePropertyOrientation];
+            int orient = orientation ? [orientation intValue] : 1;
+            if (orient >= 5 && orient <= 8) {
+                metadata[@"width"] = height;
+                metadata[@"height"] = width;
+            } else {
+                metadata[@"width"] = width;
+                metadata[@"height"] = height;
+            }
         }
     }
 
@@ -398,9 +407,15 @@
                     // Use the visible image dimensions (after cropping)
                     int width = raw->imgdata.sizes.width;
                     int height = raw->imgdata.sizes.height;
+                    int flip = raw->imgdata.sizes.flip;
 
                     if (width > 0 && height > 0) {
-                        librawResolution = @{@"width": @(width), @"height": @(height)};
+                        // flip 5 or 6 means 90° rotation — swap dimensions
+                        if (flip == 5 || flip == 6) {
+                            librawResolution = @{@"width": @(height), @"height": @(width)};
+                        } else {
+                            librawResolution = @{@"width": @(width), @"height": @(height)};
+                        }
                     }
 
                     raw->recycle();
