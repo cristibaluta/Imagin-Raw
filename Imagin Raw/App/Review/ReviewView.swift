@@ -96,98 +96,9 @@ struct ReviewView: View {
 
             // Photo grid
             GeometryReader { geo in
-                Group {
-                    let hPad: CGFloat = 20
-                    let spacing: CGFloat = 16
-                    let cardW = (geo.size.width - hPad * 2 - spacing) / nrOfColumns
-                    let columns = nrOfColumns == 3
-                    ? [
-                        GridItem(.fixed(cardW), spacing: spacing),
-                        GridItem(.fixed(cardW), spacing: spacing),
-                        GridItem(.fixed(cardW), spacing: spacing)
-                    ]
-                    : [
-                        GridItem(.fixed(cardW), spacing: spacing),
-                        GridItem(.fixed(cardW), spacing: spacing)
-                    ]
-                    ScrollView(.vertical, showsIndicators: true) {
-                        LazyVGrid(columns: columns, spacing: 16) {
-                            ForEach(photos) { photo in
-                                ReviewPhotoCard(
-                                    photo: photo,
-                                    isZoomed: isZoomed,
-                                    fullResImage: fullResImages[photo.path],
-                                    isFullResLoading: fullResLoading.contains(photo.path),
-                                    syncedMousePosition: $syncedMousePosition,
-                                    hoveredPhotoId: $hoveredPhotoId,
-                                    onRatingChanged: { rating in
-                                        onRatingChanged(photo, rating)
-                                        updateLocalPhoto(photo) { p in
-                                            let oldXmp = p.xmp
-                                            let newXmp = XmpMetadata(
-                                                label: oldXmp?.label, rating: rating,
-                                                creator: oldXmp?.creator, rights: oldXmp?.rights,
-                                                createDate: oldXmp?.createDate, modifyDate: oldXmp?.modifyDate,
-                                                cameraModel: oldXmp?.cameraModel, lens: oldXmp?.lens,
-                                                focalLength: oldXmp?.focalLength, aperture: oldXmp?.aperture,
-                                                shutterSpeed: oldXmp?.shutterSpeed, iso: oldXmp?.iso,
-                                                exposureBias: oldXmp?.exposureBias
-                                            )
-                                            return PhotoItem(
-                                                id: p.id, path: p.path, xmp: newXmp,
-                                                dateCreated: p.dateCreated, toDelete: p.toDelete,
-                                                hasACR: p.hasACR, hasJPG: p.hasJPG,
-                                                inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
-                                                fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
-                                                cameraMake: p.cameraMake, cameraModel: p.cameraModel
-                                            )
-                                        }
-                                    },
-                                    onApprove: {
-                                        onApprove(photo)
-                                        updateLocalPhoto(photo) { p in
-                                            let oldXmp = p.xmp
-                                            let isApproved = oldXmp?.label == "Approved"
-                                            let newXmp = XmpMetadata(
-                                                label: isApproved ? nil : "Approved", rating: oldXmp?.rating,
-                                                creator: oldXmp?.creator, rights: oldXmp?.rights,
-                                                createDate: oldXmp?.createDate, modifyDate: oldXmp?.modifyDate,
-                                                cameraModel: oldXmp?.cameraModel, lens: oldXmp?.lens,
-                                                focalLength: oldXmp?.focalLength, aperture: oldXmp?.aperture,
-                                                shutterSpeed: oldXmp?.shutterSpeed, iso: oldXmp?.iso,
-                                                exposureBias: oldXmp?.exposureBias
-                                            )
-                                            return PhotoItem(
-                                                id: p.id, path: p.path, xmp: newXmp,
-                                                dateCreated: p.dateCreated, toDelete: p.toDelete,
-                                                hasACR: p.hasACR, hasJPG: p.hasJPG,
-                                                inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
-                                                fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
-                                                cameraMake: p.cameraMake, cameraModel: p.cameraModel
-                                            )
-                                        }
-                                    },
-                                    onMarkForDeletion: {
-                                        onMarkForDeletion(photo)
-                                        updateLocalPhoto(photo) { p in
-                                            return PhotoItem(
-                                                id: p.id, path: p.path, xmp: p.xmp,
-                                                dateCreated: p.dateCreated, toDelete: !p.toDelete,
-                                                hasACR: p.hasACR, hasJPG: p.hasJPG,
-                                                inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
-                                                fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
-                                                cameraMake: p.cameraMake, cameraModel: p.cameraModel
-                                            )
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                        .padding(hPad)
-                    }
+                photoGrid(in: geo)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color(NSColor.underPageBackgroundColor))
-                }
             }
         }
         .frame(minWidth: 600, minHeight: 500)
@@ -206,67 +117,19 @@ struct ReviewView: View {
             guard let photo = hoveredPhoto,
                   let rating = Int(String(press.characters)) else { return .ignored }
             onRatingChanged(photo, rating)
-            updateLocalPhoto(photo) { p in
-                let oldXmp = p.xmp
-                let newXmp = XmpMetadata(
-                    label: oldXmp?.label, rating: rating,
-                    creator: oldXmp?.creator, rights: oldXmp?.rights,
-                    createDate: oldXmp?.createDate, modifyDate: oldXmp?.modifyDate,
-                    cameraModel: oldXmp?.cameraModel, lens: oldXmp?.lens,
-                    focalLength: oldXmp?.focalLength, aperture: oldXmp?.aperture,
-                    shutterSpeed: oldXmp?.shutterSpeed, iso: oldXmp?.iso,
-                    exposureBias: oldXmp?.exposureBias
-                )
-                return PhotoItem(
-                    id: p.id, path: p.path, xmp: newXmp,
-                    dateCreated: p.dateCreated, toDelete: p.toDelete,
-                    hasACR: p.hasACR, hasJPG: p.hasJPG,
-                    inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
-                    fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
-                    cameraMake: p.cameraMake, cameraModel: p.cameraModel
-                )
-            }
+            applyRating(rating, to: photo)
             return .handled
         }
         .onKeyPress(characters: CharacterSet(charactersIn: "aA")) { _ in
             guard let photo = hoveredPhoto else { return .ignored }
             onApprove(photo)
-            updateLocalPhoto(photo) { p in
-                let oldXmp = p.xmp
-                let isApproved = oldXmp?.label == "Approved"
-                let newXmp = XmpMetadata(
-                    label: isApproved ? nil : "Approved", rating: oldXmp?.rating,
-                    creator: oldXmp?.creator, rights: oldXmp?.rights,
-                    createDate: oldXmp?.createDate, modifyDate: oldXmp?.modifyDate,
-                    cameraModel: oldXmp?.cameraModel, lens: oldXmp?.lens,
-                    focalLength: oldXmp?.focalLength, aperture: oldXmp?.aperture,
-                    shutterSpeed: oldXmp?.shutterSpeed, iso: oldXmp?.iso,
-                    exposureBias: oldXmp?.exposureBias
-                )
-                return PhotoItem(
-                    id: p.id, path: p.path, xmp: newXmp,
-                    dateCreated: p.dateCreated, toDelete: p.toDelete,
-                    hasACR: p.hasACR, hasJPG: p.hasJPG,
-                    inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
-                    fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
-                    cameraMake: p.cameraMake, cameraModel: p.cameraModel
-                )
-            }
+            applyApprove(to: photo)
             return .handled
         }
         .onKeyPress(characters: CharacterSet(charactersIn: "xX")) { _ in
             guard let photo = hoveredPhoto else { return .ignored }
             onMarkForDeletion(photo)
-            updateLocalPhoto(photo) { p in
-                return PhotoItem(
-                    id: p.id, path: p.path, xmp: p.xmp,
-                    dateCreated: p.dateCreated, toDelete: !p.toDelete,
-                    hasACR: p.hasACR, hasJPG: p.hasJPG,
-                    inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
-                    fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
-                    cameraMake: p.cameraMake, cameraModel: p.cameraModel
-                )
-            }
+            applyToggleDelete(to: photo)
             return .handled
         }
         .onAppear {
@@ -276,6 +139,51 @@ struct ReviewView: View {
             }
         }
         .onTapGesture { isFocused = true }
+    }
+
+    // MARK: - Grid
+
+    @ViewBuilder
+    private func photoGrid(in geo: GeometryProxy) -> some View {
+        let pad: CGFloat = 12
+        let spacing: CGFloat = 12
+        let cols = nrOfColumns
+        let cardW = (geo.size.width - pad * 2 - spacing * CGFloat(cols - 1)) / CGFloat(cols)
+        let rows = Int(ceil(Double(photos.count) / Double(cols)))
+        let cardH = (geo.size.height - pad * 2 - spacing * CGFloat(max(rows - 1, 0))) / CGFloat(max(rows, 1))
+        let columns = Array(repeating: GridItem(.fixed(cardW), spacing: spacing), count: cols)
+
+        LazyVGrid(columns: columns, spacing: spacing) {
+            ForEach(photos) { photo in
+                photoCard(for: photo)
+                    .frame(height: cardH)
+            }
+        }
+        .padding(pad)
+    }
+
+    @ViewBuilder
+    private func photoCard(for photo: PhotoItem) -> some View {
+        ReviewPhotoCard(
+            photo: photo,
+            isZoomed: isZoomed,
+            fullResImage: fullResImages[photo.path],
+            isFullResLoading: fullResLoading.contains(photo.path),
+            syncedMousePosition: $syncedMousePosition,
+            hoveredPhotoId: $hoveredPhotoId,
+            onRatingChanged: { rating in
+                onRatingChanged(photo, rating)
+                applyRating(rating, to: photo)
+            },
+            onApprove: {
+                onApprove(photo)
+                applyApprove(to: photo)
+            },
+            onMarkForDeletion: {
+                onMarkForDeletion(photo)
+                applyToggleDelete(to: photo)
+            }
+        )
     }
 
     // MARK: - Zoom
@@ -303,6 +211,66 @@ struct ReviewView: View {
     private func updateLocalPhoto(_ photo: PhotoItem, transform: (PhotoItem) -> PhotoItem) {
         if let idx = photos.firstIndex(where: { $0.id == photo.id }) {
             photos[idx] = transform(photos[idx])
+        }
+    }
+
+    private func applyRating(_ rating: Int, to photo: PhotoItem) {
+        updateLocalPhoto(photo) { p in
+            let oldXmp = p.xmp
+            let newXmp = XmpMetadata(
+                label: oldXmp?.label, rating: rating,
+                creator: oldXmp?.creator, rights: oldXmp?.rights,
+                createDate: oldXmp?.createDate, modifyDate: oldXmp?.modifyDate,
+                cameraModel: oldXmp?.cameraModel, lens: oldXmp?.lens,
+                focalLength: oldXmp?.focalLength, aperture: oldXmp?.aperture,
+                shutterSpeed: oldXmp?.shutterSpeed, iso: oldXmp?.iso,
+                exposureBias: oldXmp?.exposureBias
+            )
+            return PhotoItem(
+                id: p.id, path: p.path, xmp: newXmp,
+                dateCreated: p.dateCreated, toDelete: p.toDelete,
+                hasACR: p.hasACR, hasJPG: p.hasJPG,
+                inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
+                fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
+                cameraMake: p.cameraMake, cameraModel: p.cameraModel
+            )
+        }
+    }
+
+    private func applyApprove(to photo: PhotoItem) {
+        updateLocalPhoto(photo) { p in
+            let oldXmp = p.xmp
+            let isApproved = oldXmp?.label == "Approved"
+            let newXmp = XmpMetadata(
+                label: isApproved ? nil : "Approved", rating: oldXmp?.rating,
+                creator: oldXmp?.creator, rights: oldXmp?.rights,
+                createDate: oldXmp?.createDate, modifyDate: oldXmp?.modifyDate,
+                cameraModel: oldXmp?.cameraModel, lens: oldXmp?.lens,
+                focalLength: oldXmp?.focalLength, aperture: oldXmp?.aperture,
+                shutterSpeed: oldXmp?.shutterSpeed, iso: oldXmp?.iso,
+                exposureBias: oldXmp?.exposureBias
+            )
+            return PhotoItem(
+                id: p.id, path: p.path, xmp: newXmp,
+                dateCreated: p.dateCreated, toDelete: p.toDelete,
+                hasACR: p.hasACR, hasJPG: p.hasJPG,
+                inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
+                fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
+                cameraMake: p.cameraMake, cameraModel: p.cameraModel
+            )
+        }
+    }
+
+    private func applyToggleDelete(to photo: PhotoItem) {
+        updateLocalPhoto(photo) { p in
+            return PhotoItem(
+                id: p.id, path: p.path, xmp: p.xmp,
+                dateCreated: p.dateCreated, toDelete: !p.toDelete,
+                hasACR: p.hasACR, hasJPG: p.hasJPG,
+                inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
+                fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
+                cameraMake: p.cameraMake, cameraModel: p.cameraModel
+            )
         }
     }
 
