@@ -153,10 +153,13 @@ struct ReviewView: View {
         let cardH = (geo.size.height - pad * 2 - spacing * CGFloat(max(rows - 1, 0))) / CGFloat(max(rows, 1))
         let columns = Array(repeating: GridItem(.fixed(cardW), spacing: spacing), count: cols)
 
-        LazyVGrid(columns: columns, spacing: spacing) {
-            ForEach(photos) { photo in
-                photoCard(for: photo)
-                    .frame(height: cardH)
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: spacing) {
+                ForEach(photos) { photo in
+                    photoCard(for: photo)
+                        .frame(width: cardW)
+                    //                    .frame(height: cardH)
+                }
             }
         }
         .padding(pad)
