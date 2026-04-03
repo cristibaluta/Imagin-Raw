@@ -112,7 +112,9 @@ struct ContentView: View {
                     onRatingChanged: rg.onRatingChanged,
                     onApprove: rg.onApprove,
                     onMarkForDeletion: rg.onMarkForDeletion,
-                    onDismiss: { withAnimation(.easeInOut(duration: 0.2)) { reviewGroup = nil } }
+                    onDismiss: { withAnimation(.easeInOut(duration: 0.2)) { reviewGroup = nil } },
+                    totalGroups: rg.totalGroups,
+                    onNavigate: rg.onNavigate
                 )
                 .transition(.opacity)
                 .zIndex(100)
