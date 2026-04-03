@@ -172,6 +172,12 @@ struct ThumbGridView: View {
                     guard photo.toDelete else { return nil }
                     let marked = viewModel.getPhotosMarkedForDeletion()
                     return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
+                },
+                onReviewSelected: { rightClickedPhoto in
+                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
+                        ? viewModel.getSelectedPhotosForBulkAction()
+                        : [rightClickedPhoto]
+                    reviewGroup = buildReviewGroupItemFromPhotos(photos)
                 }
             ),
             duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
@@ -184,7 +190,8 @@ struct ThumbGridView: View {
                     event,
                     scrollTo: { photoId in scrollToPhotoId = photoId },
                     openPhotos: { photos in externalAppManager.openPhotos(photos) },
-                    onToggleSidebar: { onToggleSidebar?() }
+                    onToggleSidebar: { onToggleSidebar?() },
+                    onReviewSelected: { photos in reviewGroup = buildReviewGroupItemFromPhotos(photos) }
                 )
             }
         )
@@ -246,6 +253,19 @@ struct ThumbGridView: View {
                 guard newIndex >= 0, newIndex < groups.count else { return }
                 reviewGroup = buildReviewGroupItem(group: groups[newIndex], index: newIndex)
             }
+        )
+    }
+
+    private func buildReviewGroupItemFromPhotos(_ photos: [PhotoItem]) -> ReviewGroupItem {
+        let group = DuplicateGroup(photos: photos, distance: 0)
+        return ReviewGroupItem(
+            group: group,
+            index: 0,
+            totalGroups: 1,
+            onRatingChanged: { photo, rating in viewModel.applyRating(rating, to: [photo]) },
+            onApprove: { photo in viewModel.applyLabel("Approved", to: [photo]) },
+            onMarkForDeletion: { photo in viewModel.toggleDeleteState(for: [photo]) },
+            onNavigate: { _ in }
         )
     }
 }

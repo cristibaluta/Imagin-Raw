@@ -18,6 +18,7 @@ struct ThumbCellCallbacks {
     let onCopyTo: (PhotoItem) -> Void
     let onRenameTo: (PhotoItem) -> Void
     let onMoveAllMarkedToTrash: (PhotoItem) -> (count: Int, action: () -> Void)?
+    let onReviewSelected: (PhotoItem) -> Void
 }
 
 // MARK: - Section Header

@@ -319,6 +319,13 @@ final class ThumbCollectionItem: NSCollectionViewItem {
 
     private func makeContextMenu(for photo: PhotoItem) -> NSMenu {
         let menu = NSMenu()
+
+        // Review — resolves selected photos at action time
+        let review = NSMenuItem(title: "Review Photos", action: #selector(menuReview), keyEquivalent: "")
+        review.image = NSImage(systemSymbolName: "eye", accessibilityDescription: nil)
+        menu.addItem(review)
+        menu.addItem(.separator())
+
         let finder = NSMenuItem(title: "Show in Finder", action: #selector(menuShowInFinder), keyEquivalent: "")
         finder.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
         menu.addItem(finder)
@@ -339,6 +346,11 @@ final class ThumbCollectionItem: NSCollectionViewItem {
             menu.addItem(all)
         }
         return menu
+    }
+
+    @objc private func menuReview() {
+        guard let p = currentPhoto else { return }
+        callbacks?.onReviewSelected(p)
     }
 
     @objc private func menuShowInFinder() {

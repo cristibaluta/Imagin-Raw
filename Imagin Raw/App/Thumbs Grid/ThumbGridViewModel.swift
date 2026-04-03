@@ -568,7 +568,8 @@ class ThumbGridViewModel: ObservableObject {
     func handleKeyEvent(_ event: NSEvent,
                         scrollTo: (UUID) -> Void,
                         openPhotos: ([PhotoItem]) -> Void,
-                        onToggleSidebar: (() -> Void)?) -> Bool {
+                        onToggleSidebar: (() -> Void)?,
+                        onReviewSelected: (([PhotoItem]) -> Void)? = nil) -> Bool {
         let chars = event.charactersIgnoringModifiers ?? ""
         let key: KeyEquivalent
         switch event.keyCode {
@@ -577,6 +578,7 @@ class ThumbGridViewModel: ObservableObject {
         case 125: key = .downArrow
         case 126: key = .upArrow
         case 36, 76: key = .return
+        case 49: key = KeyEquivalent(" ")
         default:
             guard let first = chars.first else { return false }
             key = KeyEquivalent(first)
@@ -600,6 +602,10 @@ class ThumbGridViewModel: ObservableObject {
         case .downArrow:  newIndex = min(filteredPhotos.count - 1, currentIndex + gridType.columnCount)
         case .return:
             handleReturnKey(openPhotos: openPhotos)
+            return true
+        case KeyEquivalent(" "):
+            let photos = getSelectedPhotosForBulkAction()
+            if !photos.isEmpty { onReviewSelected?(photos) }
             return true
         default:
             let mods = event.modifierFlags
