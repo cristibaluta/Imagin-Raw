@@ -15,6 +15,8 @@ struct ReviewView: View {
     let onApprove: (PhotoItem) -> Void
     let onMarkForDeletion: (PhotoItem) -> Void
     let onDismiss: () -> Void
+    let totalGroups: Int
+    let onNavigate: (Int) -> Void
 
     // Live photo state — updated when actions are taken
     @State private var photos: [PhotoItem]
@@ -36,13 +38,17 @@ struct ReviewView: View {
          onRatingChanged: @escaping (PhotoItem, Int) -> Void,
          onApprove: @escaping (PhotoItem) -> Void,
          onMarkForDeletion: @escaping (PhotoItem) -> Void,
-         onDismiss: @escaping () -> Void) {
+         onDismiss: @escaping () -> Void,
+         totalGroups: Int,
+         onNavigate: @escaping (Int) -> Void) {
         self.group = group
         self.groupIndex = groupIndex
         self.onRatingChanged = onRatingChanged
         self.onApprove = onApprove
         self.onMarkForDeletion = onMarkForDeletion
         self.onDismiss = onDismiss
+        self.totalGroups = totalGroups
+        self.onNavigate = onNavigate
         _photos = State(initialValue: group.photos)
     }
 
@@ -76,9 +82,27 @@ struct ReviewView: View {
 
                 Spacer()
 
-                Text("Group \(groupIndex + 1) — \(similarity)% similar")
-                    .font(.callout)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 8) {
+                    Button(action: { onNavigate(groupIndex - 1) }) {
+                        Image(systemName: "chevron.left")
+                            .font(.callout.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(groupIndex > 0 ? .primary : .secondary.opacity(0.3))
+                    .disabled(groupIndex <= 0)
+
+                    Text("Group \(groupIndex + 1)/\(totalGroups) — \(similarity)% similar")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+
+                    Button(action: { onNavigate(groupIndex + 1) }) {
+                        Image(systemName: "chevron.right")
+                            .font(.callout.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(groupIndex < totalGroups - 1 ? .primary : .secondary.opacity(0.3))
+                    .disabled(groupIndex >= totalGroups - 1)
+                }
 
                 Spacer()
 
@@ -130,6 +154,16 @@ struct ReviewView: View {
             guard let photo = hoveredPhoto else { return .ignored }
             onMarkForDeletion(photo)
             applyToggleDelete(to: photo)
+            return .handled
+        }
+        .onKeyPress(.leftArrow) {
+            guard groupIndex > 0 else { return .ignored }
+            onNavigate(groupIndex - 1)
+            return .handled
+        }
+        .onKeyPress(.rightArrow) {
+            guard groupIndex < totalGroups - 1 else { return .ignored }
+            onNavigate(groupIndex + 1)
             return .handled
         }
         .onAppear {

@@ -11,9 +11,11 @@ struct ReviewGroupItem: Identifiable {
     let id = UUID()
     let group: DuplicateGroup
     let index: Int
+    let totalGroups: Int
     let onRatingChanged: (PhotoItem, Int) -> Void
     let onApprove: (PhotoItem) -> Void
     let onMarkForDeletion: (PhotoItem) -> Void
+    let onNavigate: (Int) -> Void
 }
 
 private struct ReviewGroupItemID: Identifiable {
@@ -174,13 +176,7 @@ struct ThumbGridView: View {
             ),
             duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
             onReview: { group, index in
-                reviewGroup = ReviewGroupItem(
-                    group: group,
-                    index: index,
-                    onRatingChanged: { photo, rating in viewModel.applyRating(rating, to: [photo]) },
-                    onApprove: { photo in viewModel.applyLabel("Approved", to: [photo]) },
-                    onMarkForDeletion: { photo in viewModel.toggleDeleteState(for: [photo]) }
-                )
+                reviewGroup = buildReviewGroupItem(group: group, index: index)
             },
             scrollToPhotoId: $scrollToPhotoId,
             onKeyPress: { event in
@@ -235,6 +231,22 @@ struct ThumbGridView: View {
         } else {
             externalAppManager.openPhotos([photo])
         }
+    }
+
+    private func buildReviewGroupItem(group: DuplicateGroup, index: Int) -> ReviewGroupItem {
+        let groups = viewModel.duplicateScanResult?.groups ?? []
+        return ReviewGroupItem(
+            group: group,
+            index: index,
+            totalGroups: groups.count,
+            onRatingChanged: { photo, rating in viewModel.applyRating(rating, to: [photo]) },
+            onApprove: { photo in viewModel.applyLabel("Approved", to: [photo]) },
+            onMarkForDeletion: { photo in viewModel.toggleDeleteState(for: [photo]) },
+            onNavigate: { newIndex in
+                guard newIndex >= 0, newIndex < groups.count else { return }
+                reviewGroup = buildReviewGroupItem(group: groups[newIndex], index: newIndex)
+            }
+        )
     }
 }
 
