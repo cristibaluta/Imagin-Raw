@@ -116,6 +116,7 @@ struct ContentView: View {
                     totalGroups: rg.totalGroups,
                     onNavigate: rg.onNavigate
                 )
+                .id(rg.group.id)
                 .transition(.opacity)
                 .zIndex(100)
             }
