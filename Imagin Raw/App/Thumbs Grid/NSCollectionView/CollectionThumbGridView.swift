@@ -106,6 +106,13 @@ private final class KeyableCollectionView: NSCollectionView {
     override func keyDown(with event: NSEvent) {
         if onKeyDown?(event) != true { super.keyDown(with: event) }
     }
+    // NSCollectionView handles Cmd+A via performKeyEquivalent (before keyDown),
+    // which would update its internal selection model but bypass our viewModel.
+    // Intercept it here and route through our handler instead.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if onKeyDown?(event) == true { return true }
+        return super.performKeyEquivalent(with: event)
+    }
 }
 
 // MARK: - SwiftUI Wrapper
