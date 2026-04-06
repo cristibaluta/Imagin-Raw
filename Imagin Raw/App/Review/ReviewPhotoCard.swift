@@ -66,7 +66,7 @@ struct ReviewPhotoCard: View {
                     Image(nsImage: img)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .transition(.opacity)
+//                        .transition(.opacity)
                 } else if isLoading {
                     ProgressView()
                         .progressViewStyle(.circular)
