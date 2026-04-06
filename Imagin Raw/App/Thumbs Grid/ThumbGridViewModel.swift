@@ -609,9 +609,14 @@ class ThumbGridViewModel: ObservableObject {
             if !photos.isEmpty { onReviewSelected?(photos) }
             return true
         case .delete:
-            guard event.modifierFlags.contains(.command) else { return false }
             let photos = getSelectedPhotosForBulkAction()
-            if !photos.isEmpty { movePhotosToTrash(photos) }
+            if !photos.isEmpty {
+                if event.modifierFlags.contains(.command) {
+                    movePhotosToTrash(photos)
+                } else {
+                    toggleDeleteState(for: photos)
+                }
+            }
             return true
         default:
             let mods = event.modifierFlags
