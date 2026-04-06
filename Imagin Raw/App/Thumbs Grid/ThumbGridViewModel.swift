@@ -615,6 +615,8 @@ class ThumbGridViewModel: ObservableObject {
             if chars == "g" || chars == "G" { toggleGridType(); return true }
             let photos = getSelectedPhotosForBulkAction()
             guard !photos.isEmpty else { return false }
+            // Approve
+            if chars == "a" || chars == "A" { applyLabel("Approved", to: photos); return true }
             // Ratings 1-5 (not 0, which is reserved for "To Do" label via labelMap)
             if let rating = Int(chars), rating >= 1 && rating <= 5 { applyRating(rating, to: photos); return true }
             // Toggle delete
