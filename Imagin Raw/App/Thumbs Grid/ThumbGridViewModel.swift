@@ -579,6 +579,7 @@ class ThumbGridViewModel: ObservableObject {
         case 126: key = .upArrow
         case 36, 76: key = .return
         case 49: key = KeyEquivalent(" ")
+        case 51: key = .delete
         default:
             guard let first = chars.first else { return false }
             key = KeyEquivalent(first)
@@ -606,6 +607,11 @@ class ThumbGridViewModel: ObservableObject {
         case KeyEquivalent(" "):
             let photos = getSelectedPhotosForBulkAction()
             if !photos.isEmpty { onReviewSelected?(photos) }
+            return true
+        case .delete:
+            guard event.modifierFlags.contains(.command) else { return false }
+            let photos = getSelectedPhotosForBulkAction()
+            if !photos.isEmpty { movePhotosToTrash(photos) }
             return true
         default:
             let mods = event.modifierFlags
