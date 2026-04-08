@@ -266,8 +266,8 @@ struct CollectionThumbGridView: NSViewRepresentable {
             let layout = NSCollectionViewFlowLayout()
             layout.itemSize = NSSize(width: itemSize, height: cellHeight)
             layout.minimumInteritemSpacing = 3
-            layout.minimumLineSpacing = 3
-            layout.sectionInset = NSEdgeInsets(top: 3, left: 3, bottom: 3, right: 3)
+            layout.minimumLineSpacing = 6
+            layout.sectionInset = NSEdgeInsets(top: 6, left: 3, bottom: 6, right: 3)
             if headerHeight > 0 {
                 layout.headerReferenceSize = NSSize(width: 0, height: headerHeight)
             }
