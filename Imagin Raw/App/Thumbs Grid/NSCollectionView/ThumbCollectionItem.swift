@@ -181,7 +181,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         thumbView.frame = CGRect(x: 0, y: thumbY, width: w, height: size)
 
         let imageRect = actualImageRect(in: thumbView.frame)
-        selectionBorder.frame = imageRect
+        selectionBorder.frame = view.bounds
         let iconSize: CGFloat = 24
         trashContainer.frame = CGRect(x: imageRect.midX - iconSize/2,
                                       y: imageRect.midY - iconSize/2,
