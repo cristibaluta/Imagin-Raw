@@ -265,9 +265,9 @@ struct CollectionThumbGridView: NSViewRepresentable {
         func makeLayout(itemSize: CGFloat, cellHeight: CGFloat, headerHeight: CGFloat = 0) -> NSCollectionViewFlowLayout {
             let layout = NSCollectionViewFlowLayout()
             layout.itemSize = NSSize(width: itemSize, height: cellHeight)
-            layout.minimumInteritemSpacing = 0
-            layout.minimumLineSpacing = 8
-            layout.sectionInset = NSEdgeInsets(top: 8, left: 12, bottom: 16, right: 12)
+            layout.minimumInteritemSpacing = 3
+            layout.minimumLineSpacing = 3
+            layout.sectionInset = NSEdgeInsets(top: 3, left: 3, bottom: 3, right: 3)
             if headerHeight > 0 {
                 layout.headerReferenceSize = NSSize(width: 0, height: headerHeight)
             }

@@ -79,7 +79,7 @@ struct ThumbGridView: View {
 //                useCollectionView.toggle()
 //            })
         }
-        .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth+16)
+        .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth)
         .sheet(item: $copyToViewModel) { vm in
             CopyToView(viewModel: vm)
                 .environmentObject(filesModel)

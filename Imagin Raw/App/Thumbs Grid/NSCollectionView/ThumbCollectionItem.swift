@@ -133,6 +133,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     }
 
     private func configureLayers() {
+        view.layer?.backgroundColor = NSColor(white: 0.15, alpha: 1).cgColor
         selectionBorder.layer?.borderColor = NSColor.systemBlue.cgColor
         selectionBorder.layer?.borderWidth = selectionBorder.isHidden ? 0 : 2
 
