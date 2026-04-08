@@ -178,7 +178,8 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         let starH: CGFloat = photo.isRawFile ? 14 : 0
         let labelY = thumbY - labelH - 2
 
-        thumbView.frame = CGRect(x: 0, y: thumbY, width: w, height: size)
+        let imgPad: CGFloat = 2
+        thumbView.frame = CGRect(x: imgPad, y: thumbY, width: w - imgPad * 2, height: size - imgPad)
 
         let imageRect = actualImageRect(in: thumbView.frame)
         selectionBorder.frame = view.bounds
