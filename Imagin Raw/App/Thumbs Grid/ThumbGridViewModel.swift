@@ -306,13 +306,15 @@ class ThumbGridViewModel: ObservableObject {
 
     /// Sidebar ideal width + detail panel minimum width
     private static let sidebarWidth: CGFloat = 200
-    private static let previewMinWidth: CGFloat = 200
+    private static let previewMinWidth: CGFloat = 280
     private static let gap: CGFloat = 3
 
     /// For .large: how many thumb columns fit in the available space between sidebar and preview panel.
     /// For .small: fixed 3 columns.
     var effectiveColumnCount: Int {
-        guard gridType == .large else { return gridType.columnCount }
+        guard gridType == .large else {
+            return gridType.columnCount
+        }
         let usedWidth = (isSidebarCollapsed ? 0 : Self.sidebarWidth) + Self.previewMinWidth
         let available = windowWidth - usedWidth
         let thumbSize = gridType.thumbSize

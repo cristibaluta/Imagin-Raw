@@ -165,7 +165,7 @@ struct ContentView: View {
         }
         detail: {
             detailView
-            .navigationSplitViewColumnWidth(min: 200, ideal: 600)
+            .navigationSplitViewColumnWidth(min: 280, ideal: 600)
         }
         .environmentObject(filesModel)
         .environmentObject(externalAppManager)
