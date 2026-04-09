@@ -133,12 +133,57 @@ struct LargePreviewView: View {
                 #endif
             }
 
-            // EXIF bottom bar
+            // EXIF bottom bar or vertical column
             if let exifInfo = model.exifInfo {
-                PreviewBottomBar(photo: photo,
-                                 exifInfo: exifInfo,
-                                 model: model,
-                                 showExportPanel: $showExportPanel)
+                if gridType == .fourColumns {
+                    ExifColumnView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(IRColor.controlBackgroundColor))
+                    HStack(spacing: 0) {
+                        Spacer()
+                        Rectangle()
+                            .fill(Color.secondary.opacity(0.25))
+                            .frame(width: 1, height: 14)
+                        Button(action: {
+                            if model.fullResImage != nil { model.exitZoom() }
+                            else { model.loadFullResolution() }
+                        }) {
+                            ZStack {
+                                if model.isLoadingFullRes {
+                                    ProgressView().controlSize(.small).frame(width: 14, height: 14)
+                                } else {
+                                    Image(systemName: model.fullResImage != nil ? "minus.magnifyingglass" : "plus.magnifyingglass")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(model.fullResImage != nil ? .accentColor : .secondary)
+                                }
+                            }
+                            .frame(width: 20, height: 20)
+                            .padding(.horizontal, 10)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .disabled(model.isLoadingFullRes)
+                        .help(model.fullResImage != nil ? "Exit zoom (Z)" : "Zoom to 100% (Z)")
+                        Rectangle()
+                            .fill(Color.secondary.opacity(0.25))
+                            .frame(width: 1, height: 14)
+                        Button(action: { showExportPanel.toggle() }) {
+                            Image(systemName: "rectangle.center.inset.filled")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(showExportPanel ? .accentColor : .secondary)
+                                .padding(.trailing, 12)
+                                .padding(.leading, 10)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .help("Export: add borders / change canvas")
+                    }
+                    .frame(height: 40)
+                    .background(Color(IRColor.controlBackgroundColor))
+                } else {
+                    PreviewBottomBar(photo: photo,
+                                     exifInfo: exifInfo,
+                                     model: model,
+                                     showExportPanel: $showExportPanel)
+                }
             }
         }
         .onAppear {
