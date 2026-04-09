@@ -55,7 +55,7 @@ enum AppPreference: String, RCPreferencesProtocol {
         case .expandedFolders:          return Data()
         case .selectedFolder:           return Data()
         case .sortOption:               return "name"
-        case .gridType:                 return "threeColumns"
+        case .gridType:                 return "SmallGrid"
         case .similarityMode:           return 65
         case .selectedExternalApp:      return ""
         case .userFolderBookmarks:      return Data()

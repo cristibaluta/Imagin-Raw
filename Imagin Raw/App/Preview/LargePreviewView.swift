@@ -19,7 +19,7 @@ struct Layout {
 struct LargePreviewView: View {
     let photo: PhotoItem
     @StateObject private var model = LargePreviewViewModel()
-    @State private var gridType: ThumbGridViewModel.GridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .threeColumns
+    @State private var gridType: ThumbGridViewModel.GridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
     @State private var showExportPanel = false
     @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .r4x5
     @State private var exportPadding: Double = appPrefs.get(.exportPadding)
@@ -35,7 +35,7 @@ struct LargePreviewView: View {
     }
 
     private var effectiveAlignToTopLeft: Bool {
-        gridType == .fourColumns ? true : model.alignToTopLeft
+        gridType == .large ? true : model.alignToTopLeft
     }
 
     @ViewBuilder
@@ -86,7 +86,7 @@ struct LargePreviewView: View {
                     // Alignment button
                     VStack {
                         HStack {
-                            if !showExportPanel && model.fullResImage == nil && gridType != .fourColumns {
+                            if !showExportPanel && model.fullResImage == nil && gridType != .large {
                                 Button(action: { model.toggleAlignment() }) {
                                     Image(systemName: effectiveAlignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
                                         .font(.title2)
@@ -135,7 +135,7 @@ struct LargePreviewView: View {
 
             // EXIF bottom bar or vertical column
             if let exifInfo = model.exifInfo {
-                if gridType == .fourColumns {
+                if gridType == .large {
                     ExifColumnView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color(IRColor.controlBackgroundColor))
@@ -210,7 +210,7 @@ struct LargePreviewView: View {
             appPrefs.set(newVal.rawValue, forKey: .exportAlignment)
         }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
-            gridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .threeColumns
+            gridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
         }
     }
 }

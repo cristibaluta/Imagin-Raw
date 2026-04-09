@@ -16,7 +16,7 @@ class ThumbGridViewModel: ObservableObject {
     @Published var selectedLabels: Set<String> = []
     @Published var selectedRatings: Set<Int> = [] // Rating filters (1-5)
     @Published var sortOption: SortOption = .name
-    @Published var gridType: GridType = .threeColumns
+    @Published var gridType: GridType = .small
     @Published var isSidebarCollapsed: Bool = false
     @Published var lastSelectedIndex: Int?
     @Published var cachingQueueCount: Int = 0
@@ -48,49 +48,43 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     enum GridType: String, CaseIterable, Identifiable {
-        case twoColumns = "TwoColumns"
-        case threeColumns = "ThreeColumns"
-        case fourColumns = "FourColumns"
+        case small = "SmallGrid"
+        case large = "LargeGrid"
 
         var id: String { self.rawValue }
 
         var columnCount: Int {
             switch self {
-            case .twoColumns: return 2
-            case .threeColumns: return 3
-            case .fourColumns: return 4
+            case .small: return 3
+            case .large: return 4
             }
         }
 
         var thumbSize: CGFloat {
             switch self {
-            case .twoColumns: return 110
-            case .threeColumns: return 110
-            case .fourColumns: return 210
+            case .small: return 110
+            case .large: return 210
             }
         }
 
         var cellHeight: CGFloat {
             switch self {
-            case .twoColumns: return 150
-            case .threeColumns: return 150
-            case .fourColumns: return 250
+            case .small: return 150
+            case .large: return 250
             }
         }
 
         var displayName: String {
             switch self {
-            case .twoColumns: return "2 Columns (100px)"
-            case .threeColumns: return "3 Columns (100px)"
-            case .fourColumns: return "4 Columns (200px)"
+            case .small: return "Small"
+            case .large: return "Large"
             }
         }
 
         var iconName: String {
             switch self {
-            case .twoColumns: return "square.grid.2x2"
-            case .threeColumns: return "square.grid.3x3"
-            case .fourColumns: return "square.grid.4x4.fill"
+            case .small: return "square.grid.3x3"
+            case .large: return "square.grid.4x4.fill"
             }
         }
     }
@@ -311,7 +305,7 @@ class ThumbGridViewModel: ObservableObject {
 
     /// The actual number of columns rendered — 5 when sidebar is collapsed and gridType is .fourColumns
     var effectiveColumnCount: Int {
-        if isSidebarCollapsed && gridType == .fourColumns { return 5 }
+        if isSidebarCollapsed && gridType == .large { return 5 }
         return gridType.columnCount
     }
 
@@ -814,7 +808,7 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func toggleGridType() {
-        gridType = (gridType == .threeColumns) ? .fourColumns : .threeColumns
+        gridType = (gridType == .small) ? .large : .small
         saveGridType()
     }
 
