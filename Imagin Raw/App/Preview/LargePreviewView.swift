@@ -19,6 +19,7 @@ struct Layout {
 struct LargePreviewView: View {
     let photo: PhotoItem
     @StateObject private var model = LargePreviewViewModel()
+    @State private var gridType: ThumbGridViewModel.GridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .threeColumns
     @State private var showExportPanel = false
     @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .r4x5
     @State private var exportPadding: Double = appPrefs.get(.exportPadding)
@@ -31,6 +32,10 @@ struct LargePreviewView: View {
         } else {
             photoPreviewBody
         }
+    }
+
+    private var effectiveAlignToTopLeft: Bool {
+        gridType == .fourColumns ? true : model.alignToTopLeft
     }
 
     @ViewBuilder
@@ -49,9 +54,9 @@ struct LargePreviewView: View {
                         #endif
                     } else if let nsImage = model.preview {
                         HStack {
-                            if !model.alignToTopLeft { Spacer(minLength: 0) }
+                            if !effectiveAlignToTopLeft { Spacer(minLength: 0) }
                             VStack {
-                                if !model.alignToTopLeft { Spacer(minLength: 0) }
+                                if !effectiveAlignToTopLeft { Spacer(minLength: 0) }
                                 if showExportPanel {
                                     ExportCanvasPreview(
                                         image: nsImage,
@@ -81,15 +86,15 @@ struct LargePreviewView: View {
                     // Alignment button
                     VStack {
                         HStack {
-                            if !showExportPanel && model.fullResImage == nil {
+                            if !showExportPanel && model.fullResImage == nil && gridType != .fourColumns {
                                 Button(action: { model.toggleAlignment() }) {
-                                    Image(systemName: model.alignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
+                                    Image(systemName: effectiveAlignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
                                         .font(.title2)
-                                        .foregroundColor(model.alignToTopLeft ? .white.opacity(0.4) : .gray)
+                                        .foregroundColor(effectiveAlignToTopLeft ? .white.opacity(0.4) : .gray)
                                         .padding()
                                 }
                                 .buttonStyle(PlainButtonStyle())
-                                .help(model.alignToTopLeft ? "Center image" : "Align to top-left")
+                                .help(effectiveAlignToTopLeft ? "Center image" : "Align to top-left")
                             }
                             Spacer()
                         }
@@ -158,6 +163,9 @@ struct LargePreviewView: View {
         }
         .onChange(of: exportAlignment) { _, newVal in
             appPrefs.set(newVal.rawValue, forKey: .exportAlignment)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            gridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .threeColumns
         }
     }
 }
