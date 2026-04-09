@@ -26,6 +26,7 @@ struct ContentView: View {
     @SceneStorage("columnVisibility") private var columnVisibilityStorage: String = "all"
     @State private var showFolderPopover = false
     @State private var isSidebarCollapsed = false
+    @State private var windowWidth: CGFloat = 1200
     @State private var openSelectedPhotosCallback: (() -> Void)?
     @State private var contentColumnWidth: CGFloat = 450
     @State private var reviewGroup: ReviewGroupItem? = nil
@@ -71,6 +72,7 @@ struct ContentView: View {
     }
 
     var body: some View {
+        GeometryReader { geo in
         ZStack {
             // Main app content
             Group {
@@ -97,7 +99,7 @@ struct ContentView: View {
                             isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
                         }
                         #if os(macOS)
-                        .frame(minWidth: 1200, minHeight: 800)
+                        .frame(minWidth: 800, minHeight: 800)
                         .focusable()
                         .focusEffectDisabled()
                         #endif
@@ -122,6 +124,9 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onChange(of: geo.size.width) { _, w in windowWidth = w }
+        .onAppear { windowWidth = geo.size.width }
+        } // GeometryReader
     }
 
     private var navigationTitle: String {
@@ -160,7 +165,7 @@ struct ContentView: View {
         }
         detail: {
             detailView
-            .navigationSplitViewColumnWidth(min: 400, ideal: 600)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 600)
         }
         .environmentObject(filesModel)
         .environmentObject(externalAppManager)
@@ -208,7 +213,7 @@ struct ContentView: View {
                     columnVisibilityStorage = "doubleColumn"
                 }
             },
-            isSidebarCollapsed: isSidebarCollapsed,
+            windowWidth: windowWidth,
             openSelectedPhotosCallback: $openSelectedPhotosCallback,
             reviewGroup: $reviewGroup
         )

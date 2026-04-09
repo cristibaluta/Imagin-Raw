@@ -17,7 +17,7 @@ class ThumbGridViewModel: ObservableObject {
     @Published var selectedRatings: Set<Int> = [] // Rating filters (1-5)
     @Published var sortOption: SortOption = .name
     @Published var gridType: GridType = .small
-    @Published var isSidebarCollapsed: Bool = false
+    @Published var windowWidth: CGFloat = 1200
     @Published var lastSelectedIndex: Int?
     @Published var cachingQueueCount: Int = 0
     @Published var isLoadingMetadata: Bool = false
@@ -303,10 +303,19 @@ class ThumbGridViewModel: ObservableObject {
         return result
     }
 
-    /// The actual number of columns rendered — 5 when sidebar is collapsed and gridType is .fourColumns
+    /// Sidebar ideal width + detail panel minimum width
+    private static let sidebarWidth: CGFloat = 200
+    private static let previewMinWidth: CGFloat = 200
+    private static let gap: CGFloat = 3
+
+    /// For .large: how many thumb columns fit in the available space between sidebar and preview panel.
+    /// For .small: fixed 3 columns.
     var effectiveColumnCount: Int {
-        if isSidebarCollapsed && gridType == .large { return 5 }
-        return gridType.columnCount
+        guard gridType == .large else { return gridType.columnCount }
+        let available = windowWidth - Self.sidebarWidth - Self.previewMinWidth
+        let thumbSize = gridType.thumbSize
+        let cols = Int(floor((available + Self.gap) / (thumbSize + Self.gap)))
+        return max(2, cols)
     }
 
     var dynamicColumns: [GridItem] {
@@ -317,8 +326,7 @@ class ThumbGridViewModel: ObservableObject {
     var gridWidth: CGFloat {
         let cols = CGFloat(effectiveColumnCount)
         let thumbSize = gridType.thumbSize
-        let gap: CGFloat = 3
-        return cols * thumbSize + (cols + 1) * gap
+        return cols * thumbSize + (cols + 1) * Self.gap
     }
 
     // MARK: - Caching Progress
