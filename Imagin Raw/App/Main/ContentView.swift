@@ -208,6 +208,7 @@ struct ContentView: View {
                     columnVisibilityStorage = "doubleColumn"
                 }
             },
+            isSidebarCollapsed: isSidebarCollapsed,
             openSelectedPhotosCallback: $openSelectedPhotosCallback,
             reviewGroup: $reviewGroup
         )

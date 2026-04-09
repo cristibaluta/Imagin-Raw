@@ -31,6 +31,7 @@ struct ThumbGridView: View {
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
     let onEnterReviewMode: (() -> Void)?
     let onToggleSidebar: (() -> Void)?
+    let isSidebarCollapsed: Bool
 //    @FocusState private var isFocused: Bool
     @Binding var openSelectedPhotosCallback: (() -> Void)?
 
@@ -47,6 +48,7 @@ struct ThumbGridView: View {
          onOpenSelectedPhotos: (([PhotoItem]) -> Void)?,
          onEnterReviewMode: (() -> Void)?,
          onToggleSidebar: (() -> Void)? = nil,
+         isSidebarCollapsed: Bool = false,
          openSelectedPhotosCallback: Binding<(() -> Void)?>,
          reviewGroup: Binding<ReviewGroupItem?>) {
 
@@ -55,6 +57,7 @@ struct ThumbGridView: View {
         self.onOpenSelectedPhotos = onOpenSelectedPhotos
         self.onEnterReviewMode = onEnterReviewMode
         self.onToggleSidebar = onToggleSidebar
+        self.isSidebarCollapsed = isSidebarCollapsed
         self._openSelectedPhotosCallback = openSelectedPhotosCallback
         self._reviewGroup = reviewGroup
     }
@@ -129,6 +132,12 @@ struct ThumbGridView: View {
             if newValue != nil {
                 viewModel.reloadPhotos()
             }
+        }
+        .onChange(of: isSidebarCollapsed) { _, collapsed in
+            viewModel.isSidebarCollapsed = collapsed
+        }
+        .onAppear {
+            viewModel.isSidebarCollapsed = isSidebarCollapsed
         }
     }
 

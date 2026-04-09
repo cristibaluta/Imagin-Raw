@@ -17,6 +17,7 @@ class ThumbGridViewModel: ObservableObject {
     @Published var selectedRatings: Set<Int> = [] // Rating filters (1-5)
     @Published var sortOption: SortOption = .name
     @Published var gridType: GridType = .threeColumns
+    @Published var isSidebarCollapsed: Bool = false
     @Published var lastSelectedIndex: Int?
     @Published var cachingQueueCount: Int = 0
     @Published var isLoadingMetadata: Bool = false
@@ -308,17 +309,21 @@ class ThumbGridViewModel: ObservableObject {
         return result
     }
 
+    /// The actual number of columns rendered — 5 when sidebar is collapsed and gridType is .fourColumns
+    var effectiveColumnCount: Int {
+        if isSidebarCollapsed && gridType == .fourColumns { return 5 }
+        return gridType.columnCount
+    }
+
     var dynamicColumns: [GridItem] {
-        let columnCount = gridType.columnCount
         let spacing: CGFloat = 8
-        return Array(repeating: GridItem(.flexible(minimum: gridType.thumbSize), spacing: spacing), count: columnCount)
+        return Array(repeating: GridItem(.flexible(minimum: gridType.thumbSize), spacing: spacing), count: effectiveColumnCount)
     }
 
     var gridWidth: CGFloat {
-        let cols = CGFloat(gridType.columnCount)
+        let cols = CGFloat(effectiveColumnCount)
         let thumbSize = gridType.thumbSize
         let gap: CGFloat = 3
-        // left(3) + col * thumbSize + (col-1) gaps between + right(3)
         return cols * thumbSize + (cols + 1) * gap
     }
 
