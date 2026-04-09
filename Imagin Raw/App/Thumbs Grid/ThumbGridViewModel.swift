@@ -18,6 +18,7 @@ class ThumbGridViewModel: ObservableObject {
     @Published var sortOption: SortOption = .name
     @Published var gridType: GridType = .small
     @Published var windowWidth: CGFloat = 1200
+    @Published var isSidebarCollapsed: Bool = false
     @Published var lastSelectedIndex: Int?
     @Published var cachingQueueCount: Int = 0
     @Published var isLoadingMetadata: Bool = false
@@ -312,7 +313,8 @@ class ThumbGridViewModel: ObservableObject {
     /// For .small: fixed 3 columns.
     var effectiveColumnCount: Int {
         guard gridType == .large else { return gridType.columnCount }
-        let available = windowWidth - Self.sidebarWidth - Self.previewMinWidth
+        let usedWidth = (isSidebarCollapsed ? 0 : Self.sidebarWidth) + Self.previewMinWidth
+        let available = windowWidth - usedWidth
         let thumbSize = gridType.thumbSize
         let cols = Int(floor((available + Self.gap) / (thumbSize + Self.gap)))
         return max(2, cols)

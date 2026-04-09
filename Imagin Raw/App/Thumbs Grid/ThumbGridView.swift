@@ -31,6 +31,7 @@ struct ThumbGridView: View {
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
     let onEnterReviewMode: (() -> Void)?
     let onToggleSidebar: (() -> Void)?
+    let isSidebarCollapsed: Bool
     let windowWidth: CGFloat
 //    @FocusState private var isFocused: Bool
     @Binding var openSelectedPhotosCallback: (() -> Void)?
@@ -48,6 +49,7 @@ struct ThumbGridView: View {
          onOpenSelectedPhotos: (([PhotoItem]) -> Void)?,
          onEnterReviewMode: (() -> Void)?,
          onToggleSidebar: (() -> Void)? = nil,
+         isSidebarCollapsed: Bool = false,
          windowWidth: CGFloat = 1200,
          openSelectedPhotosCallback: Binding<(() -> Void)?>,
          reviewGroup: Binding<ReviewGroupItem?>) {
@@ -57,6 +59,7 @@ struct ThumbGridView: View {
         self.onOpenSelectedPhotos = onOpenSelectedPhotos
         self.onEnterReviewMode = onEnterReviewMode
         self.onToggleSidebar = onToggleSidebar
+        self.isSidebarCollapsed = isSidebarCollapsed
         self.windowWidth = windowWidth
         self._openSelectedPhotosCallback = openSelectedPhotosCallback
         self._reviewGroup = reviewGroup
@@ -134,15 +137,14 @@ struct ThumbGridView: View {
             }
         }
         .onChange(of: windowWidth) { _, newWidth in
-            let oldCount = viewModel.effectiveColumnCount
             viewModel.windowWidth = newWidth
-            if viewModel.effectiveColumnCount != oldCount {
-                // effectiveColumnCount changed — gridWidth will update automatically
-                // (it's a computed var based on windowWidth)
-            }
+        }
+        .onChange(of: isSidebarCollapsed) { _, collapsed in
+            viewModel.isSidebarCollapsed = collapsed
         }
         .onAppear {
             viewModel.windowWidth = windowWidth
+            viewModel.isSidebarCollapsed = isSidebarCollapsed
         }
     }
 
