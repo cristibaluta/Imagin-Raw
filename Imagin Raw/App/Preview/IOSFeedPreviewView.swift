@@ -25,7 +25,7 @@ struct IOSFeedPreviewView: UIViewRepresentable {
     func makeUIView(context: Context) -> UICollectionView {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .vertical
-        layout.minimumLineSpacing = 1
+        layout.minimumLineSpacing = 20
         layout.minimumInteritemSpacing = 0
         layout.sectionInset = .zero
 
