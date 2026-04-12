@@ -116,13 +116,13 @@ struct ReviewView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color(NSColor.windowBackgroundColor))
+            .background(Color(IRColor.windowBackgroundColor))
 
             // Photo grid
             GeometryReader { geo in
                 photoGrid(in: geo)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(NSColor.underPageBackgroundColor))
+                    .background(Color(IRColor.underPageBackgroundColor))
             }
         }
         .frame(minWidth: 600, minHeight: 500)
@@ -184,7 +184,7 @@ struct ReviewView: View {
         let cols = nrOfColumns
         let cardW = (geo.size.width - pad * 2 - spacing * CGFloat(cols - 1)) / CGFloat(cols)
         let rows = Int(ceil(Double(photos.count) / Double(cols)))
-        let cardH = (geo.size.height - pad * 2 - spacing * CGFloat(max(rows - 1, 0))) / CGFloat(max(rows, 1))
+//        let cardH = (geo.size.height - pad * 2 - spacing * CGFloat(max(rows - 1, 0))) / CGFloat(max(rows, 1))
         let columns = Array(repeating: GridItem(.fixed(cardW), spacing: spacing), count: cols)
 
         ScrollView {

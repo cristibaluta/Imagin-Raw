@@ -5,6 +5,7 @@
 //  Created by Cristian Baluta on 17.03.2026.
 //
 import Foundation
+#if os(macOS)
 import AppKit
 
 final class AppKitStarRatingView: NSView {
@@ -86,3 +87,4 @@ final class AppKitStarRatingView: NSView {
         }
     }
 }
+#endif

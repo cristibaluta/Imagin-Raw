@@ -41,6 +41,7 @@ struct ReviewPhotoCard: View {
             Color(red: 41/255, green: 41/255, blue: 41/255)
 
             // Image content
+            #if os(macOS)
             if isZoomed {
                 if let fullRes = fullResImage {
                     SyncedZoomView(image: fullRes, mousePosition: $syncedMousePosition)
@@ -73,6 +74,7 @@ struct ReviewPhotoCard: View {
                         .scaleEffect(0.7)
                 }
             }
+            #endif
 
             // Reject overlay
             if photo.toDelete {

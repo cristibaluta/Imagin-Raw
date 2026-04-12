@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+#if os(macOS)
 import AppKit
 
 // MARK: - Callbacks bundle
@@ -324,3 +325,4 @@ struct CollectionThumbGridView: NSViewRepresentable {
         }
     }
 }
+#endif

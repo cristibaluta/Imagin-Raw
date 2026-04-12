@@ -176,7 +176,7 @@ struct ContentView: View {
         } detail: {
             NavigationStack {
                 thumbGridView
-                    .navigationDestination(item: $selectedPhoto) { photo in
+                    .navigationDestination(item: $filesModel.selectedPhoto) { photo in
                         LargePreviewView(photo: photo)
                     }
             }

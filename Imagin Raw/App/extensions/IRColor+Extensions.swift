@@ -19,5 +19,8 @@ extension UIColor {
     static var textBackgroundColor: UIColor {
         return .systemBackground
     }
+    static var underPageBackgroundColor: UIColor {
+        .systemBackground
+    }
 }
 #endif

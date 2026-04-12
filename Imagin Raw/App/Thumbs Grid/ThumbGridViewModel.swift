@@ -580,6 +580,7 @@ class ThumbGridViewModel: ObservableObject {
                         openPhotos: ([PhotoItem]) -> Void,
                         onToggleSidebar: (() -> Void)?,
                         onReviewSelected: (([PhotoItem]) -> Void)? = nil) -> Bool {
+        #if os(macOS)
         let chars = event.charactersIgnoringModifiers ?? ""
         let key: KeyEquivalent
         switch event.keyCode {
@@ -655,6 +656,7 @@ class ThumbGridViewModel: ObservableObject {
             scrollTo(filteredPhotos[newIndex].id)
             return true
         }
+        #endif
         return false
     }
 

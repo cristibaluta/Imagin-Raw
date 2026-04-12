@@ -5,6 +5,7 @@
 //  Created by Cristian Baluta on 17.03.2026.
 //
 import Foundation
+#if os(macOS)
 import AppKit
 
 private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
@@ -440,3 +441,4 @@ extension ThumbCollectionItem {
         }
     }
 }
+#endif

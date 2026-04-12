@@ -151,6 +151,7 @@ struct ThumbGridView: View {
     // MARK: - Photo Grid
     // NSCollectionView-based grid
     private var collectionPhotoGridView: some View {
+        #if os(macOS)
         CollectionThumbGridView(
             photos: viewModel.filteredPhotos,
             itemSize: viewModel.gridType.thumbSize,
@@ -236,6 +237,9 @@ struct ThumbGridView: View {
                 scrollToPhotoId = firstPhoto.id
             }
         }
+        #elseif os(iOS)
+        Text("cells are not supported on iOS yet")
+        #endif
     }
 
     private var swiftUIPhotoGridView: some View {
