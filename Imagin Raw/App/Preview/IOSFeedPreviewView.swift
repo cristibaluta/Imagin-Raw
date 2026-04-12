@@ -25,13 +25,12 @@ struct IOSFeedPreviewView: UIViewRepresentable {
     func makeUIView(context: Context) -> UICollectionView {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .vertical
-        layout.minimumLineSpacing = 0
+        layout.minimumLineSpacing = 1
         layout.minimumInteritemSpacing = 0
         layout.sectionInset = .zero
 
         let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
         cv.backgroundColor = .black
-        cv.isPagingEnabled = false
         cv.showsVerticalScrollIndicator = true
         cv.isPrefetchingEnabled = true
         cv.register(IOSFeedCell.self, forCellWithReuseIdentifier: IOSFeedCell.identifier)
@@ -104,10 +103,18 @@ struct IOSFeedPreviewView: UIViewRepresentable {
         // MARK: UICollectionViewDelegateFlowLayout
 
         func collectionView(_ cv: UICollectionView,
-                            layout: UICollectionViewLayout,
+                            layout collectionViewLayout: UICollectionViewLayout,
                             sizeForItemAt indexPath: IndexPath) -> CGSize {
             let w = cv.bounds.width
-            return CGSize(width: w, height: IOSFeedCell.cellHeight(for: w))
+            let photo = photos[indexPath.item]
+            // Use the photo's native aspect ratio if available, otherwise 4:3
+            let imgH: CGFloat
+            if let pw = photo.width, let ph = photo.height, pw > 0 {
+                imgH = w * CGFloat(ph) / CGFloat(pw)
+            } else {
+                imgH = w * 3.0 / 4.0
+            }
+            return CGSize(width: w, height: imgH + IOSFeedCell.exifCardHeight)
         }
 
         // MARK: UICollectionViewDataSourcePrefetching
