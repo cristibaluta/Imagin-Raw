@@ -7,6 +7,7 @@
 import Foundation
 import CoreServices
 import Combine
+import Photos
 
 @MainActor
 final class FilesModel: ObservableObject {
@@ -30,6 +31,9 @@ final class FilesModel: ObservableObject {
         setupVolumeMonitoring()
         #endif
         loadUserFolders()
+        if appPrefs.bool(.photoLibraryEnabled) {
+            insertPhotoLibraryFolder()
+        }
     }
 
     deinit {
@@ -144,14 +148,12 @@ final class FilesModel: ObservableObject {
     private func updateFolderChildren(folder: FolderItem, in folders: inout [FolderItem]) {
         for i in 0..<folders.count {
             if folders[i].url == folder.url {
-                // Found the folder, load its children
                 let updatedChildren = loadFolderChildren(for: folder)
                 folders[i] = FolderItem(url: folder.url,
                                         children: updatedChildren.isEmpty ? nil : updatedChildren,
                                         bookmarkData: folder.bookmarkData)
                 return
             } else if let children = folders[i].children {
-                // Recursively search in children
                 var mutableChildren = children
                 updateFolderChildren(folder: folder, in: &mutableChildren)
                 folders[i] = FolderItem(url: folders[i].url,
@@ -159,6 +161,33 @@ final class FilesModel: ObservableObject {
                                         bookmarkData: folders[i].bookmarkData)
             }
         }
+    }
+
+    // MARK: - PhotoKit
+
+    /// Requests Photos authorisation then inserts the Photos Library root folder
+    /// at the top of the sidebar. Persists the preference on success.
+    func addPhotoLibrary() {
+        PhotoKitSource.requestAuthorisation { [weak self] granted in
+            guard let self, granted else { return }
+            appPrefs.set(true, forKey: .photoLibraryEnabled)
+            self.insertPhotoLibraryFolder()
+        }
+    }
+
+    func removePhotoLibrary() {
+        appPrefs.set(false, forKey: .photoLibraryEnabled)
+        rootFolders.removeAll { $0.url.isPhotoLibraryRoot }
+    }
+
+    var isPhotoLibraryEnabled: Bool {
+        rootFolders.contains { $0.url.isPhotoLibraryRoot }
+    }
+
+    private func insertPhotoLibraryFolder() {
+        guard !rootFolders.contains(where: { $0.url.isPhotoLibraryRoot }) else { return }
+        let tree = PhotoKitSource.buildFolderTree()
+        rootFolders.insert(tree, at: 0)
     }
 }
 

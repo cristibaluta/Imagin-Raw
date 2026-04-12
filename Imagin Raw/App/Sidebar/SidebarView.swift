@@ -113,6 +113,10 @@ struct SidebarView: View {
                             showingAddPopover = false
                             addVolumesFolder()
                         },
+                        onAddPhotoLibrary: {
+                            showingAddPopover = false
+                            filesModel.addPhotoLibrary()
+                        },
                         onAddCustomFolder: {
                             showingAddPopover = false
                             showingFolderPicker = true

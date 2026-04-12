@@ -140,9 +140,9 @@ struct FolderRowView: View {
                 }
             } label: {
                 Label {
-                    Text(folder.url.lastPathComponent)
+                    Text(folder.title)
                 } icon: {
-                    Image(systemName: folderIcon)
+                    Image(systemName: folder.url.isPhotoLibraryRoot ? "photo.on.rectangle.angled" : folderIcon)
                         .foregroundStyle(folderColor)
                 }
                 .tag(folder)
@@ -189,9 +189,9 @@ struct FolderRowView: View {
             }
         } else {
             Label {
-                Text(folder.url.lastPathComponent)
+                Text(folder.title)
             } icon: {
-                Image(systemName: "folder.fill")
+                Image(systemName: folder.url.isPhotoKitAlbum ? "photo.stack" : "folder.fill")
                     .foregroundStyle(folderColor)
             }
             .tag(folder)

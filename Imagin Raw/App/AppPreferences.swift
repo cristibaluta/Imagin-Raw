@@ -30,6 +30,7 @@ enum AppPreference: String, RCPreferencesProtocol {
 
     // MARK: - Folders
     case userFolderBookmarks = "UserManagedFolderBookmarks"
+    case photoLibraryEnabled = "PhotoLibraryEnabled"
 
     // MARK: - Copy To
     case copyToRenameByExifDate = "CopyTo_RenameByExifDate"
@@ -59,6 +60,7 @@ enum AppPreference: String, RCPreferencesProtocol {
         case .similarityMode:           return 65
         case .selectedExternalApp:      return ""
         case .userFolderBookmarks:      return Data()
+        case .photoLibraryEnabled:      return false
         case .copyToRenameByExifDate:   return false
         case .copyToUseSequentialNumbers:       return false
         case .copyToCustomPrefix:       return ""

@@ -8,6 +8,7 @@
 import Foundation
 import CryptoKit
 import AVFoundation
+import Photos
 
 struct CacheEntry {
     let image: IRImage
@@ -123,6 +124,36 @@ class ThumbsManager: ObservableObject {
     }
 
     // MARK: - Public Interface
+
+    /// PhotoKit-aware entry point. Uses PHImageManager for PhotoKit-backed items,
+    /// falls through to the existing file-path queue for everything else.
+    func loadThumbnail(for photo: PhotoItem, priority: ThumbnailRequest.Priority = .medium, completion: @escaping (IRImage?) -> Void) {
+        if let asset = photo.phAsset {
+            loadPhotoKitThumbnail(for: asset, cacheKey: photo.path, completion: completion)
+            return
+        }
+        loadThumbnail(for: photo.path, priority: priority, completion: completion)
+    }
+
+    private func loadPhotoKitThumbnail(for asset: PHAsset, cacheKey: String, completion: @escaping (IRImage?) -> Void) {
+        if let cached = getCachedImage(for: cacheKey) {
+            DispatchQueue.main.async { completion(cached) }
+            return
+        }
+        let size = CGSize(width: thumbSize * 2, height: thumbSize * 2)
+        let options = PHImageRequestOptions()
+        options.isNetworkAccessAllowed = true
+        options.deliveryMode = .opportunistic
+        options.resizeMode = .fast
+        PHImageManager.default().requestImage(for: asset, targetSize: size, contentMode: .aspectFit, options: options) { [weak self] image, _ in
+            guard let self, let image else {
+                DispatchQueue.main.async { completion(nil) }
+                return
+            }
+            self.setCachedImage(image, for: cacheKey)
+            DispatchQueue.main.async { completion(image) }
+        }
+    }
 
     /// Load thumbnail with priority for given file path
     /// Returns cached image immediately if available, otherwise loads asynchronously

@@ -13,10 +13,14 @@ struct FolderItem: Identifiable, Hashable {
     let url: URL
     var children: [FolderItem]? = nil
     var bookmarkData: Data? = nil // Security-scoped bookmark data for sandboxed access
-    
-    init(url: URL, children: [FolderItem]? = nil, bookmarkData: Data? = nil) {
+    var displayName: String? = nil  // custom label for virtual / PhotoKit nodes
+
+    var title: String { displayName ?? url.lastPathComponent }
+
+    init(url: URL, children: [FolderItem]? = nil, bookmarkData: Data? = nil, displayName: String? = nil) {
         self.url = url
         self.children = children
         self.bookmarkData = bookmarkData
+        self.displayName = displayName
     }
 }

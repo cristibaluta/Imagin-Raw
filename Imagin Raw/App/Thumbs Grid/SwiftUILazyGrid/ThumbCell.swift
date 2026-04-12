@@ -208,22 +208,15 @@ struct ThumbCell: View {
     }
 
     private func loadThumbnail() {
-        // Check if already cached in memory
         if let cachedImage = ThumbsManager.shared.getCachedThumbnail(for: photo.path) {
             self.thumbnailImage = cachedImage
             return
         }
-
-        // Load asynchronously with medium priority (let the queue system handle prioritization)
         isLoading = true
-        let photoId = photo.id // Capture the ID to avoid memory issues
-        let photoPath = photo.path // Capture the path
-
-        ThumbsManager.shared.loadThumbnail(for: photoPath, priority: .medium) { image in
-            // Use DispatchQueue.main.async to ensure UI updates happen on main thread
-            // and check that this is still the correct cell by comparing photo ID
+        let photoId = photo.id
+        let currentPhoto = photo
+        ThumbsManager.shared.loadThumbnail(for: currentPhoto, priority: .medium) { image in
             DispatchQueue.main.async {
-                // Only update if this cell is still showing the same photo
                 if self.photo.id == photoId {
                     self.thumbnailImage = image
                     self.isLoading = false

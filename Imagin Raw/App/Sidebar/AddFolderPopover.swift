@@ -10,6 +10,7 @@ import SwiftUI
 struct AddFolderPopover: View {
     @EnvironmentObject var filesModel: FilesModel
     let onAddVolumes: () -> Void
+    let onAddPhotoLibrary: () -> Void
     let onAddCustomFolder: () -> Void
 
     private var volumesAlreadyAdded: Bool {
@@ -54,6 +55,43 @@ struct AddFolderPopover: View {
                 .buttonStyle(PlainButtonStyle())
                 .disabled(volumesAlreadyAdded)
                 .opacity(volumesAlreadyAdded ? 0.6 : 1.0)
+
+                Divider()
+
+                // Photos Library option
+                Button(action: onAddPhotoLibrary) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 16))
+                            .foregroundColor(.accentColor)
+                            .frame(width: 24)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Enable Photos Library")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.primary)
+
+                            Text("Browse your Apple Photos library")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        if filesModel.isPhotoLibraryEnabled {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(.green)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.clear)
+                    .cornerRadius(6)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(filesModel.isPhotoLibraryEnabled)
+                .opacity(filesModel.isPhotoLibraryEnabled ? 0.6 : 1.0)
 
                 Divider()
 

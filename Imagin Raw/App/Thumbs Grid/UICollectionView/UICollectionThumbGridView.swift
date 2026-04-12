@@ -365,7 +365,7 @@ struct UICollectionThumbGridView: UIViewRepresentable {
         func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
             for ip in indexPaths {
                 let photo = photosForSection(ip.section)[ip.item]
-                ThumbsManager.shared.loadThumbnail(for: photo.path, priority: .low) { _ in }
+                ThumbsManager.shared.loadThumbnail(for: photo, priority: .low) { _ in }
             }
         }
 

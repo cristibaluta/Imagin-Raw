@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import Photos
 
 /// Model responsible for loading and managing photos for a specific folder
 /// Each folder gets its own PhotosModel instance, ensuring clean state separation
@@ -34,7 +35,32 @@ final class PhotosModel: ObservableObject {
 
     /// Load photos for the folder - call this when the model is created
     func loadPhotos() {
-        // Load basic photo info immediately
+        // PhotoKit path — no file metadata needed
+        if folder.url.isPhotoKitAlbum {
+            isLoadingMetadata = true
+            metadataTask = Task {
+                let items = await Task.detached(priority: .userInitiated) {
+                    PhotoKitSource.loadPhotos(albumIdentifier: self.folder.url.photoKitAlbumIdentifier ?? "")
+                }.value
+                guard !Task.isCancelled else { return }
+                self.photos = items
+                self.isLoadingMetadata = false
+            }
+            return
+        }
+        if folder.url.isPhotoLibraryRoot {
+            isLoadingMetadata = true
+            metadataTask = Task {
+                let items = await Task.detached(priority: .userInitiated) {
+                    PhotoKitSource.loadAllPhotos()
+                }.value
+                guard !Task.isCancelled else { return }
+                self.photos = items
+                self.isLoadingMetadata = false
+            }
+            return
+        }
+        // File-based path
         let basicPhotos = Self.loadPhotosBasic(in: folder)
         photos = basicPhotos
 
@@ -133,6 +159,7 @@ final class PhotosModel: ObservableObject {
                     path: basicPhotos[index].path,
                     xmp: xmp,
                     dateCreated: basicPhotos[index].dateCreated,
+                    toDelete: basicPhotos[index].toDelete,
                     hasACR: basicPhotos[index].hasACR,
                     hasJPG: basicPhotos[index].hasJPG,
                     inCameraRating: rating,
@@ -302,6 +329,7 @@ final class PhotosModel: ObservableObject {
                     path: photo.path,
                     xmp: xmpParsed[baseName],
                     dateCreated: photo.dateCreated,
+                    toDelete: photo.toDelete,
                     hasACR: photo.hasACR,
                     hasJPG: photo.hasJPG,
                     inCameraRating: rating,
