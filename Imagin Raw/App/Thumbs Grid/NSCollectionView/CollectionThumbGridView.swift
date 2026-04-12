@@ -99,6 +99,34 @@ final class DuplicateSectionHeaderView: NSView, NSCollectionViewElement {
     }
 }
 
+// MARK: - Date Section Header
+
+final class DateSectionHeaderView: NSView, NSCollectionViewElement {
+    static let identifier = NSUserInterfaceItemIdentifier("DateSectionHeader")
+
+    private let label = NSTextField(labelWithString: "")
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        label.font = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        label.textColor = .secondaryLabelColor
+        addSubview(label)
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    func configure(title: String) {
+        label.stringValue = title
+        label.sizeToFit()
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        label.frame = CGRect(x: 8, y: (bounds.height - label.frame.height) / 2,
+                             width: bounds.width - 16, height: label.frame.height)
+    }
+}
+
 // MARK: - KeyableCollectionView
 
 private final class KeyableCollectionView: NSCollectionView {
@@ -126,12 +154,16 @@ struct CollectionThumbGridView: NSViewRepresentable {
     let callbacks: ThumbCellCallbacks
     var duplicateResult: DuplicateScanResult? = nil
     var onReview: ((DuplicateGroup, Int) -> Void)? = nil
+    var dateGroups: [(title: String, photos: [PhotoItem])] = []
+    var sortOption: ThumbGridViewModel.SortOption = .name
     @Binding var scrollToPhotoId: UUID?
     var onKeyPress: ((NSEvent) -> Bool)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(itemSize: itemSize, cellHeight: cellHeight, callbacks: callbacks)
     }
+
+    private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
@@ -145,10 +177,11 @@ struct CollectionThumbGridView: NSViewRepresentable {
 
     private func buildCollectionView(in scrollView: NSScrollView, context: Context) {
         let c = context.coordinator
+        let headerHeight: CGFloat = (duplicateResult != nil || isDateGrouped) ? 32 : 0
         let cv = KeyableCollectionView()
         cv.onKeyDown = { event in c.onKeyDown?(event) ?? false }
         cv.collectionViewLayout = c.makeLayout(itemSize: itemSize, cellHeight: cellHeight,
-                                               headerHeight: duplicateResult != nil ? 32 : 0)
+                                               headerHeight: headerHeight)
         cv.dataSource = c
         cv.delegate = c
         cv.isSelectable = true
@@ -158,6 +191,9 @@ struct CollectionThumbGridView: NSViewRepresentable {
         cv.register(DuplicateSectionHeaderView.self,
                     forSupplementaryViewOfKind: NSCollectionView.elementKindSectionHeader,
                     withIdentifier: DuplicateSectionHeaderView.identifier)
+        cv.register(DateSectionHeaderView.self,
+                    forSupplementaryViewOfKind: NSCollectionView.elementKindSectionHeader,
+                    withIdentifier: DateSectionHeaderView.identifier)
         c.collectionView = cv
         scrollView.documentView = cv
         DispatchQueue.main.async { cv.window?.makeFirstResponder(cv) }
@@ -168,13 +204,16 @@ struct CollectionThumbGridView: NSViewRepresentable {
 
         let isDupNow  = duplicateResult != nil
         let wasDup    = c.duplicateResult != nil
-        let modeChanged = isDupNow != wasDup
+        let isDateNow = isDateGrouped
+        let wasDate   = c.sortOption == .dateCreated && !c.dateGroups.isEmpty
+        let modeChanged = isDupNow != wasDup || isDateNow != wasDate
 
         let photosChanged    = c.photos.map(\.id) != photos.map(\.id)
         let contentChanged   = !photosChanged && c.photos != photos
         let sizeChanged      = c.itemSize != itemSize || c.cellHeight != cellHeight
         let selectionChanged = c.selectedPhotos != selectedPhotos
         let dupChanged       = c.duplicateResult?.groups.map(\.id) != duplicateResult?.groups.map(\.id)
+        let dateGroupsChanged = c.dateGroups.map({ $0.title }) != dateGroups.map({ $0.title })
 
         let latestMap  = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
         let oldPhotoMap = Dictionary(uniqueKeysWithValues: c.photos.map { ($0.id, $0) })
@@ -187,6 +226,8 @@ struct CollectionThumbGridView: NSViewRepresentable {
         c.callbacks = callbacks
         c.duplicateResult = duplicateResult
         c.onReview = onReview
+        c.dateGroups = dateGroups
+        c.sortOption = sortOption
         c.photosById = Dictionary(uniqueKeysWithValues: photos.map { ($0.path, $0) })
         c.onKeyDown = { event in self.onKeyPress?(event) ?? false }
 
@@ -199,10 +240,11 @@ struct CollectionThumbGridView: NSViewRepresentable {
 
         let cv = c.collectionView
 
-        if photosChanged || sizeChanged || dupChanged {
+        if photosChanged || sizeChanged || dupChanged || dateGroupsChanged {
             if sizeChanged {
+                let headerHeight: CGFloat = (duplicateResult != nil || isDateGrouped) ? 32 : 0
                 cv?.collectionViewLayout = c.makeLayout(itemSize: itemSize, cellHeight: cellHeight,
-                                                        headerHeight: duplicateResult != nil ? 32 : 0)
+                                                        headerHeight: headerHeight)
             }
             cv?.reloadData()
         } else {
@@ -224,6 +266,15 @@ struct CollectionThumbGridView: NSViewRepresentable {
             var targetIndexPath: IndexPath?
             if let result = duplicateResult {
                 outer: for (s, group) in result.groups.enumerated() {
+                    for (i, photo) in group.photos.enumerated() {
+                        if photo.id == photoId {
+                            targetIndexPath = IndexPath(item: i, section: s)
+                            break outer
+                        }
+                    }
+                }
+            } else if isDateGrouped {
+                outer: for (s, group) in dateGroups.enumerated() {
                     for (i, photo) in group.photos.enumerated() {
                         if photo.id == photoId {
                             targetIndexPath = IndexPath(item: i, section: s)
@@ -254,8 +305,12 @@ struct CollectionThumbGridView: NSViewRepresentable {
         var onKeyDown: ((NSEvent) -> Bool)?
         var onReview: ((DuplicateGroup, Int) -> Void)?
         var photosById: [String: PhotoItem] = [:]
+        var dateGroups: [(title: String, photos: [PhotoItem])] = []
+        var sortOption: ThumbGridViewModel.SortOption = .name
         weak var collectionView: NSCollectionView?
         weak var scrollView: NSScrollView?
+
+        private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
 
         init(itemSize: CGFloat, cellHeight: CGFloat, callbacks: ThumbCellCallbacks) {
             self.itemSize = itemSize
@@ -280,13 +335,19 @@ struct CollectionThumbGridView: NSViewRepresentable {
                 guard section < result.groups.count else { return [] }
                 return result.groups[section].photos.map { photosById[$0.path] ?? $0 }
             }
+            if isDateGrouped {
+                guard section < dateGroups.count else { return [] }
+                return dateGroups[section].photos
+            }
             return section == 0 ? photos : []
         }
 
         // MARK: NSCollectionViewDataSource
 
         func numberOfSections(in cv: NSCollectionView) -> Int {
-            duplicateResult?.groups.count ?? 1
+            if duplicateResult != nil { return duplicateResult!.groups.count }
+            if isDateGrouped { return dateGroups.count }
+            return 1
         }
 
         func collectionView(_ cv: NSCollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -308,20 +369,28 @@ struct CollectionThumbGridView: NSViewRepresentable {
         func collectionView(_ cv: NSCollectionView,
                             viewForSupplementaryElementOfKind kind: String,
                             at indexPath: IndexPath) -> NSView {
-            guard kind == NSCollectionView.elementKindSectionHeader,
-                  let result = duplicateResult,
-                  indexPath.section < result.groups.count else {
-                // Return an empty registered view — never dequeue with empty identifier
-                let v = NSView()
-                v.frame = .zero
-                return v
+            guard kind == NSCollectionView.elementKindSectionHeader else {
+                return NSView()
             }
-            let header = cv.makeSupplementaryView(
-                ofKind: kind,
-                withIdentifier: DuplicateSectionHeaderView.identifier,
-                for: indexPath) as! DuplicateSectionHeaderView
-            header.configure(group: result.groups[indexPath.section], index: indexPath.section, onReview: onReview)
-            return header
+            // Duplicate group header
+            if let result = duplicateResult, indexPath.section < result.groups.count {
+                let header = cv.makeSupplementaryView(
+                    ofKind: kind,
+                    withIdentifier: DuplicateSectionHeaderView.identifier,
+                    for: indexPath) as! DuplicateSectionHeaderView
+                header.configure(group: result.groups[indexPath.section], index: indexPath.section, onReview: onReview)
+                return header
+            }
+            // Date group header
+            if isDateGrouped, indexPath.section < dateGroups.count {
+                let header = cv.makeSupplementaryView(
+                    ofKind: kind,
+                    withIdentifier: DateSectionHeaderView.identifier,
+                    for: indexPath) as! DateSectionHeaderView
+                header.configure(title: dateGroups[indexPath.section].title)
+                return header
+            }
+            return NSView()
         }
     }
 }

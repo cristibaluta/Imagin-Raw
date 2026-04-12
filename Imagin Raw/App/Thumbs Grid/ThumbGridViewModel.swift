@@ -32,6 +32,8 @@ class ThumbGridViewModel: ObservableObject {
 
     // Cached filtered photos to avoid recalculating on every access
     @Published private(set) var filteredPhotos: [PhotoItem] = []
+    /// Non-empty only when sortOption == .dateCreated. Each entry is one calendar day.
+    @Published private(set) var dateGroups: [(title: String, photos: [PhotoItem])] = []
 
     @Published var photosToCopy: [PhotoItem] = []
     @Published var copyDestinationURL: URL?
@@ -187,6 +189,9 @@ class ThumbGridViewModel: ObservableObject {
 
         filteredPhotos = result
 
+        // Build date groups when sorted by date
+        dateGroups = buildDateGroups(from: result)
+
         // Update lastSelectedIndex to match the selected photo's position in the new filtered list
         if let selectedPhotoId = lastSelectedPhotoId {
             self.lastSelectedIndex = filteredPhotos.firstIndex(where: { $0.id == selectedPhotoId })
@@ -198,6 +203,37 @@ class ThumbGridViewModel: ObservableObject {
             self.lastSelectedIndex = nil
         }
         // Otherwise keep the existing lastSelectedIndex value
+    }
+
+    private static let dateGroupFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMMM d"  // e.g. "April 12"
+        return f
+    }()
+
+    private func buildDateGroups(from photos: [PhotoItem]) -> [(title: String, photos: [PhotoItem])] {
+        guard sortOption == .dateCreated else { return [] }
+        let calendar = Calendar.current
+        var groups: [(title: String, photos: [PhotoItem])] = []
+        var currentKey: String? = nil
+        var currentPhotos: [PhotoItem] = []
+        for photo in photos {
+            let key = Self.dateGroupFormatter.string(from: photo.dateCreated)
+            if key != currentKey {
+                if let existing = currentKey, !currentPhotos.isEmpty {
+                    groups.append((title: existing, photos: currentPhotos))
+                }
+                currentKey = key
+                currentPhotos = [photo]
+            } else {
+                currentPhotos.append(photo)
+            }
+            _ = calendar  // suppress unused warning
+        }
+        if let last = currentKey, !currentPhotos.isEmpty {
+            groups.append((title: last, photos: currentPhotos))
+        }
+        return groups
     }
 
     // MARK: - Photo Loading
