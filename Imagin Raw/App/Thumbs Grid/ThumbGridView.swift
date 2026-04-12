@@ -42,6 +42,7 @@ struct ThumbGridView: View {
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
     @State private var showDuplicatesSheet: Bool = false
     @Binding var reviewGroup: ReviewGroupItem?
+    @Binding var currentPhotos: [PhotoItem]
     @State private var hasAppeared = false
 
     init(filesModel: FilesModel,
@@ -52,7 +53,8 @@ struct ThumbGridView: View {
          isSidebarCollapsed: Bool = false,
          windowWidth: CGFloat = 1200,
          openSelectedPhotosCallback: Binding<(() -> Void)?>,
-         reviewGroup: Binding<ReviewGroupItem?>) {
+         reviewGroup: Binding<ReviewGroupItem?>,
+         currentPhotos: Binding<[PhotoItem]> = .constant([])) {
 
         self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
         self.searchPhotoResults = searchPhotoResults
@@ -63,6 +65,7 @@ struct ThumbGridView: View {
         self.windowWidth = windowWidth
         self._openSelectedPhotosCallback = openSelectedPhotosCallback
         self._reviewGroup = reviewGroup
+        self._currentPhotos = currentPhotos
     }
 
     var body: some View {
@@ -98,6 +101,11 @@ struct ThumbGridView: View {
         .sheet(isPresented: $showDuplicatesSheet) {
             DuplicatesResultSheet(viewModel: viewModel)
         }
+        #if os(iOS)
+        .onChange(of: viewModel.filteredPhotos) { _, newPhotos in
+            currentPhotos = newPhotos
+        }
+        #endif
         .onAppear {
             // Only run once
             guard !hasAppeared else { return }
@@ -214,31 +222,31 @@ struct ThumbGridView: View {
                 )
             }
         )
-        .onAppear {
-            viewModel.initializeSelection()
-        }
-        .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
-            if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
-                filesModel.selectedPhoto = newPhotos.first
-                viewModel.selectedPhotos.removeAll()
-                viewModel.selectedPhotos.insert(newPhotos.first!.id)
-                viewModel.lastSelectedIndex = 0
-            }
-        }
-        .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
-            if oldValue == true && newValue == false {
-                viewModel.clearInvalidFilters()
-            }
-        }
-        .onChange(of: filesModel.selectedFolder) { _, _ in
-            if let firstPhoto = viewModel.filteredPhotos.first {
-                filesModel.selectedPhoto = firstPhoto
-                viewModel.selectedPhotos.removeAll()
-                viewModel.selectedPhotos.insert(firstPhoto.id)
-                viewModel.lastSelectedIndex = 0
-                scrollToPhotoId = firstPhoto.id
-            }
-        }
+                .onAppear {
+                    viewModel.initializeSelection()
+                }
+                .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
+                    if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
+                        filesModel.selectedPhoto = newPhotos.first
+                        viewModel.selectedPhotos.removeAll()
+                        viewModel.selectedPhotos.insert(newPhotos.first!.id)
+                        viewModel.lastSelectedIndex = 0
+                    }
+                }
+                .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
+                    if oldValue == true && newValue == false {
+                        viewModel.clearInvalidFilters()
+                    }
+                }
+                .onChange(of: filesModel.selectedFolder) { _, _ in
+                    if let firstPhoto = viewModel.filteredPhotos.first {
+                        filesModel.selectedPhoto = firstPhoto
+                        viewModel.selectedPhotos.removeAll()
+                        viewModel.selectedPhotos.insert(firstPhoto.id)
+                        viewModel.lastSelectedIndex = 0
+                        scrollToPhotoId = firstPhoto.id
+                    }
+                }
         #elseif os(iOS)
         UICollectionThumbGridView(
             photos: viewModel.filteredPhotos,

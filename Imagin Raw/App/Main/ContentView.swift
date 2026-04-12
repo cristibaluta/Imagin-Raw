@@ -30,6 +30,9 @@ struct ContentView: View {
     @State private var openSelectedPhotosCallback: (() -> Void)?
     @State private var contentColumnWidth: CGFloat = 450
     @State private var reviewGroup: ReviewGroupItem? = nil
+    #if os(iOS)
+    @State private var feedPhotos: [PhotoItem] = []
+    #endif
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
         Binding(
@@ -171,13 +174,16 @@ struct ContentView: View {
         .environmentObject(externalAppManager)
         #elseif os(iOS)
         NavigationSplitView(columnVisibility: columnVisibility) {
-            // Left sidebar: folders
             sidebarView
         } detail: {
             NavigationStack {
                 thumbGridView
                     .navigationDestination(item: $filesModel.selectedPhoto) { photo in
-                        LargePreviewView(photo: photo)
+                        IOSFeedPreviewView(photos: feedPhotos.isEmpty ? [photo] : feedPhotos,
+                                          initialPhoto: photo)
+                            .ignoresSafeArea(edges: .bottom)
+                            .navigationTitle(URL(fileURLWithPath: photo.path).deletingPathExtension().lastPathComponent)
+                            .navigationBarTitleDisplayMode(.inline)
                     }
             }
         }
@@ -197,27 +203,36 @@ struct ContentView: View {
     }
 
     private var thumbGridView: some View {
-        ThumbGridView(
+        #if os(iOS)
+        return ThumbGridView(
             filesModel: filesModel,
             searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
-            onOpenSelectedPhotos: { photos in
-                openMultiplePhotosInExternalApp(photos: photos)
-            },
-            onEnterReviewMode: {
-
-            },
+            onOpenSelectedPhotos: { photos in openMultiplePhotosInExternalApp(photos: photos) },
+            onEnterReviewMode: { },
             onToggleSidebar: {
-                if columnVisibilityStorage == "doubleColumn" {
-                    columnVisibilityStorage = "all"
-                } else {
-                    columnVisibilityStorage = "doubleColumn"
-                }
+                columnVisibilityStorage = columnVisibilityStorage == "doubleColumn" ? "all" : "doubleColumn"
+            },
+            isSidebarCollapsed: isSidebarCollapsed,
+            windowWidth: windowWidth,
+            openSelectedPhotosCallback: $openSelectedPhotosCallback,
+            reviewGroup: $reviewGroup,
+            currentPhotos: $feedPhotos
+        )
+        #else
+        return ThumbGridView(
+            filesModel: filesModel,
+            searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
+            onOpenSelectedPhotos: { photos in openMultiplePhotosInExternalApp(photos: photos) },
+            onEnterReviewMode: { },
+            onToggleSidebar: {
+                columnVisibilityStorage = columnVisibilityStorage == "doubleColumn" ? "all" : "doubleColumn"
             },
             isSidebarCollapsed: isSidebarCollapsed,
             windowWidth: windowWidth,
             openSelectedPhotosCallback: $openSelectedPhotosCallback,
             reviewGroup: $reviewGroup
         )
+        #endif
     }
 
     private var detailView: some View {
