@@ -435,6 +435,15 @@ class ThumbsManager: ObservableObject {
         return image
     }
 
+    // MARK: - iCloud
+
+    /// Ensures the source file at `path` is locally available.
+    /// Triggers an iCloud download if needed and blocks until done (or times out).
+    @discardableResult
+    private func ensureLocallyAvailable(at path: String) -> Bool {
+        ICloudDownloader.ensureDownloaded(at: URL(fileURLWithPath: path))
+    }
+
     private func saveToDisk(_ image: IRImage, cacheKey: String, forPath path: String) {
         guard let jpegData = image.bitmapRepresentation() else {
             return
@@ -453,6 +462,13 @@ class ThumbsManager: ObservableObject {
     private func generateThumbnail(for path: String, cacheKey: String, completion: @escaping (IRImage?) -> Void) {
         let url = URL(fileURLWithPath: path)
         let fileExtension = url.pathExtension.lowercased()
+
+        // Ensure the file is downloaded from iCloud Drive before reading it.
+        guard ensureLocallyAvailable(at: path) else {
+            print("👎 [ThumbsManager] file not available locally: \(url.lastPathComponent)")
+            completion(nil)
+            return
+        }
 
         // Video thumbnail via AVFoundation
         if FilesExtensions.video.contains(fileExtension) {

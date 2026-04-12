@@ -240,7 +240,6 @@ struct ThumbGridView: View {
                     }
                 }
         #elseif os(iOS)
-        Spacer()
         UICollectionThumbGridView(
             photos: viewModel.filteredPhotos,
             itemSize: viewModel.gridType.thumbSize,

@@ -174,6 +174,13 @@ class PreviewsManager {
         let t0 = Date()
 
         autoreleasepool {
+            // Ensure the file is downloaded from iCloud Drive before decoding.
+            guard ICloudDownloader.ensureDownloaded(at: URL(fileURLWithPath: path)) else {
+                print("🖼 [PreviewsManager] file not available locally: \(filename)")
+                completion(nil)
+                return
+            }
+
             guard let image = decoder.extractPreview(at: path, maxSize: previewSize) else {
                 print("🖼 [PreviewsManager] generate failed \(filename)")
                 completion(nil)
