@@ -184,7 +184,7 @@ struct ReviewView: View {
         let cols = nrOfColumns
         let cardW = (geo.size.width - pad * 2 - spacing * CGFloat(cols - 1)) / CGFloat(cols)
         let rows = Int(ceil(Double(photos.count) / Double(cols)))
-//        let cardH = (geo.size.height - pad * 2 - spacing * CGFloat(max(rows - 1, 0))) / CGFloat(max(rows, 1))
+        let cardH = (geo.size.height - pad * 2 - spacing * CGFloat(max(rows - 1, 0))) / CGFloat(max(rows, 1))
         let columns = Array(repeating: GridItem(.fixed(cardW), spacing: spacing), count: cols)
 
         ScrollView {
@@ -236,7 +236,7 @@ struct ReviewView: View {
         for photo in photos {
             guard fullResImages[photo.path] == nil else { continue }
             fullResLoading.insert(photo.path)
-            FullResManager.shared.loadFullRes(for: photo.path) { image in
+            FullResManager.shared.loadFullRes(for: photo) { image in
                 fullResLoading.remove(photo.path)
                 if let image {
                     fullResImages[photo.path] = image

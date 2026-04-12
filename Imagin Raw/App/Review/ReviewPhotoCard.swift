@@ -152,7 +152,7 @@ struct ReviewPhotoCard: View {
 
     private func loadPreview() {
         isLoading = true
-        PreviewsManager.shared.loadPreview(for: photo.path) { image, _ in
+        PreviewsManager.shared.loadPreview(for: photo) { image, _ in
             DispatchQueue.main.async {
                 self.previewImage = image
                 self.isLoading = false

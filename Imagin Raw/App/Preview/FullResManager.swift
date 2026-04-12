@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Photos
 
 class FullResManager {
     static let shared = FullResManager()
@@ -26,6 +27,43 @@ class FullResManager {
 
     func cachedImage(for path: String) -> IRImage? {
         cache[path]
+    }
+
+    /// PhotoKit-aware entry point.
+    func loadFullRes(for photo: PhotoItem, completion: @escaping (IRImage?) -> Void) {
+        if let asset = photo.phAsset {
+            loadPhotoKitFullRes(for: asset, key: photo.path, completion: completion)
+            return
+        }
+        loadFullRes(for: photo.path, completion: completion)
+    }
+
+    private func loadPhotoKitFullRes(for asset: PHAsset, key: String, completion: @escaping (IRImage?) -> Void) {
+        if let cached = cache[key] {
+            DispatchQueue.main.async { completion(cached) }
+            return
+        }
+        let options = PHImageRequestOptions()
+        options.isNetworkAccessAllowed = true
+        options.isSynchronous = false
+        options.deliveryMode = .highQualityFormat
+        options.resizeMode = .none
+        PHImageManager.default().requestImage(
+            for: asset,
+            targetSize: PHImageManagerMaximumSize,
+            contentMode: .aspectFit,
+            options: options
+        ) { [weak self] image, info in
+            let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+            guard let self, let image, !degraded else {
+                if image == nil { DispatchQueue.main.async { completion(nil) } }
+                return
+            }
+            DispatchQueue.main.async {
+                self.store(image, for: key)
+                completion(image)
+            }
+        }
     }
 
     func loadFullRes(for path: String, completion: @escaping (IRImage?) -> Void) {

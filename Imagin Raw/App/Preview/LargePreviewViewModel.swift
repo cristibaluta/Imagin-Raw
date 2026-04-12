@@ -57,19 +57,16 @@ class LargePreviewViewModel: ObservableObject {
         }
 
         isLoadingFullRes = true
-        print("🔎 [zoom] starting full-res load: \(URL(fileURLWithPath: path).lastPathComponent)")
         let t0 = Date()
+        let currentPhoto = photo
 
         fullResTask = Task {
             let image: IRImage? = await withCheckedContinuation { continuation in
-                FullResManager.shared.loadFullRes(for: path) { img in
+                FullResManager.shared.loadFullRes(for: currentPhoto) { img in
                     continuation.resume(returning: img)
                 }
             }
-            guard !Task.isCancelled else {
-                print("🔎 [zoom] cancelled")
-                return
-            }
+            guard !Task.isCancelled else { return }
             print("🔎 [zoom] done  +\(String(format: "%.3f", -t0.timeIntervalSinceNow))s")
             self.fullResImage = image
             self.isLoadingFullRes = false
@@ -79,6 +76,7 @@ class LargePreviewViewModel: ObservableObject {
     private func loadPreview() {
         guard let photo = photo else { return }
         let path = photo.path
+        let currentPhoto = photo
         let t0 = Date()
         let filename = URL(fileURLWithPath: path).lastPathComponent
         print("🖼 [preview] start \(filename)")
@@ -99,12 +97,11 @@ class LargePreviewViewModel: ObservableObject {
         isLoading = true
         exifInfo = nil
 
-        loadingTask = Task(priority: .userInitiated) { [path] in
+        loadingTask = Task(priority: .userInitiated) { [path, currentPhoto] in
             print("🖼 [preview] task start  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
-            // Step 1: get preview image from PreviewsManager
             let previewImage: IRImage? = await withCheckedContinuation { continuation in
-                PreviewsManager.shared.loadPreview(for: path) { image, _ in
+                PreviewsManager.shared.loadPreview(for: currentPhoto) { image, _ in
                     print("🖼 [preview] PreviewsManager callback  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  image=\(image != nil)")
                     continuation.resume(returning: image)
                 }

@@ -5,6 +5,7 @@
 
 import Foundation
 import CryptoKit
+import Photos
 
 /// Manages a persistent disk + memory cache of 1024px preview images.
 /// Same architecture as ThumbsManager but larger images, higher JPEG quality.
@@ -49,6 +50,39 @@ class PreviewsManager {
     }
 
     // MARK: - Public Interface
+
+    /// PhotoKit-aware entry point. Routes PhotoKit assets directly to PHImageManager,
+    /// falls through to the existing file-path queue for everything else.
+    func loadPreview(for photo: PhotoItem, completion: @escaping (IRImage?, ExifInfo?) -> Void) {
+        if let asset = photo.phAsset {
+            loadPhotoKitPreview(for: asset, cacheKey: photo.path, completion: completion)
+            return
+        }
+        loadPreview(for: photo.path, completion: completion)
+    }
+
+    private func loadPhotoKitPreview(for asset: PHAsset, cacheKey key: String, completion: @escaping (IRImage?, ExifInfo?) -> Void) {
+        let memKey = cacheKey(for: key)
+        if let cached = getCachedImage(for: memKey) {
+            DispatchQueue.main.async { completion(cached, nil) }
+            return
+        }
+        let size = CGSize(width: previewSize * 2, height: previewSize * 2)
+        let options = PHImageRequestOptions()
+        options.isNetworkAccessAllowed = true
+        options.isSynchronous = false
+        options.deliveryMode = .highQualityFormat
+        options.resizeMode = .exact
+        PHImageManager.default().requestImage(for: asset, targetSize: size, contentMode: .aspectFit, options: options) { [weak self] image, info in
+            let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+            guard let self, let image, !degraded else {
+                if image == nil { DispatchQueue.main.async { completion(nil, nil) } }
+                return
+            }
+            self.setCachedImage(image, for: memKey)
+            DispatchQueue.main.async { completion(image, nil) }
+        }
+    }
 
     func loadPreview(for path: String, completion: @escaping (IRImage?, ExifInfo?) -> Void) {
         let key = cacheKey(for: path)
