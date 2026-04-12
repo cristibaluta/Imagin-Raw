@@ -130,6 +130,8 @@ struct UICollectionThumbGridView: UIViewRepresentable {
         cv.allowsMultipleSelection = true
         cv.dataSource = c
         cv.delegate = c
+        cv.isPrefetchingEnabled = true
+        cv.prefetchDataSource = c
         cv.register(UIThumbCollectionCell.self, forCellWithReuseIdentifier: UIThumbCollectionCell.identifier)
         cv.register(UIDuplicateSectionHeader.self,
                     forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
@@ -251,7 +253,7 @@ struct UICollectionThumbGridView: UIViewRepresentable {
 
     // MARK: - Coordinator
 
-    class Coordinator: NSObject, UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
+    class Coordinator: NSObject, UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, UICollectionViewDataSourcePrefetching {
         var photos: [PhotoItem] = []
         var itemSize: CGFloat
         var cellHeight: CGFloat
@@ -356,6 +358,19 @@ struct UICollectionThumbGridView: UIViewRepresentable {
             let cellWidth = floor((collectionView.bounds.width - totalGap) / columns)
             let bottomH: CGFloat = 16 + 14 + 4  // label + stars + padding
             return CGSize(width: cellWidth, height: cellWidth + bottomH)
+        }
+
+        // MARK: UICollectionViewDataSourcePrefetching
+
+        func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
+            for ip in indexPaths {
+                let photo = photosForSection(ip.section)[ip.item]
+                ThumbsManager.shared.loadThumbnail(for: photo.path, priority: .low) { _ in }
+            }
+        }
+
+        func collectionView(_ collectionView: UICollectionView, cancelPrefetchingForItemsAt indexPaths: [IndexPath]) {
+            // ThumbsManager manages its own priority queue — no action needed
         }
 
         // MARK: UICollectionViewDelegate

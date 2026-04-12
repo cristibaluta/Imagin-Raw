@@ -26,7 +26,6 @@ final class UIThumbCollectionCell: UICollectionViewCell {
     // MARK: - State
     private(set) var currentPath: String?
     private var currentPhoto: PhotoItem?
-    private var loadTask: DispatchWorkItem?
     private var callbacks: ThumbCellCallbacks?
     private var itemSize: CGFloat = 100
 
@@ -170,26 +169,16 @@ final class UIThumbCollectionCell: UICollectionViewCell {
         currentPhoto = photo
 
         if pathChanged {
-            loadTask?.cancel()
-            loadTask = nil
             thumbView.image = nil
 
-            if let cached = ThumbsManager.shared.getCachedThumbnail(for: photo.path) {
+            let path = photo.path
+            if let cached = ThumbsManager.shared.getCachedThumbnail(for: path) {
                 thumbView.image = cached
-                setNeedsLayout()
             } else {
-                let path = photo.path
-                let work = DispatchWorkItem { [weak self] in
-                    ThumbsManager.shared.loadThumbnail(for: path, priority: .medium) { image in
-                        DispatchQueue.main.async {
-                            guard self?.currentPath == path else { return }
-                            self?.thumbView.image = image
-                            self?.setNeedsLayout()
-                        }
-                    }
+                ThumbsManager.shared.loadThumbnail(for: path, priority: .high) { [weak self] image in
+                    guard self?.currentPath == path else { return }
+                    self?.thumbView.image = image
                 }
-                loadTask = work
-                DispatchQueue.global(qos: .userInitiated).async(execute: work)
             }
         }
 
@@ -200,7 +189,6 @@ final class UIThumbCollectionCell: UICollectionViewCell {
         filenameLabel.text = URL(fileURLWithPath: photo.path).lastPathComponent
         applyLabelStyle(for: photo)
         updateStars(for: photo)
-        setNeedsLayout()
     }
 
     func updateSelection(isSelected: Bool) {
@@ -316,8 +304,6 @@ final class UIThumbCollectionCell: UICollectionViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
-        loadTask?.cancel()
-        loadTask = nil
         currentPath = nil
         currentPhoto = nil
         thumbView.image = nil
