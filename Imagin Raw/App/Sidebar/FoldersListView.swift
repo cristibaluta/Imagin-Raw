@@ -59,6 +59,7 @@ struct FoldersListView: View {
     }
 
     private func loadSelectedFolder() {
+        #if os(macOS)
         if let data = UserDefaults.standard.data(forKey: AppPreference.selectedFolder.rawValue),
            let url = try? JSONDecoder().decode(URL.self, from: data) {
             for rootFolder in filesModel.rootFolders {
@@ -68,6 +69,7 @@ struct FoldersListView: View {
                 }
             }
         }
+        #endif
     }
 
     private func saveSelectedFolder(_ folder: FolderItem?) {

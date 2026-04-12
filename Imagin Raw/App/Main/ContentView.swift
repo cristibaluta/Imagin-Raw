@@ -179,16 +179,24 @@ struct ContentView: View {
             NavigationStack {
                 thumbGridView
                     .navigationDestination(item: $filesModel.selectedPhoto) { photo in
-                        IOSFeedPreviewView(photos: feedPhotos.isEmpty ? [photo] : feedPhotos,
+                        let _ = print("🔀 [Nav] navigationDestination fired for: \(photo.path.prefix(40))")
+                        return IOSFeedPreviewView(photos: feedPhotos.isEmpty ? [photo] : feedPhotos,
                                           initialPhoto: photo)
                             .ignoresSafeArea(edges: .bottom)
                             .navigationTitle(URL(fileURLWithPath: photo.path).deletingPathExtension().lastPathComponent)
                             .navigationBarTitleDisplayMode(.inline)
+                            .onDisappear {
+                                print("🔀 [Nav] feed disappeared, clearing selectedPhoto")
+                                filesModel.selectedPhoto = nil
+                            }
                     }
             }
         }
         .environmentObject(filesModel)
         .environmentObject(externalAppManager)
+        .onChange(of: filesModel.selectedPhoto) { _, newVal in
+            print("📌 [ContentView] selectedPhoto changed → \(newVal?.path.prefix(40) ?? "nil")")
+        }
         #endif
     }
 

@@ -225,17 +225,13 @@ struct ThumbGridView: View {
                 .onAppear {
                     viewModel.initializeSelection()
                 }
+                #if os(macOS)
                 .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
                     if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
                         filesModel.selectedPhoto = newPhotos.first
                         viewModel.selectedPhotos.removeAll()
                         viewModel.selectedPhotos.insert(newPhotos.first!.id)
                         viewModel.lastSelectedIndex = 0
-                    }
-                }
-                .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
-                    if oldValue == true && newValue == false {
-                        viewModel.clearInvalidFilters()
                     }
                 }
                 .onChange(of: filesModel.selectedFolder) { _, _ in
@@ -247,6 +243,12 @@ struct ThumbGridView: View {
                         scrollToPhotoId = firstPhoto.id
                     }
                 }
+                #endif
+                .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
+                    if oldValue == true && newValue == false {
+                        viewModel.clearInvalidFilters()
+                    }
+                }
         #elseif os(iOS)
         UICollectionThumbGridView(
             photos: viewModel.filteredPhotos,
@@ -256,7 +258,11 @@ struct ThumbGridView: View {
             selectedPhotos: viewModel.selectedPhotos,
             callbacks: ThumbCellCallbacks(
                 onTap: { photo, _ in
+                    print("👆 [iOS tap] path=\(photo.path.prefix(40)) selectedPhoto=\(filesModel.selectedPhoto?.path.prefix(20) ?? "nil")")
                     viewModel.handlePhotoTap(photo: photo, modifiers: .none)
+                    print("👆 [iOS tap] after handlePhotoTap, selectedPhoto=\(filesModel.selectedPhoto?.path.prefix(20) ?? "nil")")
+                    filesModel.selectedPhoto = photo
+                    print("👆 [iOS tap] after setting selectedPhoto=\(filesModel.selectedPhoto?.path.prefix(20) ?? "nil")")
                 },
                 onDoubleClick: { photo in
                     handleDoubleClick(photo: photo)
