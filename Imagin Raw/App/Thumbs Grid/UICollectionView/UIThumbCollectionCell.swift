@@ -128,34 +128,35 @@ final class UIThumbCollectionCell: UICollectionViewCell {
         let size = itemSize
         let labelH: CGFloat = 16
         let starH: CGFloat = 14
-        let thumbY: CGFloat = h - size
 
         let imgPad: CGFloat = 2
-        thumbView.frame = CGRect(x: imgPad, y: thumbY, width: w - imgPad * 2, height: size - imgPad)
+        // Image occupies the top portion; label + stars sit below it.
+        thumbView.frame = CGRect(x: imgPad, y: imgPad, width: w - imgPad * 2, height: size - imgPad)
         selectionBorder.frame = contentView.bounds
 
         let iconSize: CGFloat = 24
         trashOverlay.frame = CGRect(x: (w - iconSize) / 2,
-                                    y: thumbY + (size - iconSize) / 2,
+                                    y: imgPad + (size - iconSize) / 2,
                                     width: iconSize, height: iconSize)
 
         // Badges top-right of thumb
         let badgeH: CGFloat = 18
         let badgeW: CGFloat = 22
         let badgePad: CGFloat = 4
-        jpgBadgeView.frame = CGRect(x: w - badgeW - badgePad, y: thumbY + badgePad, width: badgeW, height: badgeH)
+        jpgBadgeView.frame = CGRect(x: w - badgeW - badgePad, y: imgPad + badgePad, width: badgeW, height: badgeH)
         jpgBadge.frame = jpgBadgeView.bounds
 
-        acrBadge.frame = CGRect(x: jpgBadgeView.frame.minX - badgeW - 2, y: thumbY + badgePad, width: badgeW, height: badgeH)
+        acrBadge.frame = CGRect(x: jpgBadgeView.frame.minX - badgeW - 2, y: imgPad + badgePad, width: badgeW, height: badgeH)
         acrIcon.frame = acrBadge.bounds.insetBy(dx: 2, dy: 2)
 
-        let labelY = thumbY - labelH - 2
-        filenameLabel.frame = CGRect(x: 2, y: labelY + 1, width: w - 4, height: labelH)
+        // Label below the image
+        let labelY = size + imgPad + 2
+        filenameLabel.frame = CGRect(x: 2, y: labelY, width: w - 4, height: labelH)
 
         if !(currentPhoto?.isRawFile ?? false) {
             starStack.isHidden = true
         }
-        starStack.frame = CGRect(x: 2, y: labelY - starH - 2, width: w - 4, height: starH)
+        starStack.frame = CGRect(x: 2, y: labelY + labelH + 2, width: w - 4, height: starH)
     }
 
     // MARK: - Configure
