@@ -129,28 +129,38 @@ class ThumbsManager: ObservableObject {
     /// falls through to the existing file-path queue for everything else.
     func loadThumbnail(for photo: PhotoItem, priority: ThumbnailRequest.Priority = .medium, completion: @escaping (IRImage?) -> Void) {
         if let asset = photo.phAsset {
+            print("📷 [ThumbsManager] PhotoKit path for \(asset.localIdentifier.prefix(20))")
             loadPhotoKitThumbnail(for: asset, cacheKey: photo.path, completion: completion)
             return
         }
         loadThumbnail(for: photo.path, priority: priority, completion: completion)
     }
 
-    private func loadPhotoKitThumbnail(for asset: PHAsset, cacheKey: String, completion: @escaping (IRImage?) -> Void) {
-        if let cached = getCachedImage(for: cacheKey) {
+    private func loadPhotoKitThumbnail(for asset: PHAsset, cacheKey key: String, completion: @escaping (IRImage?) -> Void) {
+        let memKey = cacheKey(for: key)
+        if let cached = getCachedImage(for: memKey) {
+            print("📷 [ThumbsManager] memory cache hit \(key.prefix(20))")
             DispatchQueue.main.async { completion(cached) }
             return
         }
         let size = CGSize(width: thumbSize * 2, height: thumbSize * 2)
         let options = PHImageRequestOptions()
         options.isNetworkAccessAllowed = true
-        options.deliveryMode = .opportunistic
+        options.isSynchronous = false
+        options.deliveryMode = .highQualityFormat
         options.resizeMode = .fast
-        PHImageManager.default().requestImage(for: asset, targetSize: size, contentMode: .aspectFit, options: options) { [weak self] image, _ in
-            guard let self, let image else {
-                DispatchQueue.main.async { completion(nil) }
+        print("📷 [ThumbsManager] requestImage start \(key.prefix(20))")
+        PHImageManager.default().requestImage(for: asset, targetSize: size, contentMode: .aspectFit, options: options) { [weak self] image, info in
+            let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+            let error = info?[PHImageErrorKey] as? Error
+            print("📷 [ThumbsManager] requestImage callback — image=\(image != nil) degraded=\(degraded) error=\(String(describing: error)) key=\(key.prefix(20))")
+            guard let self, let image, !degraded else {
+                if image == nil {
+                    DispatchQueue.main.async { completion(nil) }
+                }
                 return
             }
-            self.setCachedImage(image, for: cacheKey)
+            self.setCachedImage(image, for: memKey)
             DispatchQueue.main.async { completion(image) }
         }
     }

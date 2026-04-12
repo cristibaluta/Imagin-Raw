@@ -41,25 +41,21 @@ final class UIThumbCollectionCell: UICollectionViewCell {
     private func setupViews() {
         contentView.backgroundColor = UIColor(white: 0.15, alpha: 1)
 
-        // Thumb
         thumbView.contentMode = .scaleAspectFit
         thumbView.clipsToBounds = true
         contentView.addSubview(thumbView)
 
-        // Selection border
         selectionBorder.layer.borderColor = UIColor.systemBlue.cgColor
         selectionBorder.layer.borderWidth = 0
         selectionBorder.isUserInteractionEnabled = false
         contentView.addSubview(selectionBorder)
 
-        // Trash / reject overlay
         trashOverlay.image = UIImage(systemName: "xmark")
         trashOverlay.tintColor = .orange
         trashOverlay.contentMode = .scaleAspectFit
         trashOverlay.isHidden = true
         contentView.addSubview(trashOverlay)
 
-        // ACR badge
         acrIcon.image = UIImage(systemName: "slider.horizontal.3")
         acrIcon.tintColor = .white
         acrIcon.contentMode = .scaleAspectFit
@@ -70,7 +66,6 @@ final class UIThumbCollectionCell: UICollectionViewCell {
         acrBadge.isHidden = true
         contentView.addSubview(acrBadge)
 
-        // JPG badge
         jpgBadge.text = "+JPG"
         jpgBadge.font = UIFont.boldSystemFont(ofSize: 8)
         jpgBadge.textColor = .white
@@ -82,14 +77,12 @@ final class UIThumbCollectionCell: UICollectionViewCell {
         jpgBadgeView.isHidden = true
         contentView.addSubview(jpgBadgeView)
 
-        // Filename label
         filenameLabel.font = UIFont.systemFont(ofSize: 11)
         filenameLabel.textColor = .label
         filenameLabel.textAlignment = .center
         filenameLabel.lineBreakMode = .byTruncatingMiddle
         contentView.addSubview(filenameLabel)
 
-        // Star stack (5 stars as SF symbol buttons)
         starStack.axis = .horizontal
         starStack.spacing = 2
         starStack.alignment = .center
@@ -113,7 +106,6 @@ final class UIThumbCollectionCell: UICollectionViewCell {
         doubleTap.numberOfTapsRequired = 2
         contentView.addGestureRecognizer(doubleTap)
         tap.require(toFail: doubleTap)
-
         let longPress = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress(_:)))
         contentView.addGestureRecognizer(longPress)
     }
@@ -126,29 +118,24 @@ final class UIThumbCollectionCell: UICollectionViewCell {
         let h = contentView.bounds.height
         let labelH: CGFloat = 16
         let starH: CGFloat = 14
-        let bottomH: CGFloat = labelH + starH + 4   // reserved space at the bottom
+        let bottomH: CGFloat = labelH + starH + 4
 
-        // Image fills the top portion of the cell using actual cell dimensions.
         let imgH = max(0, h - bottomH)
         thumbView.frame = CGRect(x: 0, y: 0, width: w, height: imgH)
         selectionBorder.frame = contentView.bounds
 
         let iconSize: CGFloat = 24
-        trashOverlay.frame = CGRect(x: (w - iconSize) / 2,
-                                    y: (imgH - iconSize) / 2,
+        trashOverlay.frame = CGRect(x: (w - iconSize) / 2, y: (imgH - iconSize) / 2,
                                     width: iconSize, height: iconSize)
 
-        // Badges top-right of thumb
         let badgeH: CGFloat = 18
         let badgeW: CGFloat = 22
         let badgePad: CGFloat = 4
         jpgBadgeView.frame = CGRect(x: w - badgeW - badgePad, y: badgePad, width: badgeW, height: badgeH)
         jpgBadge.frame = jpgBadgeView.bounds
-
         acrBadge.frame = CGRect(x: jpgBadgeView.frame.minX - badgeW - 2, y: badgePad, width: badgeW, height: badgeH)
         acrIcon.frame = acrBadge.bounds.insetBy(dx: 2, dy: 2)
 
-        // Label and stars below the image
         let labelY = imgH + 2
         filenameLabel.frame = CGRect(x: 2, y: labelY, width: w - 4, height: labelH)
 
@@ -175,7 +162,7 @@ final class UIThumbCollectionCell: UICollectionViewCell {
             if let cached = ThumbsManager.shared.getCachedThumbnail(for: path) {
                 thumbView.image = cached
             } else {
-                ThumbsManager.shared.loadThumbnail(for: path, priority: .high) { [weak self] image in
+                ThumbsManager.shared.loadThumbnail(for: photo, priority: .high) { [weak self] image in
                     guard self?.currentPath == path else { return }
                     self?.thumbView.image = image
                 }
@@ -212,8 +199,7 @@ final class UIThumbCollectionCell: UICollectionViewCell {
 
     @objc private func starTapped(_ sender: UIButton) {
         guard let photo = currentPhoto else { return }
-        let newRating = sender.tag
-        callbacks?.onRatingChanged(photo, newRating)
+        callbacks?.onRatingChanged(photo, sender.tag)
     }
 
     // MARK: - Gestures
@@ -282,12 +268,12 @@ final class UIThumbCollectionCell: UICollectionViewCell {
             return
         }
         switch label {
-        case "Select":   filenameLabel.backgroundColor = .systemRed;                                                     filenameLabel.textColor = .white
-        case "Second":   filenameLabel.backgroundColor = .systemYellow;                                                  filenameLabel.textColor = .black
+        case "Select":   filenameLabel.backgroundColor = .systemRed;    filenameLabel.textColor = .white
+        case "Second":   filenameLabel.backgroundColor = .systemYellow; filenameLabel.textColor = .black
         case "Approved": filenameLabel.backgroundColor = UIColor(red: 133/255, green: 199/255, blue: 102/255, alpha: 1); filenameLabel.textColor = .black
-        case "Review":   filenameLabel.backgroundColor = .systemBlue;                                                    filenameLabel.textColor = .white
-        case "To Do":    filenameLabel.backgroundColor = .systemPurple;                                                  filenameLabel.textColor = .white
-        default:         filenameLabel.backgroundColor = .clear;                                                          filenameLabel.textColor = .label
+        case "Review":   filenameLabel.backgroundColor = .systemBlue;   filenameLabel.textColor = .white
+        case "To Do":    filenameLabel.backgroundColor = .systemPurple; filenameLabel.textColor = .white
+        default:         filenameLabel.backgroundColor = .clear;         filenameLabel.textColor = .label
         }
     }
 
