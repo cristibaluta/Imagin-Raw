@@ -89,9 +89,10 @@ class ThumbsManager: ObservableObject {
     // Priority queue for thumbnail generation
     private var pendingRequests: [String: ThumbnailRequest] = [:]
     private var priorityQueue = PriorityQueue<ThumbnailRequest>()
+    private let queueLock = NSLock()          // protects pendingRequests + priorityQueue
     private let requestQueue = DispatchQueue(label: "ro.imagin.thumbs.requests")
     private var isProcessingQueue = false
-    private var requestCounter = 0 // Counter to track request order
+    private var requestCounter = 0
 
     // Concurrent processing limiter to prevent memory overflow
     private let processingLimit = 3 // Maximum number of concurrent thumbnail generations
@@ -178,47 +179,35 @@ class ThumbsManager: ObservableObject {
             return
         }
 
-        // 2. Check if request is already pending
-        requestQueue.async { [weak self] in
-            guard let self = self else { return }
+        // 2. Enqueue under lock
+        queueLock.lock()
+        requestCounter += 1
+        let currentRequestOrder = requestCounter
 
-            // Increment request counter for ordering
-            self.requestCounter += 1
-            let currentRequestOrder = self.requestCounter
-
-            // Check if there's already a pending request for this image
-            if let existingRequest = self.pendingRequests[cacheKey] {
-                // If new request has higher or equal priority, replace the old one
-                // This automatically prioritizes more recent requests
-                if priority.rawValue >= existingRequest.priority.rawValue {
-                    self.pendingRequests.removeValue(forKey: cacheKey)
-                    // Rebuild the priority queue to remove the old request
-                    self.rebuildQueue()
-                } else {
-                    // Lower priority request - ignore it
-                    return
-                }
+        if let existingRequest = pendingRequests[cacheKey] {
+            if priority.rawValue >= existingRequest.priority.rawValue {
+                pendingRequests.removeValue(forKey: cacheKey)
+                rebuildQueue()
+            } else {
+                queueLock.unlock()
+                return
             }
-
-            // Create new request with current order
-            let request = ThumbnailRequest(
-                path: path,
-                cacheKey: cacheKey,
-                priority: priority,
-                requestOrder: currentRequestOrder,
-                completion: completion
-            )
-
-            self.pendingRequests[cacheKey] = request
-            self.priorityQueue.enqueue(request)
-
-            // Update queue count on main thread
-            DispatchQueue.main.async {
-                self.pendingQueueCount = self.pendingRequests.count
-            }
-
-            self.processQueue()
         }
+
+        let request = ThumbnailRequest(
+            path: path,
+            cacheKey: cacheKey,
+            priority: priority,
+            requestOrder: currentRequestOrder,
+            completion: completion
+        )
+        pendingRequests[cacheKey] = request
+        priorityQueue.enqueue(request)
+        let count = pendingRequests.count
+        queueLock.unlock()
+
+        DispatchQueue.main.async { self.pendingQueueCount = count }
+        processQueue()
     }
 
     /// Load thumbnail for given file path (legacy method for compatibility)
@@ -297,21 +286,12 @@ class ThumbsManager: ObservableObject {
     /// Stop all pending thumbnail requests and clear the queue
     /// Useful when switching folders to prevent processing thumbnails for old folder
     func stopQueue() {
-        requestQueue.async { [weak self] in
-            guard let self = self else { return }
-
-            // Clear all pending requests
-            self.pendingRequests.removeAll()
-            self.priorityQueue.removeAll()
-
-            // Reset the processing flag so new requests can start fresh
-            self.isProcessingQueue = false
-
-            // Update queue count on main thread
-            DispatchQueue.main.async {
-                self.pendingQueueCount = 0
-            }
-        }
+        queueLock.lock()
+        pendingRequests.removeAll()
+        priorityQueue.removeAll()
+        isProcessingQueue = false
+        queueLock.unlock()
+        DispatchQueue.main.async { self.pendingQueueCount = 0 }
     }
 
     // MARK: - Private Methods
@@ -374,8 +354,10 @@ class ThumbsManager: ObservableObject {
     }
 
     private func processQueue() {
-        guard !isProcessingQueue else { return }
+        queueLock.lock()
+        guard !isProcessingQueue else { queueLock.unlock(); return }
         isProcessingQueue = true
+        queueLock.unlock()
 
         diskQueue.async { [weak self] in
             self?.processAllRequests()
@@ -384,46 +366,33 @@ class ThumbsManager: ObservableObject {
 
     private func processAllRequests() {
         while true {
-            var request: ThumbnailRequest?
+            // Dequeue next request under lock
+            queueLock.lock()
+            let request = priorityQueue.dequeue()
+            queueLock.unlock()
 
-            // Get next request from queue
-            requestQueue.sync {
-                request = self.priorityQueue.dequeue()
+            guard let currentRequest = request else { break }
+
+            // Validate and remove from pending under lock
+            queueLock.lock()
+            let isValid: Bool
+            if let pending = pendingRequests[currentRequest.cacheKey], pending.id == currentRequest.id {
+                pendingRequests.removeValue(forKey: currentRequest.cacheKey)
+                DispatchQueue.main.async { self.pendingQueueCount = self.pendingRequests.count }
+                isValid = true
+            } else {
+                isValid = false
             }
+            queueLock.unlock()
 
-            guard let currentRequest = request else {
-                // No more requests
-                break
-            }
+            guard isValid else { continue }
 
-            // Check if request is still valid (not replaced by newer request)
-            let isValid = requestQueue.sync {
-                if let pendingRequest = self.pendingRequests[currentRequest.cacheKey] {
-                    if pendingRequest.id == currentRequest.id {
-                        self.pendingRequests.removeValue(forKey: currentRequest.cacheKey)
-
-                        DispatchQueue.main.async {
-                            self.pendingQueueCount = self.pendingRequests.count
-                        }
-
-                        return true
-                    }
-                }
-                return false
-            }
-
-            if !isValid {
-                // This request was replaced by a newer one, skip it
-                continue
-            }
-
-            // Process the request
-            self.processRequest(currentRequest)
+            processRequest(currentRequest)
         }
 
-        requestQueue.async { [weak self] in
-            self?.isProcessingQueue = false
-        }
+        queueLock.lock()
+        isProcessingQueue = false
+        queueLock.unlock()
     }
 
     private func processRequest(_ request: ThumbnailRequest) {
