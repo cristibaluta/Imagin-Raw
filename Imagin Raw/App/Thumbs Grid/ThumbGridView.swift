@@ -241,6 +241,59 @@ struct ThumbGridView: View {
                 }
         #elseif os(iOS)
         Spacer()
+        UICollectionThumbGridView(
+            photos: viewModel.filteredPhotos,
+            itemSize: viewModel.gridType.thumbSize,
+            cellHeight: viewModel.gridType.cellHeight,
+            selectedPhotos: viewModel.selectedPhotos,
+            callbacks: ThumbCellCallbacks(
+                onTap: { photo, _ in
+                    viewModel.handlePhotoTap(photo: photo, modifiers: .none)
+                },
+                onDoubleClick: { photo in
+                    handleDoubleClick(photo: photo)
+                },
+                onRatingChanged: { photo, rating in
+                    viewModel.applyRating(rating, to: [photo])
+                },
+                onMoveToTrash: { rightClickedPhoto in
+                    let photosToTrash = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
+                        ? viewModel.getSelectedPhotosForBulkAction()
+                        : [rightClickedPhoto]
+                    viewModel.movePhotosToTrash(photosToTrash)
+                },
+                onCopyTo: { rightClickedPhoto in
+                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
+                        ? viewModel.getSelectedPhotosForBulkAction()
+                        : [rightClickedPhoto]
+                    copyToViewModel = CopyToViewModel(photos: photos)
+                },
+                onRenameTo: { rightClickedPhoto in
+                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
+                        ? viewModel.getSelectedPhotosForBulkAction()
+                        : [rightClickedPhoto]
+                    renameSheetPhotos = PhotosSheetItem(photos: photos)
+                },
+                onMoveAllMarkedToTrash: { photo in
+                    guard photo.toDelete else { return nil }
+                    let marked = viewModel.getPhotosMarkedForDeletion()
+                    return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
+                },
+                onReviewSelected: { rightClickedPhoto in
+                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
+                        ? viewModel.getSelectedPhotosForBulkAction()
+                        : [rightClickedPhoto]
+                    reviewGroup = buildReviewGroupItemFromPhotos(photos)
+                }
+            ),
+            duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
+            onReview: { group, index in
+                reviewGroup = buildReviewGroupItem(group: group, index: index)
+            },
+            dateGroups: viewModel.dateGroups,
+            sortOption: viewModel.sortOption,
+            scrollToPhotoId: $scrollToPhotoId
+        )
         #endif
     }
 

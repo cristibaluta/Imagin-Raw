@@ -6,10 +6,8 @@
 //
 
 import SwiftUI
-#if os(macOS)
-import AppKit
 
-// MARK: - Callbacks bundle
+// MARK: - Callbacks bundle (shared iOS + macOS)
 
 struct ThumbCellCallbacks {
     let onTap: (PhotoItem, NSEvent.ModifierFlags) -> Void
@@ -21,6 +19,9 @@ struct ThumbCellCallbacks {
     let onMoveAllMarkedToTrash: (PhotoItem) -> (count: Int, action: () -> Void)?
     let onReviewSelected: (PhotoItem) -> Void
 }
+
+#if os(macOS)
+import AppKit
 
 // MARK: - Section Header
 
