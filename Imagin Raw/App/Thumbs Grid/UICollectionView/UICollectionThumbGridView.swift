@@ -21,15 +21,12 @@ final class UIDuplicateSectionHeader: UICollectionReusableView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-
         pill.backgroundColor = UIColor.black.withAlphaComponent(0.75)
         pill.layer.cornerRadius = 4
         addSubview(pill)
-
         label.font = UIFont.systemFont(ofSize: 10, weight: .medium)
         label.textColor = .white
         pill.addSubview(label)
-
         reviewBtn.setTitle("Review", for: .normal)
         reviewBtn.titleLabel?.font = UIFont.systemFont(ofSize: 10)
         reviewBtn.backgroundColor = UIColor.systemBlue
@@ -96,6 +93,7 @@ struct UICollectionThumbGridView: UIViewRepresentable {
     let photos: [PhotoItem]
     let itemSize: CGFloat
     let cellHeight: CGFloat
+    let columnCount: Int
     let selectedPhotos: Set<UUID>
     let callbacks: ThumbCellCallbacks
     var duplicateResult: DuplicateScanResult? = nil
@@ -107,7 +105,7 @@ struct UICollectionThumbGridView: UIViewRepresentable {
     private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(itemSize: itemSize, cellHeight: cellHeight, callbacks: callbacks)
+        Coordinator(itemSize: itemSize, cellHeight: cellHeight, columnCount: columnCount, callbacks: callbacks)
     }
 
     func makeUIView(context: Context) -> UIScrollView {
@@ -146,12 +144,14 @@ struct UICollectionThumbGridView: UIViewRepresentable {
         cv.frame = scrollView.bounds
     }
 
+    /// 3 columns, 1 px gaps between cells, 0 side insets.
+    /// Actual cell size is computed by the delegate's sizeForItemAt so it always
+    /// fills the screen width exactly, regardless of device or orientation.
     private func makeLayout(hasHeaders: Bool) -> UICollectionViewFlowLayout {
         let layout = UICollectionViewFlowLayout()
-        layout.itemSize = CGSize(width: itemSize, height: cellHeight)
-        layout.minimumInteritemSpacing = 3
-        layout.minimumLineSpacing = 6
-        layout.sectionInset = UIEdgeInsets(top: 6, left: 3, bottom: 6, right: 3)
+        layout.minimumInteritemSpacing = 1
+        layout.minimumLineSpacing = 1
+        layout.sectionInset = UIEdgeInsets(top: 0, left: 0, bottom: 1, right: 0)
         if hasHeaders {
             layout.headerReferenceSize = CGSize(width: 0, height: 32)
         }
@@ -161,32 +161,32 @@ struct UICollectionThumbGridView: UIViewRepresentable {
     func updateUIView(_ scrollView: UIScrollView, context: Context) {
         let c = context.coordinator
 
-        let isDupNow  = duplicateResult != nil
-        let wasDup    = c.duplicateResult != nil
-        let isDateNow = isDateGrouped
-        let wasDate   = c.sortOption == .dateCreated && !c.dateGroups.isEmpty
+        let isDupNow    = duplicateResult != nil
+        let wasDup      = c.duplicateResult != nil
+        let isDateNow   = isDateGrouped
+        let wasDate     = c.sortOption == .dateCreated && !c.dateGroups.isEmpty
         let modeChanged = isDupNow != wasDup || isDateNow != wasDate
 
         let photosChanged     = c.photos.map(\.id) != photos.map(\.id)
-        let sizeChanged       = c.itemSize != itemSize || c.cellHeight != cellHeight
+        let sizeChanged       = c.itemSize != itemSize || c.cellHeight != cellHeight || c.columnCount != columnCount
         let selectionChanged  = c.selectedPhotos != selectedPhotos
         let dupChanged        = c.duplicateResult?.groups.map(\.id) != duplicateResult?.groups.map(\.id)
         let dateGroupsChanged = c.dateGroups.map({ $0.title }) != dateGroups.map({ $0.title })
 
-        let latestMap  = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
+        let latestMap   = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
         let oldPhotoMap = Dictionary(uniqueKeysWithValues: c.photos.map { ($0.id, $0) })
 
-        // Update coordinator state first
-        c.photos = photos
-        c.itemSize = itemSize
-        c.cellHeight = cellHeight
-        c.selectedPhotos = selectedPhotos
-        c.callbacks = callbacks
+        c.photos          = photos
+        c.itemSize        = itemSize
+        c.cellHeight      = cellHeight
+        c.columnCount     = columnCount
+        c.selectedPhotos  = selectedPhotos
+        c.callbacks       = callbacks
         c.duplicateResult = duplicateResult
-        c.onReview = onReview
-        c.dateGroups = dateGroups
-        c.sortOption = sortOption
-        c.photosById = Dictionary(uniqueKeysWithValues: photos.map { ($0.path, $0) })
+        c.onReview        = onReview
+        c.dateGroups      = dateGroups
+        c.sortOption      = sortOption
+        c.photosById      = Dictionary(uniqueKeysWithValues: photos.map { ($0.path, $0) })
 
         if modeChanged {
             buildCollectionView(in: scrollView, context: context)
@@ -196,10 +196,12 @@ struct UICollectionThumbGridView: UIViewRepresentable {
         let cv = c.collectionView
 
         if photosChanged || sizeChanged || dupChanged || dateGroupsChanged {
-            if sizeChanged, let layout = cv?.collectionViewLayout as? UICollectionViewFlowLayout {
-                layout.itemSize = CGSize(width: itemSize, height: cellHeight)
+            if sizeChanged {
                 let hasHeaders = duplicateResult != nil || isDateGrouped
-                layout.headerReferenceSize = hasHeaders ? CGSize(width: 0, height: 32) : .zero
+                if let layout = cv?.collectionViewLayout as? UICollectionViewFlowLayout {
+                    layout.headerReferenceSize = hasHeaders ? CGSize(width: 0, height: 32) : .zero
+                }
+                cv?.collectionViewLayout.invalidateLayout()
             }
             cv?.reloadData()
         } else {
@@ -249,10 +251,11 @@ struct UICollectionThumbGridView: UIViewRepresentable {
 
     // MARK: - Coordinator
 
-    class Coordinator: NSObject, UICollectionViewDataSource, UICollectionViewDelegate {
+    class Coordinator: NSObject, UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
         var photos: [PhotoItem] = []
         var itemSize: CGFloat
         var cellHeight: CGFloat
+        var columnCount: Int
         var selectedPhotos: Set<UUID> = []
         var callbacks: ThumbCellCallbacks
         var duplicateResult: DuplicateScanResult? = nil
@@ -265,9 +268,10 @@ struct UICollectionThumbGridView: UIViewRepresentable {
 
         private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
 
-        init(itemSize: CGFloat, cellHeight: CGFloat, callbacks: ThumbCellCallbacks) {
+        init(itemSize: CGFloat, cellHeight: CGFloat, columnCount: Int, callbacks: ThumbCellCallbacks) {
             self.itemSize = itemSize
             self.cellHeight = cellHeight
+            self.columnCount = columnCount
             self.callbacks = callbacks
         }
 
@@ -291,7 +295,8 @@ struct UICollectionThumbGridView: UIViewRepresentable {
             return 1
         }
 
-        func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        func collectionView(_ collectionView: UICollectionView,
+                            numberOfItemsInSection section: Int) -> Int {
             photosForSection(section).count
         }
 
@@ -339,14 +344,30 @@ struct UICollectionThumbGridView: UIViewRepresentable {
             return UICollectionReusableView()
         }
 
+        // MARK: UICollectionViewDelegateFlowLayout
+
+        /// Fills the full collection view width with exactly 3 columns and 1 px gaps.
+        /// Both grid modes share the same column count; height scales proportionally.
+        func collectionView(_ collectionView: UICollectionView,
+                            layout collectionViewLayout: UICollectionViewLayout,
+                            sizeForItemAt indexPath: IndexPath) -> CGSize {
+            let columns = CGFloat(columnCount)
+            let totalGap = columns - 1          // 1 px gaps between columns
+            let cellWidth = floor((collectionView.bounds.width - totalGap) / columns)
+            let bottomH: CGFloat = 16 + 14 + 4  // label + stars + padding
+            return CGSize(width: cellWidth, height: cellWidth + bottomH)
+        }
+
         // MARK: UICollectionViewDelegate
 
-        func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        func collectionView(_ collectionView: UICollectionView,
+                            didSelectItemAt indexPath: IndexPath) {
             let photo = photosForSection(indexPath.section)[indexPath.item]
             callbacks.onTap(photo, .none)
         }
 
-        func collectionView(_ collectionView: UICollectionView, didDeselectItemAt indexPath: IndexPath) {
+        func collectionView(_ collectionView: UICollectionView,
+                            didDeselectItemAt indexPath: IndexPath) {
             let photo = photosForSection(indexPath.section)[indexPath.item]
             callbacks.onTap(photo, .none)
         }

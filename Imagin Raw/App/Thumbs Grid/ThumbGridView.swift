@@ -214,36 +214,37 @@ struct ThumbGridView: View {
                 )
             }
         )
-                .onAppear {
-                    viewModel.initializeSelection()
-                }
-                .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
-                    if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
-                        filesModel.selectedPhoto = newPhotos.first
-                        viewModel.selectedPhotos.removeAll()
-                        viewModel.selectedPhotos.insert(newPhotos.first!.id)
-                        viewModel.lastSelectedIndex = 0
-                    }
-                }
-                .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
-                    if oldValue == true && newValue == false {
-                        viewModel.clearInvalidFilters()
-                    }
-                }
-                .onChange(of: filesModel.selectedFolder) { _, _ in
-                    if let firstPhoto = viewModel.filteredPhotos.first {
-                        filesModel.selectedPhoto = firstPhoto
-                        viewModel.selectedPhotos.removeAll()
-                        viewModel.selectedPhotos.insert(firstPhoto.id)
-                        viewModel.lastSelectedIndex = 0
-                        scrollToPhotoId = firstPhoto.id
-                    }
-                }
+        .onAppear {
+            viewModel.initializeSelection()
+        }
+        .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
+            if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
+                filesModel.selectedPhoto = newPhotos.first
+                viewModel.selectedPhotos.removeAll()
+                viewModel.selectedPhotos.insert(newPhotos.first!.id)
+                viewModel.lastSelectedIndex = 0
+            }
+        }
+        .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
+            if oldValue == true && newValue == false {
+                viewModel.clearInvalidFilters()
+            }
+        }
+        .onChange(of: filesModel.selectedFolder) { _, _ in
+            if let firstPhoto = viewModel.filteredPhotos.first {
+                filesModel.selectedPhoto = firstPhoto
+                viewModel.selectedPhotos.removeAll()
+                viewModel.selectedPhotos.insert(firstPhoto.id)
+                viewModel.lastSelectedIndex = 0
+                scrollToPhotoId = firstPhoto.id
+            }
+        }
         #elseif os(iOS)
         UICollectionThumbGridView(
             photos: viewModel.filteredPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,
+            columnCount: viewModel.gridType.columnCount,
             selectedPhotos: viewModel.selectedPhotos,
             callbacks: ThumbCellCallbacks(
                 onTap: { photo, _ in

@@ -125,32 +125,32 @@ final class UIThumbCollectionCell: UICollectionViewCell {
         super.layoutSubviews()
         let w = contentView.bounds.width
         let h = contentView.bounds.height
-        let size = itemSize
         let labelH: CGFloat = 16
         let starH: CGFloat = 14
+        let bottomH: CGFloat = labelH + starH + 4   // reserved space at the bottom
 
-        let imgPad: CGFloat = 2
-        // Image occupies the top portion; label + stars sit below it.
-        thumbView.frame = CGRect(x: imgPad, y: imgPad, width: w - imgPad * 2, height: size - imgPad)
+        // Image fills the top portion of the cell using actual cell dimensions.
+        let imgH = max(0, h - bottomH)
+        thumbView.frame = CGRect(x: 0, y: 0, width: w, height: imgH)
         selectionBorder.frame = contentView.bounds
 
         let iconSize: CGFloat = 24
         trashOverlay.frame = CGRect(x: (w - iconSize) / 2,
-                                    y: imgPad + (size - iconSize) / 2,
+                                    y: (imgH - iconSize) / 2,
                                     width: iconSize, height: iconSize)
 
         // Badges top-right of thumb
         let badgeH: CGFloat = 18
         let badgeW: CGFloat = 22
         let badgePad: CGFloat = 4
-        jpgBadgeView.frame = CGRect(x: w - badgeW - badgePad, y: imgPad + badgePad, width: badgeW, height: badgeH)
+        jpgBadgeView.frame = CGRect(x: w - badgeW - badgePad, y: badgePad, width: badgeW, height: badgeH)
         jpgBadge.frame = jpgBadgeView.bounds
 
-        acrBadge.frame = CGRect(x: jpgBadgeView.frame.minX - badgeW - 2, y: imgPad + badgePad, width: badgeW, height: badgeH)
+        acrBadge.frame = CGRect(x: jpgBadgeView.frame.minX - badgeW - 2, y: badgePad, width: badgeW, height: badgeH)
         acrIcon.frame = acrBadge.bounds.insetBy(dx: 2, dy: 2)
 
-        // Label below the image
-        let labelY = size + imgPad + 2
+        // Label and stars below the image
+        let labelY = imgH + 2
         filenameLabel.frame = CGRect(x: 2, y: labelY, width: w - 4, height: labelH)
 
         if !(currentPhoto?.isRawFile ?? false) {
