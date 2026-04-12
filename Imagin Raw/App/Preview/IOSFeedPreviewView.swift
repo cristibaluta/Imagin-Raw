@@ -10,6 +10,7 @@
 #if os(iOS)
 import SwiftUI
 import UIKit
+import Combine
 
 struct IOSFeedPreviewView: UIViewRepresentable {
 
@@ -78,11 +79,9 @@ struct IOSFeedPreviewView: UIViewRepresentable {
             guard !hasScrolledToInitial,
                   let cv = collectionView,
                   let idx = photos.firstIndex(where: { $0.id == initialPhoto.id }) else { return }
-            // Wait one run-loop so the collection view has measured its cells
             DispatchQueue.main.async { [weak self, weak cv] in
                 guard let self, let cv else { return }
-                let ip = IndexPath(item: idx, section: 0)
-                cv.scrollToItem(at: ip, at: .top, animated: false)
+                cv.scrollToItem(at: IndexPath(item: idx, section: 0), at: .top, animated: false)
                 self.hasScrolledToInitial = true
             }
         }
@@ -94,8 +93,7 @@ struct IOSFeedPreviewView: UIViewRepresentable {
         }
 
         func collectionView(_ cv: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-            let cell = cv.dequeueReusableCell(withReuseIdentifier: IOSFeedCell.identifier,
-                                              for: indexPath) as! IOSFeedCell
+            let cell = cv.dequeueReusableCell(withReuseIdentifier: IOSFeedCell.identifier, for: indexPath) as! IOSFeedCell
             cell.configure(with: photos[indexPath.item])
             return cell
         }
@@ -103,11 +101,10 @@ struct IOSFeedPreviewView: UIViewRepresentable {
         // MARK: UICollectionViewDelegateFlowLayout
 
         func collectionView(_ cv: UICollectionView,
-                            layout collectionViewLayout: UICollectionViewLayout,
+                            layout: UICollectionViewLayout,
                             sizeForItemAt indexPath: IndexPath) -> CGSize {
             let w = cv.bounds.width
             let photo = photos[indexPath.item]
-            // Use the photo's native aspect ratio if available, otherwise 4:3
             let imgH: CGFloat
             if let pw = photo.width, let ph = photo.height, pw > 0 {
                 imgH = w * CGFloat(ph) / CGFloat(pw)
@@ -120,16 +117,10 @@ struct IOSFeedPreviewView: UIViewRepresentable {
         // MARK: UICollectionViewDataSourcePrefetching
 
         func collectionView(_ cv: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
-            for ip in indexPaths {
-                let photo = photos[ip.item]
-                PreviewsManager.shared.loadPreview(for: photo) { _, _ in }
-            }
+            // Cells own their VMs — nothing to prefetch here
         }
 
         func collectionView(_ cv: UICollectionView, cancelPrefetchingForItemsAt indexPaths: [IndexPath]) {
-            for ip in indexPaths {
-                PreviewsManager.shared.cancelPreview(for: photos[ip.item].path)
-            }
         }
     }
 }

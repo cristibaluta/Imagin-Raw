@@ -2,42 +2,38 @@
 //  IOSFeedCell.swift
 //  Imagin Raw
 //
-//  Instagram-style feed cell for iOS preview.
-//  Full-width photo + EXIF card below. Sized by sizeForItemAt — no Auto Layout.
+//  Instagram-style feed cell.
+//  Owns one LargePreviewViewModel — same pattern as LargePreviewView on macOS.
 //
 
 #if os(iOS)
 import UIKit
-import Photos
-import ImageIO
+import Combine
 
 final class IOSFeedCell: UICollectionViewCell {
     static let identifier = "IOSFeedCell"
-
-    /// Fixed height of the EXIF card.
     static let exifCardHeight: CGFloat = 86
 
     // MARK: - Views
-    private let imageView = UIImageView()
-    private let spinner   = UIActivityIndicatorView(style: .large)
-    private let exifCard  = UIView()
+    private let imageView     = UIImageView()
+    private let spinner       = UIActivityIndicatorView(style: .large)
+    private let exifCard      = UIView()
+    private let filenameLabel = UILabel()
+    private let dateLabel     = UILabel()
+    private let exposureLabel = UILabel()
+    private let lensLabel     = UILabel()
 
-    // Line 1 – left: filename · resolution · size    right: date
-    private let filenameLabel   = UILabel()
-    private let dateLabel       = UILabel()
-    // Line 2 – aperture / shutter / ISO
-    private let exposureLabel   = UILabel()
-    // Line 3 – lens + focal length
-    private let lensLabel       = UILabel()
+    // MARK: - ViewModel  (one per cell, lives as long as the cell)
+    private let viewModel = LargePreviewViewModel()
+    private var cancellables = Set<AnyCancellable>()
 
-    // MARK: - State
     private(set) var currentPath: String?
-    private var currentPhoto: PhotoItem?
 
     // MARK: - Init
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupViews()
+        bindViewModel()
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -67,8 +63,6 @@ final class IOSFeedCell: UICollectionViewCell {
         dateLabel.textColor = UIColor(white: 0.55, alpha: 1)
         dateLabel.numberOfLines = 1
         dateLabel.textAlignment = .right
-        dateLabel.setContentHuggingPriority(.required, for: .horizontal)
-        dateLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
         exifCard.addSubview(dateLabel)
 
         exposureLabel.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
@@ -83,13 +77,33 @@ final class IOSFeedCell: UICollectionViewCell {
         exifCard.addSubview(lensLabel)
     }
 
+    // Bind once at init — no need to rebind on reuse since the VM is permanent.
+    private func bindViewModel() {
+        viewModel.$preview
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] img in self?.imageView.image = img }
+            .store(in: &cancellables)
+
+        viewModel.$isLoading
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] loading in
+                loading ? self?.spinner.startAnimating() : self?.spinner.stopAnimating()
+            }
+            .store(in: &cancellables)
+
+        viewModel.$exifInfo
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] exif in self?.applyExif(exif) }
+            .store(in: &cancellables)
+    }
+
     // MARK: - Layout
     override func layoutSubviews() {
         super.layoutSubviews()
         let w = contentView.bounds.width
         let h = contentView.bounds.height
         let exifH = Self.exifCardHeight
-        let imgH = max(0, h - exifH)
+        let imgH  = max(0, h - exifH)
 
         imageView.frame = CGRect(x: 0, y: 0, width: w, height: imgH)
         spinner.center  = CGPoint(x: w / 2, y: imgH / 2)
@@ -100,126 +114,56 @@ final class IOSFeedCell: UICollectionViewCell {
         let inner = w - pad * 2
         var y: CGFloat = 10
 
-        // Line 1: filename (left, truncated) + date (right, fixed width)
         let dateSz = dateLabel.sizeThatFits(CGSize(width: inner / 2, height: lineH))
         let dateW  = min(dateSz.width, inner * 0.45)
-        dateLabel.frame    = CGRect(x: w - pad - dateW, y: y, width: dateW, height: lineH)
-        filenameLabel.frame = CGRect(x: pad, y: y, width: inner - dateW - 6, height: lineH)
+        dateLabel.frame     = CGRect(x: w - pad - dateW, y: y, width: dateW,             height: lineH)
+        filenameLabel.frame = CGRect(x: pad,             y: y, width: inner - dateW - 6, height: lineH)
         y += lineH + 5
-
-        // Line 2: exposure
         exposureLabel.frame = CGRect(x: pad, y: y, width: inner, height: lineH)
         y += lineH + 5
-
-        // Line 3: lens + focal length
-        lensLabel.frame = CGRect(x: pad, y: y, width: inner, height: lineH)
+        lensLabel.frame     = CGRect(x: pad, y: y, width: inner, height: lineH)
     }
 
     // MARK: - Configure
     func configure(with photo: PhotoItem) {
-        let pathChanged = currentPath != photo.path
+        guard currentPath != photo.path else { return }
         currentPath = photo.path
-        currentPhoto = photo
 
-        guard pathChanged else { return }
+        // Static fields — available immediately
+        var line1: [String] = [URL(fileURLWithPath: photo.path).lastPathComponent]
+        if let pw = photo.width, let ph = photo.height, pw > 0 { line1.append("\(pw)×\(ph)") }
+        if let b = photo.fileSizeBytes { line1.append(ByteCountFormatter.string(fromByteCount: b, countStyle: .file)) }
+        filenameLabel.text = line1.joined(separator: "  ·  ")
 
+        let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .short
+        dateLabel.text = df.string(from: photo.dateCreated)
+
+        exposureLabel.text = nil
+        lensLabel.text = nil
         imageView.image = nil
-        spinner.startAnimating()
-        populateExif(exifInfo: nil, photo: photo)
 
-        let path = photo.path
-        if let cached = ThumbsManager.shared.getCachedThumbnail(for: path) {
-            imageView.image = cached
-        }
-
-        PreviewsManager.shared.loadPreview(for: photo) { [weak self] image, _ in
-            guard let self, self.currentPath == path else { return }
-            if let image { self.imageView.image = image }
-            self.spinner.stopAnimating()
-        }
-
-        // Load EXIF independently — PreviewsManager never delivers it
-        Task.detached(priority: .utility) { [weak self] in
-            let exif = await Self.loadExif(for: photo)
-            guard let self else { return }
-            await MainActor.run {
-                guard self.currentPath == path else { return }
-                self.populateExif(exifInfo: exif, photo: photo)
-            }
-        }
-    }
-
-    private static func loadExif(for photo: PhotoItem) async -> ExifInfo? {
-#if canImport(Photos)
-        // PhotoKit — extract from PHAsset
-        if let asset = photo.phAsset {
-            return await withCheckedContinuation { cont in
-                let opts = PHContentEditingInputRequestOptions()
-                opts.isNetworkAccessAllowed = true
-                asset.requestContentEditingInput(with: opts) { input, _ in
-                    guard let url = input?.fullSizeImageURL,
-                          let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-                          let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any]
-                    else { cont.resume(returning: nil); return }
-                    cont.resume(returning: ExifInfo.from(imageProperties: props))
-                }
-            }
-        }
-#endif
-        // File-based
-        let url = URL(fileURLWithPath: photo.path)
-        let ext = url.pathExtension.lowercased()
-        if FilesExtensions.raw.contains(ext) {
-            guard let raw = RawWrapper.shared().extractRawPhoto(photo.path),
-                  let dict = raw.exifData as? [String: Any] else { return nil }
-            return ExifInfo.from(rawExif: dict)
-        } else {
-            guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-                  let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any]
-            else { return nil }
-            return ExifInfo.from(imageProperties: props)
-        }
+        // Hand off to the VM — it loads preview + exif and publishes via Combine
+        viewModel.setPhoto(photo)
     }
 
     // MARK: - EXIF
-    private func populateExif(exifInfo: ExifInfo?, photo: PhotoItem) {
-        // Line 1 left: "FILENAME  1234×5678  4.2 MB"
-        var line1Parts = [URL(fileURLWithPath: photo.path).lastPathComponent]
-        if let pw = photo.width, let ph = photo.height, pw > 0 {
-            line1Parts.append("\(pw)×\(ph)")
-        }
-        if let bytes = photo.fileSizeBytes {
-            line1Parts.append(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
-        }
-        filenameLabel.text = line1Parts.joined(separator: "  ·  ")
-
-        // Line 1 right: date
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .short
-        dateLabel.text = df.string(from: photo.dateCreated)
-
-        // Line 2: ƒ/1.8  1/1000s  ISO 400
+    private func applyExif(_ exif: ExifInfo?) {
         var exp: [String] = []
-        if let ap = exifInfo?.aperture { exp.append("ƒ/\(String(format:"%.1f",ap))") }
-        if let ss = exifInfo?.shutterSpeed {
-            exp.append(ss < 1 ? "1/\(Int(round(1/ss)))s" : "\(String(format:"%.1f",ss))s")
-        }
-        if let iso = exifInfo?.iso { exp.append("ISO \(iso)") }
+        if let ap = exif?.aperture     { exp.append("ƒ/\(String(format:"%.1f", ap))") }
+        if let ss = exif?.shutterSpeed { exp.append(ss < 1 ? "1/\(Int(round(1/ss)))s" : "\(String(format:"%.1f",ss))s") }
+        if let iso = exif?.iso         { exp.append("ISO \(iso)") }
         exposureLabel.text = exp.isEmpty ? nil : exp.joined(separator: "   ")
 
-        // Line 3: lens name  ·  focal length
-        var lensParts: [String] = []
-        if let lens = exifInfo?.lensModel { lensParts.append(lens) }
-        if let fl = exifInfo?.focalLength { lensParts.append("\(String(format:"%.0f",fl)) mm") }
-        lensLabel.text = lensParts.isEmpty ? nil : lensParts.joined(separator: "  ·  ")
+        var lens: [String] = []
+        if let l  = exif?.lensModel   { lens.append(l) }
+        if let fl = exif?.focalLength { lens.append("\(String(format:"%.0f",fl)) mm") }
+        lensLabel.text = lens.isEmpty ? nil : lens.joined(separator: "  ·  ")
     }
 
     // MARK: - Reuse
     override func prepareForReuse() {
         super.prepareForReuse()
         currentPath = nil
-        currentPhoto = nil
         imageView.image = nil
         spinner.stopAnimating()
         filenameLabel.text = nil
