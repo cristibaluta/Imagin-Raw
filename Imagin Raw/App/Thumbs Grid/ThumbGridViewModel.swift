@@ -58,8 +58,8 @@ class ThumbGridViewModel: ObservableObject {
 
         var columnCount: Int {
             switch self {
-            case .small: return 3
-            case .large: return 4
+            case .small: return 5
+            case .large: return 3
             }
         }
 
@@ -207,7 +207,7 @@ class ThumbGridViewModel: ObservableObject {
 
     private static let dateGroupFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.dateFormat = "MMMM d"  // e.g. "April 12"
+        f.dateFormat = "MMMM d, yyyy"  // e.g. "April 12, 2025"
         return f
     }()
 
