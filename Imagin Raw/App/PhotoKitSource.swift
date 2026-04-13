@@ -95,17 +95,23 @@ enum PhotoKitSource {
 
     // MARK: Photo loading
 
-    /// Fetches all photos (and videos) from a `PHAssetCollection` identified by its `localIdentifier`.
+    /// Fetches all photos from a PHAssetCollection.
+    /// For Recents / User Library we use no sort descriptor so PhotoKit returns
+    /// assets in its native "recently added" order (oldest → newest), which
+    /// matches exactly what the native Photos app shows.
     static func loadPhotos(albumIdentifier: String) -> [PhotoItem] {
+        let collections = PHAssetCollection.fetchAssetCollections(
+            withLocalIdentifiers: [albumIdentifier], options: nil)
+        guard let collection = collections.firstObject else {
+            return []
+        }
+
         let options = PHFetchOptions()
-        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         options.includeHiddenAssets = false
+        let subtype = collection.assetCollectionSubtype
+        options.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: true)]
 
-        // Resolve collection
-        let collections = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [albumIdentifier], options: nil)
-        guard let collection = collections.firstObject else { return [] }
-
-        let assets = PHAsset.fetchAssets(in: collection, options: options)
+        let assets = PHAsset.fetchAssets(in: collection, options: nil)
         var items: [PhotoItem] = []
         items.reserveCapacity(assets.count)
         assets.enumerateObjects { asset, _, _ in
@@ -114,11 +120,11 @@ enum PhotoKitSource {
         return items
     }
 
-    /// Fetches all assets in the user's whole library (fallback when root is selected).
+    /// Fetches all assets in the whole library in "recently added" order.
     static func loadAllPhotos() -> [PhotoItem] {
         let options = PHFetchOptions()
-        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         options.includeHiddenAssets = false
+        // No sort descriptor → native recently-added order
         let assets = PHAsset.fetchAssets(with: options)
         var items: [PhotoItem] = []
         items.reserveCapacity(assets.count)
