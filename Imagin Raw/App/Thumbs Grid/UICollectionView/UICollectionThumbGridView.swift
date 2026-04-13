@@ -354,10 +354,9 @@ struct UICollectionThumbGridView: UIViewRepresentable {
                             layout collectionViewLayout: UICollectionViewLayout,
                             sizeForItemAt indexPath: IndexPath) -> CGSize {
             let columns = CGFloat(columnCount)
-            let totalGap = columns - 1          // 1 px gaps between columns
+            let totalGap = columns - 1
             let cellWidth = floor((collectionView.bounds.width - totalGap) / columns)
-            let bottomH: CGFloat = 16 + 14 + 4  // label + stars + padding
-            return CGSize(width: cellWidth, height: cellWidth + bottomH)
+            return CGSize(width: cellWidth, height: (cellWidth * 4.0 / 3.0).rounded())
         }
 
         // MARK: UICollectionViewDataSourcePrefetching

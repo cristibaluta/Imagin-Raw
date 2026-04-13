@@ -116,16 +116,13 @@ final class UIThumbCollectionCell: UICollectionViewCell {
         super.layoutSubviews()
         let w = contentView.bounds.width
         let h = contentView.bounds.height
-        let labelH: CGFloat = 16
-        let starH: CGFloat = 14
-        let bottomH: CGFloat = labelH + starH + 4
 
-        let imgH = max(0, h - bottomH)
-        thumbView.frame = CGRect(x: 0, y: 0, width: w, height: imgH)
+        // Image fills the entire cell — no title area
+        thumbView.frame = CGRect(x: 0, y: 0, width: w, height: h)
         selectionBorder.frame = contentView.bounds
 
         let iconSize: CGFloat = 24
-        trashOverlay.frame = CGRect(x: (w - iconSize) / 2, y: (imgH - iconSize) / 2,
+        trashOverlay.frame = CGRect(x: (w - iconSize) / 2, y: (h - iconSize) / 2,
                                     width: iconSize, height: iconSize)
 
         let badgeH: CGFloat = 18
@@ -136,13 +133,8 @@ final class UIThumbCollectionCell: UICollectionViewCell {
         acrBadge.frame = CGRect(x: jpgBadgeView.frame.minX - badgeW - 2, y: badgePad, width: badgeW, height: badgeH)
         acrIcon.frame = acrBadge.bounds.insetBy(dx: 2, dy: 2)
 
-        let labelY = imgH + 2
-        filenameLabel.frame = CGRect(x: 2, y: labelY, width: w - 4, height: labelH)
-
-        if !(currentPhoto?.isRawFile ?? false) {
-            starStack.isHidden = true
-        }
-        starStack.frame = CGRect(x: 2, y: labelY + labelH + 2, width: w - 4, height: starH)
+        filenameLabel.isHidden = true
+        starStack.isHidden = true
     }
 
     // MARK: - Configure
@@ -273,14 +265,16 @@ final class UIThumbCollectionCell: UICollectionViewCell {
         case "Approved": filenameLabel.backgroundColor = UIColor(red: 133/255, green: 199/255, blue: 102/255, alpha: 1); filenameLabel.textColor = .black
         case "Review":   filenameLabel.backgroundColor = .systemBlue;   filenameLabel.textColor = .white
         case "To Do":    filenameLabel.backgroundColor = .systemPurple; filenameLabel.textColor = .white
-        default:         filenameLabel.backgroundColor = .clear;         filenameLabel.textColor = .label
+        default:         filenameLabel.backgroundColor = .clear;        filenameLabel.textColor = .label
         }
     }
 
     private var parentViewController: UIViewController? {
         var r: UIResponder? = self
         while let next = r?.next {
-            if let vc = next as? UIViewController { return vc }
+            if let vc = next as? UIViewController {
+                return vc
+            }
             r = next
         }
         return nil
