@@ -35,27 +35,55 @@ final class PhotosModel: ObservableObject {
 
     /// Load photos for the folder - call this when the model is created
     func loadPhotos() {
-        // PhotoKit path — no file metadata needed
-        if folder.url.isPhotoKitAlbum {
+        // PhotoKit path
+        if folder.url.isPhotoKitAlbum || folder.url.isPhotoLibraryRoot {
             isLoadingMetadata = true
             metadataTask = Task {
-                let items = await Task.detached(priority: .userInitiated) {
-                    PhotoKitSource.loadPhotos(albumIdentifier: self.folder.url.photoKitAlbumIdentifier ?? "")
+                // Step 1 — fast: load basic items (no PHAssetResource lookup)
+                let basicItems = await Task.detached(priority: .userInitiated) { [folder] in
+                    if folder.url.isPhotoLibraryRoot {
+                        return PhotoKitSource.loadAllPhotos(basic: true)
+                    } else {
+                        return PhotoKitSource.loadPhotos(
+                            albumIdentifier: folder.url.photoKitAlbumIdentifier ?? "",
+                            basic: true)
+                    }
                 }.value
-                guard !Task.isCancelled else { return }
-                self.photos = items
-                self.isLoadingMetadata = false
-            }
-            return
-        }
-        if folder.url.isPhotoLibraryRoot {
-            isLoadingMetadata = true
-            metadataTask = Task {
-                let items = await Task.detached(priority: .userInitiated) {
-                    PhotoKitSource.loadAllPhotos()
-                }.value
-                guard !Task.isCancelled else { return }
-                self.photos = items
+                guard !Task.isCancelled else {
+                    return
+                }
+                self.photos = basicItems
+
+                // Step 2 — slower: enrich with real filenames in background batches
+                let batchSize = 200
+                var enriched = basicItems
+                let total = enriched.count
+                var idx = 0
+                while idx < total {
+                    guard !Task.isCancelled else {
+                        break
+                    }
+                    let end = min(idx + batchSize, total)
+                    let slice = Array(enriched[idx..<end])
+                    let filled = await Task.detached(priority: .utility) {
+                        slice.map { item -> PhotoItem in
+                            guard let asset = item.phAsset else {
+                                return item
+                            }
+                            let resources = PHAssetResource.assetResources(for: asset)
+                            let primary = resources.first(where: {
+                                $0.type == .photo || $0.type == .video || $0.type == .fullSizePhoto
+                            }) ?? resources.first
+                            guard let filename = primary?.originalFilename else {
+                                return item
+                            }
+                            return item.withFilename(filename)
+                        }
+                    }.value
+                    enriched.replaceSubrange(idx..<end, with: filled)
+                    self.photos = enriched
+                    idx = end
+                }
                 self.isLoadingMetadata = false
             }
             return

@@ -95,41 +95,37 @@ enum PhotoKitSource {
 
     // MARK: Photo loading
 
-    /// Fetches all photos from a PHAssetCollection.
-    /// For Recents / User Library we use no sort descriptor so PhotoKit returns
-    /// assets in its native "recently added" order (oldest → newest), which
-    /// matches exactly what the native Photos app shows.
-    static func loadPhotos(albumIdentifier: String) -> [PhotoItem] {
+    static func loadPhotos(albumIdentifier: String, basic: Bool = false) -> [PhotoItem] {
         let collections = PHAssetCollection.fetchAssetCollections(
             withLocalIdentifiers: [albumIdentifier], options: nil)
         guard let collection = collections.firstObject else {
             return []
         }
-
         let options = PHFetchOptions()
         options.includeHiddenAssets = false
         let subtype = collection.assetCollectionSubtype
-        options.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: true)]
-
-        let assets = PHAsset.fetchAssets(in: collection, options: nil)
+        let isRecents = subtype == .smartAlbumUserLibrary
+                     || subtype == .smartAlbumRecentlyAdded
+        if !isRecents {
+            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+        }
+        let assets = PHAsset.fetchAssets(in: collection, options: options)
         var items: [PhotoItem] = []
         items.reserveCapacity(assets.count)
         assets.enumerateObjects { asset, _, _ in
-            items.append(PhotoItem(asset: asset))
+            items.append(PhotoItem(asset: asset, basic: basic))
         }
         return items
     }
 
-    /// Fetches all assets in the whole library in "recently added" order.
-    static func loadAllPhotos() -> [PhotoItem] {
+    static func loadAllPhotos(basic: Bool = false) -> [PhotoItem] {
         let options = PHFetchOptions()
         options.includeHiddenAssets = false
-        // No sort descriptor → native recently-added order
         let assets = PHAsset.fetchAssets(with: options)
         var items: [PhotoItem] = []
         items.reserveCapacity(assets.count)
         assets.enumerateObjects { asset, _, _ in
-            items.append(PhotoItem(asset: asset))
+            items.append(PhotoItem(asset: asset, basic: basic))
         }
         return items
     }

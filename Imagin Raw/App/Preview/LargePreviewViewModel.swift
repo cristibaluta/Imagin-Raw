@@ -1,4 +1,5 @@
 import SwiftUI
+import Photos
 import ImageIO
 import RCPreferences
 
@@ -116,7 +117,7 @@ class LargePreviewViewModel: ObservableObject {
             print("🖼 [preview] assigned to view  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
             // Step 2: load EXIF separately after image is visible
-            let extractedExif = await Self.loadExifOnly(from: path)
+            let extractedExif = await Self.loadExifOnly(from: path, photo: currentPhoto)
             print("🖼 [preview] exif ready  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
             guard !Task.isCancelled else { return }
@@ -137,17 +138,37 @@ class LargePreviewViewModel: ObservableObject {
         }
     }
 
-    /// Load EXIF metadata only — no image decoding
-    private static func loadExifOnly(from path: String) async -> ExifInfo? {
+    private static func loadExifOnly(from path: String, photo: PhotoItem) async -> ExifInfo? {
+        // PhotoKit: request full-size image URL then read EXIF via CGImageSource
+        if let asset = photo.phAsset {
+            return await withCheckedContinuation { cont in
+                let opts = PHContentEditingInputRequestOptions()
+                opts.isNetworkAccessAllowed = true
+                asset.requestContentEditingInput(with: opts) { input, _ in
+                    guard let url = input?.fullSizeImageURL,
+                          let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+                          let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else {
+                        cont.resume(returning: nil)
+                        return
+                    }
+                    cont.resume(returning: ExifInfo.from(imageProperties: props))
+                }
+            }
+        }
+        // File-based
         let url = URL(fileURLWithPath: path)
         let ext = url.pathExtension.lowercased()
         if FilesExtensions.raw.contains(ext) {
             guard let rawPhoto = RawWrapper.shared().extractRawPhoto(path),
-                  let rawExif = rawPhoto.exifData as? [String: Any] else { return nil }
+                  let rawExif = rawPhoto.exifData as? [String: Any] else {
+                return nil
+            }
             return ExifInfo.from(rawExif: rawExif)
         } else {
             guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-                  let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else { return nil }
+                  let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else {
+                return nil
+            }
             return ExifInfo.from(imageProperties: props)
         }
     }

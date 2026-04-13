@@ -10,7 +10,7 @@ import Photos
 
 struct PhotoItem: Identifiable {
     let id: UUID
-    let path: String          // file path on disk, OR PHAsset.localIdentifier for PhotoKit items
+    var path: String          // file path on disk, OR PHAsset.localIdentifier for PhotoKit items
     let xmp: XmpMetadata?
     let dateCreated: Date
     let hasACR: Bool
@@ -80,22 +80,46 @@ struct PhotoItem: Identifiable {
 
     // MARK: - PhotoKit init
 
-    init(asset: PHAsset) {
+    init(asset: PHAsset, basic: Bool = false) {
         self.id = UUID()
-        self.path = asset.localIdentifier   // used as stable key throughout the app
-        self.xmp = nil
-        self.dateCreated = asset.creationDate ?? Date()
+        if #available(iOS 26.0, *) {
+            self.dateCreated = asset.addedDate
+        } else {
+            self.dateCreated = asset.creationDate ?? Date()
+        }
         self.hasACR = false
         self.hasJPG = false
         self.inCameraRating = nil
         self.isRawFile = false
-        self.fileSizeBytes = nil
         self.width = asset.pixelWidth == 0 ? nil : asset.pixelWidth
         self.height = asset.pixelHeight == 0 ? nil : asset.pixelHeight
-        self.cameraMake = nil
-        self.cameraModel = nil
         self.toDelete = false
         self.phAsset = asset
+        self.cameraMake = nil
+        self.cameraModel = nil
+        self.fileSizeBytes = nil
+        self.xmp = nil
+
+        if basic {
+            // Fast path — no PHAssetResource lookup.
+            // A background enrichment pass will call withFilename() afterwards.
+            self.path = asset.localIdentifier
+        } else {
+            let resources = PHAssetResource.assetResources(for: asset)
+            let primary = resources.first(where: {
+                $0.type == .photo || $0.type == .video || $0.type == .fullSizePhoto
+            }) ?? resources.first
+            let filename = primary?.originalFilename ?? asset.localIdentifier
+            self.path = asset.localIdentifier + "/" + filename
+        }
+    }
+
+    /// Returns a copy with the real filename appended — used by the background enrichment pass.
+    func withFilename(_ filename: String) -> PhotoItem {
+        let base = phAsset?.localIdentifier ?? path
+        var copy = self
+        copy.path = base + "/" + filename
+        return copy
     }
 }
 
