@@ -126,7 +126,7 @@ struct PhotoKitPhotoSource: PhotoSource {
         let options = PHImageRequestOptions()
         options.isNetworkAccessAllowed = true
         options.isSynchronous = false
-        options.deliveryMode = .highQualityFormat
+        options.deliveryMode = .opportunistic
         options.resizeMode = .fast
         PHImageManager.default().requestImage(
             for: asset,
@@ -134,11 +134,7 @@ struct PhotoKitPhotoSource: PhotoSource {
             contentMode: .aspectFit,
             options: options
         ) { image, info in
-            let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
-            guard let image, !degraded else {
-                if image == nil {
-                    completion(nil)
-                }
+            guard let image else {
                 return
             }
             completion(image)

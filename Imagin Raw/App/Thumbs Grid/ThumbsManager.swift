@@ -117,6 +117,21 @@ class ThumbsManager: ObservableObject {
             return
         }
 
+        // PhotoKit: bypass the disk queue — PHImageManager manages its own concurrency
+        if let pkSource = source as? PhotoKitPhotoSource {
+            pkSource.loadThumbnail(targetSize: thumbSize) { [weak self] img in
+                guard let img else {
+                    return
+                }
+                self?.setCachedImage(img, for: key)
+                DispatchQueue.main.async {
+                    completion(img)
+                }
+            }
+            return
+        }
+
+        // Disk-based: go through the priority queue
         queueLock.lock()
         requestCounter += 1
         let order = requestCounter
