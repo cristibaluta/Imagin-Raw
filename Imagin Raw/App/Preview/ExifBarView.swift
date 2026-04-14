@@ -39,20 +39,25 @@ struct ExifBarView: View {
                 if let iso = exifInfo.iso {
                     exifItem(label: "ISO \(iso)")
                 }
+                // Focal length
+                if let focal = exifInfo.focalLength {
+                    exifItem(label: "\(String(format: "%.0f", focal))mm")
+                }
             }
             .padding(4)
             .overlay(
                 RoundedRectangle(cornerRadius: 3)
-                    .stroke(Color.gray, lineWidth: 1)
+                    .stroke(Color.gray.opacity(0.5), lineWidth: 1)
             )
             .padding(.horizontal, 8)
 
             HStack {
-                // Focal length
-                if let focal = exifInfo.focalLength {
-                    exifItem(label: "\(String(format: "%.0f", focal))mm")
-                    divider
+                // Camera
+                if let model = exifInfo.cameraModel {
+                    let make = exifInfo.cameraMake ?? ""
+                    exifItem(label: "\(make) \(model)".trimmingCharacters(in: .whitespaces))
                 }
+                divider
                 // Lens
                 if let lens = exifInfo.lensModel {
                     exifItem(label: lens)
@@ -61,19 +66,12 @@ struct ExifBarView: View {
             .padding(4)
             .overlay(
                 RoundedRectangle(cornerRadius: 3)
-                    .stroke(Color.gray, lineWidth: 1)
+                    .stroke(Color.gray.opacity(0.5), lineWidth: 1)
             )
             .padding(.horizontal, 8)
 
-            // Camera
-            if let model = exifInfo.cameraModel {
-                let make = exifInfo.cameraMake ?? ""
-                exifItem(label: "\(make) \(model)".trimmingCharacters(in: .whitespaces))
-            }
-
             // File size
             if let size = fileSize {
-                divider
                 exifItem(label: ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
             }
 

@@ -160,12 +160,12 @@ struct ThumbGridView: View {
     // NSCollectionView-based grid
     private var collectionPhotoGridView: some View {
         #if os(macOS)
-                CollectionThumbGridView(
-                    photos: viewModel.filteredPhotos,
-                    itemSize: viewModel.gridType.thumbSize,
-                    cellHeight: viewModel.gridType.cellHeight,
-                    selectedPhotos: viewModel.selectedPhotos,
-                    callbacks: ThumbCellCallbacks(
+        CollectionThumbGridView(
+            photos: viewModel.filteredPhotos,
+            itemSize: viewModel.gridType.thumbSize,
+            cellHeight: viewModel.gridType.cellHeight,
+            selectedPhotos: viewModel.selectedPhotos,
+            callbacks: ThumbCellCallbacks(
                 onTap: { photo, modifiers in
                     viewModel.handlePhotoTap(photo: photo, modifiers: modifiers)
                 },
@@ -222,33 +222,33 @@ struct ThumbGridView: View {
                 )
             }
         )
-                .onAppear {
-                    viewModel.initializeSelection()
-                }
-                #if os(macOS)
-                .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
-                    if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
-                        filesModel.selectedPhoto = newPhotos.first
-                        viewModel.selectedPhotos.removeAll()
-                        viewModel.selectedPhotos.insert(newPhotos.first!.id)
-                        viewModel.lastSelectedIndex = 0
-                    }
-                }
-                .onChange(of: filesModel.selectedFolder) { _, _ in
-                    if let firstPhoto = viewModel.filteredPhotos.first {
-                        filesModel.selectedPhoto = firstPhoto
-                        viewModel.selectedPhotos.removeAll()
-                        viewModel.selectedPhotos.insert(firstPhoto.id)
-                        viewModel.lastSelectedIndex = 0
-                        scrollToPhotoId = firstPhoto.id
-                    }
-                }
-                #endif
-                .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
-                    if oldValue == true && newValue == false {
-                        viewModel.clearInvalidFilters()
-                    }
-                }
+        .onAppear {
+            viewModel.initializeSelection()
+        }
+        #if os(macOS)
+        .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
+            if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
+                filesModel.selectedPhoto = newPhotos.first
+                viewModel.selectedPhotos.removeAll()
+                viewModel.selectedPhotos.insert(newPhotos.first!.id)
+                viewModel.lastSelectedIndex = 0
+            }
+        }
+        .onChange(of: filesModel.selectedFolder) { _, _ in
+            if let firstPhoto = viewModel.filteredPhotos.first {
+                filesModel.selectedPhoto = firstPhoto
+                viewModel.selectedPhotos.removeAll()
+                viewModel.selectedPhotos.insert(firstPhoto.id)
+                viewModel.lastSelectedIndex = 0
+                scrollToPhotoId = firstPhoto.id
+            }
+        }
+        #endif
+        .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
+            if oldValue == true && newValue == false {
+                viewModel.clearInvalidFilters()
+            }
+        }
         #elseif os(iOS)
         UICollectionThumbGridView(
             photos: viewModel.filteredPhotos,
