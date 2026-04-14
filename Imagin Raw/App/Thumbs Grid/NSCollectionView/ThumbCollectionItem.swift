@@ -136,8 +136,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
 
     private func configureLayers() {
         view.layer?.backgroundColor = NSColor(white: 0.15, alpha: 1).cgColor
-        selectionBorder.layer?.borderColor = NSColor.systemBlue.cgColor
-        selectionBorder.layer?.borderWidth = selectionBorder.isHidden ? 0 : 2
+        selectionBorder.layer?.borderWidth = 0
 
         if let layer = trashContainer.layer {
             layer.masksToBounds = false
@@ -331,8 +330,10 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     }
 
     func updateSelection(isSelected: Bool) {
-        selectionBorder.isHidden = !isSelected
-        selectionBorder.layer?.borderWidth = isSelected ? 2 : 0
+        selectionBorder.isHidden = true
+        view.layer?.backgroundColor = isSelected
+            ? NSColor.systemBlue.withAlphaComponent(0.7).cgColor
+            : NSColor(white: 0.15, alpha: 1).cgColor
     }
 
     // MARK: Context menu
