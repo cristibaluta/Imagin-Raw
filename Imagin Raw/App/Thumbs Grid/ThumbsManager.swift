@@ -2,13 +2,13 @@
 //  ThumbsManager.swift
 //  Imagin Raw
 //
-//  Created by Cristian Baluta on 30.01.2026.
-//
 
 import Foundation
 import CryptoKit
 import AVFoundation
 import Photos
+
+// MARK: - Supporting types
 
 struct CacheEntry {
     let image: IRImage
@@ -16,346 +16,272 @@ struct CacheEntry {
 }
 
 struct ThumbnailRequest: Comparable {
-    let id: UUID = UUID()
+    enum Priority: Int {
+        case low = 0, medium = 1, high = 2
+    }
+
+    let id = UUID()
     let path: String
     let cacheKey: String
     let priority: Priority
-    let timestamp: Date = Date()
-    let requestOrder: Int // Order in which request was made
+    let requestOrder: Int
+    let source: PhotoSource
     let completion: (IRImage?) -> Void
 
-    enum Priority: Int, Comparable {
-        case high = 3    // Currently visible
-        case medium = 2  // Near viewport
-        case low = 1     // Background/prefetch
-
-        static func < (lhs: Priority, rhs: Priority) -> Bool {
-            return lhs.rawValue < rhs.rawValue
-        }
-    }
-
     static func < (lhs: ThumbnailRequest, rhs: ThumbnailRequest) -> Bool {
-        if lhs.priority == rhs.priority {
-            // For same priority, prefer more recent requests (higher requestOrder)
-            return lhs.requestOrder < rhs.requestOrder
+        if lhs.priority.rawValue != rhs.priority.rawValue {
+            return lhs.priority.rawValue < rhs.priority.rawValue
         }
-        return lhs.priority > rhs.priority // Higher priority first
+        return lhs.requestOrder < rhs.requestOrder
     }
 
     static func == (lhs: ThumbnailRequest, rhs: ThumbnailRequest) -> Bool {
-        return lhs.id == rhs.id
+        lhs.id == rhs.id
     }
 }
 
-struct PriorityQueue<Element: Comparable> {
-    private var elements: [Element] = []
+struct PriorityQueue<T: Comparable> {
+    private var elements: [T] = []
 
-    var isEmpty: Bool {
-        return elements.isEmpty
-    }
-
-    var count: Int {
-        return elements.count
-    }
-
-    mutating func enqueue(_ element: Element) {
+    mutating func enqueue(_ element: T) {
         elements.append(element)
-        // Sort in descending order so the highest priority/most recent comes first
-        elements.sort { $0 > $1 }
+        elements.sort(by: >)
     }
 
-    mutating func dequeue() -> Element? {
-        return elements.isEmpty ? nil : elements.removeFirst()
+    mutating func dequeue() -> T? {
+        guard !elements.isEmpty else {
+            return nil
+        }
+        return elements.removeLast()
     }
 
     mutating func removeAll() {
         elements.removeAll()
     }
+
+    var isEmpty: Bool { elements.isEmpty }
 }
 
 class ThumbsManager: ObservableObject {
     static let shared = ThumbsManager()
 
-    // Published property for UI to observe queue count
     @Published private(set) var pendingQueueCount: Int = 0
 
-    // Memory cache with LRU eviction
+    // Memory cache
     private var memoryCache: [String: CacheEntry] = [:]
     private var cacheAccessOrder: [String] = []
-    private let maxMemoryCacheSize = 200 // Maximum number of images in memory
+    private let maxMemoryCacheSize = 200
     private let cacheQueue = DispatchQueue(label: "ro.imagin.thumbs.cache", attributes: .concurrent)
-    private let diskQueue = DispatchQueue(label: "r.imagin.thumbs.disk", qos: .userInitiated)
+    private let diskQueue = DispatchQueue(label: "ro.imagin.thumbs.disk", qos: .userInitiated)
 
-    // Priority queue for thumbnail generation
+    // Request queue — protected by queueLock
     private var pendingRequests: [String: ThumbnailRequest] = [:]
     private var priorityQueue = PriorityQueue<ThumbnailRequest>()
-    private let queueLock = NSLock()          // protects pendingRequests + priorityQueue
-    private let requestQueue = DispatchQueue(label: "ro.imagin.thumbs.requests")
+    private let queueLock = NSLock()
     private var isProcessingQueue = false
     private var requestCounter = 0
 
-    // Concurrent processing limiter to prevent memory overflow
-    private let processingLimit = 3 // Maximum number of concurrent thumbnail generations
+    private let processingLimit = 3
     private let processingSemaphore: DispatchSemaphore
 
-    // Cache directory
     private let cacheDirectory: URL
     private let accessLogURL: URL
-    private let diskCacheLimitBytes: Int64 = 2 * 1024 * 1024 * 1024 // 2 GB
+    private let diskCacheLimitBytes: Int64 = 2 * 1024 * 1024 * 1024
 
-    // In-memory copy of the access log: [subdirectoryName: creationDate]
     private var accessLog: [String: Date] = [:]
 
     private let thumbSize: CGFloat = 256
 
     private init() {
-        // Create cache directory in Application Support
         let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         cacheDirectory = cachesDir.appendingPathComponent("ro.imagin.raw/256")
         accessLogURL = cachesDir.appendingPathComponent("ro.imagin.raw/cache_access_log.json")
-
-        // Initialize semaphore for concurrent processing limit
         processingSemaphore = DispatchSemaphore(value: processingLimit)
-
-        // Create directory if it doesn't exist
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
-
         loadAccessLog()
         evictDiskCacheIfNeeded()
     }
 
     // MARK: - Public Interface
 
-    /// PhotoKit-aware entry point. Uses PHImageManager for PhotoKit-backed items,
-    /// falls through to the existing file-path queue for everything else.
-    func loadThumbnail(for photo: PhotoItem, priority: ThumbnailRequest.Priority = .medium, completion: @escaping (IRImage?) -> Void) {
-        if let asset = photo.phAsset {
-            print("📷 [ThumbsManager] PhotoKit path for \(asset.localIdentifier.prefix(20))")
-            loadPhotoKitThumbnail(for: asset, cacheKey: photo.path, completion: completion)
-            return
-        }
-        loadThumbnail(for: photo.path, priority: priority, completion: completion)
-    }
+    func loadThumbnail(for photo: PhotoItem,
+                       priority: ThumbnailRequest.Priority = .medium,
+                       completion: @escaping (IRImage?) -> Void) {
+        let source = photo.makeSource()
+        let key = source.cacheKey
 
-    private func loadPhotoKitThumbnail(for asset: PHAsset, cacheKey key: String, completion: @escaping (IRImage?) -> Void) {
-        let memKey = cacheKey(for: key)
-        if let cached = getCachedImage(for: memKey) {
-            print("📷 [ThumbsManager] memory cache hit \(key.prefix(20))")
-            DispatchQueue.main.async { completion(cached) }
-            return
-        }
-        let size = CGSize(width: thumbSize * 2, height: thumbSize * 2)
-        let options = PHImageRequestOptions()
-        options.isNetworkAccessAllowed = true
-        options.isSynchronous = false
-        options.deliveryMode = .highQualityFormat
-        options.resizeMode = .fast
-        print("📷 [ThumbsManager] requestImage start \(key.prefix(20))")
-        PHImageManager.default().requestImage(for: asset, targetSize: size, contentMode: .aspectFit, options: options) { [weak self] image, info in
-            let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
-            let error = info?[PHImageErrorKey] as? Error
-            print("📷 [ThumbsManager] requestImage callback — image=\(image != nil) degraded=\(degraded) error=\(String(describing: error)) key=\(key.prefix(20))")
-            guard let self, let image, !degraded else {
-                if image == nil {
-                    DispatchQueue.main.async { completion(nil) }
-                }
-                return
-            }
-            self.setCachedImage(image, for: memKey)
-            DispatchQueue.main.async { completion(image) }
-        }
-    }
-
-    /// Load thumbnail with priority for given file path
-    /// Returns cached image immediately if available, otherwise loads asynchronously
-    func loadThumbnail(for path: String, priority: ThumbnailRequest.Priority = .medium, completion: @escaping (IRImage?) -> Void) {
-        let cacheKey = cacheKey(for: path)
-
-        // 1. Check memory cache first
-        if let cachedImage = getCachedImage(for: cacheKey) {
+        if let cached = getCachedImage(for: key) {
             DispatchQueue.main.async {
-                completion(cachedImage)
+                completion(cached)
             }
             return
         }
 
-        // 2. Enqueue under lock
         queueLock.lock()
         requestCounter += 1
-        let currentRequestOrder = requestCounter
-
-        if let existingRequest = pendingRequests[cacheKey] {
-            if priority.rawValue >= existingRequest.priority.rawValue {
-                pendingRequests.removeValue(forKey: cacheKey)
+        let order = requestCounter
+        if let existing = pendingRequests[key] {
+            if priority.rawValue >= existing.priority.rawValue {
+                pendingRequests.removeValue(forKey: key)
                 rebuildQueue()
             } else {
                 queueLock.unlock()
                 return
             }
         }
-
         let request = ThumbnailRequest(
-            path: path,
-            cacheKey: cacheKey,
+            path: photo.path,
+            cacheKey: key,
             priority: priority,
-            requestOrder: currentRequestOrder,
+            requestOrder: order,
+            source: source,
             completion: completion
         )
-        pendingRequests[cacheKey] = request
+        pendingRequests[key] = request
         priorityQueue.enqueue(request)
         let count = pendingRequests.count
         queueLock.unlock()
 
-        DispatchQueue.main.async { self.pendingQueueCount = count }
-        processQueue()
+        DispatchQueue.main.async {
+            self.pendingQueueCount = count
+        }
+        processQueue(source: source)
     }
 
-    /// Load thumbnail for given file path (legacy method for compatibility)
-    func loadThumbnail(for path: String, completion: @escaping (IRImage?) -> Void) {
-        loadThumbnail(for: path, priority: .medium, completion: completion)
+    func loadThumbnail(for path: String,
+                       priority: ThumbnailRequest.Priority = .medium,
+                       completion: @escaping (IRImage?) -> Void) {
+        let source = DiskPhotoSource(path: path)
+        let key = source.cacheKey
+
+        if let cached = getCachedImage(for: key) {
+            DispatchQueue.main.async {
+                completion(cached)
+            }
+            return
+        }
+
+        queueLock.lock()
+        requestCounter += 1
+        let order = requestCounter
+        if let existing = pendingRequests[key] {
+            if priority.rawValue >= existing.priority.rawValue {
+                pendingRequests.removeValue(forKey: key)
+                rebuildQueue()
+            } else {
+                queueLock.unlock()
+                return
+            }
+        }
+        let request = ThumbnailRequest(
+            path: path,
+            cacheKey: key,
+            priority: priority,
+            requestOrder: order,
+            source: source,
+            completion: completion
+        )
+        pendingRequests[key] = request
+        priorityQueue.enqueue(request)
+        let count = pendingRequests.count
+        queueLock.unlock()
+
+        DispatchQueue.main.async {
+            self.pendingQueueCount = count
+        }
+        processQueue(source: source)
     }
 
-    /// Synchronous version for immediate use (checks memory cache only)
     func getCachedThumbnail(for path: String) -> IRImage? {
-        let cacheKey = cacheKey(for: path)
-        return getCachedImage(for: cacheKey)
+        let key = DiskPhotoSource(path: path).cacheKey
+        return getCachedImage(for: key)
     }
 
-    /// Returns the disk cache URL for a photo's thumbnail (may or may not exist yet).
-    func diskCacheURL(for path: String) -> URL {
-        let subdirectory = cacheSubdirectory(for: path)
-        let filename = diskFilename(for: path)
-        return subdirectory.appendingPathComponent("\(filename).jpg")
+    func getCachedThumbnail(for photo: PhotoItem) -> IRImage? {
+        return getCachedImage(for: photo.makeSource().cacheKey)
     }
 
-    /// Delete cached thumbnail for a specific photo (both memory and disk)
-    func deleteCachedThumbnail(for path: String) {
-        let key = cacheKey(for: path)
-        let subdirectory = cacheSubdirectory(for: path)
-        let filename = diskFilename(for: path)
-        let diskCachePath = subdirectory.appendingPathComponent("\(filename).jpg")
-
-        // Remove from memory cache
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            self.memoryCache.removeValue(forKey: key)
-            self.cacheAccessOrder.removeAll { $0 == key }
-        }
-
-        // Remove from disk cache
-        diskQueue.async {
-            if FileManager.default.fileExists(atPath: diskCachePath.path) {
-                try? FileManager.default.removeItem(at: diskCachePath)
-            }
-        }
-    }
-
-    /// Returns the disk cache subdirectory URL for a given folder
-    func cacheURL(for folderURL: URL) -> URL {
-        let directoryHash = persistentHash(for: folderURL.path)
-        return cacheDirectory.appendingPathComponent("\(folderURL.lastPathComponent)_\(directoryHash)")
-    }
-
-    /// Purge all cached thumbnails for a specific folder (both memory and disk)
-    func purgeCache(for folderURL: URL) {
-        let folderPath = folderURL.path
-        let directoryHash = persistentHash(for: folderPath)
-        let subdirName = "\(folderURL.lastPathComponent)_\(directoryHash)"
-        let subdirectory = cacheDirectory.appendingPathComponent(subdirName)
-
-        // Remove matching entries from memory cache
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            let prefix = "\(directoryHash)_"
-            let keysToRemove = self.memoryCache.keys.filter { $0.hasPrefix(prefix) }
-            keysToRemove.forEach {
-                self.memoryCache.removeValue(forKey: $0)
-                self.cacheAccessOrder.removeAll { $0 == $0 }
-            }
-        }
-
-        // Remove subdirectory from disk and access log
-        diskQueue.async { [weak self] in
-            guard let self = self else { return }
-            try? FileManager.default.removeItem(at: subdirectory)
-            self.accessLog.removeValue(forKey: subdirName)
-            self.saveAccessLog()
-        }
-    }
-
-    /// Stop all pending thumbnail requests and clear the queue
-    /// Useful when switching folders to prevent processing thumbnails for old folder
     func stopQueue() {
         queueLock.lock()
         pendingRequests.removeAll()
         priorityQueue.removeAll()
         isProcessingQueue = false
         queueLock.unlock()
-        DispatchQueue.main.async { self.pendingQueueCount = 0 }
-    }
-
-    // MARK: - Private Methods
-
-    /// Memory cache key: directoryHash_filename — unique across all folders
-    private func cacheKey(for path: String) -> String {
-        let url = URL(fileURLWithPath: path)
-        let directoryPath = url.deletingLastPathComponent().path
-        let directoryHash = persistentHash(for: directoryPath)
-        return "\(directoryHash)_\(url.lastPathComponent)"
-    }
-
-    /// Disk cache subdirectory: per-folder, so filename-only is safe on disk
-    private func cacheSubdirectory(for path: String) -> URL {
-        let url = URL(fileURLWithPath: path)
-        let directoryPath = url.deletingLastPathComponent().path
-        let lastComponent = url.deletingLastPathComponent().lastPathComponent
-        let directoryHash = persistentHash(for: directoryPath)
-        return cacheDirectory.appendingPathComponent("\(lastComponent)_\(directoryHash)")
-    }
-
-    private func persistentHash(for string: String) -> String {
-        let data = Data(string.utf8)
-        let hash = SHA256.hash(data: data)
-        return hash.compactMap { String(format: "%02x", $0) }.joined().prefix(8).description
-    }
-
-    /// Disk filename: just the original filename (safe because it's inside a per-folder subdirectory)
-    private func diskFilename(for path: String) -> String {
-        return URL(fileURLWithPath: path).lastPathComponent
-    }
-
-    private func getCachedImage(for cacheKey: String) -> IRImage? {
-        return cacheQueue.sync {
-            guard let entry = memoryCache[cacheKey] else { return nil }
-            updateAccessOrder(for: cacheKey)
-            return entry.image
+        DispatchQueue.main.async {
+            self.pendingQueueCount = 0
         }
     }
 
-    private func setCachedImage(_ image: IRImage, for cacheKey: String) {
+    func deleteCachedThumbnail(for path: String) {
+        let source = DiskPhotoSource(path: path)
+        let key = source.cacheKey
         cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self = self else { return }
-            self.memoryCache[cacheKey] = CacheEntry(image: image, lastAccessed: Date())
-            self.updateAccessOrder(for: cacheKey)
-            self.evictIfNeeded()
+            guard let self else {
+                return
+            }
+            memoryCache.removeValue(forKey: key)
+            cacheAccessOrder.removeAll { $0 == key }
+        }
+        diskQueue.async {
+            let diskURL = self.diskCacheURL(for: source)
+            if FileManager.default.fileExists(atPath: diskURL.path) {
+                try? FileManager.default.removeItem(at: diskURL)
+            }
         }
     }
 
-    private func updateAccessOrder(for cacheKey: String) {
-        cacheAccessOrder.removeAll { $0 == cacheKey }
-        cacheAccessOrder.append(cacheKey)
+    func cacheURL(for folderURL: URL) -> URL {
+        let hash = persistentHash(for: folderURL.path)
+        return cacheDirectory.appendingPathComponent("\(folderURL.lastPathComponent)_\(hash)")
     }
 
-    private func evictIfNeeded() {
-        while memoryCache.count > maxMemoryCacheSize && !cacheAccessOrder.isEmpty {
-            let lruKey = cacheAccessOrder.removeFirst()
-            memoryCache.removeValue(forKey: lruKey)
+    func purgeCache(for folderURL: URL) {
+        let folderPath = folderURL.path
+        let dirHash = persistentHash(for: folderPath)
+        let subdirName = "\(folderURL.lastPathComponent)_\(dirHash)"
+        let subdirectory = cacheDirectory.appendingPathComponent(subdirName)
+
+        cacheQueue.async(flags: .barrier) { [weak self] in
+            guard let self else {
+                return
+            }
+            let prefix = "\(dirHash)_"
+            let keysToRemove = self.memoryCache.keys.filter { $0.hasPrefix(prefix) }
+            keysToRemove.forEach {
+                self.memoryCache.removeValue(forKey: $0)
+                self.cacheAccessOrder.removeAll { $0 == $0 }
+            }
+        }
+        diskQueue.async { [weak self] in
+            guard let self else {
+                return
+            }
+            try? FileManager.default.removeItem(at: subdirectory)
+            accessLog.removeValue(forKey: subdirName)
+            saveAccessLog()
         }
     }
 
-    private func processQueue() {
+    func diskCacheURL(for path: String) -> URL {
+        diskCacheURL(for: DiskPhotoSource(path: path))
+    }
+
+    private func diskCacheURL(for source: DiskPhotoSource) -> URL {
+        let url = URL(fileURLWithPath: source.path)
+        let dirHash = persistentHash(for: url.deletingLastPathComponent().path)
+        let lastComp = url.deletingLastPathComponent().lastPathComponent
+        let subdir = cacheDirectory.appendingPathComponent("\(lastComp)_\(dirHash)")
+        return subdir.appendingPathComponent("\(url.lastPathComponent).jpg")
+    }
+
+    // MARK: - Queue
+
+    private func processQueue(source: PhotoSource) {
         queueLock.lock()
-        guard !isProcessingQueue else { queueLock.unlock(); return }
+        guard !isProcessingQueue else {
+            queueLock.unlock()
+            return
+        }
         isProcessingQueue = true
         queueLock.unlock()
 
@@ -366,28 +292,32 @@ class ThumbsManager: ObservableObject {
 
     private func processAllRequests() {
         while true {
-            // Dequeue next request under lock
             queueLock.lock()
             let request = priorityQueue.dequeue()
             queueLock.unlock()
 
-            guard let currentRequest = request else { break }
+            guard let current = request else {
+                break
+            }
 
-            // Validate and remove from pending under lock
             queueLock.lock()
             let isValid: Bool
-            if let pending = pendingRequests[currentRequest.cacheKey], pending.id == currentRequest.id {
-                pendingRequests.removeValue(forKey: currentRequest.cacheKey)
-                DispatchQueue.main.async { self.pendingQueueCount = self.pendingRequests.count }
+            if let pending = pendingRequests[current.cacheKey], pending.id == current.id {
+                pendingRequests.removeValue(forKey: current.cacheKey)
+                DispatchQueue.main.async {
+                    self.pendingQueueCount = self.pendingRequests.count
+                }
                 isValid = true
             } else {
                 isValid = false
             }
             queueLock.unlock()
 
-            guard isValid else { continue }
+            guard isValid else {
+                continue
+            }
 
-            processRequest(currentRequest)
+            processRequest(current)
         }
 
         queueLock.lock()
@@ -396,164 +326,130 @@ class ThumbsManager: ObservableObject {
     }
 
     private func processRequest(_ request: ThumbnailRequest) {
-        // Wait for a processing slot (limits concurrent thumbnail generation)
         processingSemaphore.wait()
-
-        // Wrap in autoreleasepool to release temporary objects immediately
         autoreleasepool {
-            // First check disk cache
-            if let diskImage = loadFromDisk(cacheKey: request.cacheKey, forPath: request.path) {
-                setCachedImage(diskImage, for: request.cacheKey)
+            // Disk cache hit — only meaningful for file-based sources
+            if let diskSource = request.source as? DiskPhotoSource,
+               let img = loadFromDisk(for: diskSource.path) {
+                setCachedImage(img, for: request.cacheKey)
                 DispatchQueue.main.async {
-                    request.completion(diskImage)
+                    request.completion(img)
                 }
-                // Release semaphore slot
                 processingSemaphore.signal()
                 return
             }
 
-            // Generate thumbnail from source
-            generateThumbnail(for: request.path, cacheKey: request.cacheKey) { [weak self] image in
-                // Release semaphore slot when done
-                defer { self?.processingSemaphore.signal() }
+            // For disk sources, ensure the file is local (iCloud)
+            if let diskSource = request.source as? DiskPhotoSource {
+                guard ICloudDownloader.ensureDownloaded(at: URL(fileURLWithPath: diskSource.path)) else {
+                    DispatchQueue.main.async {
+                        request.completion(nil)
+                    }
+                    processingSemaphore.signal()
+                    return
+                }
+            }
 
-                guard let self = self, let image = image else {
+            request.source.loadThumbnail(targetSize: thumbSize) { [weak self] img in
+                defer {
+                    self?.processingSemaphore.signal()
+                }
+                guard let img else {
                     DispatchQueue.main.async {
                         request.completion(nil)
                     }
                     return
                 }
-
-                self.setCachedImage(image, for: request.cacheKey)
+                // Only save to disk for file-based sources
+                if let diskSource = request.source as? DiskPhotoSource {
+                    self?.saveToDisk(img, forPath: diskSource.path)
+                }
+                self?.setCachedImage(img, for: request.cacheKey)
                 DispatchQueue.main.async {
-                    request.completion(image)
+                    request.completion(img)
                 }
             }
         }
     }
 
-    private func loadFromDisk(cacheKey: String, forPath path: String) -> IRImage? {
-        let cacheSubdir = cacheSubdirectory(for: path)
-        let filename = diskFilename(for: path)
-        let diskPath = cacheSubdir.appendingPathComponent("\(filename).jpg")
+    // MARK: - Disk I/O
 
-        guard FileManager.default.fileExists(atPath: diskPath.path),
-              let data = try? Data(contentsOf: diskPath),
-              let image = IRImage(data: data) else {
+    private func loadFromDisk(for path: String) -> IRImage? {
+        let url = diskCacheURL(for: path)
+        guard FileManager.default.fileExists(atPath: url.path),
+              let data = try? Data(contentsOf: url),
+              let img = IRImage(data: data) else {
             return nil
         }
-        return image
+        return img
     }
 
-    // MARK: - iCloud
-
-    /// Ensures the source file at `path` is locally available.
-    /// Triggers an iCloud download if needed and blocks until done (or times out).
-    @discardableResult
-    private func ensureLocallyAvailable(at path: String) -> Bool {
-        ICloudDownloader.ensureDownloaded(at: URL(fileURLWithPath: path))
-    }
-
-    private func saveToDisk(_ image: IRImage, cacheKey: String, forPath path: String) {
+    private func saveToDisk(_ image: IRImage, forPath path: String) {
         guard let jpegData = image.bitmapRepresentation() else {
             return
         }
-        let cacheSubdir = cacheSubdirectory(for: path)
-        let isNew = !FileManager.default.fileExists(atPath: cacheSubdir.path)
-        try? FileManager.default.createDirectory(at: cacheSubdir, withIntermediateDirectories: true)
+        let url = URL(fileURLWithPath: path)
+        let dirHash = persistentHash(for: url.deletingLastPathComponent().path)
+        let lastComp = url.deletingLastPathComponent().lastPathComponent
+        let subdir = cacheDirectory.appendingPathComponent("\(lastComp)_\(dirHash)")
+        let isNew = !FileManager.default.fileExists(atPath: subdir.path)
+        try? FileManager.default.createDirectory(at: subdir, withIntermediateDirectories: true)
         if isNew {
-            registerCacheSubdirectory(cacheSubdir.lastPathComponent)
+            registerCacheSubdirectory(subdir.lastPathComponent)
         }
-        let filename = diskFilename(for: path)
-        let diskPath = cacheSubdir.appendingPathComponent("\(filename).jpg")
-        try? jpegData.write(to: diskPath)
+        let diskURL = subdir.appendingPathComponent("\(url.lastPathComponent).jpg")
+        try? jpegData.write(to: diskURL)
     }
 
-    private func generateThumbnail(for path: String, cacheKey: String, completion: @escaping (IRImage?) -> Void) {
-        let url = URL(fileURLWithPath: path)
-        let fileExtension = url.pathExtension.lowercased()
+    // MARK: - Memory Cache
 
-        // Ensure the file is downloaded from iCloud Drive before reading it.
-        guard ensureLocallyAvailable(at: path) else {
-            print("👎 [ThumbsManager] file not available locally: \(url.lastPathComponent)")
-            completion(nil)
-            return
-        }
-
-        // Video thumbnail via AVFoundation
-        if FilesExtensions.video.contains(fileExtension) {
-            let asset = AVURLAsset(url: url)
-            let gen = AVAssetImageGenerator(asset: asset)
-            gen.appliesPreferredTrackTransform = true
-            gen.maximumSize = CGSize(width: thumbSize * 2, height: thumbSize * 2)
-            if let cg = try? gen.copyCGImage(at: .zero, actualTime: nil) {
-                let image = IRImage(cgImage: cg, size: IRSize(width: cg.width, height: cg.height))
-                let thumbnail = image.resized(maxSize: thumbSize)
-                saveToDisk(thumbnail, cacheKey: cacheKey, forPath: path)
-                completion(thumbnail)
-            } else {
-                completion(nil)
+    private func getCachedImage(for key: String) -> IRImage? {
+        return cacheQueue.sync {
+            guard let entry = memoryCache[key] else {
+                return nil
             }
-            return
+            updateAccessOrder(for: key)
+            return entry.image
         }
+    }
 
-        autoreleasepool {
-            var originalImage: IRImage?
-
-            if FilesExtensions.raw.contains(fileExtension) {
-                // Generate thumbnail from RAW file using RawWrapper
-                guard let data = RawWrapper.shared().extractEmbeddedJPEG(path) else {
-                    completion(nil)
-                    return
-                }
-
-                // Create image in its own autoreleasepool
-                autoreleasepool {
-                    originalImage = IRImage(data: data)
-                }
-            } else {
-                // Load regular image file directly from disk
-                autoreleasepool {
-                    originalImage = IRImage(contentsOfFile: path)
-                }
-            }
-
-            guard let image = originalImage else {
-                completion(nil)
+    private func setCachedImage(_ image: IRImage, for key: String) {
+        cacheQueue.async(flags: .barrier) { [weak self] in
+            guard let self else {
                 return
             }
+            memoryCache[key] = CacheEntry(image: image, lastAccessed: Date())
+            updateAccessOrder(for: key)
+            evictIfNeeded()
+        }
+    }
 
-            // Resize in its own autoreleasepool to release the original image ASAP
-            let thumbnail: IRImage? = autoreleasepool {
-                return image.resized(maxSize: thumbSize)
-            }
+    private func updateAccessOrder(for key: String) {
+        cacheAccessOrder.removeAll { $0 == key }
+        cacheAccessOrder.append(key)
+    }
 
-            // Original image should be released here
-            originalImage = nil
-
-            guard let finalThumbnail = thumbnail else {
-                completion(nil)
-                return
-            }
-
-            // Save to disk
-            saveToDisk(finalThumbnail, cacheKey: cacheKey, forPath: path)
-
-            // Return result
-            completion(finalThumbnail)
+    private func evictIfNeeded() {
+        while memoryCache.count > maxMemoryCacheSize, !cacheAccessOrder.isEmpty {
+            let lru = cacheAccessOrder.removeFirst()
+            memoryCache.removeValue(forKey: lru)
         }
     }
 
     private func rebuildQueue() {
-        // Rebuild priority queue with current pending requests
-        var newQueue = PriorityQueue<ThumbnailRequest>()
-        for request in pendingRequests.values {
-            newQueue.enqueue(request)
+        var q = PriorityQueue<ThumbnailRequest>()
+        for r in pendingRequests.values {
+            q.enqueue(r)
         }
-        priorityQueue = newQueue
+        priorityQueue = q
     }
 
-    // MARK: - Disk Cache Size Management
+    // MARK: - Disk Cache Management
+
+    private func persistentHash(for string: String) -> String {
+        let hash = SHA256.hash(data: Data(string.utf8))
+        return hash.compactMap { String(format: "%02x", $0) }.joined().prefix(8).description
+    }
 
     private func loadAccessLog() {
         guard let data = try? Data(contentsOf: accessLogURL),
@@ -565,16 +461,18 @@ class ThumbsManager: ObservableObject {
 
     private func saveAccessLog() {
         diskQueue.async { [weak self] in
-            guard let self = self,
-                  let data = try? JSONEncoder().encode(self.accessLog) else { return }
-            try? data.write(to: self.accessLogURL, options: .atomic)
+            guard let self,
+                  let data = try? JSONEncoder().encode(accessLog) else {
+                return
+            }
+            try? data.write(to: accessLogURL, options: .atomic)
         }
     }
 
-    /// Called the first time a cache subdirectory is created for a folder.
-    /// Records the creation date in the access log.
     private func registerCacheSubdirectory(_ subdirName: String) {
-        guard accessLog[subdirName] == nil else { return }
+        guard accessLog[subdirName] == nil else {
+            return
+        }
         accessLog[subdirName] = Date()
         saveAccessLog()
     }
@@ -584,8 +482,9 @@ class ThumbsManager: ObservableObject {
             at: cacheDirectory,
             includingPropertiesForKeys: [.fileSizeKey],
             options: [.skipsHiddenFiles]
-        ) else { return 0 }
-
+        ) else {
+            return 0
+        }
         var total: Int64 = 0
         for case let url as URL in enumerator {
             if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
@@ -597,29 +496,21 @@ class ThumbsManager: ObservableObject {
 
     private func evictDiskCacheIfNeeded() {
         diskQueue.async { [weak self] in
-            guard let self = self else { return }
-
-            let totalSize = self.totalDiskCacheSize()
-            guard totalSize > self.diskCacheLimitBytes else { return }
-
-            // Sort subdirectories oldest-first using the access log
-            let sorted = self.accessLog.sorted { $0.value < $1.value }
-
-            // Delete the oldest third
-            let deleteCount = max(1, sorted.count / 3)
-            let toDelete = sorted.prefix(deleteCount)
-
-            for (subdirName, _) in toDelete {
-                let subdirURL = self.cacheDirectory.appendingPathComponent(subdirName)
-                try? FileManager.default.removeItem(at: subdirURL)
-                self.accessLog.removeValue(forKey: subdirName)
+            guard let self else {
+                return
             }
-
-            self.saveAccessLog()
-
-            let deletedMB = (totalSize - self.totalDiskCacheSize()) / (1024 * 1024)
-            print("🗑️ Cache eviction: removed \(deleteCount) folder(s), freed ~\(deletedMB) MB")
+            let totalSize = totalDiskCacheSize()
+            guard totalSize > diskCacheLimitBytes else {
+                return
+            }
+            let sorted = accessLog.sorted { $0.value < $1.value }
+            let deleteCount = max(1, sorted.count / 3)
+            for (subdirName, _) in sorted.prefix(deleteCount) {
+                let subdirURL = cacheDirectory.appendingPathComponent(subdirName)
+                try? FileManager.default.removeItem(at: subdirURL)
+                accessLog.removeValue(forKey: subdirName)
+            }
+            saveAccessLog()
         }
     }
 }
-

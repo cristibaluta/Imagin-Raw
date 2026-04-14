@@ -279,8 +279,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "\"$(PROJECT_DIR)/Imagin Raw/libraw\"";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Imagin Raw needs access to your Photos library to browse and view your photos.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Imagin Raw needs access to save photos to your Photos library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Imagin Raw needs access to your Photos library to browse and view your photos.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -324,8 +324,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "\"$(PROJECT_DIR)/Imagin Raw/libraw\"";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Imagin Raw needs access to your Photos library to browse and view your photos.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Imagin Raw needs access to save photos to your Photos library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Imagin Raw needs access to your Photos library to browse and view your photos.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;

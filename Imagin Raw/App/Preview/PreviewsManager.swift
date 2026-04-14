@@ -7,39 +7,32 @@ import Foundation
 import CryptoKit
 import Photos
 
-/// Manages a persistent disk + memory cache of 1024px preview images.
-/// Same architecture as ThumbsManager but larger images, higher JPEG quality.
 class PreviewsManager {
     static let shared = PreviewsManager()
 
-    /// Swap decoder implementation if needed
     var decoder: RawDecoder = LibRawDecoder()
 
     // MARK: - Config
-
     private let previewSize: CGFloat = 1024
     private let jpegQuality: CGFloat = 0.85
     private let maxMemoryCacheSize = 20
     private let processingLimit = 5
 
     // MARK: - Cache
-
     private var memoryCache: [String: CacheEntry] = [:]
     private var cacheAccessOrder: [String] = []
     private let cacheQueue = DispatchQueue(label: "ro.imagin.previews.cache", attributes: .concurrent)
     private let diskQueue = DispatchQueue(label: "ro.imagin.previews.disk", qos: .userInitiated)
 
-    // MARK: - Request Queue
-
+    // MARK: - Request queue — protected by queueLock
     private var pendingRequests: [String: ThumbnailRequest] = [:]
     private var priorityQueue = PriorityQueue<ThumbnailRequest>()
-    private let requestQueue = DispatchQueue(label: "ro.imagin.previews.requests")
+    private let queueLock = NSLock()
     private var isProcessingQueue = false
     private var requestCounter = 0
     private let processingSemaphore: DispatchSemaphore
 
     // MARK: - Disk
-
     private let cacheDirectory: URL
 
     private init() {
@@ -51,194 +44,150 @@ class PreviewsManager {
 
     // MARK: - Public Interface
 
-    /// PhotoKit-aware entry point. Routes PhotoKit assets directly to PHImageManager,
-    /// falls through to the existing file-path queue for everything else.
     func loadPreview(for photo: PhotoItem, completion: @escaping (IRImage?, ExifInfo?) -> Void) {
-        if let asset = photo.phAsset {
-            loadPhotoKitPreview(for: asset, cacheKey: photo.path, completion: completion)
-            return
-        }
-        loadPreview(for: photo.path, completion: completion)
-    }
+        let source = photo.makeSource()
+        let key = source.cacheKey
 
-    private func loadPhotoKitPreview(for asset: PHAsset, cacheKey key: String, completion: @escaping (IRImage?, ExifInfo?) -> Void) {
-        let memKey = cacheKey(for: key)
-        if let cached = getCachedImage(for: memKey) {
-            DispatchQueue.main.async { completion(cached, nil) }
+        if let cached = getCachedImage(for: key) {
+            DispatchQueue.main.async {
+                completion(cached, nil)
+            }
             return
         }
-        let size = CGSize(width: previewSize * 2, height: previewSize * 2)
-        let options = PHImageRequestOptions()
-        options.isNetworkAccessAllowed = true
-        options.isSynchronous = false
-        options.deliveryMode = .highQualityFormat
-        options.resizeMode = .exact
-        PHImageManager.default().requestImage(for: asset, targetSize: size, contentMode: .aspectFit, options: options) { [weak self] image, info in
-            let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
-            guard let self, let image, !degraded else {
-                if image == nil { DispatchQueue.main.async { completion(nil, nil) } }
+
+        queueLock.lock()
+        requestCounter += 1
+        let order = requestCounter
+        if let existing = pendingRequests[key] {
+            if ThumbnailRequest.Priority.high.rawValue >= existing.priority.rawValue {
+                pendingRequests.removeValue(forKey: key)
+                rebuildQueue()
+            } else {
+                queueLock.unlock()
                 return
             }
-            self.setCachedImage(image, for: memKey)
-            DispatchQueue.main.async { completion(image, nil) }
         }
+        let request = ThumbnailRequest(
+            path: photo.path,
+            cacheKey: key,
+            priority: .high,
+            requestOrder: order,
+            source: source,
+            completion: { img in completion(img, nil) }
+        )
+        pendingRequests[key] = request
+        priorityQueue.enqueue(request)
+        queueLock.unlock()
+
+        processQueue()
     }
 
-    func loadPreview(for path: String, completion: @escaping (IRImage?, ExifInfo?) -> Void) {
-        let key = cacheKey(for: path)
-        let filename = URL(fileURLWithPath: path).lastPathComponent
-        let t0 = Date()
-        print("🖼 [PreviewsManager] loadPreview \(filename)")
-
-        // 1. Memory cache hit
-        if let cached = getCachedImage(for: key) {
-            print("🖼 [PreviewsManager] memory hit \(filename)")
-            DispatchQueue.main.async { completion(cached, nil) }
-            return
-        }
-
-        // 2. Enqueue
-        requestQueue.async { [weak self] in
-            guard let self else { return }
-            print("🖼 [PreviewsManager] enqueued \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
-            self.requestCounter += 1
-            let order = self.requestCounter
-
-            if let existing = self.pendingRequests[key] {
-                if ThumbnailRequest.Priority.high.rawValue >= existing.priority.rawValue {
-                    self.pendingRequests.removeValue(forKey: key)
-                    self.rebuildQueue()
-                } else {
-                    return
-                }
-            }
-
-            let request = ThumbnailRequest(
-                path: path,
-                cacheKey: key,
-                priority: .high,
-                requestOrder: order,
-                completion: { image in completion(image, nil) }
-            )
-            self.pendingRequests[key] = request
-            self.priorityQueue.enqueue(request)
-            self.processQueue()
-        }
+    func cancelPreview(for photo: PhotoItem) {
+        let key = photo.makeSource().cacheKey
+        queueLock.lock()
+        pendingRequests.removeValue(forKey: key)
+        rebuildQueue()
+        queueLock.unlock()
     }
 
-    /// Cancel all pending requests for a given path
-    func cancelPreview(for path: String) {
-        let key = cacheKey(for: path)
-        requestQueue.async { [weak self] in
-            self?.pendingRequests.removeValue(forKey: key)
-            self?.rebuildQueue()
-        }
-    }
-
-    /// Returns the disk URL for a preview (may not exist yet)
     func diskCacheURL(for path: String) -> URL {
         let subdir = cacheSubdirectory(for: path)
-        let filename = diskFilename(for: path)
+        let filename = URL(fileURLWithPath: path).lastPathComponent
         return subdir.appendingPathComponent("\(filename).jpg")
     }
 
     // MARK: - Private Queue
 
     private func processQueue() {
-        guard !isProcessingQueue else { return }
+        queueLock.lock()
+        guard !isProcessingQueue else {
+            queueLock.unlock()
+            return
+        }
         isProcessingQueue = true
-        diskQueue.async { [weak self] in self?.processAllRequests() }
+        queueLock.unlock()
+
+        diskQueue.async { [weak self] in
+            self?.processAllRequests()
+        }
     }
 
     private func processAllRequests() {
         while true {
-            var request: ThumbnailRequest?
-            requestQueue.sync { request = priorityQueue.dequeue() }
-            guard let current = request else { break }
+            queueLock.lock()
+            let request = priorityQueue.dequeue()
+            queueLock.unlock()
 
-            let valid = requestQueue.sync { () -> Bool in
-                if let pending = pendingRequests[current.cacheKey], pending.id == current.id {
-                    pendingRequests.removeValue(forKey: current.cacheKey)
-                    return true
-                }
-                return false
+            guard let current = request else {
+                break
             }
-            if !valid { continue }
+
+            queueLock.lock()
+            let isValid: Bool
+            if let pending = pendingRequests[current.cacheKey], pending.id == current.id {
+                pendingRequests.removeValue(forKey: current.cacheKey)
+                isValid = true
+            } else {
+                isValid = false
+            }
+            queueLock.unlock()
+
+            guard isValid else {
+                continue
+            }
 
             processRequest(current)
         }
-        requestQueue.async { [weak self] in self?.isProcessingQueue = false }
+
+        queueLock.lock()
+        isProcessingQueue = false
+        queueLock.unlock()
     }
 
     private func processRequest(_ request: ThumbnailRequest) {
-        let filename = URL(fileURLWithPath: request.path).lastPathComponent
-        let t0 = Date()
-        print("🖼 [PreviewsManager] processRequest \(filename)")
         processingSemaphore.wait()
-        print("🖼 [PreviewsManager] semaphore acquired \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
         autoreleasepool {
-            // Disk hit
-            if let img = loadFromDisk(for: request.path) {
-                print("🖼 [PreviewsManager] disk hit \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+            // Disk cache hit — file-based only
+            if let diskSource = request.source as? DiskPhotoSource,
+               let img = loadFromDisk(for: diskSource.path) {
                 setCachedImage(img, for: request.cacheKey)
-                DispatchQueue.main.async { request.completion(img) }
+                DispatchQueue.main.async {
+                    request.completion(img)
+                }
                 processingSemaphore.signal()
                 return
             }
-            print("🖼 [PreviewsManager] disk miss, generating \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
-            // Generate
-            generate(for: request.path, cacheKey: request.cacheKey) { [weak self] img in
-                defer { self?.processingSemaphore.signal() }
-                print("🖼 [PreviewsManager] generate done \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  image=\(img != nil)")
-                guard let img else {
-                    DispatchQueue.main.async { request.completion(nil) }
+            // For disk sources, ensure iCloud file is local
+            if let diskSource = request.source as? DiskPhotoSource {
+                guard ICloudDownloader.ensureDownloaded(at: URL(fileURLWithPath: diskSource.path)) else {
+                    DispatchQueue.main.async {
+                        request.completion(nil)
+                    }
+                    processingSemaphore.signal()
                     return
                 }
-                self?.setCachedImage(img, for: request.cacheKey)
-                DispatchQueue.main.async { request.completion(img) }
-            }
-        }
-    }
-
-    // MARK: - Generation
-
-    private func generate(for path: String, cacheKey: String, completion: @escaping (IRImage?) -> Void) {
-        let filename = URL(fileURLWithPath: path).lastPathComponent
-        let t0 = Date()
-
-        autoreleasepool {
-            // Ensure the file is downloaded from iCloud Drive before decoding.
-            guard ICloudDownloader.ensureDownloaded(at: URL(fileURLWithPath: path)) else {
-                print("🖼 [PreviewsManager] file not available locally: \(filename)")
-                completion(nil)
-                return
             }
 
-            guard let image = decoder.extractPreview(at: path, maxSize: previewSize) else {
-                print("🖼 [PreviewsManager] generate failed \(filename)")
-                completion(nil)
-                return
-            }
-            print("🖼 [PreviewsManager] generate done \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
-
-            // Encode to JPEG and save to disk via CGImageDestination (no TIFF round-trip)
-            #if os(macOS)
-            if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-                let mutable = NSMutableData()
-                if let dest = CGImageDestinationCreateWithData(mutable, "public.jpeg" as CFString, 1, nil) {
-                    CGImageDestinationAddImage(dest, cg, [kCGImageDestinationLossyCompressionQuality: jpegQuality] as CFDictionary)
-                    if CGImageDestinationFinalize(dest) {
-                        let subdir = cacheSubdirectory(for: path)
-                        try? FileManager.default.createDirectory(at: subdir, withIntermediateDirectories: true)
-                        let diskURL = subdir.appendingPathComponent("\(diskFilename(for: path)).jpg")
-                        try? (mutable as Data).write(to: diskURL)
-                        print("🖼 [PreviewsManager] saved \(filename) \(mutable.length / 1024)KB  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+            request.source.loadPreview(targetSize: previewSize) { [weak self] img in
+                defer {
+                    self?.processingSemaphore.signal()
+                }
+                guard let img else {
+                    DispatchQueue.main.async {
+                        request.completion(nil)
                     }
+                    return
+                }
+                // Save to disk for file-based sources only
+                if let diskSource = request.source as? DiskPhotoSource {
+                    self?.saveToDisk(img, forPath: diskSource.path)
+                }
+                self?.setCachedImage(img, for: request.cacheKey)
+                DispatchQueue.main.async {
+                    request.completion(img)
                 }
             }
-            #endif
-            completion(image)
         }
     }
 
@@ -246,15 +195,40 @@ class PreviewsManager {
 
     private func loadFromDisk(for path: String) -> IRImage? {
         let url = diskCacheURL(for: path)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return nil
+        }
         return IRImage(contentsOf: url)
+    }
+
+    private func saveToDisk(_ image: IRImage, forPath path: String) {
+        let subdir = cacheSubdirectory(for: path)
+        let filename = URL(fileURLWithPath: path).lastPathComponent
+        #if os(macOS)
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return
+        }
+        let mutable = NSMutableData()
+        guard let dest = CGImageDestinationCreateWithData(mutable, "public.jpeg" as CFString, 1, nil) else {
+            return
+        }
+        CGImageDestinationAddImage(dest, cg, [kCGImageDestinationLossyCompressionQuality: jpegQuality] as CFDictionary)
+        guard CGImageDestinationFinalize(dest) else {
+            return
+        }
+        try? FileManager.default.createDirectory(at: subdir, withIntermediateDirectories: true)
+        let diskURL = subdir.appendingPathComponent("\(filename).jpg")
+        try? (mutable as Data).write(to: diskURL)
+        #endif
     }
 
     // MARK: - Memory Cache
 
     private func getCachedImage(for key: String) -> IRImage? {
         cacheQueue.sync {
-            guard let entry = memoryCache[key] else { return nil }
+            guard let entry = memoryCache[key] else {
+                return nil
+            }
             updateAccessOrder(for: key)
             return entry.image
         }
@@ -262,12 +236,14 @@ class PreviewsManager {
 
     private func setCachedImage(_ image: IRImage, for key: String) {
         cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self else { return }
+            guard let self else {
+                return
+            }
             memoryCache[key] = CacheEntry(image: image, lastAccessed: Date())
             updateAccessOrder(for: key)
-            while memoryCache.count > maxMemoryCacheSize, !cacheAccessOrder.isEmpty {
-                let lru = cacheAccessOrder.removeFirst()
-                memoryCache.removeValue(forKey: lru)
+            while memoryCache.count > self.maxMemoryCacheSize, !self.cacheAccessOrder.isEmpty {
+                let lru = self.cacheAccessOrder.removeFirst()
+                self.memoryCache.removeValue(forKey: lru)
             }
         }
     }
@@ -279,22 +255,12 @@ class PreviewsManager {
 
     // MARK: - Keys & Paths
 
-    private func cacheKey(for path: String) -> String {
-        let url = URL(fileURLWithPath: path)
-        let dirHash = persistentHash(for: url.deletingLastPathComponent().path)
-        return "\(dirHash)_\(url.lastPathComponent)"
-    }
-
     private func cacheSubdirectory(for path: String) -> URL {
         let url = URL(fileURLWithPath: path)
         let dirPath = url.deletingLastPathComponent().path
         let lastComp = url.deletingLastPathComponent().lastPathComponent
         let dirHash = persistentHash(for: dirPath)
         return cacheDirectory.appendingPathComponent("\(lastComp)_\(dirHash)")
-    }
-
-    private func diskFilename(for path: String) -> String {
-        URL(fileURLWithPath: path).lastPathComponent
     }
 
     private func persistentHash(for string: String) -> String {
@@ -304,7 +270,9 @@ class PreviewsManager {
 
     private func rebuildQueue() {
         var q = PriorityQueue<ThumbnailRequest>()
-        for r in pendingRequests.values { q.enqueue(r) }
+        for r in pendingRequests.values {
+            q.enqueue(r)
+        }
         priorityQueue = q
     }
 }

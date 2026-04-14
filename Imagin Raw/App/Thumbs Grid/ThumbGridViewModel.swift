@@ -58,8 +58,8 @@ class ThumbGridViewModel: ObservableObject {
 
         var columnCount: Int {
             switch self {
-            case .small: return 5
-            case .large: return 3
+            case .small: return 3
+            case .large: return 5
             }
         }
 
