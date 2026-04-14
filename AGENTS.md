@@ -75,3 +75,31 @@ CGRect(x: imageRect.midX - iconSize / 2,
 ```
 
 Prefer a single line. Only wrap when the line would exceed ~120 characters, and in that case align all subsequent arguments with the first one.
+
+---
+
+### Switch case indentation
+
+`case` labels must be indented one level inside the `switch` — never at the same indentation as the `switch` keyword.
+
+**Wrong:**
+```swift
+switch value {
+case .a:
+    doA()
+case .b:
+    doB()
+}
+```
+
+**Correct:**
+```swift
+switch value {
+    case .a:
+        doA()
+    case .b:
+        doB()
+}
+```
+
+This applies to all `switch` statements including `switch key`, `switch event.keyCode`, `switch label`, etc.
