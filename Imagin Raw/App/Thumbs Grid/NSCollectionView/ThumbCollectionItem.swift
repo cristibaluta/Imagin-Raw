@@ -187,7 +187,8 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         let iconSize: CGFloat = 24
         trashContainer.frame = CGRect(x: imageRect.midX - iconSize/2,
                                       y: imageRect.midY - iconSize/2,
-                                      width: iconSize, height: iconSize)
+                                      width: iconSize,
+                                      height: iconSize)
         trashOverlay.frame = trashContainer.bounds
 
         // Badge stack — top-right of image rect
@@ -195,15 +196,18 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         let stackW = stackSize.width > 0 ? stackSize.width : 44
         let stackH: CGFloat = 16 + 8
         badgeStack.frame = CGRect(
-            x: imageRect.maxX - stackW - 4,
-            y: imageRect.maxY - stackH - 4,
+            x: w - stackW - 4,
+            y: h - stackH,
             width: stackW,
             height: stackH
         )
 
+        let pad: CGFloat = 2
+        let maxLabelW = w - pad * 2
         filenameLabel.sizeToFit()
-        let adaptiveWidth = filenameLabel.frame.width
-        filenameLabel.frame = CGRect(x: (w - adaptiveWidth) / 2, y: labelY + 1, width: adaptiveWidth, height: labelH)
+        let labelW = min(filenameLabel.frame.width, maxLabelW)
+        let labelX = (w - labelW) / 2
+        filenameLabel.frame = CGRect(x: labelX, y: labelY + 1, width: labelW, height: labelH)
 
         // Star view
         if photo.isRawFile {
