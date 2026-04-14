@@ -195,12 +195,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         let stackSize = badgeStack.fittingSize
         let stackW = stackSize.width > 0 ? stackSize.width : 44
         let stackH: CGFloat = 16 + 8
-        badgeStack.frame = CGRect(
-            x: w - stackW - 4,
-            y: h - stackH,
-            width: stackW,
-            height: stackH
-        )
+        badgeStack.frame = CGRect(x: w - stackW - 4, y: h - stackH, width: stackW, height: stackH)
 
         let pad: CGFloat = 2
         let maxLabelW = w - pad * 2
@@ -248,6 +243,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         let drawH = (displayH * scale).rounded()
         let x = (frame.minX + (frame.width - drawW) / 2).rounded()
         let y = (frame.minY + (frame.height - drawH) / 2).rounded()
+
         return CGRect(x: x, y: y, width: drawW, height: drawH)
     }
 
@@ -255,7 +251,8 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         view.trackingAreas.forEach { view.removeTrackingArea($0) }
         let ta = NSTrackingArea(rect: view.bounds,
                                 options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
-                                owner: self, userInfo: nil)
+                                owner: self,
+                                userInfo: nil)
         view.addTrackingArea(ta)
     }
 
@@ -324,8 +321,12 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         starView?.rating = currentRating(for: photo)
         view.menu = makeContextMenu(for: photo)
 
-        if view.trackingAreas.isEmpty { setupTrackingArea() }
-        if view.bounds.width > 0 { layoutSubviews() }
+        if view.trackingAreas.isEmpty {
+            setupTrackingArea()
+        }
+        if view.bounds.width > 0 {
+            layoutSubviews()
+        }
     }
 
     func updateSelection(isSelected: Bool) {
