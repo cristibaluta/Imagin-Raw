@@ -124,6 +124,15 @@ struct LargePreviewView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
+                .overlay {
+                    if model.isLoadingFullRes {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(1.5)
+                            .padding(16)
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
                 #if os(macOS)
                 .background(MouseTrackingView(onMouseMoved: { point, viewSize in
                     let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
