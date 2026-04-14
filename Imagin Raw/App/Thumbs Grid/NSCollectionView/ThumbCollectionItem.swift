@@ -129,6 +129,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
 
     override func viewDidLayout() {
         super.viewDidLayout()
+
         configureLayers()
         layoutSubviews()
     }
@@ -400,12 +401,12 @@ final class ThumbCollectionItem: NSCollectionViewItem {
             return
         }
         switch label {
-        case "Select":   filenameLabel.layer?.backgroundColor = NSColor.systemRed.cgColor;    filenameLabel.textColor = .white
-        case "Second":   filenameLabel.layer?.backgroundColor = NSColor.systemYellow.cgColor; filenameLabel.textColor = .black
-        case "Approved": filenameLabel.layer?.backgroundColor = NSColor(red: 133/255, green: 199/255, blue: 102/255, alpha: 1).cgColor; filenameLabel.textColor = .black
-        case "Review":   filenameLabel.layer?.backgroundColor = NSColor.systemBlue.cgColor;   filenameLabel.textColor = .white
-        case "To Do":    filenameLabel.layer?.backgroundColor = NSColor.systemPurple.cgColor; filenameLabel.textColor = .white
-        default:         filenameLabel.layer?.backgroundColor = NSColor.clear.cgColor;         filenameLabel.textColor = .labelColor
+            case "Select":   filenameLabel.layer?.backgroundColor = NSColor.systemRed.cgColor;    filenameLabel.textColor = .white
+            case "Second":   filenameLabel.layer?.backgroundColor = NSColor.systemYellow.cgColor; filenameLabel.textColor = .black
+            case "Approved": filenameLabel.layer?.backgroundColor = NSColor(red: 133/255, green: 199/255, blue: 102/255, alpha: 1).cgColor; filenameLabel.textColor = .black
+            case "Review":   filenameLabel.layer?.backgroundColor = NSColor.systemBlue.cgColor;   filenameLabel.textColor = .white
+            case "To Do":    filenameLabel.layer?.backgroundColor = NSColor.systemPurple.cgColor; filenameLabel.textColor = .white
+            default:         filenameLabel.layer?.backgroundColor = NSColor.clear.cgColor;         filenameLabel.textColor = .labelColor
         }
     }
 
@@ -413,6 +414,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
 
     override func prepareForReuse() {
         super.prepareForReuse()
+
         loadTask?.cancel()
         loadTask = nil
         currentPath = nil
@@ -447,6 +449,7 @@ extension ThumbCollectionItem {
 
     override func mouseDown(with event: NSEvent) {
         super.mouseDown(with: event)
+
         guard let photo = currentPhoto else {
             return
         }

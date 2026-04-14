@@ -103,3 +103,37 @@ switch value {
 ```
 
 This applies to all `switch` statements including `switch key`, `switch event.keyCode`, `switch label`, etc.
+
+---
+
+### Empty line after super call in overrides
+
+When overriding a function and calling `super`, always leave one empty line after the `super` call before the rest of the body.
+
+**Wrong:**
+```swift
+override func viewDidLoad() {
+    super.viewDidLoad()
+    setupViews()
+}
+
+override func prepareForReuse() {
+    super.prepareForReuse()
+    currentPath = nil
+}
+```
+
+**Correct:**
+```swift
+override func viewDidLoad() {
+    super.viewDidLoad()
+
+    setupViews()
+}
+
+override func prepareForReuse() {
+    super.prepareForReuse()
+
+    currentPath = nil
+}
+```
