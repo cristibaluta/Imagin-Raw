@@ -173,6 +173,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
         scrollView.scrollerStyle = .overlay
         context.coordinator.scrollView = scrollView
         buildCollectionView(in: scrollView, context: context)
+        context.coordinator.observeScrollView(scrollView)
         return scrollView
     }
 
@@ -256,7 +257,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
                 let isSelected = selectedPhotos.contains(photo.id)
                 if oldPhotoMap[photo.id] != photo {
                     thumbItem.configure(with: photo, isSelected: isSelected,
-                                        itemSize: itemSize, callbacks: callbacks)
+                                        itemSize: itemSize, priority: .high, callbacks: callbacks)
                 } else if selectionChanged {
                     thumbItem.updateSelection(isSelected: isSelected)
                 }
@@ -311,7 +312,63 @@ struct CollectionThumbGridView: NSViewRepresentable {
         weak var collectionView: NSCollectionView?
         weak var scrollView: NSScrollView?
 
+        private var isScrolling = false
+        private var scrollEndTimer: Timer?
+        private var scrollObserver: NSObjectProtocol?
         private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
+
+        deinit {
+            if let obs = scrollObserver {
+                NotificationCenter.default.removeObserver(obs)
+            }
+        }
+
+        /// Call once after the scroll view is created to start observing scroll events.
+        func observeScrollView(_ sv: NSScrollView) {
+            sv.contentView.postsBoundsChangedNotifications = true
+            scrollObserver = NotificationCenter.default.addObserver(
+                forName: NSView.boundsDidChangeNotification,
+                object: sv.contentView,
+                queue: .main
+            ) { [weak self] _ in
+                guard let self else {
+                    return
+                }
+                self.isScrolling = true
+                self.scrollEndTimer?.invalidate()
+                self.scrollEndTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
+                    guard let self else {
+                        return
+                    }
+                    self.isScrolling = false
+                    self.boostVisibleItems()
+                }
+            }
+        }
+
+        private func boostVisibleItems() {
+            guard let cv = collectionView else {
+                return
+            }
+            // Flush all stale low-priority work so .high requests get the semaphore slots
+            ThumbsManager.shared.cancelLowPriorityRequests()
+
+            for indexPath in cv.indexPathsForVisibleItems() {
+                guard let item = cv.item(at: indexPath) as? ThumbCollectionItem,
+                      item.thumbImage == nil else {
+                    continue
+                }
+                let photo = photosForSection(indexPath.section)[indexPath.item]
+                ThumbsManager.shared.loadThumbnail(for: photo, priority: .high) { [weak item] image in
+                    guard let image else {
+                        return
+                    }
+                    DispatchQueue.main.async {
+                        item?.setThumb(image)
+                    }
+                }
+            }
+        }
 
         init(itemSize: CGFloat, cellHeight: CGFloat, callbacks: ThumbCellCallbacks) {
             self.itemSize = itemSize
@@ -360,9 +417,11 @@ struct CollectionThumbGridView: NSViewRepresentable {
             let item = cv.makeItem(withIdentifier: ThumbCollectionItem.identifier,
                                    for: indexPath) as! ThumbCollectionItem
             let photo = photosForSection(indexPath.section)[indexPath.item]
+            let priority: ThumbnailRequest.Priority = isScrolling ? .low : .high
             item.configure(with: photo,
                            isSelected: selectedPhotos.contains(photo.id),
                            itemSize: itemSize,
+                           priority: priority,
                            callbacks: callbacks)
             return item
         }

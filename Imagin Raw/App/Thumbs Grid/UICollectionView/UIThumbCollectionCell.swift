@@ -139,7 +139,17 @@ final class UIThumbCollectionCell: UICollectionViewCell {
 
     // MARK: - Configure
 
-    func configure(with photo: PhotoItem, isSelected: Bool, itemSize: CGFloat, callbacks: ThumbCellCallbacks) {
+    var thumbImage: IRImage? { thumbView.image }
+
+    func setThumb(_ image: IRImage) {
+        thumbView.image = image
+    }
+
+    func configure(with photo: PhotoItem,
+                   isSelected: Bool,
+                   itemSize: CGFloat,
+                   priority: ThumbnailRequest.Priority = .high,
+                   callbacks: ThumbCellCallbacks) {
         self.callbacks = callbacks
         self.itemSize = itemSize
 
@@ -151,11 +161,13 @@ final class UIThumbCollectionCell: UICollectionViewCell {
             thumbView.image = nil
 
             let path = photo.path
-            if let cached = ThumbsManager.shared.getCachedThumbnail(for: path) {
+            if let cached = ThumbsManager.shared.getCachedThumbnail(for: photo) {
                 thumbView.image = cached
             } else {
-                ThumbsManager.shared.loadThumbnail(for: photo, priority: .high) { [weak self] image in
-                    guard self?.currentPath == path else { return }
+                ThumbsManager.shared.loadThumbnail(for: photo, priority: priority) { [weak self] image in
+                    guard self?.currentPath == path else {
+                        return
+                    }
                     self?.thumbView.image = image
                 }
             }

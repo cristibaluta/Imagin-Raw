@@ -268,6 +268,7 @@ struct UICollectionThumbGridView: UIViewRepresentable {
         weak var collectionView: UICollectionView?
         weak var scrollView: UIScrollView?
 
+        private var isScrolling = false
         private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
 
         init(itemSize: CGFloat, cellHeight: CGFloat, columnCount: Int, callbacks: ThumbCellCallbacks) {
@@ -308,9 +309,13 @@ struct UICollectionThumbGridView: UIViewRepresentable {
                 withReuseIdentifier: UIThumbCollectionCell.identifier,
                 for: indexPath) as! UIThumbCollectionCell
             let photo = photosForSection(indexPath.section)[indexPath.item]
+            // During fast scroll use .low so queued items don't pile up at .high.
+            // When scrolling stops, scrollViewDidEndDecelerating boosts visible cells.
+            let priority: ThumbnailRequest.Priority = isScrolling ? .low : .high
             cell.configure(with: photo,
                            isSelected: selectedPhotos.contains(photo.id),
                            itemSize: itemSize,
+                           priority: priority,
                            callbacks: callbacks)
             return cell
         }
@@ -344,6 +349,47 @@ struct UICollectionThumbGridView: UIViewRepresentable {
                 return header
             }
             return UICollectionReusableView()
+        }
+
+        // MARK: UIScrollViewDelegate
+
+        func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+            isScrolling = true
+        }
+
+        func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+            if !decelerate {
+                isScrolling = false
+                boostVisibleCells()
+            }
+        }
+
+        func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+            isScrolling = false
+            boostVisibleCells()
+        }
+
+        /// Re-request thumbnails for all currently visible cells at .high priority.
+        private func boostVisibleCells() {
+            guard let cv = collectionView else {
+                return
+            }
+            // Cancel stale low-priority work so visible cells get the semaphore slots immediately
+            ThumbsManager.shared.cancelLowPriorityRequests()
+
+            for ip in cv.indexPathsForVisibleItems {
+                let photo = photosForSection(ip.section)[ip.item]
+                guard let cell = cv.cellForItem(at: ip) as? UIThumbCollectionCell,
+                      cell.thumbImage == nil else {
+                    continue
+                }
+                ThumbsManager.shared.loadThumbnail(for: photo, priority: .high) { [weak cell] image in
+                    guard let image else {
+                        return
+                    }
+                    cell?.setThumb(image)
+                }
+            }
         }
 
         // MARK: UICollectionViewDelegateFlowLayout

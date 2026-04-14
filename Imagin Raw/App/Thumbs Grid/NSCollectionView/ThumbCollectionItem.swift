@@ -257,9 +257,18 @@ final class ThumbCollectionItem: NSCollectionViewItem {
 
     // MARK: Configure
 
+    var thumbImage: IRImage? { thumbView.image }
+
+    func setThumb(_ image: IRImage) {
+        thumbView.image = image
+        currentImageSize = image.size
+        layoutSubviews()
+    }
+
     func configure(with photo: PhotoItem,
                    isSelected: Bool,
                    itemSize: CGFloat,
+                   priority: ThumbnailRequest.Priority = .high,
                    callbacks: ThumbCellCallbacks) {
         self.callbacks = callbacks
         self.itemSize = itemSize
@@ -274,16 +283,18 @@ final class ThumbCollectionItem: NSCollectionViewItem {
             thumbView.image = nil
             currentImageSize = .zero
 
-            if let cached = ThumbsManager.shared.getCachedThumbnail(for: photo.path) {
+            if let cached = ThumbsManager.shared.getCachedThumbnail(for: photo) {
                 thumbView.image = cached
                 currentImageSize = cached.size
                 layoutSubviews()
             } else {
                 let path = photo.path
                 let work = DispatchWorkItem { [weak self] in
-                    ThumbsManager.shared.loadThumbnail(for: path, priority: .medium) { image in
+                    ThumbsManager.shared.loadThumbnail(for: photo, priority: priority) { image in
                         DispatchQueue.main.async {
-                            guard self?.currentPath == path else { return }
+                            guard self?.currentPath == path else {
+                                return
+                            }
                             self?.thumbView.image = image
                             self?.currentImageSize = image?.size ?? .zero
                             self?.layoutSubviews()

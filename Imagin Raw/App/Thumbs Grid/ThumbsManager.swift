@@ -212,6 +212,19 @@ class ThumbsManager: ObservableObject {
         }
     }
 
+    /// Cancel all pending requests that are below .high priority.
+    /// Called when scrolling stops so visible cells can jump to the front.
+    func cancelLowPriorityRequests() {
+        queueLock.lock()
+        let before = pendingRequests.count
+        pendingRequests = pendingRequests.filter { $0.value.priority == .high }
+        let removed = before - pendingRequests.count
+        if removed > 0 {
+            rebuildQueue()
+        }
+        queueLock.unlock()
+    }
+
     func deleteCachedThumbnail(for path: String) {
         let source = DiskPhotoSource(path: path)
         let key = source.cacheKey
