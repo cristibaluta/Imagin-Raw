@@ -1,5 +1,5 @@
 //
-//  ThumbCollectionItem.swift
+//  MacThumbCell.swift
 //  Imagin Raw
 //
 //  Created by Cristian Baluta on 17.03.2026.
@@ -8,7 +8,7 @@ import Foundation
 #if os(macOS)
 import AppKit
 
-private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
+private final class MacVerticallyCenteredTextFieldCell: NSTextFieldCell {
     override func drawingRect(forBounds rect: NSRect) -> NSRect {
         let superRect = super.drawingRect(forBounds: rect)
         let size = cellSize(forBounds: rect)
@@ -18,8 +18,8 @@ private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
     }
 }
 
-final class ThumbCollectionItem: NSCollectionViewItem {
-    static let identifier = NSUserInterfaceItemIdentifier("ThumbCollectionItem")
+final class MacThumbCell: NSCollectionViewItem {
+    static let identifier = NSUserInterfaceItemIdentifier("MacThumbCell")
 
     // Views
     private let thumbView           = NSImageView()
@@ -32,7 +32,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     private let acrBadge            = NSImageView()
     private let jpgBadgeContainer   = NSView()
     private let jpgBadge            = NSTextField(labelWithString: "+JPG")
-    private var starView: AppKitStarRatingView?
+    private var starView: MacStarRatingView?
 
     // State
     private(set) var currentPath: String?
@@ -114,7 +114,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         badgeStack.addArrangedSubview(jpgBadgeContainer)
         badgeStack.isHidden = true
 
-        let labelCell = VerticallyCenteredTextFieldCell()
+        let labelCell = MacVerticallyCenteredTextFieldCell()
         labelCell.font = NSFont.systemFont(ofSize: 11)
         labelCell.textColor = .labelColor
         labelCell.lineBreakMode = .byTruncatingMiddle
@@ -207,7 +207,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
         // Star view
         if photo.isRawFile {
             if starView == nil {
-                let sv = AppKitStarRatingView()
+                let sv = MacStarRatingView()
                 sv.onRatingChanged = { [weak self] r in
                     guard let self, let p = self.currentPhoto else { return }
                     self.callbacks?.onRatingChanged(p, r)
@@ -434,7 +434,7 @@ final class ThumbCollectionItem: NSCollectionViewItem {
     }
 }
 
-extension ThumbCollectionItem {
+extension MacThumbCell {
     override func mouseEntered(with event: NSEvent) {
         starView?.isHidden = !(currentPhoto?.isRawFile ?? false)
     }

@@ -1,5 +1,5 @@
 //
-//  UIThumbCollectionCell.swift
+//  IosThumbCell.swift
 //  Imagin Raw
 //
 //  UICollectionViewCell equivalent of ThumbCollectionItem for iOS.
@@ -9,8 +9,8 @@ import Foundation
 #if os(iOS)
 import UIKit
 
-final class UIThumbCollectionCell: UICollectionViewCell {
-    static let identifier = "UIThumbCollectionCell"
+final class IosThumbCell: UICollectionViewCell {
+    static let identifier = "IosThumbCell"
 
     // MARK: - Views
     private let thumbView        = UIImageView()

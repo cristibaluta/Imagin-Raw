@@ -160,7 +160,7 @@ struct ThumbGridView: View {
     // NSCollectionView-based grid
     private var collectionPhotoGridView: some View {
         #if os(macOS)
-        CollectionThumbGridView(
+        MacThumbGridView(
             photos: viewModel.filteredPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,
@@ -250,7 +250,7 @@ struct ThumbGridView: View {
             }
         }
         #elseif os(iOS)
-        UICollectionThumbGridView(
+        IosThumbGridView(
             photos: viewModel.filteredPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,

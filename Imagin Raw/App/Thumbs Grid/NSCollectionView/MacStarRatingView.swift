@@ -1,5 +1,5 @@
 //
-//  AppKitStarRatingView.swift
+//  MacStarRatingView.swift
 //  Imagin Raw
 //
 //  Created by Cristian Baluta on 17.03.2026.
@@ -8,7 +8,7 @@ import Foundation
 #if os(macOS)
 import AppKit
 
-final class AppKitStarRatingView: NSView {
+final class MacStarRatingView: NSView {
 
     var rating: Int = 0 {
         didSet {

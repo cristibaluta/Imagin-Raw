@@ -1,5 +1,5 @@
 //
-//  UICollectionThumbGridView.swift
+//  IosThumbGridView.swift
 //  Imagin Raw
 //
 //  UICollectionView-based photo grid for iOS — mirrors CollectionThumbGridView (macOS).
@@ -11,8 +11,8 @@ import UIKit
 
 // MARK: - Section Header (Duplicate Groups)
 
-final class UIDuplicateSectionHeader: UICollectionReusableView {
-    static let identifier = "UIDuplicateSectionHeader"
+final class IosDuplicateSectionHeader: UICollectionReusableView {
+    static let identifier = "IosDuplicateSectionHeader"
 
     private let pill      = UIView()
     private let label     = UILabel()
@@ -63,8 +63,8 @@ final class UIDuplicateSectionHeader: UICollectionReusableView {
 
 // MARK: - Section Header (Date Groups)
 
-final class UIDateSectionHeader: UICollectionReusableView {
-    static let identifier = "UIDateSectionHeader"
+final class IosDateSectionHeader: UICollectionReusableView {
+    static let identifier = "IosDateSectionHeader"
 
     private let label = UILabel()
 
@@ -89,7 +89,7 @@ final class UIDateSectionHeader: UICollectionReusableView {
 
 // MARK: - SwiftUI Wrapper
 
-struct UICollectionThumbGridView: UIViewRepresentable {
+struct IosThumbGridView: UIViewRepresentable {
     let photos: [PhotoItem]
     let itemSize: CGFloat
     let cellHeight: CGFloat
@@ -132,13 +132,13 @@ struct UICollectionThumbGridView: UIViewRepresentable {
         cv.delegate = c
         cv.isPrefetchingEnabled = true
         cv.prefetchDataSource = c
-        cv.register(UIThumbCollectionCell.self, forCellWithReuseIdentifier: UIThumbCollectionCell.identifier)
-        cv.register(UIDuplicateSectionHeader.self,
+        cv.register(IosThumbCell.self, forCellWithReuseIdentifier: IosThumbCell.identifier)
+        cv.register(IosDuplicateSectionHeader.self,
                     forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
-                    withReuseIdentifier: UIDuplicateSectionHeader.identifier)
-        cv.register(UIDateSectionHeader.self,
+                    withReuseIdentifier: IosDuplicateSectionHeader.identifier)
+        cv.register(IosDateSectionHeader.self,
                     forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
-                    withReuseIdentifier: UIDateSectionHeader.identifier)
+                    withReuseIdentifier: IosDateSectionHeader.identifier)
         cv.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
         c.collectionView = cv
@@ -208,7 +208,7 @@ struct UICollectionThumbGridView: UIViewRepresentable {
             cv?.reloadData()
         } else {
             cv?.indexPathsForVisibleItems.forEach { ip in
-                guard let cell = cv?.cellForItem(at: ip) as? UIThumbCollectionCell,
+                guard let cell = cv?.cellForItem(at: ip) as? IosThumbCell,
                       let path = cell.currentPath,
                       let photo = latestMap.values.first(where: { $0.path == path }) else { return }
                 let isSelected = selectedPhotos.contains(photo.id)
@@ -306,8 +306,8 @@ struct UICollectionThumbGridView: UIViewRepresentable {
         func collectionView(_ collectionView: UICollectionView,
                             cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
             let cell = collectionView.dequeueReusableCell(
-                withReuseIdentifier: UIThumbCollectionCell.identifier,
-                for: indexPath) as! UIThumbCollectionCell
+                withReuseIdentifier: IosThumbCell.identifier,
+                for: indexPath) as! IosThumbCell
             let photo = photosForSection(indexPath.section)[indexPath.item]
             // During fast scroll use .low so queued items don't pile up at .high.
             // When scrolling stops, scrollViewDidEndDecelerating boosts visible cells.
@@ -330,8 +330,8 @@ struct UICollectionThumbGridView: UIViewRepresentable {
             if let result = duplicateResult, indexPath.section < result.groups.count {
                 let header = collectionView.dequeueReusableSupplementaryView(
                     ofKind: kind,
-                    withReuseIdentifier: UIDuplicateSectionHeader.identifier,
-                    for: indexPath) as! UIDuplicateSectionHeader
+                    withReuseIdentifier: IosDuplicateSectionHeader.identifier,
+                    for: indexPath) as! IosDuplicateSectionHeader
                 let group = result.groups[indexPath.section]
                 let idx = indexPath.section
                 header.configure(group: group, index: idx, onReview: { [weak self] in
@@ -343,8 +343,8 @@ struct UICollectionThumbGridView: UIViewRepresentable {
             if isDateGrouped, indexPath.section < dateGroups.count {
                 let header = collectionView.dequeueReusableSupplementaryView(
                     ofKind: kind,
-                    withReuseIdentifier: UIDateSectionHeader.identifier,
-                    for: indexPath) as! UIDateSectionHeader
+                    withReuseIdentifier: IosDateSectionHeader.identifier,
+                    for: indexPath) as! IosDateSectionHeader
                 header.configure(title: dateGroups[indexPath.section].title)
                 return header
             }
@@ -379,7 +379,7 @@ struct UICollectionThumbGridView: UIViewRepresentable {
 
             for ip in cv.indexPathsForVisibleItems {
                 let photo = photosForSection(ip.section)[ip.item]
-                guard let cell = cv.cellForItem(at: ip) as? UIThumbCollectionCell,
+                guard let cell = cv.cellForItem(at: ip) as? IosThumbCell,
                       cell.thumbImage == nil else {
                     continue
                 }

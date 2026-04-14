@@ -1,5 +1,5 @@
 //
-//  CollectionThumbGridView.swift
+//  MacThumbGridView.swift
 //  Imagin Raw
 //
 //  NSCollectionView-based photo grid — full feature parity with ThumbCell.
@@ -25,7 +25,7 @@ import AppKit
 
 // MARK: - Section Header
 
-final class DuplicateSectionHeaderView: NSView, NSCollectionViewElement {
+final class MacDuplicateSectionHeader: NSView, NSCollectionViewElement {
     static let identifier = NSUserInterfaceItemIdentifier("DuplicateSectionHeader")
 
     private let label      = NSTextField(labelWithString: "")
@@ -102,7 +102,7 @@ final class DuplicateSectionHeaderView: NSView, NSCollectionViewElement {
 
 // MARK: - Date Section Header
 
-final class DateSectionHeaderView: NSView, NSCollectionViewElement {
+final class MacDateSectionHeader: NSView, NSCollectionViewElement {
     static let identifier = NSUserInterfaceItemIdentifier("DateSectionHeader")
 
     private let label = NSTextField(labelWithString: "")
@@ -128,9 +128,9 @@ final class DateSectionHeaderView: NSView, NSCollectionViewElement {
     }
 }
 
-// MARK: - KeyableCollectionView
+// MARK: - MacKeyableCollectionView
 
-private final class KeyableCollectionView: NSCollectionView {
+private final class MacKeyableCollectionView: NSCollectionView {
     var onKeyDown: ((NSEvent) -> Bool)?
     override var acceptsFirstResponder: Bool { true }
     override func keyDown(with event: NSEvent) {
@@ -147,7 +147,7 @@ private final class KeyableCollectionView: NSCollectionView {
 
 // MARK: - SwiftUI Wrapper
 
-struct CollectionThumbGridView: NSViewRepresentable {
+struct MacThumbGridView: NSViewRepresentable {
     let photos: [PhotoItem]
     let itemSize: CGFloat
     let cellHeight: CGFloat
@@ -180,7 +180,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
     private func buildCollectionView(in scrollView: NSScrollView, context: Context) {
         let c = context.coordinator
         let headerHeight: CGFloat = (duplicateResult != nil || isDateGrouped) ? 32 : 0
-        let cv = KeyableCollectionView()
+        let cv = MacKeyableCollectionView()
         cv.onKeyDown = { event in c.onKeyDown?(event) ?? false }
         cv.collectionViewLayout = c.makeLayout(itemSize: itemSize, cellHeight: cellHeight,
                                                headerHeight: headerHeight)
@@ -189,13 +189,13 @@ struct CollectionThumbGridView: NSViewRepresentable {
         cv.isSelectable = true
         cv.allowsMultipleSelection = true
         cv.backgroundColors = [NSColor.clear]
-        cv.register(ThumbCollectionItem.self, forItemWithIdentifier: ThumbCollectionItem.identifier)
-        cv.register(DuplicateSectionHeaderView.self,
+        cv.register(MacThumbCell.self, forItemWithIdentifier: MacThumbCell.identifier)
+        cv.register(MacDuplicateSectionHeader.self,
                     forSupplementaryViewOfKind: NSCollectionView.elementKindSectionHeader,
-                    withIdentifier: DuplicateSectionHeaderView.identifier)
-        cv.register(DateSectionHeaderView.self,
+                    withIdentifier: MacDuplicateSectionHeader.identifier)
+        cv.register(MacDateSectionHeader.self,
                     forSupplementaryViewOfKind: NSCollectionView.elementKindSectionHeader,
-                    withIdentifier: DateSectionHeaderView.identifier)
+                    withIdentifier: MacDateSectionHeader.identifier)
         c.collectionView = cv
         scrollView.documentView = cv
         DispatchQueue.main.async { cv.window?.makeFirstResponder(cv) }
@@ -251,7 +251,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
             cv?.reloadData()
         } else {
             cv?.visibleItems().forEach { item in
-                guard let thumbItem = item as? ThumbCollectionItem,
+                guard let thumbItem = item as? MacThumbCell,
                       let path = thumbItem.currentPath,
                       let photo = latestMap.values.first(where: { $0.path == path }) else { return }
                 let isSelected = selectedPhotos.contains(photo.id)
@@ -354,7 +354,7 @@ struct CollectionThumbGridView: NSViewRepresentable {
             ThumbsManager.shared.cancelLowPriorityRequests()
 
             for indexPath in cv.indexPathsForVisibleItems() {
-                guard let item = cv.item(at: indexPath) as? ThumbCollectionItem,
+                guard let item = cv.item(at: indexPath) as? MacThumbCell,
                       item.thumbImage == nil else {
                     continue
                 }
@@ -414,8 +414,8 @@ struct CollectionThumbGridView: NSViewRepresentable {
 
         func collectionView(_ cv: NSCollectionView,
                             itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
-            let item = cv.makeItem(withIdentifier: ThumbCollectionItem.identifier,
-                                   for: indexPath) as! ThumbCollectionItem
+            let item = cv.makeItem(withIdentifier: MacThumbCell.identifier,
+                                   for: indexPath) as! MacThumbCell
             let photo = photosForSection(indexPath.section)[indexPath.item]
             let priority: ThumbnailRequest.Priority = isScrolling ? .low : .high
             item.configure(with: photo,
@@ -436,8 +436,8 @@ struct CollectionThumbGridView: NSViewRepresentable {
             if let result = duplicateResult, indexPath.section < result.groups.count {
                 let header = cv.makeSupplementaryView(
                     ofKind: kind,
-                    withIdentifier: DuplicateSectionHeaderView.identifier,
-                    for: indexPath) as! DuplicateSectionHeaderView
+                    withIdentifier: MacDuplicateSectionHeader.identifier,
+                    for: indexPath) as! MacDuplicateSectionHeader
                 header.configure(group: result.groups[indexPath.section], index: indexPath.section, onReview: onReview)
                 return header
             }
@@ -445,8 +445,8 @@ struct CollectionThumbGridView: NSViewRepresentable {
             if isDateGrouped, indexPath.section < dateGroups.count {
                 let header = cv.makeSupplementaryView(
                     ofKind: kind,
-                    withIdentifier: DateSectionHeaderView.identifier,
-                    for: indexPath) as! DateSectionHeaderView
+                    withIdentifier: MacDateSectionHeader.identifier,
+                    for: indexPath) as! MacDateSectionHeader
                 header.configure(title: dateGroups[indexPath.section].title)
                 return header
             }
