@@ -22,6 +22,7 @@ final class IosThumbCell: UICollectionViewCell {
     private let jpgBadge         = UILabel()
     private let jpgBadgeView     = UIView()
     private var starStack        = UIStackView()
+    private let checkmarkView    = UIImageView()
 
     // MARK: - State
     private(set) var currentPath: String?
@@ -97,6 +98,17 @@ final class IosThumbCell: UICollectionViewCell {
             starStack.addArrangedSubview(btn)
         }
         contentView.addSubview(starStack)
+
+        checkmarkView.image = UIImage(systemName: "checkmark.circle.fill",
+                                      withConfiguration: UIImage.SymbolConfiguration(pointSize: 22, weight: .bold))
+        checkmarkView.tintColor = .white
+        checkmarkView.contentMode = .scaleAspectFit
+        checkmarkView.isHidden = true
+        checkmarkView.layer.shadowColor = UIColor.black.cgColor
+        checkmarkView.layer.shadowOpacity = 0.5
+        checkmarkView.layer.shadowRadius = 3
+        checkmarkView.layer.shadowOffset = .zero
+        contentView.addSubview(checkmarkView)
     }
 
     private func setupGestures() {
@@ -135,6 +147,10 @@ final class IosThumbCell: UICollectionViewCell {
 
         filenameLabel.isHidden = true
         starStack.isHidden = true
+
+        let checkSize: CGFloat = 26
+        checkmarkView.frame = CGRect(x: w - checkSize - 6, y: h - checkSize - 6,
+                                     width: checkSize, height: checkSize)
     }
 
     // MARK: - Configure
@@ -147,6 +163,7 @@ final class IosThumbCell: UICollectionViewCell {
 
     func configure(with photo: PhotoItem,
                    isSelected: Bool,
+                   isSelectMode: Bool,
                    itemSize: CGFloat,
                    priority: ThumbnailRequest.Priority = .high,
                    callbacks: ThumbCellCallbacks) {
@@ -173,7 +190,7 @@ final class IosThumbCell: UICollectionViewCell {
             }
         }
 
-        updateSelection(isSelected: isSelected)
+        updateSelection(isSelected: isSelected, isSelectMode: isSelectMode)
         trashOverlay.isHidden = !photo.toDelete
         acrBadge.isHidden = !photo.hasACR
         jpgBadgeView.isHidden = !(photo.isRawFile && photo.hasJPG)
@@ -182,8 +199,15 @@ final class IosThumbCell: UICollectionViewCell {
         updateStars(for: photo)
     }
 
-    func updateSelection(isSelected: Bool) {
-        selectionBorder.layer.borderWidth = isSelected ? 2 : 0
+    func updateSelection(isSelected: Bool, isSelectMode: Bool = false) {
+        selectionBorder.layer.borderWidth = 0
+        if isSelectMode {
+            thumbView.alpha = isSelected ? 0.7 : 1.0
+            checkmarkView.isHidden = !isSelected
+        } else {
+            thumbView.alpha = 1.0
+            checkmarkView.isHidden = true
+        }
     }
 
     // MARK: - Stars

@@ -152,12 +152,12 @@ final class IOSFeedCell: UICollectionViewCell {
         if let ap = exif?.aperture     { exp.append("ƒ/\(String(format:"%.1f", ap))") }
         if let ss = exif?.shutterSpeed { exp.append(ss < 1 ? "1/\(Int(round(1/ss)))s" : "\(String(format:"%.1f",ss))s") }
         if let iso = exif?.iso         { exp.append("ISO \(iso)") }
-        exposureLabel.text = exp.isEmpty ? nil : exp.joined(separator: "   ")
+        if let fl = exif?.focalLength  { exp.append("\(String(format:"%.0f",fl)) mm") }
+        exposureLabel.text = exp.isEmpty ? nil : exp.joined(separator: "  •  ")
 
         var lens: [String] = []
         if let l  = exif?.lensModel   { lens.append(l) }
-        if let fl = exif?.focalLength { lens.append("\(String(format:"%.0f",fl)) mm") }
-        lensLabel.text = lens.isEmpty ? nil : lens.joined(separator: "  ·  ")
+        lensLabel.text = lens.isEmpty ? nil : lens.joined(separator: "  •  ")
     }
 
     // MARK: - Reuse

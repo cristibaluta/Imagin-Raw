@@ -41,6 +41,7 @@ struct ThumbGridView: View {
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
     @State private var showDuplicatesSheet: Bool = false
+    @State private var isSelectMode: Bool = false
     @Binding var reviewGroup: ReviewGroupItem?
     @Binding var currentPhotos: [PhotoItem]
     @State private var hasAppeared = false
@@ -101,11 +102,6 @@ struct ThumbGridView: View {
         .sheet(isPresented: $showDuplicatesSheet) {
             DuplicatesResultSheet(viewModel: viewModel)
         }
-        #if os(iOS)
-        .onChange(of: viewModel.filteredPhotos) { _, newPhotos in
-            currentPhotos = newPhotos
-        }
-        #endif
         .onAppear {
             // Only run once
             guard !hasAppeared else { return }
@@ -256,13 +252,11 @@ struct ThumbGridView: View {
             cellHeight: viewModel.gridType.cellHeight,
             columnCount: viewModel.gridType.columnCount,
             selectedPhotos: viewModel.selectedPhotos,
+            isSelectMode: isSelectMode,
             callbacks: ThumbCellCallbacks(
                 onTap: { photo, _ in
-                    print("👆 [iOS tap] path=\(photo.path.prefix(40)) selectedPhoto=\(filesModel.selectedPhoto?.path.prefix(20) ?? "nil")")
                     viewModel.handlePhotoTap(photo: photo, modifiers: .none)
-                    print("👆 [iOS tap] after handlePhotoTap, selectedPhoto=\(filesModel.selectedPhoto?.path.prefix(20) ?? "nil")")
                     filesModel.selectedPhoto = photo
-                    print("👆 [iOS tap] after setting selectedPhoto=\(filesModel.selectedPhoto?.path.prefix(20) ?? "nil")")
                 },
                 onDoubleClick: { photo in
                     handleDoubleClick(photo: photo)
@@ -308,6 +302,26 @@ struct ThumbGridView: View {
             sortOption: viewModel.sortOption,
             scrollToPhotoId: $scrollToPhotoId
         )
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(isSelectMode ? "Cancel" : "Select") {
+                    isSelectMode.toggle()
+                    if !isSelectMode {
+                        viewModel.selectedPhotos.removeAll()
+                    }
+                }
+            }
+        }
+        .onChange(of: viewModel.filteredPhotos) { _, newPhotos in
+            currentPhotos = newPhotos
+            let url = filesModel.selectedFolder?.url
+            let isPhotoKit = url?.isPhotoLibraryRoot == true || url?.isPhotoKitAlbum == true
+            if isPhotoKit, let last = newPhotos.last {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    scrollToPhotoId = last.id
+                }
+            }
+        }
         #endif
     }
 

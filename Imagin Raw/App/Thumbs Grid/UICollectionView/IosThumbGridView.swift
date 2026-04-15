@@ -95,7 +95,14 @@ struct IosThumbGridView: UIViewRepresentable {
     let cellHeight: CGFloat
     let columnCount: Int
     let selectedPhotos: Set<UUID>
+    let isSelectMode: Bool
     let callbacks: ThumbCellCallbacks
+    /// Tap in select mode — toggles selection, never navigates.
+    let onSelectToggle: (PhotoItem) -> Void
+    /// Tap in normal mode — navigates to preview.
+    let onNavigate: (PhotoItem) -> Void
+    /// Range selection committed by "Select to here" — receives all photos in the range.
+    let onSelectRange: ([PhotoItem]) -> Void
     var duplicateResult: DuplicateScanResult? = nil
     var onReview: ((DuplicateGroup, Int) -> Void)? = nil
     var dateGroups: [(title: String, photos: [PhotoItem])] = []
@@ -183,12 +190,17 @@ struct IosThumbGridView: UIViewRepresentable {
         c.cellHeight      = cellHeight
         c.columnCount     = columnCount
         c.selectedPhotos  = selectedPhotos
+        c.isSelectMode    = isSelectMode
         c.callbacks       = callbacks
         c.duplicateResult = duplicateResult
         c.onReview        = onReview
         c.dateGroups      = dateGroups
         c.sortOption      = sortOption
         c.photosById      = Dictionary(uniqueKeysWithValues: photos.map { ($0.path, $0) })
+        c.collectionView?.allowsMultipleSelection = isSelectMode
+        c.onSelectToggle  = onSelectToggle
+        c.onNavigate      = onNavigate
+        c.onSelectRange   = onSelectRange
 
         if modeChanged {
             buildCollectionView(in: scrollView, context: context)
@@ -213,9 +225,10 @@ struct IosThumbGridView: UIViewRepresentable {
                       let photo = latestMap.values.first(where: { $0.path == path }) else { return }
                 let isSelected = selectedPhotos.contains(photo.id)
                 if oldPhotoMap[photo.id] != photo {
-                    cell.configure(with: photo, isSelected: isSelected, itemSize: itemSize, callbacks: callbacks)
+                    cell.configure(with: photo, isSelected: isSelected, isSelectMode: isSelectMode,
+                                   itemSize: itemSize, callbacks: callbacks)
                 } else if selectionChanged {
-                    cell.updateSelection(isSelected: isSelected)
+                    cell.updateSelection(isSelected: isSelected, isSelectMode: isSelectMode)
                 }
             }
         }
@@ -259,7 +272,22 @@ struct IosThumbGridView: UIViewRepresentable {
         var cellHeight: CGFloat
         var columnCount: Int
         var selectedPhotos: Set<UUID> = []
+        var isSelectMode: Bool = false {
+            didSet {
+                if !isSelectMode {
+                    selectFromIndexPath = nil
+                }
+            }
+        }
         var callbacks: ThumbCellCallbacks
+        /// Called when a photo is tapped in select mode — toggles selection, never navigates.
+        var onSelectToggle: ((PhotoItem) -> Void)?
+        /// Called when a photo is tapped in normal mode — navigates to preview.
+        var onNavigate: ((PhotoItem) -> Void)?
+        /// Anchor set by "Select from here" — defines the start of a range selection.
+        var selectFromIndexPath: IndexPath?
+        /// Called when a range selection is committed — passes all photos in the range.
+        var onSelectRange: (([PhotoItem]) -> Void)?
         var duplicateResult: DuplicateScanResult? = nil
         var onReview: ((DuplicateGroup, Int) -> Void)?
         var photosById: [String: PhotoItem] = [:]
@@ -314,6 +342,7 @@ struct IosThumbGridView: UIViewRepresentable {
             let priority: ThumbnailRequest.Priority = isScrolling ? .low : .high
             cell.configure(with: photo,
                            isSelected: selectedPhotos.contains(photo.id),
+                           isSelectMode: isSelectMode,
                            itemSize: itemSize,
                            priority: priority,
                            callbacks: callbacks)
@@ -423,13 +452,85 @@ struct IosThumbGridView: UIViewRepresentable {
         func collectionView(_ collectionView: UICollectionView,
                             didSelectItemAt indexPath: IndexPath) {
             let photo = photosForSection(indexPath.section)[indexPath.item]
-            callbacks.onTap(photo, .none)
+            if isSelectMode {
+                onSelectToggle?(photo)
+            } else {
+                onNavigate?(photo)
+            }
         }
 
         func collectionView(_ collectionView: UICollectionView,
                             didDeselectItemAt indexPath: IndexPath) {
+            guard isSelectMode else {
+                return
+            }
             let photo = photosForSection(indexPath.section)[indexPath.item]
-            callbacks.onTap(photo, .none)
+            onSelectToggle?(photo)
+        }
+
+        // MARK: Context menu
+
+        func collectionView(_ collectionView: UICollectionView,
+                            contextMenuConfigurationForItemAt indexPath: IndexPath,
+                            point: CGPoint) -> UIContextMenuConfiguration? {
+            guard isSelectMode else {
+                return nil
+            }
+
+            return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+                guard let self else {
+                    return UIMenu(title: "", children: [])
+                }
+
+                var actions: [UIAction] = []
+
+                let fromAction = UIAction(
+                    title: "Select from here",
+                    image: UIImage(systemName: "arrow.down.right.square")
+                ) { [weak self] _ in
+                    guard let self else { return }
+                    self.selectFromIndexPath = indexPath
+                    let photo = self.photosForSection(indexPath.section)[indexPath.item]
+                    self.onSelectToggle?(photo)
+                }
+                actions.append(fromAction)
+
+                if let fromIP = selectFromIndexPath, fromIP != indexPath {
+                    let toAction = UIAction(
+                        title: "Select to here",
+                        image: UIImage(systemName: "arrow.down.left.square")
+                    ) { [weak self] _ in
+                        guard let self else { return }
+                        self.selectRangeFrom(fromIP, to: indexPath)
+                    }
+                    actions.append(toAction)
+                }
+
+                return UIMenu(title: "", children: actions)
+            }
+        }
+
+        private func selectRangeFrom(_ from: IndexPath, to: IndexPath) {
+            // Flatten all sections into a single ordered list with their index paths
+            var allPaths: [IndexPath] = []
+            let sectionCount = collectionView?.numberOfSections ?? 1
+            for s in 0..<sectionCount {
+                let count = collectionView?.numberOfItems(inSection: s) ?? 0
+                for i in 0..<count {
+                    allPaths.append(IndexPath(item: i, section: s))
+                }
+            }
+
+            guard let startFlat = allPaths.firstIndex(of: from),
+                  let endFlat = allPaths.firstIndex(of: to) else {
+                return
+            }
+
+            let lo = min(startFlat, endFlat)
+            let hi = max(startFlat, endFlat)
+            let rangePhotos = allPaths[lo...hi].map { photosForSection($0.section)[$0.item] }
+            onSelectRange?(rangePhotos)
+            selectFromIndexPath = nil
         }
     }
 }
