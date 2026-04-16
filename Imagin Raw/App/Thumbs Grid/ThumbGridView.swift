@@ -294,6 +294,11 @@ struct ThumbGridView: View {
                     reviewGroup = buildReviewGroupItemFromPhotos(photos)
                 }
             ),
+            onSelectToggle: {_ in },
+            onNavigate: { photo in
+
+            },
+            onSelectRange: {_ in },
             duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
             onReview: { group, index in
                 reviewGroup = buildReviewGroupItem(group: group, index: index)

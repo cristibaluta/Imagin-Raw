@@ -8,10 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		56470CAA2F651AF800D86EA6 /* RCPreferences in Frameworks */ = {isa = PBXBuildFile; productRef = 56470CA92F651AF800D86EA6 /* RCPreferences */; };
+		6DDA930C2F909E0D00EED29A /* Istanbul.gpx in Resources */ = {isa = PBXBuildFile; fileRef = 6DDA930B2F909E0D00EED29A /* Istanbul.gpx */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		56470BD42F65188700D86EA6 /* Imagin Raw.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Imagin Raw.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6DDA930B2F909E0D00EED29A /* Istanbul.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Istanbul.gpx; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -52,6 +54,7 @@
 		56470BCB2F65188700D86EA6 = {
 			isa = PBXGroup;
 			children = (
+				6DDA930B2F909E0D00EED29A /* Istanbul.gpx */,
 				56470BD62F65188700D86EA6 /* Imagin Raw */,
 				56470BD52F65188700D86EA6 /* Products */,
 			);
@@ -133,6 +136,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6DDA930C2F909E0D00EED29A /* Istanbul.gpx in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
