@@ -1,5 +1,11 @@
 # AI Agent Rules
 
+## Always read files before editing
+
+**Before editing any file, always read its current content first using the read_file tool — even if the file was already seen earlier in the conversation.**
+
+The user may have made manual edits in Xcode since the last time the file was read. Editing based on a stale version will silently overwrite those changes. There are no exceptions to this rule — always read, then edit.
+
 ## Code Style
 
 ### No single-line blocks — ever
