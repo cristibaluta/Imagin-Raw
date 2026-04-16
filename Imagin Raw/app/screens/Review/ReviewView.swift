@@ -139,19 +139,25 @@ struct ReviewView: View {
         }
         .onKeyPress(characters: CharacterSet(charactersIn: "12345")) { press in
             guard let photo = hoveredPhoto,
-                  let rating = Int(String(press.characters)) else { return .ignored }
+                  let rating = Int(String(press.characters)) else {
+                return .ignored
+            }
             onRatingChanged(photo, rating)
             applyRating(rating, to: photo)
             return .handled
         }
         .onKeyPress(characters: CharacterSet(charactersIn: "aA")) { _ in
-            guard let photo = hoveredPhoto else { return .ignored }
+            guard let photo = hoveredPhoto else {
+                return .ignored
+            }
             onApprove(photo)
             applyApprove(to: photo)
             return .handled
         }
         .onKeyPress(characters: CharacterSet(charactersIn: "xX")) { _ in
-            guard let photo = hoveredPhoto else { return .ignored }
+            guard let photo = hoveredPhoto else {
+                return .ignored
+            }
             onMarkForDeletion(photo)
             applyToggleDelete(to: photo)
             return .handled
@@ -161,7 +167,9 @@ struct ReviewView: View {
                 isFocused = true
             }
         }
-        .onTapGesture { isFocused = true }
+        .onTapGesture {
+            isFocused = true
+        }
         #if os(macOS)
         .background(KeyEventInterceptor(onLeft: {
             guard groupIndex > 0 else { return }
@@ -182,7 +190,7 @@ struct ReviewView: View {
         let cols = nrOfColumns
         let cardW = (geo.size.width - pad * 2 - spacing * CGFloat(cols - 1)) / CGFloat(cols)
         let rows = Int(ceil(Double(photos.count) / Double(cols)))
-        let cardH = (geo.size.height - pad * 2 - spacing * CGFloat(max(rows - 1, 0))) / CGFloat(max(rows, 1))
+//        let cardH = (geo.size.height - pad * 2 - spacing * CGFloat(max(rows - 1, 0))) / CGFloat(max(rows, 1))
         let columns = Array(repeating: GridItem(.fixed(cardW), spacing: spacing), count: cols)
 
         ScrollView {
@@ -198,26 +206,24 @@ struct ReviewView: View {
 
     @ViewBuilder
     private func photoCard(for photo: PhotoItem) -> some View {
-        ReviewPhotoCard(
-            photo: photo,
-            isZoomed: isZoomed,
-            fullResImage: fullResImages[photo.path],
-            isFullResLoading: fullResLoading.contains(photo.path),
-            syncedMousePosition: $syncedMousePosition,
-            hoveredPhotoId: $hoveredPhotoId,
-            onRatingChanged: { rating in
-                onRatingChanged(photo, rating)
-                applyRating(rating, to: photo)
-            },
-            onApprove: {
-                onApprove(photo)
-                applyApprove(to: photo)
-            },
-            onMarkForDeletion: {
-                onMarkForDeletion(photo)
-                applyToggleDelete(to: photo)
-            }
-        )
+        ReviewPhotoCard(photo: photo,
+                        isZoomed: isZoomed,
+                        fullResImage: fullResImages[photo.path],
+                        isFullResLoading: fullResLoading.contains(photo.path),
+                        syncedMousePosition: $syncedMousePosition,
+                        hoveredPhotoId: $hoveredPhotoId,
+                        onRatingChanged: { rating in
+                            onRatingChanged(photo, rating)
+                            applyRating(rating, to: photo)
+                        },
+                        onApprove: {
+                            onApprove(photo)
+                            applyApprove(to: photo)
+                        },
+                        onMarkForDeletion: {
+                            onMarkForDeletion(photo)
+                            applyToggleDelete(to: photo)
+                        })
     }
 
     // MARK: - Zoom
@@ -231,8 +237,11 @@ struct ReviewView: View {
 
     private func loadAllFullRes() {
         for photo in photos {
-            guard fullResImages[photo.path] == nil else { continue }
+            guard fullResImages[photo.path] == nil else {
+                continue
+            }
             fullResLoading.insert(photo.path)
+
             FullResManager.shared.loadFullRes(for: photo) { image in
                 fullResLoading.remove(photo.path)
                 if let image {
@@ -251,23 +260,33 @@ struct ReviewView: View {
     private func applyRating(_ rating: Int, to photo: PhotoItem) {
         updateLocalPhoto(photo) { p in
             let oldXmp = p.xmp
-            let newXmp = XmpMetadata(
-                label: oldXmp?.label, rating: rating,
-                creator: oldXmp?.creator, rights: oldXmp?.rights,
-                createDate: oldXmp?.createDate, modifyDate: oldXmp?.modifyDate,
-                cameraModel: oldXmp?.cameraModel, lens: oldXmp?.lens,
-                focalLength: oldXmp?.focalLength, aperture: oldXmp?.aperture,
-                shutterSpeed: oldXmp?.shutterSpeed, iso: oldXmp?.iso,
-                exposureBias: oldXmp?.exposureBias
-            )
-            return PhotoItem(
-                id: p.id, path: p.path, xmp: newXmp,
-                dateCreated: p.dateCreated, toDelete: p.toDelete,
-                hasACR: p.hasACR, hasJPG: p.hasJPG,
-                inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
-                fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
-                cameraMake: p.cameraMake, cameraModel: p.cameraModel
-            )
+            let newXmp = XmpMetadata(label: oldXmp?.label,
+                                     rating: rating,
+                                     creator: oldXmp?.creator,
+                                     rights: oldXmp?.rights,
+                                     createDate: oldXmp?.createDate,
+                                     modifyDate: oldXmp?.modifyDate,
+                                     cameraModel: oldXmp?.cameraModel,
+                                     lens: oldXmp?.lens,
+                                     focalLength: oldXmp?.focalLength,
+                                     aperture: oldXmp?.aperture,
+                                     shutterSpeed: oldXmp?.shutterSpeed,
+                                     iso: oldXmp?.iso,
+                                     exposureBias: oldXmp?.exposureBias)
+            return PhotoItem(id: p.id,
+                             path: p.path,
+                             xmp: newXmp,
+                             dateCreated: p.dateCreated,
+                             toDelete: p.toDelete,
+                             hasACR: p.hasACR,
+                             hasJPG: p.hasJPG,
+                             inCameraRating: p.inCameraRating,
+                             isRawFile: p.isRawFile,
+                             fileSizeBytes: p.fileSizeBytes,
+                             width: p.width,
+                             height: p.height,
+                             cameraMake: p.cameraMake,
+                             cameraModel: p.cameraModel)
         }
     }
 
@@ -297,19 +316,27 @@ struct ReviewView: View {
 
     private func applyToggleDelete(to photo: PhotoItem) {
         updateLocalPhoto(photo) { p in
-            return PhotoItem(
-                id: p.id, path: p.path, xmp: p.xmp,
-                dateCreated: p.dateCreated, toDelete: !p.toDelete,
-                hasACR: p.hasACR, hasJPG: p.hasJPG,
-                inCameraRating: p.inCameraRating, isRawFile: p.isRawFile,
-                fileSizeBytes: p.fileSizeBytes, width: p.width, height: p.height,
-                cameraMake: p.cameraMake, cameraModel: p.cameraModel
-            )
+            return PhotoItem(id: p.id,
+                             path: p.path,
+                             xmp: p.xmp,
+                             dateCreated: p.dateCreated,
+                             toDelete: !p.toDelete,
+                             hasACR: p.hasACR,
+                             hasJPG: p.hasJPG,
+                             inCameraRating: p.inCameraRating,
+                             isRawFile: p.isRawFile,
+                             fileSizeBytes: p.fileSizeBytes,
+                             width: p.width,
+                             height: p.height,
+                             cameraMake: p.cameraMake,
+                             cameraModel: p.cameraModel)
         }
     }
 
     private var hoveredPhoto: PhotoItem? {
-        guard let id = hoveredPhotoId else { return nil }
+        guard let id = hoveredPhotoId else {
+            return nil
+        }
         return photos.first { $0.id == id }
     }
 }
