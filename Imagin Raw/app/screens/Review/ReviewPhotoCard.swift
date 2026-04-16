@@ -136,6 +136,7 @@ struct ReviewPhotoCard: View {
         }
         .aspectRatio(previewAspectRatio, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 6))
+        .contentShape(Rectangle())
         .overlay(
             RoundedRectangle(cornerRadius: 6)
                 .stroke(photo.toDelete ? Color.red.opacity(0.7) :
