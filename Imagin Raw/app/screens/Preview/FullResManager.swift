@@ -2,127 +2,100 @@
 //  FullResManager.swift
 //  Imagin Raw
 //
-//  Memory-only cache of full-resolution decoded RAW images.
-//  Keeps the last N photos so toggling zoom on recently viewed photos is instant.
+//  Memory-only cache + serial queue for full-resolution image loading.
+//  All decode work is delegated to the photo's PhotoSource implementation.
 //
 
 import Foundation
-import Photos
 
 class FullResManager {
     static let shared = FullResManager()
 
-    /// Swap to LibRawDecoder() to use LibRaw's software demosaic instead.
-    var decoder: RawDecoder = CoreGraphicsDecoder()
-
     private let cacheLimit = 5
     private var cache: [String: IRImage] = [:]
-    private var order: [String] = []
+    private var cacheOrder: [String] = []
 
-    private let decodeQueue = DispatchQueue(label: "ro.imagin.fullres.decode", qos: .userInitiated)
+    /// Serial queue — one full-res decode at a time so we never thrash memory/CPU.
+    private let decodeQueue = DispatchQueue(label: "ro.imagin.fullres", qos: .userInitiated)
+    private let lock = NSLock()
+    /// In-flight keys — prevents duplicate requests for the same photo.
+    private var inFlight: Set<String> = []
 
     private init() {}
 
     // MARK: - Public
 
-    func cachedImage(for path: String) -> IRImage? {
-        cache[path]
+    func cachedImage(for photo: PhotoItem) -> IRImage? {
+        let key = photo.makeSource().cacheKey
+        lock.lock()
+        defer { lock.unlock() }
+        return cache[key]
     }
 
-    /// PhotoKit-aware entry point.
     func loadFullRes(for photo: PhotoItem, completion: @escaping (IRImage?) -> Void) {
-        if let asset = photo.phAsset {
-            loadPhotoKitFullRes(for: asset, key: photo.path, completion: completion)
-            return
-        }
-        loadFullRes(for: photo.path, completion: completion)
-    }
+        let source = photo.makeSource()
+        let key = source.cacheKey
 
-    private func loadPhotoKitFullRes(for asset: PHAsset, key: String, completion: @escaping (IRImage?) -> Void) {
+        lock.lock()
         if let cached = cache[key] {
+            lock.unlock()
             DispatchQueue.main.async { completion(cached) }
             return
         }
-        let options = PHImageRequestOptions()
-        options.isNetworkAccessAllowed = true
-        options.isSynchronous = false
-        options.deliveryMode = .highQualityFormat
-        options.resizeMode = .none
-        PHImageManager.default().requestImage(
-            for: asset,
-            targetSize: PHImageManagerMaximumSize,
-            contentMode: .aspectFit,
-            options: options
-        ) { [weak self] image, info in
-            let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
-            guard let self, let image, !degraded else {
-                if image == nil { DispatchQueue.main.async { completion(nil) } }
-                return
-            }
-            DispatchQueue.main.async {
-                self.store(image, for: key)
-                completion(image)
-            }
-        }
-    }
-
-    func loadFullRes(for path: String, completion: @escaping (IRImage?) -> Void) {
-        if let cached = cache[path] {
-            print("🔎 [FullResManager] cache hit \(URL(fileURLWithPath: path).lastPathComponent)")
-            DispatchQueue.main.async { completion(cached) }
+        if inFlight.contains(key) {
+            lock.unlock()
+            // Poll until the in-flight request finishes
+            waitForInFlight(key: key, completion: completion)
             return
         }
-
-        let t0 = Date()
-        let filename = URL(fileURLWithPath: path).lastPathComponent
-        print("🔎 [FullResManager] decode start \(filename)")
+        inFlight.insert(key)
+        lock.unlock()
 
         decodeQueue.async { [weak self] in
-            guard let self else { return }
-
-            let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
-            let image: IRImage?
-
-            if FilesExtensions.raw.contains(ext) {
-                image = decoder.decodeFullRes(at: path)
-            } else {
-                // Non-RAW: load via CGImageSource at full size
-                if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
-                   let cg = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) {
-                    image = IRImage(cgImage: cg, size: IRSize(width: cg.width, height: cg.height))
-                } else {
-                    image = nil
+            source.loadFullRes { [weak self] image in
+                guard let self else { return }
+                self.lock.lock()
+                self.inFlight.remove(key)
+                if let image {
+                    self.store(image, for: key)
                 }
-                print("🔎 [FullResManager] non-RAW loaded \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
-            }
-
-            DispatchQueue.main.async {
-                if let image { self.store(image, for: path) }
-                completion(image)
+                self.lock.unlock()
+                DispatchQueue.main.async { completion(image) }
             }
         }
     }
 
-    func evict(path: String) {
-        cache.removeValue(forKey: path)
-        order.removeAll { $0 == path }
+    func evict(for photo: PhotoItem) {
+        let key = photo.makeSource().cacheKey
+        lock.lock()
+        defer { lock.unlock() }
+        cache.removeValue(forKey: key)
+        cacheOrder.removeAll { $0 == key }
     }
 
     // MARK: - Private
 
-    private func store(_ image: IRImage, for path: String) {
-        if cache[path] != nil {
-            order.removeAll { $0 == path }
-            order.append(path)
+    private func store(_ image: IRImage, for key: String) {
+        if cache[key] != nil {
+            cacheOrder.removeAll { $0 == key }
+            cacheOrder.append(key)
             return
         }
-        while cache.count >= cacheLimit, let oldest = order.first {
-            print("🔎 [FullResManager] evicting \(URL(fileURLWithPath: oldest).lastPathComponent)")
+        while cache.count >= cacheLimit, let oldest = cacheOrder.first {
             cache.removeValue(forKey: oldest)
-            order.removeFirst()
+            cacheOrder.removeFirst()
         }
-        cache[path] = image
-        order.append(path)
-        print("🔎 [FullResManager] cached \(URL(fileURLWithPath: path).lastPathComponent) (\(cache.count)/\(cacheLimit))")
+        cache[key] = image
+        cacheOrder.append(key)
+    }
+
+    private func waitForInFlight(key: String, completion: @escaping (IRImage?) -> Void) {
+        decodeQueue.async { [weak self] in
+            guard let self else { return }
+            self.lock.lock()
+            let image = self.cache[key]
+            self.lock.unlock()
+            DispatchQueue.main.async { completion(image) }
+        }
     }
 }

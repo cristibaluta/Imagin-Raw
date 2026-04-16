@@ -48,18 +48,14 @@ class LargePreviewViewModel: ObservableObject {
     func loadFullResolution() {
         guard let photo = photo else { return }
         guard !isLoadingFullRes && fullResImage == nil else { return }
-        let path = photo.path
+        let currentPhoto = photo
 
-        // Check memory cache first — instant if recently viewed
-        if let cached = FullResManager.shared.cachedImage(for: path) {
-            print("🔎 [zoom] cache hit \(URL(fileURLWithPath: path).lastPathComponent)")
+        if let cached = FullResManager.shared.cachedImage(for: currentPhoto) {
             self.fullResImage = cached
             return
         }
 
         isLoadingFullRes = true
-        let t0 = Date()
-        let currentPhoto = photo
 
         fullResTask = Task {
             let image: IRImage? = await withCheckedContinuation { continuation in
@@ -68,7 +64,6 @@ class LargePreviewViewModel: ObservableObject {
                 }
             }
             guard !Task.isCancelled else { return }
-            print("🔎 [zoom] done  +\(String(format: "%.3f", -t0.timeIntervalSinceNow))s")
             self.fullResImage = image
             self.isLoadingFullRes = false
         }
@@ -78,12 +73,8 @@ class LargePreviewViewModel: ObservableObject {
         guard let photo = photo else { return }
         let path = photo.path
         let currentPhoto = photo
-        let t0 = Date()
-        let filename = URL(fileURLWithPath: path).lastPathComponent
-        print("🖼 [preview] start \(filename)")
 
         if let (cachedImage, cachedExif) = Self.imageCache[path] {
-            print("🖼 [preview] memory cache hit \(filename)")
             self.preview = cachedImage
             self.exifInfo = cachedExif
             self.isLoading = false
@@ -99,26 +90,18 @@ class LargePreviewViewModel: ObservableObject {
         exifInfo = nil
 
         loadingTask = Task(priority: .userInitiated) { [path, currentPhoto] in
-            print("🖼 [preview] task start  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
-
             let previewImage: IRImage? = await withCheckedContinuation { continuation in
                 PreviewsManager.shared.loadPreview(for: currentPhoto) { image, _ in
-                    print("🖼 [preview] PreviewsManager callback  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  image=\(image != nil)")
                     continuation.resume(returning: image)
                 }
             }
-            print("🖼 [preview] image ready  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
             guard !Task.isCancelled else { return }
 
-            // Show image immediately — don't wait for EXIF
             self.preview = previewImage
             self.isLoading = false
-            print("🖼 [preview] assigned to view  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
-            // Step 2: load EXIF separately after image is visible
             let extractedExif = await currentPhoto.makeSource().loadExif()
-            print("🖼 [preview] exif ready  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
             guard !Task.isCancelled else { return }
             self.exifInfo = extractedExif
@@ -134,9 +117,6 @@ class LargePreviewViewModel: ObservableObject {
                     Self.imageCache.removeValue(forKey: oldest)
                 }
             }
-            print("🖼 [preview] done  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
         }
     }
-
 }
-

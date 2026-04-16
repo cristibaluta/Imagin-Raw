@@ -193,6 +193,29 @@ struct PhotoKitPhotoSource: PhotoSource {
         }
     }
 
+    func loadFullRes(completion: @escaping (IRImage?) -> Void) {
+        let options = PHImageRequestOptions()
+        options.isNetworkAccessAllowed = true
+        options.isSynchronous = false
+        options.deliveryMode = .highQualityFormat
+        options.resizeMode = .none
+        PHImageManager.default().requestImage(
+            for: asset,
+            targetSize: PHImageManagerMaximumSize,
+            contentMode: .aspectFit,
+            options: options
+        ) { image, info in
+            let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+            guard let image, !degraded else {
+                if image == nil {
+                    DispatchQueue.main.async { completion(nil) }
+                }
+                return
+            }
+            DispatchQueue.main.async { completion(image) }
+        }
+    }
+
     func loadExif() async -> ExifInfo? {
         return await withCheckedContinuation { cont in
             let opts = PHContentEditingInputRequestOptions()

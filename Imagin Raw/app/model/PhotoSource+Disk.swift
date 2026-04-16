@@ -48,6 +48,24 @@ struct DiskPhotoSource: PhotoSource {
         completion(img)
     }
 
+    func loadFullRes(completion: @escaping (IRImage?) -> Void) {
+        let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
+        DispatchQueue.global(qos: .userInitiated).async {
+            let image: IRImage?
+            if FilesExtensions.raw.contains(ext) {
+                image = CoreGraphicsDecoder().decodeFullRes(at: path)
+            } else if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
+                      let cg = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) {
+                image = IRImage(cgImage: cg, size: IRSize(width: cg.width, height: cg.height))
+            } else {
+                image = nil
+            }
+            DispatchQueue.main.async {
+                completion(image)
+            }
+        }
+    }
+
     func loadExif() async -> ExifInfo? {
         let url = URL(fileURLWithPath: path)
         let ext = url.pathExtension.lowercased()
