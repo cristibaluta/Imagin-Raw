@@ -72,5 +72,4 @@ struct DoubleClickHandler: ViewModifier {
         content
     }
 }
-
 #endif

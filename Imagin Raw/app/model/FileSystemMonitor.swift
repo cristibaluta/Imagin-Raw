@@ -19,7 +19,9 @@ private func fsEventsCallback(
     eventIds: UnsafePointer<FSEventStreamEventId>
 ) {
     // Get the monitor ID from the context
-    guard let info = clientCallBackInfo else { return }
+    guard let info = clientCallBackInfo else {
+        return
+    }
     let monitorId = info.load(as: Int.self)
 
     // Find the monitor in our global registry

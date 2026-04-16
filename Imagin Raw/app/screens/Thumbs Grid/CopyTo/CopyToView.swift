@@ -20,6 +20,7 @@ struct CopyToView: View {
                 CopyProgressView(viewModel: viewModel) {
                     dismiss()
                 }
+                .padding(20)
                 .frame(minWidth: 500, minHeight: 180)
             } else {
                 CopyOptionsView(viewModel: viewModel) {
@@ -78,7 +79,9 @@ struct CopyOptionsView: View {
                         .font(.caption).foregroundColor(.secondary)
                         .lineLimit(1).truncationMode(.middle)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Button("Browse...") { showFolderPicker(forBackup: true) }
+                    Button("Browse...") {
+                        showFolderPicker(forBackup: true)
+                    }
                     if viewModel.backupDestinationURL != nil {
                         Button { viewModel.backupDestinationURL = nil } label: {
                             Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
@@ -202,7 +205,8 @@ struct CopyProgressView: View {
             }
 
             ProgressView(value: viewModel.copyProgress, total: 1.0)
-                .progressViewStyle(.linear).frame(height: 8)
+                .progressViewStyle(.linear)
+                .frame(height: 8)
 
             VStack(spacing: 4) {
                 HStack {
@@ -229,13 +233,13 @@ struct CopyProgressView: View {
             HStack {
                 Spacer()
                 Button(viewModel.copyError != nil ? "Close" : "Cancel") {
-                    if viewModel.copyError == nil { viewModel.cancel() }
+                    if viewModel.copyError == nil {
+                        viewModel.cancel()
+                    }
                     onDone()
                 }
                 .keyboardShortcut(.cancelAction)
             }
         }
-        .padding(20)
-        .frame(minWidth: 500, minHeight: 180)
     }
 }

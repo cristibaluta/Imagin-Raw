@@ -1,5 +1,5 @@
 //
-//  NSImage+Resize.swift
+//  IRImage+Resize.swift
 //  Imagin Raw
 //
 //  Created by Cristian Baluta on 29.01.2026.
@@ -7,9 +7,8 @@
 import Foundation
 import SwiftUI
 
+#if os(macOS)
 extension IRImage {
-
-    #if os(macOS)
     func resized(maxSize: CGFloat) -> IRImage {
         let ratio = min(maxSize / size.width, maxSize / size.height)
         let newSize = IRSize(
@@ -33,7 +32,11 @@ extension IRImage {
 
         return bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.8])
     }
-    #elseif os(iOS)
+}
+#endif
+
+#if os(iOS)
+extension IRImage {
     convenience init(cgImage: CGImage, size: IRSize) {
         self.init(cgImage: cgImage)
     }
@@ -49,13 +52,11 @@ extension IRImage {
     func bitmapRepresentation() -> Data? {
         nil
     }
-    #endif
 }
 
 extension Image {
-    #if os(iOS)
     init(nsImage: IRImage) {
         self.init(uiImage: nsImage)
     }
-    #endif
 }
+#endif

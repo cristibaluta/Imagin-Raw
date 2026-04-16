@@ -169,7 +169,9 @@ final class FilesModel: ObservableObject {
     /// at the top of the sidebar. Persists the preference on success.
     func addPhotoLibrary() {
         PhotoKitSource.requestAuthorisation { [weak self] granted in
-            guard let self, granted else { return }
+            guard let self, granted else {
+                return
+            }
             appPrefs.set(true, forKey: .photoLibraryEnabled)
             self.insertPhotoLibraryFolder()
         }

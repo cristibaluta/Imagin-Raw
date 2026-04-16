@@ -62,7 +62,7 @@ enum AppPreference: String, RCPreferencesProtocol {
         case .userFolderBookmarks:      return Data()
         case .photoLibraryEnabled:      return false
         case .copyToRenameByExifDate:   return false
-        case .copyToUseSequentialNumbers:       return false
+        case .copyToUseSequentialNumbers: return false
         case .copyToCustomPrefix:       return ""
         case .copyToOrganizeByYear:     return false
         case .copyToOrganizeByMonth:    return false

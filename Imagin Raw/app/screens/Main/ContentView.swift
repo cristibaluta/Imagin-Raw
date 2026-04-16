@@ -38,31 +38,35 @@ struct ContentView: View {
         Binding(
             get: {
                 switch columnVisibilityStorage {
-                case "doubleColumn": return .doubleColumn
-                case "detailOnly": return .detailOnly
-                default: return .all
+                    case "doubleColumn": return .doubleColumn
+                    case "detailOnly": return .detailOnly
+                    default: return .all
                 }
             },
             set: {
                 switch $0 {
-                case .all: columnVisibilityStorage = "all"
-                case .doubleColumn: columnVisibilityStorage = "doubleColumn"
-                case .detailOnly: columnVisibilityStorage = "detailOnly"
-                default: columnVisibilityStorage = "all"
+                    case .all: columnVisibilityStorage = "all"
+                    case .doubleColumn: columnVisibilityStorage = "doubleColumn"
+                    case .detailOnly: columnVisibilityStorage = "detailOnly"
+                    default: columnVisibilityStorage = "all"
                 }
             }
         )
     }
 
     private var reviewSubtitle: String {
-        guard let rg = reviewGroup else { return "" }
-        let pct = max(0, min(100, Int(((1.0 - Double(rg.group.distance)) * 100).rounded())))
+        guard let reviewGroup else {
+            return ""
+        }
+        let pct = max(0, min(100, Int(((1.0 - Double(reviewGroup.group.distance)) * 100).rounded())))
         return "\(pct)% similarity"
     }
 
     private var reviewTitle: String {
-        guard let rg = reviewGroup else { return "" }
-        return "Group \(rg.index + 1) \u{2014} \(rg.group.photos.count) photos"
+        guard let reviewGroup else {
+            return ""
+        }
+        return "Group \(reviewGroup.index + 1) \u{2014} \(reviewGroup.group.photos.count) photos"
     }
 
     private var navigationDocumentURL: URL? {
@@ -70,7 +74,9 @@ struct ContentView: View {
     }
 
     private var shareablePhoto: URL? {
-        guard let selectedPhoto = filesModel.selectedPhoto else { return nil }
+        guard let selectedPhoto = filesModel.selectedPhoto else {
+            return nil
+        }
         return URL(fileURLWithPath: selectedPhoto.path)
     }
 
@@ -127,8 +133,12 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onChange(of: geo.size.width) { _, w in windowWidth = w }
-        .onAppear { windowWidth = geo.size.width }
+        .onChange(of: geo.size.width) { _, w in
+            windowWidth = w
+        }
+        .onAppear {
+            windowWidth = geo.size.width
+        }
         } // GeometryReader
     }
 

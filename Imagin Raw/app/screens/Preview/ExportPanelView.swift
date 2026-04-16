@@ -167,8 +167,6 @@ struct ExportPanelView: View {
                 .disabled(isExporting)
             }
         }
-        .padding(16)
-        .frame(width: 320)
         .background(
             RoundedRectangle(cornerRadius: 10)
                 .fill(Color(IRColor.windowBackgroundColor))

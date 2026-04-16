@@ -28,9 +28,7 @@ enum ICloudDownloader {
         // ── Fast path: file exists locally and is not an iCloud placeholder ──
         // Check ubiquitous status first; if we can't read it the file is either
         // local or doesn't exist at all.
-        if let values = try? url.resourceValues(forKeys: [
-            .ubiquitousItemDownloadingStatusKey
-        ]) {
+        if let values = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey]) {
             let status = values.ubiquitousItemDownloadingStatus
             if status == nil {
                 // Not a ubiquitous item — plain local file.
@@ -55,11 +53,9 @@ enum ICloudDownloader {
         var success = false
 
         let coordinator = NSFileCoordinator(filePresenter: nil)
-        coordinator.coordinate(
-            readingItemAt: url,
-            options: .withoutChanges,
-            error: &coordinatorError
-        ) { localURL in
+        coordinator.coordinate(readingItemAt: url,
+                               options: .withoutChanges,
+                               error: &coordinatorError) { localURL in
             // Inside this block the file is guaranteed to be on disk.
             success = fm.fileExists(atPath: localURL.path)
             print("☁️ [ICloudDownloader] coordinator block executed — exists=\(success): \(localURL.lastPathComponent)")

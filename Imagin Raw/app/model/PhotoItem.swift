@@ -43,7 +43,18 @@ struct PhotoItem: Identifiable {
 
     // MARK: - File-based init
 
-    init(path: String, xmp: XmpMetadata? = nil, dateCreated: Date, hasACR: Bool = false, hasJPG: Bool = false, inCameraRating: Int? = nil, isRawFile: Bool = false, fileSizeBytes: Int64? = nil, width: Int? = nil, height: Int? = nil, cameraMake: String? = nil, cameraModel: String? = nil) {
+    init(path: String,
+         xmp: XmpMetadata? = nil,
+         dateCreated: Date,
+         hasACR: Bool = false,
+         hasJPG: Bool = false,
+         inCameraRating: Int? = nil,
+         isRawFile: Bool = false,
+         fileSizeBytes: Int64? = nil,
+         width: Int? = nil,
+         height: Int? = nil,
+         cameraMake: String? = nil,
+         cameraModel: String? = nil) {
         self.id = UUID()
         self.path = path
         self.xmp = xmp
@@ -61,7 +72,20 @@ struct PhotoItem: Identifiable {
     }
 
     // Preserves the existing ID when updating XMP metadata
-    init(id: UUID, path: String, xmp: XmpMetadata?, dateCreated: Date, toDelete: Bool, hasACR: Bool = false, hasJPG: Bool = false, inCameraRating: Int? = nil, isRawFile: Bool = false, fileSizeBytes: Int64? = nil, width: Int? = nil, height: Int? = nil, cameraMake: String? = nil, cameraModel: String? = nil) {
+    init(id: UUID,
+         path: String,
+         xmp: XmpMetadata?,
+         dateCreated: Date,
+         toDelete: Bool,
+         hasACR: Bool = false,
+         hasJPG: Bool = false,
+         inCameraRating: Int? = nil,
+         isRawFile: Bool = false,
+         fileSizeBytes: Int64? = nil,
+         width: Int? = nil,
+         height: Int? = nil,
+         cameraMake: String? = nil,
+         cameraModel: String? = nil) {
         self.id = id
         self.path = path
         self.xmp = xmp
@@ -147,5 +171,15 @@ extension PhotoItem: Hashable {
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(path)
+    }
+}
+
+extension PhotoItem {
+    /// Returns the appropriate PhotoSource for this item.
+    func makeSource() -> PhotoSource {
+        if let asset = phAsset {
+            return PhotoKitPhotoSource(asset: asset, photoPath: path)
+        }
+        return DiskPhotoSource(path: path)
     }
 }

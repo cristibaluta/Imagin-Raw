@@ -47,13 +47,11 @@ enum ExportService {
     ///   - targetRatio: desired aspect ratio (nil = keep original)
     ///   - padding: extra pixels to add around the longest side before fitting the ratio
     ///   - outputURL: destination PNG file
-    static func export(
-        sourcePath: String,
-        targetRatio: ExportAspectRatio,
-        padding: Int,
-        alignment: ExportAlignment,
-        outputURL: URL
-    ) throws {
+    static func export(sourcePath: String,
+                       targetRatio: ExportAspectRatio,
+                       padding: Int,
+                       alignment: ExportAlignment,
+                       outputURL: URL) throws {
 
         guard let cgImage = loadCGImage(from: sourcePath) else {
             throw ExportError.imageLoadFailed
@@ -82,14 +80,13 @@ enum ExportService {
         let intH = Int(canvas.height.rounded())
 
         let colorSpace = CGColorSpaceCreateDeviceRGB()
-        guard let ctx = CGContext(
-            data: nil,
-            width: intW, height: intH,
-            bitsPerComponent: 8,
-            bytesPerRow: 0,
-            space: colorSpace,
-            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
-        ) else {
+        guard let ctx = CGContext(data: nil,
+                                  width: intW,
+                                  height: intH,
+                                  bitsPerComponent: 8,
+                                  bytesPerRow: 0,
+                                  space: colorSpace,
+                                  bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
             throw ExportError.contextCreationFailed
         }
 
@@ -99,9 +96,9 @@ enum ExportService {
         // Horizontal position based on alignment
         let x: CGFloat
         switch alignment {
-        case .left:   x = pad
-        case .center: x = (canvas.width - srcW) / 2
-        case .right:  x = canvas.width - srcW - pad
+            case .left:   x = pad
+            case .center: x = (canvas.width - srcW) / 2
+            case .right:  x = canvas.width - srcW - pad
         }
         let y = (canvas.height - srcH) / 2
         ctx.draw(cgImage, in: CGRect(x: x, y: y, width: srcW, height: srcH))
@@ -111,15 +108,14 @@ enum ExportService {
         }
 
         // Save as PNG
-        guard let dest = CGImageDestinationCreateWithURL(
-            outputURL as CFURL,
-            UTType.png.identifier as CFString,
-            1, nil
-        ) else {
+        guard let dest = CGImageDestinationCreateWithURL(outputURL as CFURL,
+                                                         UTType.png.identifier as CFString,
+                                                         1,
+                                                         nil) else {
             throw ExportError.destinationCreationFailed
         }
         CGImageDestinationAddImage(dest, result, nil)
-        guard CGImageDestinationFinalize(dest) else {
+        if !CGImageDestinationFinalize(dest) {
             throw ExportError.writeFailed
         }
     }
@@ -129,8 +125,7 @@ enum ExportService {
     static func outputURL(for sourcePath: String) -> URL {
         let source = URL(fileURLWithPath: sourcePath)
         let name = source.deletingPathExtension().lastPathComponent
-        return source.deletingLastPathComponent()
-            .appendingPathComponent("\(name)_export.png")
+        return source.deletingLastPathComponent().appendingPathComponent("\(name)_export.png")
     }
 
     // MARK: - Image Loading
@@ -161,11 +156,11 @@ enum ExportService {
 
         var errorDescription: String? {
             switch self {
-            case .imageLoadFailed:          return "Could not load source image."
-            case .contextCreationFailed:    return "Could not create graphics context."
-            case .renderFailed:             return "Could not render image."
-            case .destinationCreationFailed:return "Could not create output file."
-            case .writeFailed:              return "Could not write PNG to disk."
+                case .imageLoadFailed:          return "Could not load source image."
+                case .contextCreationFailed:    return "Could not create graphics context."
+                case .renderFailed:             return "Could not render image."
+                case .destinationCreationFailed:return "Could not create output file."
+                case .writeFailed:              return "Could not write PNG to disk."
             }
         }
     }
