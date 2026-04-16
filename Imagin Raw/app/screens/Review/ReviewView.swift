@@ -99,6 +99,10 @@ struct ReviewView: View {
             model.onDismiss()
             return .handled
         }
+        .onKeyPress(characters: CharacterSet(charactersIn: " ")) { _ in
+            model.onDismiss()
+            return .handled
+        }
         .onKeyPress(characters: CharacterSet(charactersIn: "12345")) { press in
             guard let photo = model.hoveredPhoto,
                   let rating = Int(String(press.characters)) else {
