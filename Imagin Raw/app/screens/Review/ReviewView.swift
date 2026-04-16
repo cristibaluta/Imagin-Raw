@@ -156,23 +156,21 @@ struct ReviewView: View {
             applyToggleDelete(to: photo)
             return .handled
         }
-        .onKeyPress(.leftArrow) {
-            guard groupIndex > 0 else { return .ignored }
-            onNavigate(groupIndex - 1)
-            return .handled
-        }
-        .onKeyPress(.rightArrow) {
-            guard groupIndex < totalGroups - 1 else { return .ignored }
-            onNavigate(groupIndex + 1)
-            return .handled
-        }
         .onAppear {
-            // Delay focus grab so the view is fully in the window hierarchy
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 isFocused = true
             }
         }
         .onTapGesture { isFocused = true }
+        #if os(macOS)
+        .background(KeyEventInterceptor(onLeft: {
+            guard groupIndex > 0 else { return }
+            onNavigate(groupIndex - 1)
+        }, onRight: {
+            guard groupIndex < totalGroups - 1 else { return }
+            onNavigate(groupIndex + 1)
+        }))
+        #endif
     }
 
     // MARK: - Grid
@@ -192,7 +190,6 @@ struct ReviewView: View {
                 ForEach(photos) { photo in
                     photoCard(for: photo)
                         .frame(width: cardW)
-                    //                    .frame(height: cardH)
                 }
             }
         }

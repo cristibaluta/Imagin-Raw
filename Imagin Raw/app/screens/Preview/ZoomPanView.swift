@@ -77,9 +77,14 @@ class TrackerNSView: NSView {
     var onMouseMoved: ((CGPoint, CGSize) -> Void)?
     private var trackingArea: NSTrackingArea?
 
+    override var acceptsFirstResponder: Bool { false }
+
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
-        if let old = trackingArea { removeTrackingArea(old) }
+
+        if let old = trackingArea {
+            removeTrackingArea(old)
+        }
         let area = NSTrackingArea(
             rect: bounds,
             options: [.activeInKeyWindow, .mouseMoved, .inVisibleRect],
@@ -93,6 +98,11 @@ class TrackerNSView: NSView {
     override func mouseMoved(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         onMouseMoved?(point, bounds.size)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        // Don't consume the click — let SwiftUI keep focus
+        nextResponder?.mouseDown(with: event)
     }
 }
 #endif
