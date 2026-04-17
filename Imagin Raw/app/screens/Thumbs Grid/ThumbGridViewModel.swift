@@ -376,7 +376,8 @@ class ThumbGridViewModel: ObservableObject {
         let thumbSize = gridType.thumbSize
         let thumbsWidth = cols * thumbSize + (cols + 1) * Self.gap
         // Add minimap width so the NavigationSplitView content column is wide enough to fit both
-        let minimap = dateGroups.isEmpty ? 0 : Self.minimapWidth
+        let showMinimap = !dateGroups.isEmpty && !isDuplicateMode
+        let minimap = showMinimap ? Self.minimapWidth : 0
         return thumbsWidth + minimap
     }
 

@@ -72,13 +72,14 @@ struct ThumbGridView: View {
 
     var body: some View {
         let _ = Self._printChanges()
+        let showMinimap = !viewModel.dateGroups.isEmpty && !viewModel.isDuplicateMode
         VStack(spacing: 0) {
             if viewModel.filteredPhotos.isEmpty {
                 EmptyStateView(viewModel: viewModel)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 HStack(spacing: 0) {
-                    if !viewModel.dateGroups.isEmpty {
+                    if showMinimap {
                         MinimapView(
                             groups: viewModel.dateGroups,
                             onScrollTo: { photoId in scrollToPhotoId = photoId },
