@@ -207,7 +207,7 @@ class ThumbGridViewModel: ObservableObject {
 
     private static let dateGroupFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.dateFormat = "MMMM d, yyyy"  // e.g. "April 12, 2025"
+        f.dateFormat = "EEEE, MMM d, yyyy"  // e.g. "Monday, Sept 12, 2025"
         return f
     }()
 
