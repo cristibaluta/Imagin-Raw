@@ -98,13 +98,6 @@ class ThumbGridViewModel: ObservableObject {
         loadSortOption()
         loadGridType()
         loadSimilarityMode()
-
-        // Observe ThumbsManager's pendingQueueCount
-        ThumbsManager.shared.$pendingQueueCount
-            .receive(on: DispatchQueue.main)
-            .assign(to: &$cachingQueueCount)
-
-        // Set up observers to recalculate filteredPhotos when any dependency changes
         setupFilteredPhotosObservers()
     }
 
@@ -251,6 +244,11 @@ class ThumbGridViewModel: ObservableObject {
         self.photosModel = newPhotosModel
 
         print("   Old PhotosModel will be deallocated")
+
+        // Observe the new album's ThumbsManager queue count
+        newPhotosModel.thumbsManager.$pendingQueueCount
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$cachingQueueCount)
 
         // Set up subscriptions to observe the new PhotosModel's changes
         newPhotosModel.objectWillChange
@@ -495,7 +493,7 @@ class ThumbGridViewModel: ObservableObject {
                 }
 
                 // Delete the cached thumbnail
-                ThumbsManager.shared.deleteCachedThumbnail(for: photo.path)
+                ThumbsManager.current?.deleteCachedThumbnail(for: photo.path)
 //                PreviewsManager.shared.deleteCachedPreview(for: photo.path)
 
                 // If this is a RAW file, also delete associated files
@@ -582,7 +580,7 @@ class ThumbGridViewModel: ObservableObject {
             do {
                 try FileManager.default.moveItem(at: item.trashedURL, to: item.originalURL)
                 // Invalidate the cached thumbnail so it gets regenerated on reload
-                ThumbsManager.shared.deleteCachedThumbnail(for: item.originalURL.path)
+                ThumbsManager.current?.deleteCachedThumbnail(for: item.originalURL.path)
             } catch {
                 // Silently handle errors
             }

@@ -41,6 +41,7 @@ final class MacThumbCell: NSCollectionViewItem {
     private var callbacks: ThumbCellCallbacks?
     private var itemSize: CGFloat = 100
     private var currentImageSize: CGSize = .zero
+    private var layersConfigured = false
 
     // MARK: loadView
 
@@ -129,8 +130,10 @@ final class MacThumbCell: NSCollectionViewItem {
 
     override func viewDidLayout() {
         super.viewDidLayout()
-
-        configureLayers()
+        if !layersConfigured {
+            configureLayers()
+            layersConfigured = true
+        }
         layoutSubviews()
     }
 
@@ -263,7 +266,7 @@ final class MacThumbCell: NSCollectionViewItem {
     func setThumb(_ image: IRImage) {
         thumbView.image = image
         currentImageSize = image.size
-        layoutSubviews()
+        view.needsLayout = true
     }
 
     func configure(with photo: PhotoItem,
@@ -284,14 +287,14 @@ final class MacThumbCell: NSCollectionViewItem {
             thumbView.image = nil
             currentImageSize = .zero
 
-            if let cached = ThumbsManager.shared.getCachedThumbnail(for: photo) {
+            if let cached = ThumbsManager.current?.getCachedThumbnail(for: photo) {
                 thumbView.image = cached
                 currentImageSize = cached.size
                 layoutSubviews()
             } else {
                 let path = photo.path
                 let work = DispatchWorkItem { [weak self] in
-                    ThumbsManager.shared.loadThumbnail(for: photo, priority: priority) { image in
+                    ThumbsManager.current?.loadThumbnail(for: photo, priority: priority) { image in
                         DispatchQueue.main.async {
                             guard self?.currentPath == path else {
                                 return
@@ -319,7 +322,9 @@ final class MacThumbCell: NSCollectionViewItem {
         filenameLabel.stringValue = URL(fileURLWithPath: photo.path).lastPathComponent
         applyLabelStyle(for: photo)
         starView?.rating = currentRating(for: photo)
-        view.menu = makeContextMenu(for: photo)
+        if pathChanged {
+            view.menu = makeContextMenu(for: photo)
+        }
 
         if view.trackingAreas.isEmpty {
             setupTrackingArea()

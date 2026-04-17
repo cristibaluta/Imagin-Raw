@@ -435,7 +435,7 @@ struct IosThumbGridView: UIViewRepresentable {
                 return
             }
             // Cancel stale low-priority work so visible cells get the semaphore slots immediately
-            ThumbsManager.shared.cancelLowPriorityRequests()
+            ThumbsManager.current?.cancelLowPriorityRequests()
 
             for ip in cv.indexPathsForVisibleItems {
                 let photo = photosForSection(ip.section)[ip.item]
@@ -443,7 +443,7 @@ struct IosThumbGridView: UIViewRepresentable {
                       cell.thumbImage == nil else {
                     continue
                 }
-                ThumbsManager.shared.loadThumbnail(for: photo, priority: .high) { [weak cell] image in
+                ThumbsManager.current?.loadThumbnail(for: photo, priority: .high) { [weak cell] image in
                     guard let image else {
                         return
                     }
@@ -470,7 +470,7 @@ struct IosThumbGridView: UIViewRepresentable {
         func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
             for ip in indexPaths {
                 let photo = photosForSection(ip.section)[ip.item]
-                ThumbsManager.shared.loadThumbnail(for: photo, priority: .low) { _ in }
+                ThumbsManager.current?.loadThumbnail(for: photo, priority: .low) { _ in }
             }
         }
 

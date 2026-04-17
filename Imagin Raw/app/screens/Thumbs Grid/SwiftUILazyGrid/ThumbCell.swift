@@ -208,14 +208,14 @@ struct ThumbCell: View {
     }
 
     private func loadThumbnail() {
-        if let cachedImage = ThumbsManager.shared.getCachedThumbnail(for: photo.path) {
+        if let cachedImage = ThumbsManager.current?.getCachedThumbnail(for: photo.path) {
             self.thumbnailImage = cachedImage
             return
         }
         isLoading = true
         let photoId = photo.id
         let currentPhoto = photo
-        ThumbsManager.shared.loadThumbnail(for: currentPhoto, priority: .medium) { image in
+        ThumbsManager.current?.loadThumbnail(for: currentPhoto, priority: .medium) { image in
             DispatchQueue.main.async {
                 if self.photo.id == photoId {
                     self.thumbnailImage = image

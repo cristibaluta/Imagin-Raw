@@ -117,15 +117,21 @@ enum DuplicateFinderService {
                 let lock = NSLock()
 
                 for (index, photo) in photos.enumerated() {
-                    let diskURL = ThumbsManager.shared.diskCacheURL(for: photo.path)
+                    guard let diskURL = ThumbsManager.current?.diskCacheURL(for: photo.path) else {
+                        continue
+                    }
                     if FileManager.default.fileExists(atPath: diskURL.path) {
-                        lock.lock(); urls[index] = diskURL; lock.unlock()
+                        lock.lock();
+                        urls[index] = diskURL;
+                        lock.unlock()
                     } else {
                         print("  ⏳ Generating thumb [\(index+1)/\(total)]: \(URL(fileURLWithPath: photo.path).lastPathComponent)")
                         group.enter()
-                        ThumbsManager.shared.loadThumbnail(for: photo.path, priority: .high) { _ in
+                        ThumbsManager.current?.loadThumbnail(for: photo.path, priority: .high) { _ in
                             if FileManager.default.fileExists(atPath: diskURL.path) {
-                                lock.lock(); urls[index] = diskURL; lock.unlock()
+                                lock.lock();
+                                urls[index] = diskURL;
+                                lock.unlock()
                             } else {
                                 print("  ⚠️ Thumb missing after generation: \(diskURL.lastPathComponent)")
                             }

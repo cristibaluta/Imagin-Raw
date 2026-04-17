@@ -178,10 +178,10 @@ final class IosThumbCell: UICollectionViewCell {
             thumbView.image = nil
 
             let path = photo.path
-            if let cached = ThumbsManager.shared.getCachedThumbnail(for: photo) {
+            if let cached = ThumbsManager.current?.getCachedThumbnail(for: photo) {
                 thumbView.image = cached
             } else {
-                ThumbsManager.shared.loadThumbnail(for: photo, priority: priority) { [weak self] image in
+                ThumbsManager.current?.loadThumbnail(for: photo, priority: priority) { [weak self] image in
                     guard self?.currentPath == path else {
                         return
                     }

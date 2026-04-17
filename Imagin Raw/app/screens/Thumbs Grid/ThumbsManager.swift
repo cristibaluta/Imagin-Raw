@@ -63,7 +63,11 @@ struct PriorityQueue<T: Comparable> {
 }
 
 class ThumbsManager: ObservableObject {
-    static let shared = ThumbsManager()
+
+    /// Points to the ThumbsManager of the currently loaded album.
+    /// Updated by PhotosModel when a new album is loaded. All call sites use this
+    /// instead of a singleton so cache is automatically scoped per album.
+    static weak var current: ThumbsManager?
 
     @Published private(set) var pendingQueueCount: Int = 0
 
@@ -78,11 +82,13 @@ class ThumbsManager: ObservableObject {
     private var pendingRequests: [String: ThumbnailRequest] = [:]
     private var priorityQueue = PriorityQueue<ThumbnailRequest>()
     private let queueLock = NSLock()
-    private var isProcessingQueue = false
     private var requestCounter = 0
 
-    private let processingLimit = 3
+    private let processingLimit = 4
     private let processingSemaphore: DispatchSemaphore
+    // Number of workers currently draining the queue
+    private var activeWorkerCount = 0
+    private let maxWorkers = 4
 
     private let cacheDirectory: URL
     private let accessLogURL: URL
@@ -92,7 +98,7 @@ class ThumbsManager: ObservableObject {
 
     private let thumbSize: CGFloat = 256
 
-    private init() {
+    init() {
         let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         cacheDirectory = cachesDir.appendingPathComponent("ro.imagin.raw/256")
         accessLogURL = cachesDir.appendingPathComponent("ro.imagin.raw/cache_access_log.json")
@@ -154,12 +160,9 @@ class ThumbsManager: ObservableObject {
         )
         pendingRequests[key] = request
         priorityQueue.enqueue(request)
-        let count = pendingRequests.count
         queueLock.unlock()
 
-        DispatchQueue.main.async {
-            self.pendingQueueCount = count
-        }
+        scheduleQueueCountUpdate()
         processQueue(source: source)
     }
 
@@ -198,12 +201,9 @@ class ThumbsManager: ObservableObject {
         )
         pendingRequests[key] = request
         priorityQueue.enqueue(request)
-        let count = pendingRequests.count
         queueLock.unlock()
 
-        DispatchQueue.main.async {
-            self.pendingQueueCount = count
-        }
+        scheduleQueueCountUpdate()
         processQueue(source: source)
     }
 
@@ -220,11 +220,9 @@ class ThumbsManager: ObservableObject {
         queueLock.lock()
         pendingRequests.removeAll()
         priorityQueue.removeAll()
-        isProcessingQueue = false
+        activeWorkerCount = 0
         queueLock.unlock()
-        DispatchQueue.main.async {
-            self.pendingQueueCount = 0
-        }
+        scheduleQueueCountUpdate()
     }
 
     /// Cancel all pending requests that are below .high priority.
@@ -302,15 +300,30 @@ class ThumbsManager: ObservableObject {
         return subdir.appendingPathComponent("\(url.lastPathComponent).jpg")
     }
 
+    private var queueCountDirty = false
+
+    private func scheduleQueueCountUpdate() {
+        guard !queueCountDirty else { return }
+        queueCountDirty = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            queueLock.lock()
+            let count = pendingRequests.count
+            queueCountDirty = false
+            queueLock.unlock()
+            self.pendingQueueCount = count
+        }
+    }
+
     // MARK: - Queue
 
     private func processQueue(source: PhotoSource) {
         queueLock.lock()
-        guard !isProcessingQueue else {
+        guard activeWorkerCount < maxWorkers else {
             queueLock.unlock()
             return
         }
-        isProcessingQueue = true
+        activeWorkerCount += 1
         queueLock.unlock()
 
         diskQueue.async { [weak self] in
@@ -324,32 +337,26 @@ class ThumbsManager: ObservableObject {
             let request = priorityQueue.dequeue()
             queueLock.unlock()
 
-            guard let current = request else {
-                break
-            }
+            guard let current = request else { break }
 
             queueLock.lock()
             let isValid: Bool
             if let pending = pendingRequests[current.cacheKey], pending.id == current.id {
                 pendingRequests.removeValue(forKey: current.cacheKey)
-                DispatchQueue.main.async {
-                    self.pendingQueueCount = self.pendingRequests.count
-                }
                 isValid = true
             } else {
                 isValid = false
             }
             queueLock.unlock()
 
-            guard isValid else {
-                continue
-            }
+            scheduleQueueCountUpdate()
 
+            guard isValid else { continue }
             processRequest(current)
         }
 
         queueLock.lock()
-        isProcessingQueue = false
+        activeWorkerCount -= 1
         queueLock.unlock()
     }
 

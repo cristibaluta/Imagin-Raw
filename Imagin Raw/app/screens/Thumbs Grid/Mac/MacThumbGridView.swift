@@ -379,7 +379,7 @@ struct MacThumbGridView: NSViewRepresentable {
                 return
             }
             // Flush all stale low-priority work so .high requests get the semaphore slots
-            ThumbsManager.shared.cancelLowPriorityRequests()
+            ThumbsManager.current?.cancelLowPriorityRequests()
 
             for indexPath in cv.indexPathsForVisibleItems() {
                 guard let item = cv.item(at: indexPath) as? MacThumbCell,
@@ -387,7 +387,7 @@ struct MacThumbGridView: NSViewRepresentable {
                     continue
                 }
                 let photo = photosForSection(indexPath.section)[indexPath.item]
-                ThumbsManager.shared.loadThumbnail(for: photo, priority: .high) { [weak item] image in
+                ThumbsManager.current?.loadThumbnail(for: photo, priority: .high) { [weak item] image in
                     guard let image else {
                         return
                     }
