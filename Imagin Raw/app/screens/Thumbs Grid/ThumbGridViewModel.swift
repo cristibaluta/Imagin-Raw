@@ -38,6 +38,8 @@ class ThumbGridViewModel: ObservableObject {
     @Published var photosToCopy: [PhotoItem] = []
     @Published var copyDestinationURL: URL?
 
+    @Published var thumbsManager: ThumbsManager = ThumbsManager()
+
     // MARK: - Dependencies
     private let filesModel: FilesModel
     private var photosModel: PhotosModel?
@@ -239,14 +241,20 @@ class ThumbGridViewModel: ObservableObject {
         // Re-setup filtered photos observers after clearing cancellables
         setupFilteredPhotosObservers()
 
+        // Create a fresh ThumbsManager for this album — old one deallocates, clearing its cache
+        thumbsManager.stopQueue()
+        let newThumbsManager = ThumbsManager()
+        self.thumbsManager = newThumbsManager
+        filesModel.currentThumbsManager = newThumbsManager
+
         // Create a new PhotosModel for this folder
         let newPhotosModel = PhotosModel(folder: folder)
         self.photosModel = newPhotosModel
 
         print("   Old PhotosModel will be deallocated")
 
-        // Observe the new album's ThumbsManager queue count
-        newPhotosModel.thumbsManager.$pendingQueueCount
+        // Observe the new ThumbsManager queue count
+        newThumbsManager.$pendingQueueCount
             .receive(on: DispatchQueue.main)
             .assign(to: &$cachingQueueCount)
 
@@ -493,7 +501,7 @@ class ThumbGridViewModel: ObservableObject {
                 }
 
                 // Delete the cached thumbnail
-                ThumbsManager.current?.deleteCachedThumbnail(for: photo.path)
+                thumbsManager.deleteCachedThumbnail(for: photo.path)
 //                PreviewsManager.shared.deleteCachedPreview(for: photo.path)
 
                 // If this is a RAW file, also delete associated files
@@ -580,7 +588,7 @@ class ThumbGridViewModel: ObservableObject {
             do {
                 try FileManager.default.moveItem(at: item.trashedURL, to: item.originalURL)
                 // Invalidate the cached thumbnail so it gets regenerated on reload
-                ThumbsManager.current?.deleteCachedThumbnail(for: item.originalURL.path)
+                thumbsManager.deleteCachedThumbnail(for: item.originalURL.path)
             } catch {
                 // Silently handle errors
             }
@@ -1221,6 +1229,7 @@ class ThumbGridViewModel: ObservableObject {
             }
             let data = await DuplicateFinderService.scan(
                 photos: photosToScan,
+                thumbsManager: thumbsManager,
                 progress: { done, total in
                     DispatchQueue.main.async { self.duplicateScanProgress = (done, total) }
                 }

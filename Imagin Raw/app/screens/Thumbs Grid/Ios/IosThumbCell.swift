@@ -29,6 +29,7 @@ final class IosThumbCell: UICollectionViewCell {
     private var currentPhoto: PhotoItem?
     private var callbacks: ThumbCellCallbacks?
     private var itemSize: CGFloat = 100
+    private weak var thumbsManager: ThumbsManager!
 
     // MARK: - Init
 
@@ -165,10 +166,12 @@ final class IosThumbCell: UICollectionViewCell {
                    isSelected: Bool,
                    isSelectMode: Bool,
                    itemSize: CGFloat,
+                   thumbsManager: ThumbsManager,
                    priority: ThumbnailRequest.Priority = .high,
                    callbacks: ThumbCellCallbacks) {
         self.callbacks = callbacks
         self.itemSize = itemSize
+        self.thumbsManager = thumbsManager
 
         let pathChanged = currentPath != photo.path
         currentPath = photo.path
@@ -178,10 +181,10 @@ final class IosThumbCell: UICollectionViewCell {
             thumbView.image = nil
 
             let path = photo.path
-            if let cached = ThumbsManager.current?.getCachedThumbnail(for: photo) {
+            if let cached = thumbsManager.getCachedThumbnail(for: photo) {
                 thumbView.image = cached
             } else {
-                ThumbsManager.current?.loadThumbnail(for: photo, priority: priority) { [weak self] image in
+                thumbsManager.loadThumbnail(for: photo, priority: priority) { [weak self] image in
                     guard self?.currentPath == path else {
                         return
                     }

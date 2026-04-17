@@ -64,17 +64,12 @@ struct PriorityQueue<T: Comparable> {
 
 class ThumbsManager: ObservableObject {
 
-    /// Points to the ThumbsManager of the currently loaded album.
-    /// Updated by PhotosModel when a new album is loaded. All call sites use this
-    /// instead of a singleton so cache is automatically scoped per album.
-    static weak var current: ThumbsManager?
-
     @Published private(set) var pendingQueueCount: Int = 0
 
     // Memory cache
     private var memoryCache: [String: CacheEntry] = [:]
     private var cacheAccessOrder: [String] = []
-    private let maxMemoryCacheSize = 200
+    private let maxMemoryCacheSize = 600
     private let cacheQueue = DispatchQueue(label: "ro.imagin.thumbs.cache", attributes: .concurrent)
     private let diskQueue = DispatchQueue(label: "ro.imagin.thumbs.disk", qos: .userInitiated)
 

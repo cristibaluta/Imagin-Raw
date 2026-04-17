@@ -160,6 +160,7 @@ struct MacThumbGridView: NSViewRepresentable {
     @Binding var scrollToPhotoId: UUID?
     @Binding var visibleSectionIndex: Int
     var onKeyPress: ((NSEvent) -> Bool)?
+    var thumbsManager: ThumbsManager
 
     func makeCoordinator() -> Coordinator {
         Coordinator(itemSize: itemSize, cellHeight: cellHeight, callbacks: callbacks)
@@ -236,6 +237,7 @@ struct MacThumbGridView: NSViewRepresentable {
         c.sortOption = sortOption
         c.photosById = Dictionary(uniqueKeysWithValues: photos.map { ($0.path, $0) })
         c.onKeyDown = { event in self.onKeyPress?(event) ?? false }
+        c.thumbsManager = thumbsManager
 
         if modeChanged {
             // Recreate the entire collection view to avoid NSCollectionViewData
@@ -261,7 +263,7 @@ struct MacThumbGridView: NSViewRepresentable {
                 let isSelected = selectedPhotos.contains(photo.id)
                 if oldPhotoMap[photo.id] != photo {
                     thumbItem.configure(with: photo, isSelected: isSelected,
-                                        itemSize: itemSize, priority: .high, callbacks: callbacks)
+                                        itemSize: itemSize, thumbsManager: thumbsManager, priority: .high, callbacks: callbacks)
                 } else if selectionChanged {
                     thumbItem.updateSelection(isSelected: isSelected)
                 }
@@ -328,6 +330,7 @@ struct MacThumbGridView: NSViewRepresentable {
         weak var collectionView: NSCollectionView?
         weak var scrollView: NSScrollView?
         var onVisibleSectionChanged: ((Int) -> Void)?
+        var thumbsManager: ThumbsManager!
 
         private var isScrolling = false
         private var scrollEndTimer: Timer?
@@ -379,7 +382,7 @@ struct MacThumbGridView: NSViewRepresentable {
                 return
             }
             // Flush all stale low-priority work so .high requests get the semaphore slots
-            ThumbsManager.current?.cancelLowPriorityRequests()
+            thumbsManager.cancelLowPriorityRequests()
 
             for indexPath in cv.indexPathsForVisibleItems() {
                 guard let item = cv.item(at: indexPath) as? MacThumbCell,
@@ -387,7 +390,7 @@ struct MacThumbGridView: NSViewRepresentable {
                     continue
                 }
                 let photo = photosForSection(indexPath.section)[indexPath.item]
-                ThumbsManager.current?.loadThumbnail(for: photo, priority: .high) { [weak item] image in
+                thumbsManager.loadThumbnail(for: photo, priority: .high) { [weak item] image in
                     guard let image else {
                         return
                     }
@@ -449,6 +452,7 @@ struct MacThumbGridView: NSViewRepresentable {
             item.configure(with: photo,
                            isSelected: selectedPhotos.contains(photo.id),
                            itemSize: itemSize,
+                           thumbsManager: thumbsManager,
                            priority: priority,
                            callbacks: callbacks)
             return item

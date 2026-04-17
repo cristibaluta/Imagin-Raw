@@ -109,6 +109,7 @@ struct IosThumbGridView: UIViewRepresentable {
     var sortOption: ThumbGridViewModel.SortOption = .name
     @Binding var scrollToPhotoId: UUID?
     @Binding var visibleSectionIndex: Int
+    var thumbsManager: ThumbsManager
 
     private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
 
@@ -173,6 +174,7 @@ struct IosThumbGridView: UIViewRepresentable {
         c.onVisibleSectionChanged = { idx in
             DispatchQueue.main.async { self.visibleSectionIndex = idx }
         }
+        c.thumbsManager = thumbsManager
 
         let isDupNow    = duplicateResult != nil
         let wasDup      = c.duplicateResult != nil
@@ -230,7 +232,7 @@ struct IosThumbGridView: UIViewRepresentable {
                 let isSelected = selectedPhotos.contains(photo.id)
                 if oldPhotoMap[photo.id] != photo {
                     cell.configure(with: photo, isSelected: isSelected, isSelectMode: isSelectMode,
-                                   itemSize: itemSize, callbacks: callbacks)
+                                   itemSize: itemSize, thumbsManager: thumbsManager, callbacks: callbacks)
                 } else if selectionChanged {
                     cell.updateSelection(isSelected: isSelected, isSelectMode: isSelectMode)
                 }
@@ -310,6 +312,7 @@ struct IosThumbGridView: UIViewRepresentable {
         weak var collectionView: UICollectionView?
         weak var scrollView: UIScrollView?
         var onVisibleSectionChanged: ((Int) -> Void)?
+        var thumbsManager: ThumbsManager!
 
         private var isScrolling = false
         private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
@@ -359,6 +362,7 @@ struct IosThumbGridView: UIViewRepresentable {
                            isSelected: selectedPhotos.contains(photo.id),
                            isSelectMode: isSelectMode,
                            itemSize: itemSize,
+                           thumbsManager: thumbsManager,
                            priority: priority,
                            callbacks: callbacks)
             return cell
@@ -435,7 +439,7 @@ struct IosThumbGridView: UIViewRepresentable {
                 return
             }
             // Cancel stale low-priority work so visible cells get the semaphore slots immediately
-            ThumbsManager.current?.cancelLowPriorityRequests()
+            thumbsManager.cancelLowPriorityRequests()
 
             for ip in cv.indexPathsForVisibleItems {
                 let photo = photosForSection(ip.section)[ip.item]
@@ -443,7 +447,7 @@ struct IosThumbGridView: UIViewRepresentable {
                       cell.thumbImage == nil else {
                     continue
                 }
-                ThumbsManager.current?.loadThumbnail(for: photo, priority: .high) { [weak cell] image in
+                thumbsManager.loadThumbnail(for: photo, priority: .high) { [weak cell] image in
                     guard let image else {
                         return
                     }
@@ -470,7 +474,7 @@ struct IosThumbGridView: UIViewRepresentable {
         func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
             for ip in indexPaths {
                 let photo = photosForSection(ip.section)[ip.item]
-                ThumbsManager.current?.loadThumbnail(for: photo, priority: .low) { _ in }
+                thumbsManager.loadThumbnail(for: photo, priority: .low) { _ in }
             }
         }
 

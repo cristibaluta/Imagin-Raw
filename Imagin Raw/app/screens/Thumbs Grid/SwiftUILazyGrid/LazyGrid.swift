@@ -190,7 +190,8 @@ struct PhotoGridView: View {
                 let marked = viewModel.getPhotosMarkedForDeletion()
                 return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
             } : nil,
-            size: viewModel.gridType.thumbSize
+            size: viewModel.gridType.thumbSize,
+            thumbsManager: viewModel.thumbsManager
         )
 #if os(macOS)
         .frame(width: viewModel.gridType.thumbSize, height: viewModel.gridType.cellHeight)

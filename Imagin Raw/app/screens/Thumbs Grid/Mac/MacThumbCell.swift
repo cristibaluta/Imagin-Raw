@@ -42,6 +42,7 @@ final class MacThumbCell: NSCollectionViewItem {
     private var itemSize: CGFloat = 100
     private var currentImageSize: CGSize = .zero
     private var layersConfigured = false
+    private weak var thumbsManager: ThumbsManager!
 
     // MARK: loadView
 
@@ -272,10 +273,12 @@ final class MacThumbCell: NSCollectionViewItem {
     func configure(with photo: PhotoItem,
                    isSelected: Bool,
                    itemSize: CGFloat,
+                   thumbsManager: ThumbsManager,
                    priority: ThumbnailRequest.Priority = .high,
                    callbacks: ThumbCellCallbacks) {
         self.callbacks = callbacks
         self.itemSize = itemSize
+        self.thumbsManager = thumbsManager
 
         let pathChanged = currentPath != photo.path
         currentPath = photo.path
@@ -287,14 +290,14 @@ final class MacThumbCell: NSCollectionViewItem {
             thumbView.image = nil
             currentImageSize = .zero
 
-            if let cached = ThumbsManager.current?.getCachedThumbnail(for: photo) {
+            if let cached = self.thumbsManager.getCachedThumbnail(for: photo) {
                 thumbView.image = cached
                 currentImageSize = cached.size
                 layoutSubviews()
             } else {
                 let path = photo.path
                 let work = DispatchWorkItem { [weak self] in
-                    ThumbsManager.current?.loadThumbnail(for: photo, priority: priority) { image in
+                    self?.thumbsManager.loadThumbnail(for: photo, priority: priority) { image in
                         DispatchQueue.main.async {
                             guard self?.currentPath == path else {
                                 return

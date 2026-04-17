@@ -16,20 +16,15 @@ final class PhotosModel: ObservableObject {
     @Published var photos: [PhotoItem] = []
     @Published var isLoadingMetadata: Bool = false
 
-    /// Per-album ThumbsManager — created fresh for each folder, so memory cache is scoped to the album.
-    let thumbsManager = ThumbsManager()
-
     private let folder: FolderItem
     private var metadataTask: Task<Void, Never>?
 
     init(folder: FolderItem) {
         self.folder = folder
-        ThumbsManager.current = thumbsManager
     }
 
     deinit {
         metadataTask?.cancel()
-        thumbsManager.stopQueue()
         print("🗑️ PhotosModel deallocated for: \(folder.url.lastPathComponent)")
     }
 
@@ -131,7 +126,6 @@ final class PhotosModel: ObservableObject {
 
     func reloadPhotos() {
         metadataTask?.cancel()
-        ThumbsManager.current?.stopQueue()
         loadPhotos()
     }
 

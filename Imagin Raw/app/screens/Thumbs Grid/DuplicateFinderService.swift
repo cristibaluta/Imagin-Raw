@@ -96,6 +96,7 @@ enum DuplicateFinderService {
     /// Call `DuplicateScanData.recluster(threshold:)` to filter without re-scanning.
     static func scan(
         photos: [PhotoItem],
+        thumbsManager: ThumbsManager,
         progress: @escaping (Int, Int) -> Void
     ) async -> DuplicateScanData? {
         let total = photos.count
@@ -117,9 +118,7 @@ enum DuplicateFinderService {
                 let lock = NSLock()
 
                 for (index, photo) in photos.enumerated() {
-                    guard let diskURL = ThumbsManager.current?.diskCacheURL(for: photo.path) else {
-                        continue
-                    }
+                    let diskURL = thumbsManager.diskCacheURL(for: photo.path)
                     if FileManager.default.fileExists(atPath: diskURL.path) {
                         lock.lock();
                         urls[index] = diskURL;
@@ -127,7 +126,7 @@ enum DuplicateFinderService {
                     } else {
                         print("  ⏳ Generating thumb [\(index+1)/\(total)]: \(URL(fileURLWithPath: photo.path).lastPathComponent)")
                         group.enter()
-                        ThumbsManager.current?.loadThumbnail(for: photo.path, priority: .high) { _ in
+                        thumbsManager.loadThumbnail(for: photo.path, priority: .high) { _ in
                             if FileManager.default.fileExists(atPath: diskURL.path) {
                                 lock.lock();
                                 urls[index] = diskURL;

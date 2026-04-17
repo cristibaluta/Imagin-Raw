@@ -173,7 +173,7 @@ struct FolderRowView: View {
                     Divider()
 
                     Button(action: {
-                        if let cacheURL = ThumbsManager.current?.cacheURL(for: folder.url) {
+                        if let cacheURL = filesModel.currentThumbsManager?.cacheURL(for: folder.url) {
                             NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
                         }
                     }) {
@@ -181,7 +181,7 @@ struct FolderRowView: View {
                     }
 
                     Button(role: .destructive, action: {
-                        ThumbsManager.current?.purgeCache(for: folder.url)
+                        filesModel.currentThumbsManager?.purgeCache(for: folder.url)
                     }) {
                         Label("Purge Cache", systemImage: "trash")
                     }
@@ -233,7 +233,7 @@ struct FolderRowView: View {
                 Divider()
 
                 Button(action: {
-                    if let cacheURL = ThumbsManager.current?.cacheURL(for: folder.url) {
+                    if let cacheURL = filesModel.currentThumbsManager?.cacheURL(for: folder.url) {
                         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
                     }
                 }) {
@@ -241,7 +241,7 @@ struct FolderRowView: View {
                 }
 
                 Button(role: .destructive, action: {
-                    ThumbsManager.current?.purgeCache(for: folder.url)
+                    filesModel.currentThumbsManager?.purgeCache(for: folder.url)
                 }) {
                     Label("Purge Cache", systemImage: "trash")
                 }

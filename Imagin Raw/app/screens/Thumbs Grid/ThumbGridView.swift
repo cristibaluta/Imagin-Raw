@@ -226,7 +226,7 @@ struct ThumbGridView: View {
                     onToggleSidebar: { onToggleSidebar?() },
                     onReviewSelected: { photos in reviewGroup = buildReviewGroupItemFromPhotos(photos) }
                 )
-            }
+            }, thumbsManager: viewModel.thumbsManager
         )
         .onAppear {
             viewModel.initializeSelection()
@@ -316,7 +316,8 @@ struct ThumbGridView: View {
             dateGroups: viewModel.dateGroups,
             sortOption: viewModel.sortOption,
             scrollToPhotoId: $scrollToPhotoId,
-            visibleSectionIndex: $visibleSectionIndex
+            visibleSectionIndex: $visibleSectionIndex,
+            thumbsManager: viewModel.thumbsManager
         )
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

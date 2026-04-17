@@ -16,6 +16,9 @@ final class FilesModel: ObservableObject {
     @Published var selectedPhoto: PhotoItem?
     @Published var folderContentDidChange: FolderItem?
 
+    /// The ThumbsManager for the currently loaded album. Updated by ThumbGridViewModel on folder load.
+    var currentThumbsManager: ThumbsManager?
+
     // Store all folders (including unmounted ones) and track which are currently available
     private var allFolderBookmarks: [FolderBookmark] = []
     private var accessedURLs: Set<URL> = []

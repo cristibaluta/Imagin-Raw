@@ -18,6 +18,7 @@ struct ThumbCell: View {
     let onRenameTo: (PhotoItem) -> Void
     let onMoveAllMarkedToTrash: (() -> (count: Int, action: () -> Void))?
     let size: CGFloat  // Now accepts size as a parameter
+    let thumbsManager: ThumbsManager
     @State private var thumbnailImage: IRImage?
     @State private var isLoading = false
     @State private var clickCount = 0
@@ -208,14 +209,14 @@ struct ThumbCell: View {
     }
 
     private func loadThumbnail() {
-        if let cachedImage = ThumbsManager.current?.getCachedThumbnail(for: photo.path) {
+        if let cachedImage = thumbsManager.getCachedThumbnail(for: photo.path) {
             self.thumbnailImage = cachedImage
             return
         }
         isLoading = true
         let photoId = photo.id
         let currentPhoto = photo
-        ThumbsManager.current?.loadThumbnail(for: currentPhoto, priority: .medium) { image in
+        thumbsManager.loadThumbnail(for: currentPhoto, priority: .medium) { image in
             DispatchQueue.main.async {
                 if self.photo.id == photoId {
                     self.thumbnailImage = image
