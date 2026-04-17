@@ -294,7 +294,6 @@ struct MacThumbGridView: NSViewRepresentable {
             if let ip = targetIndexPath {
                 NSAnimationContext.runAnimationGroup { ctx in
                     ctx.allowsImplicitAnimation = true
-                    // When date-grouped, align the section header to the top of the scroll view
                     if isDateGrouped,
                        let headerAttrs = cv?.collectionViewLayout?.layoutAttributesForSupplementaryView(
                            ofKind: NSCollectionView.elementKindSectionHeader,
@@ -365,15 +364,12 @@ struct MacThumbGridView: NSViewRepresentable {
             guard let cv = collectionView, let sv = scrollView, isDateGrouped else { return }
             let topY = sv.contentView.bounds.minY
             let layout = cv.collectionViewLayout as? NSCollectionViewFlowLayout
-            // Walk sections and find the last one whose header starts at or above the top edge
             var activeSection = 0
             for section in 0..<dateGroups.count {
                 let ip = IndexPath(item: 0, section: section)
                 guard let attrs = layout?.layoutAttributesForSupplementaryView(
                     ofKind: NSCollectionView.elementKindSectionHeader, at: ip) else { continue }
-                if attrs.frame.minY <= topY + 1 {
-                    activeSection = section
-                }
+                if attrs.frame.minY <= topY + 1 { activeSection = section }
             }
             onVisibleSectionChanged?(activeSection)
         }
