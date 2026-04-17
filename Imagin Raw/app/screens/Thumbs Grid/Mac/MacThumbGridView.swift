@@ -158,6 +158,7 @@ struct MacThumbGridView: NSViewRepresentable {
     var dateGroups: [(title: String, photos: [PhotoItem])] = []
     var sortOption: ThumbGridViewModel.SortOption = .name
     @Binding var scrollToPhotoId: UUID?
+    @Binding var visibleSectionIndex: Int
     var onKeyPress: ((NSEvent) -> Bool)?
 
     func makeCoordinator() -> Coordinator {
@@ -203,6 +204,9 @@ struct MacThumbGridView: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let c = context.coordinator
+        c.onVisibleSectionChanged = { idx in
+            DispatchQueue.main.async { self.visibleSectionIndex = idx }
+        }
 
         let isDupNow  = duplicateResult != nil
         let wasDup    = c.duplicateResult != nil
@@ -288,8 +292,21 @@ struct MacThumbGridView: NSViewRepresentable {
                 targetIndexPath = IndexPath(item: index, section: 0)
             }
             if let ip = targetIndexPath {
-                NSAnimationContext.current.allowsImplicitAnimation = true
-                cv?.animator().scrollToItems(at: [ip], scrollPosition: .centeredVertically)
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.allowsImplicitAnimation = true
+                    // When date-grouped, align the section header to the top of the scroll view
+                    if isDateGrouped,
+                       let headerAttrs = cv?.collectionViewLayout?.layoutAttributesForSupplementaryView(
+                           ofKind: NSCollectionView.elementKindSectionHeader,
+                           at: IndexPath(item: 0, section: ip.section)),
+                       let scrollView = cv?.enclosingScrollView {
+                        scrollView.contentView.animator().setBoundsOrigin(
+                            NSPoint(x: 0, y: headerAttrs.frame.minY)
+                        )
+                    } else {
+                        cv?.animator().scrollToItems(at: [ip], scrollPosition: .centeredVertically)
+                    }
+                }
             }
             DispatchQueue.main.async { self.scrollToPhotoId = nil }
         }
@@ -311,6 +328,7 @@ struct MacThumbGridView: NSViewRepresentable {
         var sortOption: ThumbGridViewModel.SortOption = .name
         weak var collectionView: NSCollectionView?
         weak var scrollView: NSScrollView?
+        var onVisibleSectionChanged: ((Int) -> Void)?
 
         private var isScrolling = false
         private var scrollEndTimer: Timer?
@@ -331,19 +349,33 @@ struct MacThumbGridView: NSViewRepresentable {
                 object: sv.contentView,
                 queue: .main
             ) { [weak self] _ in
-                guard let self else {
-                    return
-                }
+                guard let self else { return }
                 self.isScrolling = true
+                self.reportVisibleSection()
                 self.scrollEndTimer?.invalidate()
                 self.scrollEndTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
-                    guard let self else {
-                        return
-                    }
+                    guard let self else { return }
                     self.isScrolling = false
                     self.boostVisibleItems()
                 }
             }
+        }
+
+        private func reportVisibleSection() {
+            guard let cv = collectionView, let sv = scrollView, isDateGrouped else { return }
+            let topY = sv.contentView.bounds.minY
+            let layout = cv.collectionViewLayout as? NSCollectionViewFlowLayout
+            // Walk sections and find the last one whose header starts at or above the top edge
+            var activeSection = 0
+            for section in 0..<dateGroups.count {
+                let ip = IndexPath(item: 0, section: section)
+                guard let attrs = layout?.layoutAttributesForSupplementaryView(
+                    ofKind: NSCollectionView.elementKindSectionHeader, at: ip) else { continue }
+                if attrs.frame.minY <= topY + 1 {
+                    activeSection = section
+                }
+            }
+            onVisibleSectionChanged?(activeSection)
         }
 
         private func boostVisibleItems() {

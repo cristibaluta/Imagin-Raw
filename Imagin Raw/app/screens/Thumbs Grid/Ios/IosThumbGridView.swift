@@ -108,6 +108,7 @@ struct IosThumbGridView: UIViewRepresentable {
     var dateGroups: [(title: String, photos: [PhotoItem])] = []
     var sortOption: ThumbGridViewModel.SortOption = .name
     @Binding var scrollToPhotoId: UUID?
+    @Binding var visibleSectionIndex: Int
 
     private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
 
@@ -169,6 +170,9 @@ struct IosThumbGridView: UIViewRepresentable {
 
     func updateUIView(_ scrollView: UIScrollView, context: Context) {
         let c = context.coordinator
+        c.onVisibleSectionChanged = { idx in
+            DispatchQueue.main.async { self.visibleSectionIndex = idx }
+        }
 
         let isDupNow    = duplicateResult != nil
         let wasDup      = c.duplicateResult != nil
@@ -258,7 +262,17 @@ struct IosThumbGridView: UIViewRepresentable {
                 targetIndexPath = IndexPath(item: index, section: 0)
             }
             if let ip = targetIndexPath {
-                cv?.scrollToItem(at: ip, at: .centeredVertically, animated: true)
+                // When date-grouped, align the section header to the top of the scroll view
+                if isDateGrouped,
+                   let headerAttrs = cv?.layoutAttributesForSupplementaryElement(
+                       ofKind: UICollectionView.elementKindSectionHeader,
+                       at: IndexPath(item: 0, section: ip.section)),
+                   let cv = cv {
+                    let offsetY = max(0, headerAttrs.frame.minY - cv.adjustedContentInset.top)
+                    cv.setContentOffset(CGPoint(x: 0, y: offsetY), animated: true)
+                } else {
+                    cv?.scrollToItem(at: ip, at: .centeredVertically, animated: true)
+                }
             }
             DispatchQueue.main.async { self.scrollToPhotoId = nil }
         }
@@ -295,6 +309,7 @@ struct IosThumbGridView: UIViewRepresentable {
         var sortOption: ThumbGridViewModel.SortOption = .name
         weak var collectionView: UICollectionView?
         weak var scrollView: UIScrollView?
+        var onVisibleSectionChanged: ((Int) -> Void)?
 
         private var isScrolling = false
         private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
@@ -381,6 +396,22 @@ struct IosThumbGridView: UIViewRepresentable {
         }
 
         // MARK: UIScrollViewDelegate
+
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            guard let cv = collectionView, isDateGrouped else { return }
+            let topY = scrollView.contentOffset.y + scrollView.adjustedContentInset.top
+            let layout = cv.collectionViewLayout as? UICollectionViewFlowLayout
+            var activeSection = 0
+            for section in 0..<dateGroups.count {
+                let ip = IndexPath(item: 0, section: section)
+                guard let attrs = layout?.layoutAttributesForSupplementaryView(
+                    ofKind: UICollectionView.elementKindSectionHeader, at: ip) else { continue }
+                if attrs.frame.minY <= topY + 1 {
+                    activeSection = section
+                }
+            }
+            onVisibleSectionChanged?(activeSection)
+        }
 
         func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
             isScrolling = true

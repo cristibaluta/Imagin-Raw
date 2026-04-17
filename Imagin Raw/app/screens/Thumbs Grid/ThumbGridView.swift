@@ -38,6 +38,7 @@ struct ThumbGridView: View {
 
     @State private var useCollectionView = true
     @State private var scrollToPhotoId: UUID? = nil
+    @State private var visibleSectionIndex: Int = 0
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
     @State private var showDuplicatesSheet: Bool = false
@@ -76,10 +77,17 @@ struct ThumbGridView: View {
                 EmptyStateView(viewModel: viewModel)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                if useCollectionView {
-                    collectionPhotoGridView
-                } else {
-                    swiftUIPhotoGridView
+                HStack(spacing: 0) {
+                    if !viewModel.dateGroups.isEmpty {
+                        MinimapView(
+                            groups: viewModel.dateGroups,
+                            onScrollTo: { photoId in scrollToPhotoId = photoId },
+                            visibleSectionIndex: visibleSectionIndex)
+                    if useCollectionView {
+                        collectionPhotoGridView
+                    } else {
+                        swiftUIPhotoGridView
+                    }
                 }
             }
             if !viewModel.photos.isEmpty {
@@ -208,6 +216,7 @@ struct ThumbGridView: View {
             dateGroups: viewModel.dateGroups,
             sortOption: viewModel.sortOption,
             scrollToPhotoId: $scrollToPhotoId,
+            visibleSectionIndex: $visibleSectionIndex,
             onKeyPress: { event in
                 viewModel.handleKeyEvent(
                     event,
@@ -305,7 +314,8 @@ struct ThumbGridView: View {
             },
             dateGroups: viewModel.dateGroups,
             sortOption: viewModel.sortOption,
-            scrollToPhotoId: $scrollToPhotoId
+            scrollToPhotoId: $scrollToPhotoId,
+            visibleSectionIndex: $visibleSectionIndex
         )
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
