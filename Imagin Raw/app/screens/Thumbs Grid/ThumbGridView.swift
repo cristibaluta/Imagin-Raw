@@ -83,6 +83,7 @@ struct ThumbGridView: View {
                             groups: viewModel.dateGroups,
                             onScrollTo: { photoId in scrollToPhotoId = photoId },
                             visibleSectionIndex: visibleSectionIndex)
+                    }
                     if useCollectionView {
                         collectionPhotoGridView
                     } else {
