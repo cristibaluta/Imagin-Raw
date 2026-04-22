@@ -191,7 +191,7 @@ struct MinimapView: View {
     @State private var tooltipWindow = TooltipWindow()
 #endif
 
-    private let width: CGFloat = 10
+    static let width: CGFloat = 6
     private let spacing: CGFloat = 2
     private let minSquareHeight: CGFloat = 4
 
@@ -206,16 +206,16 @@ struct MinimapView: View {
 
                     RoundedRectangle(cornerRadius: 2)
                         .fill(isActive
-                              ? Color.accentColor
+                              ? Color.secondary
                               : Color.secondary.opacity(hoveredIndex == index ? 0.65 : 0.3))
-                        .frame(width: width, height: squareH)
+                        .frame(width: MinimapView.width, height: squareH)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             if let first = group.photos.first {
                                 onScrollTo(first.id)
                             }
                         }
-#if os(macOS)
+                        #if os(macOS)
                         .overlay(
                             MinimapItemTracker(
                                 onEnter: { screenPt in
@@ -231,13 +231,13 @@ struct MinimapView: View {
                                 }
                             )
                         )
-#endif
+                        #endif
                 }
             }
-            .frame(width: width, alignment: .center)
+            .frame(width: MinimapView.width, alignment: .center)
             .frame(maxHeight: .infinity, alignment: .top)
         }
-        .frame(width: width)
+        .frame(width: MinimapView.width)
     }
 
     private func squareHeight(for availableHeight: CGFloat) -> CGFloat {

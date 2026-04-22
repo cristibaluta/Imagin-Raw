@@ -22,6 +22,13 @@ private struct ReviewGroupItemID: Identifiable {
     let id = UUID()
 }
 
+struct GridWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 450
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct ThumbGridView: View {
     @StateObject private var viewModel: ThumbGridViewModel
     @EnvironmentObject var externalAppManager: ExternalAppManager

@@ -350,8 +350,6 @@ class ThumbGridViewModel: ObservableObject {
     private static let sidebarWidth: CGFloat = 200
     private static let previewMinWidth: CGFloat = 280
     private static let gap: CGFloat = 3
-    /// Width of the minimap column shown when sorted by date
-    private static let minimapWidth: CGFloat = 20
 
     /// For .large: how many thumb columns fit in the available space between sidebar and preview panel.
     /// For .small: fixed 3 columns.
@@ -377,7 +375,7 @@ class ThumbGridViewModel: ObservableObject {
         let thumbsWidth = cols * thumbSize + (cols + 1) * Self.gap
         // Add minimap width so the NavigationSplitView content column is wide enough to fit both
         let showMinimap = !dateGroups.isEmpty && !isDuplicateMode
-        let minimap = showMinimap ? Self.minimapWidth : 0
+        let minimap = showMinimap ? MinimapView.width : 0
         return thumbsWidth + minimap
     }
 

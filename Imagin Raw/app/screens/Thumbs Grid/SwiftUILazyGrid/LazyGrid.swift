@@ -216,10 +216,3 @@ struct PhotoGridView: View {
     }
     
 }
-
-struct GridWidthPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 450
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
