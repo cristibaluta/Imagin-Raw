@@ -7,6 +7,17 @@
 
 import Foundation
 
+struct PhotoApp: Identifiable, Hashable {
+    let id = UUID()
+    let name: String
+    let bundleIdentifier: String
+    let url: URL
+
+    var displayName: String {
+        return name
+    }
+}
+
 #if os(macOS)
 class ExternalAppManager: ObservableObject {
 

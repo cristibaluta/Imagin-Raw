@@ -7,17 +7,6 @@
 
 import SwiftUI
 
-struct PhotoApp: Identifiable, Hashable {
-    let id = UUID()
-    let name: String
-    let bundleIdentifier: String
-    let url: URL
-
-    var displayName: String {
-        return name
-    }
-}
-
 struct ContentView: View {
     @StateObject private var filesModel = FilesModel()
     @StateObject private var externalAppManager = ExternalAppManager()
@@ -82,78 +71,76 @@ struct ContentView: View {
 
     var body: some View {
         GeometryReader { geo in
-        ZStack {
-            // Main app content
-            Group {
-                // Show splash screen if no folders are added
-                if filesModel.rootFolders.isEmpty {
-                    SplashScreenView()
-                        #if os(macOS)
-                        .frame(minWidth: 800, minHeight: 600)
-                        #endif
-                        .environmentObject(filesModel)
-                } else {
-                    navigationSplitView
-                        .navigationTitle(reviewGroup == nil ? "Imagin Raw" : reviewTitle)
-                        #if os(macOS)
-                        .navigationSubtitle(reviewGroup == nil ? navigationTitle : reviewSubtitle)
-                        #endif
-                        .onChange(of: columnVisibilityStorage) { _, newValue in
-                            isSidebarCollapsed = (newValue == "doubleColumn")
-                        }
-                        .toolbar {
-                            toolbarContent
-                        }
-                        .onAppear {
-                            isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
-                        }
-                        #if os(macOS)
-                        .frame(minWidth: 800, minHeight: 800)
-                        .focusable()
-                        .focusEffectDisabled()
-                        #endif
+            ZStack {
+                // Main app content
+                Group {
+                    // Show splash screen if no folders are added
+                    if filesModel.rootFolders.isEmpty {
+                        SplashScreenView()
+                            .environmentObject(filesModel)
+                    } else {
+                        navigationSplitView
+                            .navigationTitle("Imagin Raw")
+                            #if os(macOS)
+                            .navigationSubtitle(navigationSubtitle)
+                            .focusable()
+                            .focusEffectDisabled()
+                            #endif
+                            .environmentObject(filesModel)
+                            .environmentObject(externalAppManager)
+                            .toolbar {
+                                toolbarContent
+                            }
+                            .onChange(of: columnVisibilityStorage) { _, newValue in
+                                isSidebarCollapsed = (newValue == "doubleColumn")
+                            }
+                            .onAppear {
+                                isSidebarCollapsed = (columnVisibilityStorage == "doubleColumn")
+                            }
+                    }
+                }
+
+                // Full-screen duplicate group review — covers entire app
+                if let rg = reviewGroup {
+                    ReviewView(group: rg.group,
+                               groupIndex: rg.index,
+                               onRatingChanged: rg.onRatingChanged,
+                               onApprove: rg.onApprove,
+                               onMarkForDeletion: rg.onMarkForDeletion,
+                               onDismiss: { reviewGroup = nil },
+                               totalGroups: rg.totalGroups,
+                               onNavigate: rg.onNavigate)
+                    .id(rg.group.id)
+                    .transition(.opacity)
+                    .zIndex(100)
                 }
             }
-
-            // Full-screen duplicate group review — covers entire app
-            if let rg = reviewGroup {
-                ReviewView(
-                    group: rg.group,
-                    groupIndex: rg.index,
-                    onRatingChanged: rg.onRatingChanged,
-                    onApprove: rg.onApprove,
-                    onMarkForDeletion: rg.onMarkForDeletion,
-                    onDismiss: { reviewGroup = nil },
-                    totalGroups: rg.totalGroups,
-                    onNavigate: rg.onNavigate
-                )
-                .id(rg.group.id)
-                .transition(.opacity)
-                .zIndex(100)
+            #if os(macOS)
+            .frame(minWidth: 900, minHeight: 600)
+            #endif
+            .preferredColorScheme(.dark)
+            .onChange(of: geo.size.width) { _, w in
+                windowWidth = w
             }
-        }
-        .preferredColorScheme(.dark)
-        .onChange(of: geo.size.width) { _, w in
-            windowWidth = w
-        }
-        .onAppear {
-            windowWidth = geo.size.width
-        }
+            .onAppear {
+                windowWidth = geo.size.width
+            }
         } // GeometryReader
     }
 
-    private var navigationTitle: String {
+    private var navigationSubtitle: String {
         let url: URL
         if let photo = filesModel.selectedPhoto {
             url = URL(fileURLWithPath: photo.path)
         } else if let folder = navigationDocumentURL {
             url = folder
         } else {
-            return "Imagin Raw"
+            return ""
         }
         let pathComponents = url.pathComponents.filter { $0 != "/" }
         let folders = pathComponents.dropLast().map { $0 }
         let last = " \(pathComponents.last ?? " ")"
+
         return (folders + [last]).joined(separator: " 〉")
     }
 
@@ -162,26 +149,21 @@ struct ContentView: View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             // Left sidebar: folders
             sidebarView
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 250)
-            .environmentObject(filesModel)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 250)
         } content: {
             // Middle: thumbnails
             thumbGridView
-            .onPreferenceChange(GridWidthPreferenceKey.self) { width in
-                contentColumnWidth = width
-            }
-            .navigationSplitViewColumnWidth(
-                min: contentColumnWidth,
-                ideal: contentColumnWidth,
-                max: contentColumnWidth
-            )
+                .onPreferenceChange(GridWidthPreferenceKey.self) { width in
+                    contentColumnWidth = width
+                }
+                .navigationSplitViewColumnWidth(min: contentColumnWidth,
+                                                ideal: contentColumnWidth,
+                                                max: contentColumnWidth)
         }
         detail: {
             detailView
-            .navigationSplitViewColumnWidth(min: 280, ideal: 600)
+                .navigationSplitViewColumnWidth(min: 280, ideal: 600)
         }
-        .environmentObject(filesModel)
-        .environmentObject(externalAppManager)
         #elseif os(iOS)
         NavigationSplitView(columnVisibility: columnVisibility) {
             sidebarView
@@ -202,8 +184,6 @@ struct ContentView: View {
                     }
             }
         }
-        .environmentObject(filesModel)
-        .environmentObject(externalAppManager)
         .onChange(of: filesModel.selectedPhoto) { _, newVal in
             print("📌 [ContentView] selectedPhoto changed → \(newVal?.path.prefix(40) ?? "nil")")
         }
@@ -211,13 +191,11 @@ struct ContentView: View {
     }
 
     private var sidebarView: some View {
-        SidebarView(
-            searcher: searcher,
-            searchText: $searchText,
-            onDoubleClick: {
-                columnVisibilityStorage = "doubleColumn"
-            }
-        )
+        SidebarView(searcher: searcher,
+                    searchText: $searchText,
+                    onDoubleClick: {
+                        columnVisibilityStorage = "doubleColumn"
+                    })
     }
 
     private var thumbGridView: some View {
