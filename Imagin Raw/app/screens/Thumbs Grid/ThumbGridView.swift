@@ -81,6 +81,10 @@ struct ThumbGridView: View {
         let _ = Self._printChanges()
         let showMinimap = !viewModel.dateGroups.isEmpty && !viewModel.isDuplicateMode
         VStack(spacing: 0) {
+            Rectangle()
+                .fill(Color.secondary.opacity(0.25))
+                .frame(height: 1)
+            
             if viewModel.filteredPhotos.isEmpty {
                 EmptyStateView(viewModel: viewModel)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -100,11 +104,11 @@ struct ThumbGridView: View {
                 }
             }
             if !viewModel.photos.isEmpty {
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.25))
+                    .frame(height: 1)
                 ThumbsBottomBar(viewModel: viewModel, showDuplicatesSheet: $showDuplicatesSheet)
             }
-//            Button("useCollectionView \(useCollectionView)", action: {
-//                useCollectionView.toggle()
-//            })
         }
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth)
         .sheet(item: $copyToViewModel) { vm in

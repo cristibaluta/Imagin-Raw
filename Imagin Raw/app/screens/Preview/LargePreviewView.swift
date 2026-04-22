@@ -41,6 +41,9 @@ struct LargePreviewView: View {
     @ViewBuilder
     private var photoPreviewBody: some View {
         VStack(spacing: 0) {
+            Rectangle()
+                .fill(Color.secondary.opacity(0.25))
+                .frame(height: 1)
             // Image area
             GeometryReader { geo in
                 ZStack(alignment: .center) {
@@ -188,6 +191,9 @@ struct LargePreviewView: View {
                     .frame(height: 40)
                     .background(Color(IRColor.controlBackgroundColor))
                 } else {
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.25))
+                        .frame(height: 1)
                     PreviewBottomBar(photo: photo,
                                      exifInfo: exifInfo,
                                      model: model,

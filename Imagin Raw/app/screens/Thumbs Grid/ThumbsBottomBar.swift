@@ -155,7 +155,7 @@ struct ThumbsBottomBar: View {
             }
         }
         .frame(height: 40)
-        .background(Color(IRColor.controlBackgroundColor))
+//        .background(Color(IRColor.controlBackgroundColor))
     }
 
     private var photoCountText: some View {

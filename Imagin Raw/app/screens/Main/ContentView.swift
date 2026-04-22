@@ -85,6 +85,8 @@ struct ContentView: View {
                             .navigationSubtitle(navigationSubtitle)
                             .focusable()
                             .focusEffectDisabled()
+                            .modifier(ToolbarBackgroundVisibility(isHidden: true))
+//                            .toolbar(.hidden, for: .windowToolbar)// hides the bar including the native buttons
                             #endif
                             .environmentObject(filesModel)
                             .environmentObject(externalAppManager)
@@ -334,5 +336,19 @@ struct ContentView: View {
 
     private func openMultiplePhotosInExternalApp(photos: [PhotoItem]) {
         externalAppManager.openPhotos(photos)
+    }
+}
+
+struct ToolbarBackgroundVisibility: ViewModifier {
+    var isHidden: Bool
+
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content
+                .toolbarBackgroundVisibility(isHidden ? .hidden : .visible, for: .windowToolbar)
+        } else {
+            // Fallback for macOS 14 and earlier
+            content
+        }
     }
 }

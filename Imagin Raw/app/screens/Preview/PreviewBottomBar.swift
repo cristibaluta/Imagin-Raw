@@ -60,6 +60,6 @@ struct PreviewBottomBar: View {
             .help("Export: add borders / change canvas")
         }
         .frame(height: 40)
-        .background(Color(IRColor.controlBackgroundColor))
+//        .background(Color(IRColor.controlBackgroundColor))
     }
 }
