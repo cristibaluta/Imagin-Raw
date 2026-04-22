@@ -86,7 +86,7 @@ struct ContentView: View {
                             .focusable()
                             .focusEffectDisabled()
                             .modifier(ToolbarBackgroundVisibility(isHidden: true))
-//                            .toolbar(.hidden, for: .windowToolbar)// hides the bar including the native buttons
+                            .toolbar(reviewGroup == nil ? .visible : .hidden, for: .windowToolbar)// hides the bar including the native buttons
                             #endif
                             .environmentObject(filesModel)
                             .environmentObject(externalAppManager)
