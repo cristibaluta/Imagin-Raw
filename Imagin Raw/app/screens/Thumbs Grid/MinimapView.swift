@@ -191,7 +191,7 @@ struct MinimapView: View {
     @State private var tooltipWindow = TooltipWindow()
 #endif
 
-    static let width: CGFloat = 6
+    static let width: CGFloat = 16
     private let spacing: CGFloat = 2
     private let minSquareHeight: CGFloat = 4
 
@@ -208,7 +208,8 @@ struct MinimapView: View {
                         .fill(isActive
                               ? Color.secondary
                               : Color.secondary.opacity(hoveredIndex == index ? 0.65 : 0.3))
-                        .frame(width: MinimapView.width, height: squareH)
+                        .frame(width: MinimapView.width-10, height: squareH)
+                        .padding(.leading, 5)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             if let first = group.photos.first {
@@ -234,7 +235,7 @@ struct MinimapView: View {
                         #endif
                 }
             }
-            .frame(width: MinimapView.width, alignment: .center)
+            .frame(width: MinimapView.width-10, alignment: .center)
             .frame(maxHeight: .infinity, alignment: .top)
         }
         .frame(width: MinimapView.width)
