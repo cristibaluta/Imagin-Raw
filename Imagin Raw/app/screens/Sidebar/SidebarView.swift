@@ -154,7 +154,7 @@ struct SidebarView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
-            .background(Color(IRColor.controlBackgroundColor))
+//            .background(Color(IRColor.controlBackgroundColor))
         }
         .fileImporter(
             isPresented: $showingFolderPicker,
