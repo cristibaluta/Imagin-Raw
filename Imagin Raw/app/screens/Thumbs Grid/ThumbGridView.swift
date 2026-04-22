@@ -318,23 +318,33 @@ struct ThumbGridView: View {
             sortOption: viewModel.sortOption,
             scrollToPhotoId: $scrollToPhotoId,
             visibleSectionIndex: $visibleSectionIndex,
-            thumbsManager: viewModel.thumbsManager
+            thumbsManager: viewModel.thumbsManager,
+            isLoadingMetadata: viewModel.isLoadingMetadata,
+            onStartSelectMode: { photo in
+                isSelectMode = true
+                viewModel.handlePhotoTap(photo: photo, modifiers: .none)
+            },
+            onEndSelectMode: {
+                isSelectMode = false
+                viewModel.selectedPhotos.removeAll()
+            }
         )
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button(isSelectMode ? "Cancel" : "Select") {
-                    isSelectMode.toggle()
-                    if !isSelectMode {
+                if isSelectMode {
+                    Button("End Selection") {
+                        isSelectMode = false
                         viewModel.selectedPhotos.removeAll()
                     }
                 }
             }
         }
-        .onChange(of: viewModel.filteredPhotos) { _, newPhotos in
+        .onChange(of: viewModel.filteredPhotos) { oldPhotos, newPhotos in
             currentPhotos = newPhotos
             let url = filesModel.selectedFolder?.url
             let isPhotoKit = url?.isPhotoLibraryRoot == true || url?.isPhotoKitAlbum == true
-            if isPhotoKit, let last = newPhotos.last {
+            // Only scroll when photos are actually added, not on metadata updates
+            if isPhotoKit, newPhotos.count > oldPhotos.count, let last = newPhotos.last {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     scrollToPhotoId = last.id
                 }

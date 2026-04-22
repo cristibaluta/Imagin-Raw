@@ -29,7 +29,10 @@ final class IosThumbCell: UICollectionViewCell {
     private var currentPhoto: PhotoItem?
     private var callbacks: ThumbCellCallbacks?
     private var itemSize: CGFloat = 100
+    private var isSelectMode: Bool = false
     private weak var thumbsManager: ThumbsManager!
+    var onSelectFromHere: (() -> Void)?
+    var onEndSelection: (() -> Void)?
 
     // MARK: - Init
 
@@ -172,6 +175,7 @@ final class IosThumbCell: UICollectionViewCell {
         self.callbacks = callbacks
         self.itemSize = itemSize
         self.thumbsManager = thumbsManager
+        self.isSelectMode = isSelectMode
 
         let pathChanged = currentPath != photo.path
         currentPath = photo.path
@@ -258,6 +262,14 @@ final class IosThumbCell: UICollectionViewCell {
         sheet.addAction(UIAlertAction(title: "Review Photos", style: .default) { [weak self] _ in
             self?.callbacks?.onReviewSelected(photo)
         })
+        sheet.addAction(UIAlertAction(title: "Select from here", style: .default) { [weak self] _ in
+            self?.onSelectFromHere?()
+        })
+        if isSelectMode {
+            sheet.addAction(UIAlertAction(title: "End Selection", style: .default) { [weak self] _ in
+                self?.onEndSelection?()
+            })
+        }
         sheet.addAction(UIAlertAction(title: "Copy to...", style: .default) { [weak self] _ in
             self?.callbacks?.onCopyTo(photo)
         })

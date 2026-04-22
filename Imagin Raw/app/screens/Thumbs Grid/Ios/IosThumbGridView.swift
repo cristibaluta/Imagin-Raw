@@ -110,6 +110,9 @@ struct IosThumbGridView: UIViewRepresentable {
     @Binding var scrollToPhotoId: UUID?
     @Binding var visibleSectionIndex: Int
     var thumbsManager: ThumbsManager
+    var isLoadingMetadata: Bool = false
+    var onStartSelectMode: ((PhotoItem) -> Void)? = nil
+    var onEndSelectMode: (() -> Void)? = nil
 
     private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
 
@@ -207,6 +210,8 @@ struct IosThumbGridView: UIViewRepresentable {
         c.onSelectToggle  = onSelectToggle
         c.onNavigate      = onNavigate
         c.onSelectRange   = onSelectRange
+        c.onStartSelectMode = onStartSelectMode
+        c.onEndSelectMode = onEndSelectMode
 
         if modeChanged {
             buildCollectionView(in: scrollView, context: context)
@@ -216,14 +221,30 @@ struct IosThumbGridView: UIViewRepresentable {
         let cv = c.collectionView
 
         if photosChanged || sizeChanged || dupChanged || dateGroupsChanged {
-            if sizeChanged {
-                let hasHeaders = duplicateResult != nil || isDateGrouped
-                if let layout = cv?.collectionViewLayout as? UICollectionViewFlowLayout {
-                    layout.headerReferenceSize = hasHeaders ? CGSize(width: 0, height: 32) : .zero
+            // While metadata is still loading, dates/labels on photos change frequently.
+            // Calling reloadData() resets the scroll position every time, making the
+            // grid unusable. Only do a full reload once metadata has finished loading.
+            if isLoadingMetadata && !sizeChanged && !modeChanged {
+                cv?.indexPathsForVisibleItems.forEach { ip in
+                    guard let cell = cv?.cellForItem(at: ip) as? IosThumbCell,
+                          let path = cell.currentPath,
+                          let photo = latestMap.values.first(where: { $0.path == path }) else {
+                        return
+                    }
+                    let isSelected = selectedPhotos.contains(photo.id)
+                    cell.configure(with: photo, isSelected: isSelected, isSelectMode: isSelectMode,
+                                   itemSize: itemSize, thumbsManager: thumbsManager, callbacks: callbacks)
                 }
-                cv?.collectionViewLayout.invalidateLayout()
+            } else {
+                if sizeChanged {
+                    let hasHeaders = duplicateResult != nil || isDateGrouped
+                    if let layout = cv?.collectionViewLayout as? UICollectionViewFlowLayout {
+                        layout.headerReferenceSize = hasHeaders ? CGSize(width: 0, height: 32) : .zero
+                    }
+                    cv?.collectionViewLayout.invalidateLayout()
+                }
+                cv?.reloadData()
             }
-            cv?.reloadData()
         } else {
             cv?.indexPathsForVisibleItems.forEach { ip in
                 guard let cell = cv?.cellForItem(at: ip) as? IosThumbCell,
@@ -304,6 +325,8 @@ struct IosThumbGridView: UIViewRepresentable {
         var selectFromIndexPath: IndexPath?
         /// Called when a range selection is committed — passes all photos in the range.
         var onSelectRange: (([PhotoItem]) -> Void)?
+        var onStartSelectMode: ((PhotoItem) -> Void)?
+        var onEndSelectMode: (() -> Void)?
         var duplicateResult: DuplicateScanResult? = nil
         var onReview: ((DuplicateGroup, Int) -> Void)?
         var photosById: [String: PhotoItem] = [:]
@@ -365,6 +388,14 @@ struct IosThumbGridView: UIViewRepresentable {
                            thumbsManager: thumbsManager,
                            priority: priority,
                            callbacks: callbacks)
+            cell.onSelectFromHere = { [weak self] in
+                guard let self else { return }
+                self.selectFromIndexPath = self.collectionView?.indexPath(for: cell)
+                self.onStartSelectMode?(photo)
+            }
+            cell.onEndSelection = { [weak self] in
+                self?.onEndSelectMode?()
+            }
             return cell
         }
 
@@ -501,48 +532,6 @@ struct IosThumbGridView: UIViewRepresentable {
             }
             let photo = photosForSection(indexPath.section)[indexPath.item]
             onSelectToggle?(photo)
-        }
-
-        // MARK: Context menu
-
-        func collectionView(_ collectionView: UICollectionView,
-                            contextMenuConfigurationForItemAt indexPath: IndexPath,
-                            point: CGPoint) -> UIContextMenuConfiguration? {
-            guard isSelectMode else {
-                return nil
-            }
-
-            return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
-                guard let self else {
-                    return UIMenu(title: "", children: [])
-                }
-
-                var actions: [UIAction] = []
-
-                let fromAction = UIAction(
-                    title: "Select from here",
-                    image: UIImage(systemName: "arrow.down.right.square")
-                ) { [weak self] _ in
-                    guard let self else { return }
-                    self.selectFromIndexPath = indexPath
-                    let photo = self.photosForSection(indexPath.section)[indexPath.item]
-                    self.onSelectToggle?(photo)
-                }
-                actions.append(fromAction)
-
-                if let fromIP = selectFromIndexPath, fromIP != indexPath {
-                    let toAction = UIAction(
-                        title: "Select to here",
-                        image: UIImage(systemName: "arrow.down.left.square")
-                    ) { [weak self] _ in
-                        guard let self else { return }
-                        self.selectRangeFrom(fromIP, to: indexPath)
-                    }
-                    actions.append(toAction)
-                }
-
-                return UIMenu(title: "", children: actions)
-            }
         }
 
         private func selectRangeFrom(_ from: IndexPath, to: IndexPath) {
