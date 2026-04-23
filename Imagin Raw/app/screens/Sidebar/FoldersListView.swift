@@ -34,6 +34,7 @@ struct FoldersListView: View {
             .onDelete(perform: deleteFolders)
         }
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)// removes sidebar header bg color
         .focusable(false)
         .onAppear {
             loadExpandedState()
@@ -104,7 +105,7 @@ struct FoldersListView: View {
     }
     #elseif os(iOS)
     private func deleteFolders(offsets: IndexSet) {
-        
+
     }
     #endif
 

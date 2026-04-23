@@ -74,7 +74,7 @@ struct SidebarView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color(IRColor.windowBackgroundColor))
-                        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                        .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
                 )
                 .padding(.horizontal, 10)
                 .padding(.top, 8)
