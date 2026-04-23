@@ -4,7 +4,7 @@ import ImageIO
 import RCPreferences
 
 @MainActor
-class LargePreviewViewModel: ObservableObject {
+class PreviewViewModel: ObservableObject {
     @Published var preview: IRImage?
     @Published var isLoading = false
     @Published var exifInfo: ExifInfo?

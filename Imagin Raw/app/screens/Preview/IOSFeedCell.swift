@@ -24,7 +24,7 @@ final class IOSFeedCell: UICollectionViewCell {
     private let lensLabel     = UILabel()
 
     // MARK: - ViewModel  (one per cell, lives as long as the cell)
-    private let viewModel = LargePreviewViewModel()
+    private let viewModel = PreviewViewModel()
     private var cancellables = Set<AnyCancellable>()
 
     private(set) var currentPath: String?

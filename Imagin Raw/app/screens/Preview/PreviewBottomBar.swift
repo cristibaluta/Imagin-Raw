@@ -8,7 +8,7 @@ import SwiftUI
 struct PreviewBottomBar: View {
     let photo: PhotoItem
     let exifInfo: ExifInfo
-    let model: LargePreviewViewModel
+    let model: PreviewViewModel
     @Binding var showExportPanel: Bool
 
     var body: some View {

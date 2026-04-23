@@ -16,9 +16,9 @@ struct Layout {
     let imgOffY: CGFloat
 }
 
-struct LargePreviewView: View {
+struct PreviewView: View {
     let photo: PhotoItem
-    @StateObject private var model = LargePreviewViewModel()
+    @StateObject private var model = PreviewViewModel()
     @State private var gridType: ThumbGridViewModel.GridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
     @State private var showExportPanel = false
     @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .r4x5

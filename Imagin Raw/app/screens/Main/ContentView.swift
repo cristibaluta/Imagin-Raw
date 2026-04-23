@@ -243,7 +243,7 @@ struct ContentView: View {
     private var detailView: some View {
         Group {
             if let photo = filesModel.selectedPhoto {
-                LargePreviewView(photo: photo)
+                PreviewView(photo: photo)
                     .id(photo.id)
             } else {
                 ShortcutsHelpView()
