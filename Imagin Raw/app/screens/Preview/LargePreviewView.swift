@@ -150,7 +150,10 @@ struct LargePreviewView: View {
                 if gridType == .large {
                     ExifColumnView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(IRColor.controlBackgroundColor))
+//                        .background(Color(IRColor.controlBackgroundColor))
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.25))
+                        .frame(height: 1)
                     HStack(spacing: 0) {
                         Spacer()
                         Rectangle()
@@ -189,7 +192,7 @@ struct LargePreviewView: View {
                         .help("Export: add borders / change canvas")
                     }
                     .frame(height: 40)
-                    .background(Color(IRColor.controlBackgroundColor))
+//                    .background(Color(IRColor.controlBackgroundColor))
                 } else {
                     Rectangle()
                         .fill(Color.secondary.opacity(0.25))

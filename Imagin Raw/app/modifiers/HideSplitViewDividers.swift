@@ -68,13 +68,29 @@ struct SplitViewDividerRemover: NSViewRepresentable {
     }
 }
 
-/// NSSplitView subclass that returns a clear divider color
+/// NSSplitView subclass that returns a clear, non-interactive divider
 private final class TransparentDividerSplitView: NSSplitView {
+
     override var dividerColor: NSColor {
         return .clear
     }
 
     override var dividerThickness: CGFloat {
         return 0
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        // Let all clicks pass through to subviews — never return self as the hit view
+        // This prevents the divider from being draggable
+        let hit = super.hitTest(point)
+        return hit === self ? nil : hit
+    }
+
+    override func resetCursorRects() {
+        // No cursor rects — prevents the resize cursor from appearing on the divider
+    }
+
+    override func setPosition(_ position: CGFloat, ofDividerAt dividerIndex: Int) {
+        // No-op — prevent any resize
     }
 }
