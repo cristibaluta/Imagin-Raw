@@ -180,11 +180,19 @@ private struct MinimapItemTracker: NSViewRepresentable {
 
 // MARK: - MinimapView
 
+enum MinimapStyle {
+    /// Proportional rectangles that fill available height
+    case proportional
+    /// Fixed 10px circles equally spaced, centered vertically
+    case compact
+}
+
 struct MinimapView: View {
     let groups: [(title: String, photos: [PhotoItem])]
     let onScrollTo: (UUID) -> Void
     /// Index of the section currently at the top of the scroll view.
     let visibleSectionIndex: Int
+    var style: MinimapStyle = .compact
 
     @State private var hoveredIndex: Int? = nil
 #if os(macOS)
@@ -195,54 +203,95 @@ struct MinimapView: View {
     private let spacing: CGFloat = 2
     private let minSquareHeight: CGFloat = 4
 
-    var body: some View {
-        GeometryReader { geo in
-            let availableHeight = geo.size.height
-            let squareH = squareHeight(for: availableHeight)
+    // Compact style constants
+    private let circleSize: CGFloat = 8
+    private let circleSpacing: CGFloat = 6
 
+    var body: some View {
+        switch style {
+        case .proportional:
+            proportionalBody
+        case .compact:
+            compactBody
+        }
+    }
+
+    // MARK: Proportional
+
+    private var proportionalBody: some View {
+        GeometryReader { geo in
+            let squareH = squareHeight(for: geo.size.height)
             VStack(spacing: spacing) {
                 ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
-                    let isActive = index == visibleSectionIndex
-
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(isActive
-                              ? Color.secondary
-                              : Color.secondary.opacity(hoveredIndex == index ? 0.65 : 0.3))
-                        .frame(width: MinimapView.width-10, height: squareH)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            if let first = group.photos.first {
-                                onScrollTo(first.id)
-                            }
-                        }
-                        #if os(macOS)
-                        .overlay(
-                            MinimapItemTracker(
-                                onEnter: { screenPt in
-                                    withAnimation(.easeInOut(duration: 0.1)) { hoveredIndex = index }
-                                    tooltipWindow.show(text: group.title, near: screenPt)
-                                },
-                                onMove: { screenPt in
-                                    tooltipWindow.show(text: group.title, near: screenPt)
-                                },
-                                onExit: {
-                                    withAnimation(.easeInOut(duration: 0.1)) { hoveredIndex = nil }
-                                    tooltipWindow.hide()
-                                }
-                            )
-                        )
-                        #endif
+                    minimapItem(index: index, group: group)
+                        .frame(width: MinimapView.width - 10, height: squareH)
+                        .clipShape(RoundedRectangle(cornerRadius: 2))
                 }
             }
-            .frame(width: MinimapView.width-10, alignment: .center)
+            .frame(width: MinimapView.width - 10, alignment: .center)
             .frame(maxHeight: .infinity, alignment: .top)
             .padding(.leading, 5)
         }
         .frame(width: MinimapView.width)
     }
 
+    // MARK: Compact
+
+    private var compactBody: some View {
+        GeometryReader { geo in
+            let count = CGFloat(groups.count)
+            let totalH = count * circleSize + max(0, count - 1) * circleSpacing
+            let topOffset = (geo.size.height - totalH) / 2
+
+            VStack(spacing: circleSpacing) {
+                ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
+                    minimapItem(index: index, group: group)
+                        .frame(width: circleSize, height: circleSize)
+                        .clipShape(Circle())
+                }
+            }
+            .frame(width: MinimapView.width)
+            .offset(y: max(0, topOffset))
+        }
+        .frame(width: MinimapView.width)
+    }
+
+    // MARK: Shared item
+
+    @ViewBuilder
+    private func minimapItem(index: Int, group: (title: String, photos: [PhotoItem])) -> some View {
+        let isActive = index == visibleSectionIndex
+        Color.secondary
+            .opacity(isActive ? 1.0 : hoveredIndex == index ? 0.65 : 0.3)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if let first = group.photos.first {
+                    onScrollTo(first.id)
+                }
+            }
+            #if os(macOS)
+            .overlay(
+                MinimapItemTracker(
+                    onEnter: { screenPt in
+                        withAnimation(.easeInOut(duration: 0.1)) { hoveredIndex = index }
+                        tooltipWindow.show(text: group.title, near: screenPt)
+                    },
+                    onMove: { screenPt in
+                        tooltipWindow.show(text: group.title, near: screenPt)
+                    },
+                    onExit: {
+                        withAnimation(.easeInOut(duration: 0.1)) { hoveredIndex = nil }
+                        tooltipWindow.hide()
+                    }
+                )
+            )
+            #endif
+    }
+
     private func squareHeight(for availableHeight: CGFloat) -> CGFloat {
-        guard !groups.isEmpty else { return minSquareHeight }
+        guard !groups.isEmpty else {
+            return minSquareHeight
+        }
         let totalSpacing = spacing * CGFloat(groups.count - 1)
         let raw = (availableHeight - totalSpacing) / CGFloat(groups.count)
         return max(minSquareHeight, raw)
