@@ -209,7 +209,6 @@ struct MinimapView: View {
                               ? Color.secondary
                               : Color.secondary.opacity(hoveredIndex == index ? 0.65 : 0.3))
                         .frame(width: MinimapView.width-10, height: squareH)
-                        .padding(.leading, 5)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             if let first = group.photos.first {
@@ -237,6 +236,7 @@ struct MinimapView: View {
             }
             .frame(width: MinimapView.width-10, alignment: .center)
             .frame(maxHeight: .infinity, alignment: .top)
+            .padding(.leading, 5)
         }
         .frame(width: MinimapView.width)
     }
