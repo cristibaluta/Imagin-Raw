@@ -376,7 +376,8 @@ class ThumbGridViewModel: ObservableObject {
         // Add minimap width so the NavigationSplitView content column is wide enough to fit both
         let showMinimap = !dateGroups.isEmpty && !isDuplicateMode
         let minimap = showMinimap ? MinimapView.width : 0
-        return thumbsWidth + minimap
+        let separator: CGFloat = 1
+        return thumbsWidth + minimap + separator
     }
 
     // MARK: - Caching Progress

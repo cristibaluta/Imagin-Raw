@@ -101,6 +101,9 @@ struct ThumbGridView: View {
                     } else {
                         swiftUIPhotoGridView
                     }
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.25))
+                        .frame(width: 1)
                 }
             }
             if !viewModel.photos.isEmpty {
