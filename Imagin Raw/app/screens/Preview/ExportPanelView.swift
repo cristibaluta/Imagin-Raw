@@ -25,17 +25,8 @@ struct ExportPanelView: View {
         VStack(alignment: .leading, spacing: 16) {
 
             // Header
-            HStack {
-                Text("Export for Instagram")
-                    .font(.headline)
-                Spacer()
-                Button(action: { isPresented = false }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
-                        .font(.title3)
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
+            Text("Export for Instagram")
+                .font(.headline)
 
             Divider()
 
@@ -151,7 +142,15 @@ struct ExportPanelView: View {
 
             // Save button
             HStack {
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                        .font(.title3)
+                }
+                .buttonStyle(PlainButtonStyle())
+
                 Spacer()
+
                 Button(action: export) {
                     HStack(spacing: 6) {
                         if isExporting {
@@ -167,6 +166,7 @@ struct ExportPanelView: View {
                 .disabled(isExporting)
             }
         }
+        .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 10)
                 .fill(Color(IRColor.windowBackgroundColor))

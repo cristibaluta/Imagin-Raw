@@ -61,12 +61,11 @@ struct PreviewView: View {
                             VStack {
                                 if !effectiveAlignToTopLeft { Spacer(minLength: 0) }
                                 if showExportPanel {
-                                    ExportCanvasPreview(
-                                        image: nsImage,
-                                        geo: geo,
-                                        targetRatio: exportRatio,
-                                        padding: exportPadding,
-                                        alignment: exportAlignment
+                                    ExportCanvasPreview(image: nsImage,
+                                                        geo: geo,
+                                                        targetRatio: exportRatio,
+                                                        padding: exportPadding,
+                                                        alignment: exportAlignment
                                     )
                                 } else {
                                     Image(nsImage: nsImage)
@@ -110,14 +109,13 @@ struct PreviewView: View {
                             Spacer()
                             HStack {
                                 Spacer()
-                                ExportPanelView(
-                                    photo: photo,
-                                    pixelSize: exportPixelSize(for: model.preview),
-                                    isPresented: $showExportPanel,
-                                    selectedRatio: $exportRatio,
-                                    padding: $exportPadding,
-                                    alignment: $exportAlignment
-                                )
+                                ExportPanelView(photo: photo,
+                                                pixelSize: exportPixelSize(for: model.preview),
+                                                isPresented: $showExportPanel,
+                                                selectedRatio: $exportRatio,
+                                                padding: $exportPadding,
+                                                alignment: $exportAlignment)
+                                .frame(width: 280)
                                 .padding(12)
                             }
                         }
