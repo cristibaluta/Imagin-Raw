@@ -153,6 +153,10 @@ struct ThumbsBottomBar: View {
             } else {
                 photoCountText
             }
+
+            Rectangle()
+                .fill(Color.secondary.opacity(0.25))
+                .frame(width: 1, height: 14)
         }
         .frame(height: 40)
 //        .background(Color(IRColor.controlBackgroundColor))
@@ -179,6 +183,5 @@ struct ThumbsBottomBar: View {
         }
         .font(.caption)
         .lineLimit(1)
-        .padding(.trailing, 8)
     }
 }

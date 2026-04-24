@@ -140,6 +140,8 @@ final class MacThumbCell: NSCollectionViewItem {
 
     private func configureLayers() {
         view.layer?.backgroundColor = NSColor(white: 0.15, alpha: 1).cgColor
+        view.layer?.cornerRadius = 6
+
         selectionBorder.layer?.borderWidth = 0
 
         if let layer = trashContainer.layer {
