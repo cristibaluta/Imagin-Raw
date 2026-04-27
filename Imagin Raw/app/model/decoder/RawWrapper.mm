@@ -373,6 +373,24 @@
             }
         }
 
+        // Extract capture date — priority: EXIF DateTimeOriginal > EXIF DateTimeDigitized > TIFF DateTime
+        // These all map to the moment the shutter was pressed, not the file creation date.
+        NSDictionary *exifDict = properties[(NSString *)kCGImagePropertyExifDictionary];
+        NSDictionary *tiffDict2 = properties[(NSString *)kCGImagePropertyTIFFDictionary];
+        NSString *dateTimeStr = exifDict[(NSString *)kCGImagePropertyExifDateTimeOriginal]
+                             ?: exifDict[(NSString *)kCGImagePropertyExifDateTimeDigitized]
+                             ?: tiffDict2[(NSString *)kCGImagePropertyTIFFDateTime];
+        if (dateTimeStr.length > 0) {
+            // EXIF date format: "YYYY:MM:DD HH:MM:SS"
+            NSDateFormatter *fmt = [[NSDateFormatter alloc] init];
+            fmt.dateFormat = @"yyyy:MM:dd HH:mm:ss";
+            fmt.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+            NSDate *captureDate = [fmt dateFromString:dateTimeStr];
+            if (captureDate) {
+                metadata[@"captureDate"] = captureDate;
+            }
+        }
+
         // Extract resolution
         NSNumber *width = properties[(NSString *)kCGImagePropertyPixelWidth];
         NSNumber *height = properties[(NSString *)kCGImagePropertyPixelHeight];
@@ -434,6 +452,35 @@
         if (librawResolution) {
             metadata[@"width"] = librawResolution[@"width"];
             metadata[@"height"] = librawResolution[@"height"];
+        }
+    }
+
+    // If ImageIO didn't give us a capture date, try LibRaw's timestamp (RAW files)
+    if (!metadata[@"captureDate"]) {
+        __block NSDate *librawDate = nil;
+
+        dispatch_sync([[self class] librawQueue], ^{
+            LibRaw *raw = new LibRaw();
+            @try {
+                if (raw->open_file(path.UTF8String) == LIBRAW_SUCCESS) {
+                    time_t ts = raw->imgdata.other.timestamp;
+                    if (ts > 0) {
+                        librawDate = [NSDate dateWithTimeIntervalSince1970:(NSTimeInterval)ts];
+                    }
+                    raw->recycle();
+                }
+                delete raw;
+            }
+            @catch (NSException *exception) {
+                if (raw) {
+                    raw->recycle();
+                    delete raw;
+                }
+            }
+        });
+
+        if (librawDate) {
+            metadata[@"captureDate"] = librawDate;
         }
     }
 

@@ -143,7 +143,7 @@ final class PhotosModel: ObservableObject {
         }
 
         // Enrich with metadata in parallel
-        return await withTaskGroup(of: (Int, XmpMetadata?, Int?, Bool, Int64?, Int?, Int?, String?, String?).self, returning: [PhotoItem].self) { group in
+        return await withTaskGroup(of: (Int, XmpMetadata?, Int?, Bool, Int64?, Int?, Int?, String?, String?, Date?).self, returning: [PhotoItem].self) { group in
             for (index, photo) in basicPhotos.enumerated() {
                 group.addTask {
                     let url = URL(fileURLWithPath: photo.path)
@@ -162,6 +162,7 @@ final class PhotosModel: ObservableObject {
                     var height: Int? = nil
                     var cameraMake: String? = nil
                     var cameraModel: String? = nil
+                    var captureDate: Date? = nil
 
                     if let metadata = RawWrapper.shared().extractMetadata(photo.path) {
                         inCameraRating = (metadata["rating"] as? NSNumber)?.intValue
@@ -169,21 +170,32 @@ final class PhotosModel: ObservableObject {
                         height = (metadata["height"] as? NSNumber)?.intValue
                         cameraMake = metadata["cameraMake"] as? String
                         cameraModel = metadata["cameraModel"] as? String
+                        captureDate = metadata["captureDate"] as? Date
                     }
 
-                    return (index, xmp, inCameraRating, isRaw, fileSize, width, height, cameraMake, cameraModel)
+                    return (index, xmp, inCameraRating, isRaw, fileSize, width, height, cameraMake, cameraModel, captureDate)
                 }
             }
 
-            for await (index, xmp, rating, isRaw, fileSize, width, height, cameraMake, cameraModel) in group {
+            for await (index, xmp, rating, isRaw, fileSize, width, height, cameraMake, cameraModel, exifDate) in group {
+                let photo = basicPhotos[index]
+                let dateCreated: Date
+                if let exifDate {
+                    dateCreated = exifDate
+                } else if let xmpDateStr = xmp?.createDate,
+                          let parsed = Self.parseXmpDate(xmpDateStr) {
+                    dateCreated = parsed
+                } else {
+                    dateCreated = photo.dateCreated
+                }
                 basicPhotos[index] = PhotoItem(
-                    id: basicPhotos[index].id,
-                    path: basicPhotos[index].path,
+                    id: photo.id,
+                    path: photo.path,
                     xmp: xmp,
-                    dateCreated: basicPhotos[index].dateCreated,
-                    toDelete: basicPhotos[index].toDelete,
-                    hasACR: basicPhotos[index].hasACR,
-                    hasJPG: basicPhotos[index].hasJPG,
+                    dateCreated: dateCreated,
+                    toDelete: photo.toDelete,
+                    hasACR: photo.hasACR,
+                    hasJPG: photo.hasJPG,
                     inCameraRating: rating,
                     isRawFile: isRaw,
                     fileSizeBytes: fileSize,
@@ -195,6 +207,40 @@ final class PhotosModel: ObservableObject {
             }
             return basicPhotos
         }
+    }
+
+    /// Parse an XMP/ISO 8601 date string into a Date.
+    /// Handles formats: "YYYY:MM:DD HH:MM:SS", "YYYY-MM-DDTHH:MM:SS", "YYYY-MM-DDTHH:MM:SS+HH:MM"
+    static func parseXmpDate(_ string: String) -> Date? {
+        let formatters: [DateFormatter] = [
+            {
+                let f = DateFormatter()
+                f.locale = Locale(identifier: "en_US_POSIX")
+                f.dateFormat = "yyyy:MM:dd HH:mm:ss"
+                return f
+            }(),
+            {
+                let f = DateFormatter()
+                f.locale = Locale(identifier: "en_US_POSIX")
+                f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+                return f
+            }(),
+        ]
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = iso.date(from: string) {
+            return d
+        }
+        iso.formatOptions = [.withInternetDateTime]
+        if let d = iso.date(from: string) {
+            return d
+        }
+        for f in formatters {
+            if let d = f.date(from: string) {
+                return d
+            }
+        }
+        return nil
     }
 
     private static func loadPhotosBasic(in folder: FolderItem) -> [PhotoItem] {
@@ -322,7 +368,7 @@ final class PhotosModel: ObservableObject {
             let batch = Array(photos[batchStart..<batchEnd])
 
             // Process one batch off the main thread — extractMetadata is thread-safe
-            let batchResults: [(Int, Int?, Int?, Int?, String?, String?)] = await Task.detached(priority: .utility) {
+            let batchResults: [(Int, Int?, Int?, Int?, String?, String?, Date?)] = await Task.detached(priority: .utility) {
                 batch.enumerated().map { (localIndex, photo) in
                     let globalIndex = batchStart + localIndex
                     var inCameraRating: Int? = nil
@@ -330,27 +376,45 @@ final class PhotosModel: ObservableObject {
                     var height: Int? = nil
                     var cameraMake: String? = nil
                     var cameraModel: String? = nil
+                    var captureDate: Date? = nil
                     if let metadata = RawWrapper.shared().extractMetadata(photo.path) {
                         inCameraRating = (metadata["rating"] as? NSNumber)?.intValue
                         width = (metadata["width"] as? NSNumber)?.intValue
                         height = (metadata["height"] as? NSNumber)?.intValue
                         cameraMake = metadata["cameraMake"] as? String
                         cameraModel = metadata["cameraModel"] as? String
+                        captureDate = metadata["captureDate"] as? Date
                     }
-                    return (globalIndex, inCameraRating, width, height, cameraMake, cameraModel)
+                    return (globalIndex, inCameraRating, width, height, cameraMake, cameraModel, captureDate)
                 }
             }.value
 
-            for (index, rating, width, height, cameraMake, cameraModel) in batchResults {
+            for (index, rating, width, height, cameraMake, cameraModel, exifDate) in batchResults {
                 let photo = photos[index]
                 let url = URL(fileURLWithPath: photo.path)
                 let baseName = url.deletingPathExtension().lastPathComponent
                 let fileExtension = url.pathExtension.lowercased()
+                let xmp = xmpParsed[baseName]
+
+                // Capture date priority:
+                // 1. EXIF DateTimeOriginal from ImageIO/LibRaw (actual shutter press time)
+                // 2. XMP CreateDate from sidecar (set by camera or Lightroom)
+                // 3. Keep existing date (file system creation date, last resort)
+                let captureDate: Date
+                if let exifDate {
+                    captureDate = exifDate
+                } else if let xmpDateStr = xmp?.createDate,
+                          let parsed = Self.parseXmpDate(xmpDateStr) {
+                    captureDate = parsed
+                } else {
+                    captureDate = photo.dateCreated
+                }
+
                 updatedPhotos[index] = PhotoItem(
                     id: photo.id,
                     path: photo.path,
-                    xmp: xmpParsed[baseName],
-                    dateCreated: photo.dateCreated,
+                    xmp: xmp,
+                    dateCreated: captureDate,
                     toDelete: photo.toDelete,
                     hasACR: photo.hasACR,
                     hasJPG: photo.hasJPG,
