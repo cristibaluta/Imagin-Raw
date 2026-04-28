@@ -6,6 +6,7 @@
 //
 import SwiftUI
 
+#if os(macOS)
 // Removes the black divider lines between NavigationSplitView columns on macOS
 // This is needed because on Tahoe there's an overlapping black line between the content and detail columns,
 // covering also the toolbar
@@ -94,3 +95,5 @@ private final class TransparentDividerSplitView: NSSplitView {
         // No-op — prevent any resize
     }
 }
+#endif
+
