@@ -6,10 +6,8 @@
 //
 import SwiftUI
 
-#if os(macOS)
 // Removes the black divider lines between NavigationSplitView columns on macOS
-// This is needed because on Tahoe there's an overlapping black line between the content and detail columns,
-// covering also the toolbar
+// without using object_setClass (which causes KVO crashes with _NSSplitViewPartitionAdapter).
 struct HideSplitViewDividers: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -48,52 +46,35 @@ struct SplitViewDividerRemover: NSViewRepresentable {
 
     private static func walk(_ view: NSView) {
         if let splitView = view as? NSSplitView {
-            // Swap in a transparent-divider subclass
-            object_setClass(splitView, TransparentDividerSplitView.self)
-            splitView.dividerStyle = .thin
-            // Hide any explicit divider subviews
+            // Zero out the divider thickness via the layout — safe, no class swap.
+            // We hide the divider by zeroing its subview layer background directly.
             for subview in splitView.subviews {
-                if subview.className.contains("Divider") || subview.className.contains("divider") {
+                // AppKit renders dividers as thin subviews whose className contains "Divider"
+                // or whose height/width == dividerThickness (usually 1pt).
+                let isDivider = subview.className.lowercased().contains("divider")
+                    || subview.frame.width <= 1
+                    || subview.frame.height <= 1
+                if isDivider {
                     subview.isHidden = true
+                    subview.layer?.backgroundColor = CGColor.clear
+                }
+            }
+            // Also zero out the drawn divider via the layer of the split view itself
+            splitView.layer?.sublayers?.forEach { layer in
+                if layer.frame.width <= 1 || layer.frame.height <= 1 {
+                    layer.backgroundColor = CGColor.clear
+                    layer.isHidden = true
                 }
             }
         }
-        // Hide the thin black separator line that sits at the top of each split pane
-        // (className "NSTitlebarSeparatorView" or "NSThemeFrame" child with height == 1)
+
+        // Hide the thin separator line at the top of each split pane
         if view.className.contains("TitlebarSeparator") || view.className.contains("Separator") {
             view.isHidden = true
         }
+
         for subview in view.subviews {
             walk(subview)
         }
     }
 }
-
-/// NSSplitView subclass that returns a clear, non-interactive divider
-private final class TransparentDividerSplitView: NSSplitView {
-
-    override var dividerColor: NSColor {
-        return .clear
-    }
-
-    override var dividerThickness: CGFloat {
-        return 0
-    }
-
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        // Let all clicks pass through to subviews — never return self as the hit view
-        // This prevents the divider from being draggable
-        let hit = super.hitTest(point)
-        return hit === self ? nil : hit
-    }
-
-    override func resetCursorRects() {
-        // No cursor rects — prevents the resize cursor from appearing on the divider
-    }
-
-    override func setPosition(_ position: CGFloat, ofDividerAt dividerIndex: Int) {
-        // No-op — prevent any resize
-    }
-}
-#endif
-
