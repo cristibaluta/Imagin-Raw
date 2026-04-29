@@ -6,6 +6,7 @@
 //
 import SwiftUI
 
+#if os(macOS)
 // Removes the black divider lines between NavigationSplitView columns on macOS
 // without using object_setClass (which causes KVO crashes with _NSSplitViewPartitionAdapter).
 struct HideSplitViewDividers: ViewModifier {
@@ -78,3 +79,4 @@ struct SplitViewDividerRemover: NSViewRepresentable {
         }
     }
 }
+#endif
