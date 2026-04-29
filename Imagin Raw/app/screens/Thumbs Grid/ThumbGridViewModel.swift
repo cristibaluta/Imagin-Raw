@@ -32,7 +32,7 @@ class ThumbGridViewModel: ObservableObject {
 
     // Cached filtered photos to avoid recalculating on every access
     @Published private(set) var filteredPhotos: [PhotoItem] = []
-    /// Non-empty only when sortOption == .dateCreated. Each entry is one calendar day.
+    /// Non-empty only when sortOption produces groups (date or file type sorts).
     @Published private(set) var dateGroups: [(title: String, photos: [PhotoItem])] = []
 
     @Published var photosToCopy: [PhotoItem] = []
@@ -48,8 +48,11 @@ class ThumbGridViewModel: ObservableObject {
 
     // MARK: - Enums
     enum SortOption: String, CaseIterable {
-        case name = "Name"
-        case dateCreated = "Date Created"
+        case name         = "Name"
+        case dateCaptured = "Date Captured"
+        case dateModified = "Date Modified"
+        case fileType     = "File Type"
+        case rating       = "Rating"
     }
 
     enum GridType: String, CaseIterable, Identifiable {
@@ -125,8 +128,30 @@ class ThumbGridViewModel: ObservableObject {
                 let name2 = URL(fileURLWithPath: photo2.path).lastPathComponent
                 return name1.localizedStandardCompare(name2) == .orderedAscending
             }
-        case .dateCreated:
+        case .dateCaptured:
             return { $0.dateCreated < $1.dateCreated }
+        case .dateModified:
+            return { ($0.dateModified ?? $0.dateCreated) < ($1.dateModified ?? $1.dateCreated) }
+        case .fileType:
+            // Within each file-type group, sort by capture date
+            return { photo1, photo2 in
+                let ext1 = URL(fileURLWithPath: photo1.path).pathExtension.lowercased()
+                let ext2 = URL(fileURLWithPath: photo2.path).pathExtension.lowercased()
+                if ext1 != ext2 {
+                    return ext1 < ext2
+                }
+                return photo1.dateCreated < photo2.dateCreated
+            }
+        case .rating:
+            // Higher rating first (5 → 0), within same rating sort by capture date
+            return { photo1, photo2 in
+                let r1 = photo1.effectiveRating
+                let r2 = photo2.effectiveRating
+                if r1 != r2 {
+                    return r1 > r2
+                }
+                return photo1.dateCreated < photo2.dateCreated
+            }
         }
     }
 
@@ -207,23 +232,43 @@ class ThumbGridViewModel: ObservableObject {
     }()
 
     private func buildDateGroups(from photos: [PhotoItem]) -> [(title: String, photos: [PhotoItem])] {
-        guard sortOption == .dateCreated else { return [] }
-        let calendar = Calendar.current
+        switch sortOption {
+        case .name:
+            return []
+        case .dateCaptured:
+            return groupByKey(photos) { Self.dateGroupFormatter.string(from: $0.dateCreated) }
+        case .dateModified:
+            return groupByKey(photos) {
+                let date = $0.dateModified ?? $0.dateCreated
+                return Self.dateGroupFormatter.string(from: date)
+            }
+        case .fileType:
+            return groupByKey(photos) {
+                URL(fileURLWithPath: $0.path).pathExtension.uppercased()
+            }
+        case .rating:
+            return groupByKey(photos) { photo in
+                let r = photo.effectiveRating
+                return r == 0 ? "No Rating" : "\(r) Star\(r == 1 ? "" : "s")"
+            }
+        }
+    }
+
+    private func groupByKey(_ photos: [PhotoItem], key: (PhotoItem) -> String) -> [(title: String, photos: [PhotoItem])] {
         var groups: [(title: String, photos: [PhotoItem])] = []
         var currentKey: String? = nil
         var currentPhotos: [PhotoItem] = []
         for photo in photos {
-            let key = Self.dateGroupFormatter.string(from: photo.dateCreated)
-            if key != currentKey {
+            let k = key(photo)
+            if k != currentKey {
                 if let existing = currentKey, !currentPhotos.isEmpty {
                     groups.append((title: existing, photos: currentPhotos))
                 }
-                currentKey = key
+                currentKey = k
                 currentPhotos = [photo]
             } else {
                 currentPhotos.append(photo)
             }
-            _ = calendar  // suppress unused warning
         }
         if let last = currentKey, !currentPhotos.isEmpty {
             groups.append((title: last, photos: currentPhotos))
@@ -852,7 +897,9 @@ class ThumbGridViewModel: ObservableObject {
 
     func loadSortOption() {
         let saved = appPrefs.string(.sortOption)
-        if let option = SortOption(rawValue: saved) {
+        // Migrate old "Date Created" value to new "Date Captured"
+        let migrated = saved == "Date Created" ? "Date Captured" : saved
+        if let option = SortOption(rawValue: migrated) {
             sortOption = option
         }
     }

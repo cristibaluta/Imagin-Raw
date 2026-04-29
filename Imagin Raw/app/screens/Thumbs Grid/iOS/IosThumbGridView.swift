@@ -114,7 +114,7 @@ struct IosThumbGridView: UIViewRepresentable {
     var onStartSelectMode: ((PhotoItem) -> Void)? = nil
     var onEndSelectMode: (() -> Void)? = nil
 
-    private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
+    private var isDateGrouped: Bool { sortOption != .name && !dateGroups.isEmpty }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(itemSize: itemSize, cellHeight: cellHeight, columnCount: columnCount, callbacks: callbacks)
@@ -182,7 +182,7 @@ struct IosThumbGridView: UIViewRepresentable {
         let isDupNow    = duplicateResult != nil
         let wasDup      = c.duplicateResult != nil
         let isDateNow   = isDateGrouped
-        let wasDate     = c.sortOption == .dateCreated && !c.dateGroups.isEmpty
+        let wasDate     = c.sortOption != .name && !c.dateGroups.isEmpty
         let modeChanged = isDupNow != wasDup || isDateNow != wasDate
 
         let photosChanged     = c.photos.map(\.id) != photos.map(\.id)
@@ -338,7 +338,7 @@ struct IosThumbGridView: UIViewRepresentable {
         var thumbsManager: ThumbsManager!
 
         private var isScrolling = false
-        private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
+        private var isDateGrouped: Bool { sortOption != .name && !dateGroups.isEmpty }
 
         init(itemSize: CGFloat, cellHeight: CGFloat, columnCount: Int, callbacks: ThumbCellCallbacks) {
             self.itemSize = itemSize

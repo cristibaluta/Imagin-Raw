@@ -166,7 +166,7 @@ struct MacThumbGridView: NSViewRepresentable {
         Coordinator(itemSize: itemSize, cellHeight: cellHeight, callbacks: callbacks)
     }
 
-    private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
+    private var isDateGrouped: Bool { sortOption != .name && !dateGroups.isEmpty }
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
@@ -212,7 +212,7 @@ struct MacThumbGridView: NSViewRepresentable {
         let isDupNow  = duplicateResult != nil
         let wasDup    = c.duplicateResult != nil
         let isDateNow = isDateGrouped
-        let wasDate   = c.sortOption == .dateCreated && !c.dateGroups.isEmpty
+        let wasDate   = c.sortOption != .name && !c.dateGroups.isEmpty
         let modeChanged = isDupNow != wasDup || isDateNow != wasDate
 
         let photosChanged    = c.photos.map(\.id) != photos.map(\.id)
@@ -335,7 +335,7 @@ struct MacThumbGridView: NSViewRepresentable {
         private var isScrolling = false
         private var scrollEndTimer: Timer?
         private var scrollObserver: NSObjectProtocol?
-        private var isDateGrouped: Bool { sortOption == .dateCreated && !dateGroups.isEmpty }
+        private var isDateGrouped: Bool { sortOption != .name && !dateGroups.isEmpty }
 
         deinit {
             if let obs = scrollObserver {

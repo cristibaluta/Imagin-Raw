@@ -249,7 +249,7 @@ final class PhotosModel: ObservableObject {
 
         let files = (try? fm.contentsOfDirectory(
             at: folder.url,
-            includingPropertiesForKeys: [.creationDateKey],
+            includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey],
             options: [.skipsHiddenFiles]
         )) ?? []
 
@@ -292,17 +292,12 @@ final class PhotosModel: ObservableObject {
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
             .map { imageFile in
                 let baseName = imageFile.deletingPathExtension().lastPathComponent
-
-                // Get creation date from the file attributes we already retrieved
-                let creationDate = (try? imageFile.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date()
-
-                // Check for ACR file
+                let resValues = try? imageFile.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+                let creationDate = resValues?.creationDate ?? Date()
+                let modifiedDate = resValues?.contentModificationDate
                 let hasACR = acrLookup.contains(baseName)
-
-                // Check for JPG file
                 let hasJPG = jpgLookup.contains(baseName)
-
-                return PhotoItem(path: imageFile.path, xmp: nil, dateCreated: creationDate, hasACR: hasACR, hasJPG: hasJPG, inCameraRating: nil)
+                return PhotoItem(path: imageFile.path, xmp: nil, dateCreated: creationDate, dateModified: modifiedDate, hasACR: hasACR, hasJPG: hasJPG, inCameraRating: nil)
             }
 
         let totalTime = Date().timeIntervalSince(startTime)
@@ -354,6 +349,15 @@ final class PhotosModel: ObservableObject {
                 sizes[photo.path] = (try? fm.attributesOfItem(atPath: photo.path))?[.size] as? Int64
             }
             return sizes
+        }.value
+
+        // File modified dates off main thread
+        let fileModDates: [String: Date] = await Task.detached(priority: .utility) {
+            var dates: [String: Date] = [:]
+            for photo in photos {
+                dates[photo.path] = (try? fm.attributesOfItem(atPath: photo.path))?[.modificationDate] as? Date
+            }
+            return dates
         }.value
 
         let startTime = Date()
@@ -415,6 +419,7 @@ final class PhotosModel: ObservableObject {
                     path: photo.path,
                     xmp: xmp,
                     dateCreated: captureDate,
+                    dateModified: fileModDates[photo.path] ?? photo.dateModified,
                     toDelete: photo.toDelete,
                     hasACR: photo.hasACR,
                     hasJPG: photo.hasJPG,

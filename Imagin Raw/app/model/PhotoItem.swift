@@ -12,7 +12,8 @@ struct PhotoItem: Identifiable {
     let id: UUID
     var path: String          // file path on disk, OR PHAsset.localIdentifier for PhotoKit items
     let xmp: XmpMetadata?
-    let dateCreated: Date
+    let dateCreated: Date      // EXIF capture date (shutter press time)
+    let dateModified: Date?    // File system last-modified date
     let hasACR: Bool
     let hasJPG: Bool
     let inCameraRating: Int?
@@ -33,8 +34,16 @@ struct PhotoItem: Identifiable {
         return phAsset != nil
     }
 
+    /// XMP rating if set and > 0, otherwise in-camera rating, otherwise 0.
+    var effectiveRating: Int {
+        if let r = xmp?.rating, r > 0 {
+			return r
+		}
+        return inCameraRating ?? 0
+    }
+
     var isVideo: Bool {
-        if let asset = phAsset {
+		if let asset = phAsset {
             return asset.mediaType == .video
         }
         let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
@@ -46,6 +55,7 @@ struct PhotoItem: Identifiable {
     init(path: String,
          xmp: XmpMetadata? = nil,
          dateCreated: Date,
+         dateModified: Date? = nil,
          hasACR: Bool = false,
          hasJPG: Bool = false,
          inCameraRating: Int? = nil,
@@ -59,6 +69,7 @@ struct PhotoItem: Identifiable {
         self.path = path
         self.xmp = xmp
         self.dateCreated = dateCreated
+        self.dateModified = dateModified
         self.hasACR = hasACR
         self.hasJPG = hasJPG
         self.inCameraRating = inCameraRating
@@ -76,6 +87,7 @@ struct PhotoItem: Identifiable {
          path: String,
          xmp: XmpMetadata?,
          dateCreated: Date,
+         dateModified: Date? = nil,
          toDelete: Bool,
          hasACR: Bool = false,
          hasJPG: Bool = false,
@@ -90,6 +102,7 @@ struct PhotoItem: Identifiable {
         self.path = path
         self.xmp = xmp
         self.dateCreated = dateCreated
+        self.dateModified = dateModified
         self.toDelete = toDelete
         self.hasACR = hasACR
         self.hasJPG = hasJPG
@@ -111,6 +124,7 @@ struct PhotoItem: Identifiable {
         } else {
             self.dateCreated = asset.creationDate ?? Date()
         }
+        self.dateModified = asset.modificationDate
         self.hasACR = false
         self.hasJPG = false
         self.inCameraRating = nil
@@ -156,6 +170,7 @@ extension PhotoItem: Hashable {
         lhs.path == rhs.path &&
         lhs.xmp == rhs.xmp &&
         lhs.dateCreated == rhs.dateCreated &&
+        lhs.dateModified == rhs.dateModified &&
         lhs.hasACR == rhs.hasACR &&
         lhs.hasJPG == rhs.hasJPG &&
         lhs.inCameraRating == rhs.inCameraRating &&

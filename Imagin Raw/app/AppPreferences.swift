@@ -55,7 +55,7 @@ enum AppPreference: String, RCPreferencesProtocol {
         case .exportAlignment:          return ExportAlignment.center.rawValue
         case .expandedFolders:          return Data()
         case .selectedFolder:           return Data()
-        case .sortOption:               return "name"
+        case .sortOption:               return "Date Captured"
         case .gridType:                 return "SmallGrid"
         case .similarityMode:           return 65
         case .selectedExternalApp:      return ""
