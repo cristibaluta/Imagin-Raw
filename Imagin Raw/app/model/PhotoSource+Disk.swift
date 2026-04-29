@@ -56,7 +56,15 @@ struct DiskPhotoSource: PhotoSource {
                 image = CoreGraphicsDecoder().decodeFullRes(at: path)
             } else if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
                       let cg = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) {
-                image = IRImage(cgImage: cg, size: IRSize(width: cg.width, height: cg.height))
+                // Read EXIF orientation and apply it so HEIC/JPEG from iPhone
+                // display in the correct portrait/landscape orientation.
+                var orientation: Int32 = 1
+                if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+                   let o = props[kCGImagePropertyOrientation] as? Int32 {
+                    orientation = o
+                }
+                let oriented = (orientation != 1) ? (cg.applyingOrientation(orientation) ?? cg) : cg
+                image = IRImage(cgImage: oriented, size: IRSize(width: oriented.width, height: oriented.height))
             } else {
                 image = nil
             }
