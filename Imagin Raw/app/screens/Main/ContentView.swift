@@ -246,8 +246,14 @@ struct ContentView: View {
                 PreviewView(photo: photo)
                     .id(photo.id)
             } else {
-                ShortcutsHelpView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 0) {
+                    // Separator
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.25))
+                        .frame(height: 1)
+                    ShortcutsHelpView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
     }

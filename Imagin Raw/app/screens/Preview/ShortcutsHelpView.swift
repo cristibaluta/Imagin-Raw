@@ -25,104 +25,44 @@ struct ShortcutsHelpView: View {
                 }
             }
 
-            // Shortcuts sections
-            VStack(spacing: 24) {
-                // Labeling shortcuts - horizontal layout
-                VStack(spacing: 12) {
-                    // Color labels in a horizontal row
-                    HStack(spacing: 12) {
-                        ColoredKeyShortcut(key: "6", color: .red, label: "Select")
-                        ColoredKeyShortcut(key: "7", color: .yellow, label: "Second")
-                        ColoredKeyShortcut(key: "8", color: .green, label: "Approved")
-                        ColoredKeyShortcut(key: "9", color: .blue, label: "Review")
-                        ColoredKeyShortcut(key: "0", color: .purple, label: "To Do")
-                    }
-
-                    // Other shortcuts below
-                    VStack(spacing: 8) {
-                        HStack(spacing: 16) {
-                            Text("-")
-                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                                .foregroundColor(.primary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color(IRColor.controlBackgroundColor))
-                                .cornerRadius(4)
-                                .frame(minWidth: 60, alignment: .center)
-
-                            Text("Remove label")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-
-                            Spacer()
-                        }
-
-                        HStack(spacing: 16) {
-                            Text("X")
-                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                                .foregroundColor(.primary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color(IRColor.controlBackgroundColor))
-                                .cornerRadius(4)
-                                .frame(minWidth: 60, alignment: .center)
-                            Text("Reject (mark for deletion)")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                            Spacer()
-                        }
-
-                        HStack(spacing: 16) {
-                            Text("⌘ Delete")
-                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                                .foregroundColor(.primary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color(IRColor.controlBackgroundColor))
-                                .cornerRadius(4)
-                                .frame(minWidth: 60, alignment: .center)
-                            Text("Move to trash immediately")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                            Spacer()
-                        }
-                    }
+            HStack(alignment: .top, spacing: 30) {
+                // col 1
+                VStack(alignment: .leading) {
+                    Text("1 - 5   Rating")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.primary)
+                    Text("6 - 0   Labels")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.primary)
+                    Text("A       Approve Label")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.primary)
+                    Text("-       Remove Label")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.primary)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .background(Color(IRColor.controlBackgroundColor).opacity(0.3))
-                .cornerRadius(8)
-            }
+                .frame(width: 200)
 
+                // col 2
+                VStack(alignment: .leading) {
+                    Text("Z       Zoom in/out")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    Text("X       Mark for deletion")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    Text("⌘ Del   Move to trash")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    Text("Space   Review mode")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                }
+                .frame(width: 260)
+            }
+            Text("Note: In Review mode you can press the keys after you hover a photo, no need to click on it.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
             Spacer()
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(IRColor.windowBackgroundColor))
-    }
-}
-
-struct ColoredKeyShortcut: View {
-    let key: String
-    let color: Color
-    let label: String
-
-    var body: some View {
-        VStack(spacing: 6) {
-            // Key with colored background
-            Text(key)
-                .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(color)
-                .cornerRadius(6)
-                .shadow(color: color.opacity(0.3), radius: 2, x: 0, y: 1)
-
-            // Label text below
-            Text(label)
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
-        }
     }
 }

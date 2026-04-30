@@ -24,12 +24,7 @@ struct EmptyStateView: View {
                     .foregroundColor(.primary)
 
                 if viewModel.photos.isEmpty {
-                    Text("This folder doesn't contain any supported image formats.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-
-                    Text("Supported formats: RAW files (CR2, NEF, ARW, etc.), JPEG, PNG, TIFF")
+                    Text("Supported formats: RAW files, JPEG, PNG, TIFF, HEIC, MOV, and more.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)

@@ -86,8 +86,13 @@ struct ThumbGridView: View {
                 .frame(height: 1)
             
             if viewModel.filteredPhotos.isEmpty {
-                EmptyStateView(viewModel: viewModel)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                HStack(spacing: 0) {
+                    EmptyStateView(viewModel: viewModel)
+                        .padding(20)
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.25))
+                        .frame(width: 1)
+                }
             } else {
                 HStack(spacing: 0) {
                     if showMinimap {

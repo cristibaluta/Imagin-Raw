@@ -26,180 +26,23 @@ struct PreviewView: View {
     @State private var exportAlignment: ExportAlignment = ExportAlignment(rawValue: appPrefs.string(.exportAlignment)) ?? .center
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
 
-    var body: some View {
-        if photo.isVideo {
-            VideoPreviewView(photo: photo)
-        } else {
-            photoPreviewBody
-        }
-    }
-
     private var effectiveAlignToTopLeft: Bool {
         gridType == .large ? true : model.alignToTopLeft
     }
 
-    @ViewBuilder
-    private var photoPreviewBody: some View {
+    var body: some View {
         VStack(spacing: 0) {
+            // Separator
             Rectangle()
                 .fill(Color.secondary.opacity(0.25))
                 .frame(height: 1)
-            // Image area
-            GeometryReader { geo in
-                ZStack(alignment: .center) {
-                    Rectangle()
-                        .fill(Color.clear)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                    if let fullRes = model.fullResImage {
-                        #if os(macOS)
-                        ZoomPanView(image: fullRes, initialMousePosition: mousePosition)
-                        #endif
-                    } else if let nsImage = model.preview {
-                        HStack {
-                            if !effectiveAlignToTopLeft { Spacer(minLength: 0) }
-                            VStack {
-                                if !effectiveAlignToTopLeft { Spacer(minLength: 0) }
-                                if showExportPanel {
-                                    ExportCanvasPreview(image: nsImage,
-                                                        geo: geo,
-                                                        targetRatio: exportRatio,
-                                                        padding: exportPadding,
-                                                        alignment: exportAlignment
-                                    )
-                                } else {
-                                    Image(nsImage: nsImage)
-                                        .resizable()
-                                        .scaledToFit()
-                                }
-                                //.animation(.easeInOut(duration: 0.35), value: showExportPanel)
-                                Spacer(minLength: 0)
-                            }
-                            Spacer(minLength: 0)
-                        }
-                    } else if model.isLoading {
-                        ProgressView("Loading...")
-                            .progressViewStyle(CircularProgressViewStyle())
-                    } else {
-                        Text("Failed to load image")
-                            .foregroundColor(.secondary)
-                    }
-
-                    // Alignment button
-                    VStack {
-                        HStack {
-                            if !showExportPanel && model.fullResImage == nil && gridType != .large {
-                                Button(action: { model.toggleAlignment() }) {
-                                    Image(systemName: effectiveAlignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
-                                        .font(.title2)
-                                        .foregroundColor(effectiveAlignToTopLeft ? .white.opacity(0.4) : .gray)
-                                        .padding()
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                                .help(effectiveAlignToTopLeft ? "Center image" : "Align to top-left")
-                            }
-                            Spacer()
-                        }
-                        Spacer()
-                    }
-
-                    // Export panel overlay — bottom-right
-                    if showExportPanel {
-                        VStack {
-                            Spacer()
-                            HStack {
-                                Spacer()
-                                ExportPanelView(photo: photo,
-                                                pixelSize: exportPixelSize(for: model.preview),
-                                                isPresented: $showExportPanel,
-                                                selectedRatio: $exportRatio,
-                                                padding: $exportPadding,
-                                                alignment: $exportAlignment)
-                                .frame(width: 280)
-                                .padding(12)
-                            }
-                        }
-                        .transition(.opacity)
-                        .animation(.easeInOut(duration: 0.15), value: showExportPanel)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-                .overlay {
-                    if model.isLoadingFullRes {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
-                            .scaleEffect(1.5)
-                            .padding(16)
-                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                    }
-                }
-                #if os(macOS)
-                .background(MouseTrackingView(onMouseMoved: { point, viewSize in
-                    let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
-                    let ny = viewSize.height > 0 ? max(0, min(1, 1 - point.y / viewSize.height)) : 0.5
-                    mousePosition = CGPoint(x: nx, y: ny)
-                }))
-                #endif
-            }
-
-            // EXIF bottom bar or vertical column
-            if let exifInfo = model.exifInfo {
-                if gridType == .large {
-                    ExifColumnView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-//                        .background(Color(IRColor.controlBackgroundColor))
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.25))
-                        .frame(height: 1)
-                    HStack(spacing: 0) {
-                        Spacer()
-                        Rectangle()
-                            .fill(Color.secondary.opacity(0.25))
-                            .frame(width: 1, height: 14)
-                        Button(action: {
-                            if model.fullResImage != nil { model.exitZoom() }
-                            else { model.loadFullResolution() }
-                        }) {
-                            ZStack {
-                                if model.isLoadingFullRes {
-                                    ProgressView().controlSize(.small).frame(width: 14, height: 14)
-                                } else {
-                                    Image(systemName: model.fullResImage != nil ? "minus.magnifyingglass" : "plus.magnifyingglass")
-                                        .font(.system(size: 14, weight: .medium))
-                                        .foregroundColor(model.fullResImage != nil ? .accentColor : .secondary)
-                                }
-                            }
-                            .frame(width: 20, height: 20)
-                            .padding(.horizontal, 10)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .disabled(model.isLoadingFullRes)
-                        .help(model.fullResImage != nil ? "Exit zoom (Z)" : "Zoom to 100% (Z)")
-                        Rectangle()
-                            .fill(Color.secondary.opacity(0.25))
-                            .frame(width: 1, height: 14)
-                        Button(action: { showExportPanel.toggle() }) {
-                            Image(systemName: "rectangle.center.inset.filled")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(showExportPanel ? .accentColor : .secondary)
-                                .padding(.trailing, 12)
-                                .padding(.leading, 10)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .help("Export: add borders / change canvas")
-                    }
-                    .frame(height: 40)
-//                    .background(Color(IRColor.controlBackgroundColor))
-                } else {
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.25))
-                        .frame(height: 1)
-                    PreviewBottomBar(photo: photo,
-                                     exifInfo: exifInfo,
-                                     model: model,
-                                     showExportPanel: $showExportPanel)
-                }
+            // Content
+            if photo.isVideo {
+                VideoPreviewView(photo: photo)
+            } else {
+                photoPreviewBody
+                photoPreviewControls
             }
         }
         .onAppear {
@@ -227,6 +70,168 @@ struct PreviewView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
             gridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
+        }
+    }
+
+    @ViewBuilder
+    private var photoPreviewBody: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .center) {
+                if let fullRes = model.fullResImage {
+                    #if os(macOS)
+                    ZoomPanView(image: fullRes, initialMousePosition: mousePosition)
+                    #endif
+                } else if let nsImage = model.preview {
+                    HStack {
+                        if !effectiveAlignToTopLeft { Spacer(minLength: 0) }
+                        VStack {
+                            if !effectiveAlignToTopLeft { Spacer(minLength: 0) }
+                            if showExportPanel {
+                                ExportCanvasPreview(image: nsImage,
+                                                    geo: geo,
+                                                    targetRatio: exportRatio,
+                                                    padding: exportPadding,
+                                                    alignment: exportAlignment
+                                )
+                            } else {
+                                Image(nsImage: nsImage)
+                                    .resizable()
+                                    .scaledToFit()
+                            }
+                            //.animation(.easeInOut(duration: 0.35), value: showExportPanel)
+                            Spacer(minLength: 0)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                } else if model.isLoading {
+                    ProgressView("Loading...")
+                        .progressViewStyle(CircularProgressViewStyle())
+                } else {
+                    Text("Failed to load image")
+                        .foregroundColor(.secondary)
+                }
+
+                // Alignment button
+                VStack {
+                    HStack {
+                        if !showExportPanel && model.fullResImage == nil && gridType != .large {
+                            Button(action: { model.toggleAlignment() }) {
+                                Image(systemName: effectiveAlignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
+                                    .font(.title2)
+                                    .foregroundColor(effectiveAlignToTopLeft ? .white.opacity(0.4) : .gray)
+                                    .padding()
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .help(effectiveAlignToTopLeft ? "Center image" : "Align to top-left")
+                        }
+                        Spacer()
+                    }
+                    Spacer()
+                }
+
+                // Export panel overlay — bottom-right
+                if showExportPanel {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            ExportPanelView(photo: photo,
+                                            pixelSize: exportPixelSize(for: model.preview),
+                                            isPresented: $showExportPanel,
+                                            selectedRatio: $exportRatio,
+                                            padding: $exportPadding,
+                                            alignment: $exportAlignment)
+                            .frame(width: 280)
+                            .padding(12)
+                        }
+                    }
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.15), value: showExportPanel)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+            .overlay {
+                if model.isLoadingFullRes {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .scaleEffect(1.5)
+                        .padding(16)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                }
+            }
+            #if os(macOS)
+            .background(MouseTrackingView(onMouseMoved: { point, viewSize in
+                let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
+                let ny = viewSize.height > 0 ? max(0, min(1, 1 - point.y / viewSize.height)) : 0.5
+                mousePosition = CGPoint(x: nx, y: ny)
+            }))
+            #endif
+        }
+    }
+
+    @ViewBuilder
+    private var photoPreviewControls: some View {
+        // EXIF bottom bar or vertical column
+        if let exifInfo = model.exifInfo {
+            if gridType == .large {
+                ExifColumnView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.25))
+                    .frame(height: 1)
+                HStack(spacing: 0) {
+                    Spacer()
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.25))
+                        .frame(width: 1, height: 14)
+                    Button(action: {
+                        if model.fullResImage != nil {
+                            model.exitZoom()
+                        } else {
+                            model.loadFullResolution()
+                        }
+                    }) {
+                        ZStack {
+                            if model.isLoadingFullRes {
+                                ProgressView().controlSize(.small).frame(width: 14, height: 14)
+                            } else {
+                                Image(systemName: model.fullResImage != nil ? "minus.magnifyingglass" : "plus.magnifyingglass")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(model.fullResImage != nil ? .accentColor : .secondary)
+                            }
+                        }
+                        .frame(width: 20, height: 20)
+                        .padding(.horizontal, 10)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(model.isLoadingFullRes)
+                    .help(model.fullResImage != nil ? "Exit zoom (Z)" : "Zoom to 100% (Z)")
+
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.25))
+                        .frame(width: 1, height: 14)
+
+                    Button(action: { showExportPanel.toggle() }) {
+                        Image(systemName: "rectangle.center.inset.filled")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(showExportPanel ? .accentColor : .secondary)
+                            .padding(.trailing, 12)
+                            .padding(.leading, 10)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Export: add borders / change canvas")
+                }
+                .frame(height: 40)
+            } else {
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.25))
+                    .frame(height: 1)
+                PreviewBottomBar(photo: photo,
+                                 exifInfo: exifInfo,
+                                 model: model,
+                                 showExportPanel: $showExportPanel)
+            }
         }
     }
 }
