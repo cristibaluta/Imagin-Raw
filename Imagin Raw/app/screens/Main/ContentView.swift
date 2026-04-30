@@ -268,7 +268,7 @@ struct ContentView: View {
                 }
                 .keyboardShortcut(.escape, modifiers: [])
             }
-        } else {
+        } else if let _ = filesModel.selectedPhoto {
             ToolbarItemGroup(placement: .navigation) {
                 navigationToolbarItems
             }
