@@ -158,6 +158,7 @@ struct MacThumbGridView: NSViewRepresentable {
     var dateGroups: [(title: String, photos: [PhotoItem])] = []
     var sortOption: ThumbGridViewModel.SortOption = .name
     @Binding var scrollToPhotoId: UUID?
+    @Binding var scrollToCenteredPhotoId: UUID?
     @Binding var visibleSectionIndex: Int
     var onKeyPress: ((NSEvent) -> Bool)?
     var thumbsManager: ThumbsManager
@@ -318,7 +319,43 @@ struct MacThumbGridView: NSViewRepresentable {
                     }
                 }
             }
-            DispatchQueue.main.async { self.scrollToPhotoId = nil }
+            DispatchQueue.main.async {
+                self.scrollToPhotoId = nil
+            }
+        }
+
+        if let photoId = scrollToCenteredPhotoId {
+            var targetIndexPath: IndexPath?
+            if let result = duplicateResult {
+                outer: for (s, group) in result.groups.enumerated() {
+                    for (i, photo) in group.photos.enumerated() {
+                        if photo.id == photoId {
+                            targetIndexPath = IndexPath(item: i, section: s)
+                            break outer
+                        }
+                    }
+                }
+            } else if isDateGrouped {
+                outer: for (s, group) in dateGroups.enumerated() {
+                    for (i, photo) in group.photos.enumerated() {
+                        if photo.id == photoId {
+                            targetIndexPath = IndexPath(item: i, section: s)
+                            break outer
+                        }
+                    }
+                }
+            } else if let index = photos.firstIndex(where: { $0.id == photoId }) {
+                targetIndexPath = IndexPath(item: index, section: 0)
+            }
+            if let ip = targetIndexPath {
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.allowsImplicitAnimation = true
+                    cv?.animator().scrollToItems(at: [ip], scrollPosition: .centeredVertically)
+                }
+            }
+            DispatchQueue.main.async {
+                self.scrollToCenteredPhotoId = nil
+            }
         }
     }
 
@@ -344,7 +381,9 @@ struct MacThumbGridView: NSViewRepresentable {
         private var isScrolling = false
         private var scrollEndTimer: Timer?
         private var scrollObserver: NSObjectProtocol?
-        private var isDateGrouped: Bool { sortOption != .name && !dateGroups.isEmpty }
+        private var isDateGrouped: Bool {
+            sortOption != .name && !dateGroups.isEmpty
+        }
 
         deinit {
             if let obs = scrollObserver {
@@ -430,11 +469,15 @@ struct MacThumbGridView: NSViewRepresentable {
 
         private func photosForSection(_ section: Int) -> [PhotoItem] {
             if let result = duplicateResult {
-                guard section < result.groups.count else { return [] }
+                guard section < result.groups.count else {
+                    return []
+                }
                 return result.groups[section].photos.map { photosById[$0.path] ?? $0 }
             }
             if isDateGrouped {
-                guard section < dateGroups.count else { return [] }
+                guard section < dateGroups.count else {
+                    return []
+                }
                 return dateGroups[section].photos
             }
             return section == 0 ? photos : []
@@ -443,8 +486,12 @@ struct MacThumbGridView: NSViewRepresentable {
         // MARK: NSCollectionViewDataSource
 
         func numberOfSections(in cv: NSCollectionView) -> Int {
-            if duplicateResult != nil { return duplicateResult!.groups.count }
-            if isDateGrouped { return dateGroups.count }
+            if duplicateResult != nil {
+                return duplicateResult!.groups.count
+            }
+            if isDateGrouped {
+                return dateGroups.count
+            }
             return 1
         }
 
@@ -479,7 +526,9 @@ struct MacThumbGridView: NSViewRepresentable {
                     ofKind: kind,
                     withIdentifier: MacDuplicateSectionHeader.identifier,
                     for: indexPath) as! MacDuplicateSectionHeader
-                header.configure(group: result.groups[indexPath.section], index: indexPath.section, onReview: onReview)
+                header.configure(group: result.groups[indexPath.section],
+                                 index: indexPath.section,
+                                 onReview: onReview)
                 return header
             }
             // Date group header

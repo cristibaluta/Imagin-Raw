@@ -45,6 +45,7 @@ struct ThumbGridView: View {
 
     @State private var useCollectionView = true
     @State private var scrollToPhotoId: UUID? = nil
+    @State private var scrollToCenteredPhotoId: UUID? = nil
     @State private var visibleSectionIndex: Int = 0
     @State private var copyToViewModel: CopyToViewModel? = nil
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
@@ -237,11 +238,12 @@ struct ThumbGridView: View {
             dateGroups: viewModel.dateGroups,
             sortOption: viewModel.sortOption,
             scrollToPhotoId: $scrollToPhotoId,
+            scrollToCenteredPhotoId: $scrollToCenteredPhotoId,
             visibleSectionIndex: $visibleSectionIndex,
             onKeyPress: { event in
                 viewModel.handleKeyEvent(
                     event,
-                    scrollTo: { photoId in scrollToPhotoId = photoId },
+                    scrollTo: { photoId in scrollToCenteredPhotoId = photoId },
                     openPhotos: { photos in externalAppManager.openPhotos(photos) },
                     onToggleSidebar: { onToggleSidebar?() },
                     onReviewSelected: { photos in reviewGroup = buildReviewGroupItemFromPhotos(photos) }
@@ -338,6 +340,7 @@ struct ThumbGridView: View {
             dateGroups: viewModel.dateGroups,
             sortOption: viewModel.sortOption,
             scrollToPhotoId: $scrollToPhotoId,
+            scrollToCenteredPhotoId: $scrollToCenteredPhotoId,
             visibleSectionIndex: $visibleSectionIndex,
             thumbsManager: viewModel.thumbsManager,
             isLoadingMetadata: viewModel.isLoadingMetadata,
