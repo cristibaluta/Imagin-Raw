@@ -161,6 +161,7 @@ struct MacThumbGridView: NSViewRepresentable {
     @Binding var visibleSectionIndex: Int
     var onKeyPress: ((NSEvent) -> Bool)?
     var thumbsManager: ThumbsManager
+    var isSearchActive: Bool = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator(itemSize: itemSize, cellHeight: cellHeight, callbacks: callbacks)
@@ -184,7 +185,8 @@ struct MacThumbGridView: NSViewRepresentable {
         let headerHeight: CGFloat = (duplicateResult != nil || isDateGrouped) ? 32 : 0
         let cv = MacKeyableCollectionView()
         cv.onKeyDown = { event in c.onKeyDown?(event) ?? false }
-        cv.collectionViewLayout = c.makeLayout(itemSize: itemSize, cellHeight: cellHeight,
+        cv.collectionViewLayout = c.makeLayout(itemSize: itemSize,
+                                               cellHeight: cellHeight,
                                                headerHeight: headerHeight)
         cv.dataSource = c
         cv.delegate = c
@@ -200,13 +202,19 @@ struct MacThumbGridView: NSViewRepresentable {
                     withIdentifier: MacDateSectionHeader.identifier)
         c.collectionView = cv
         scrollView.documentView = cv
-        DispatchQueue.main.async { cv.window?.makeFirstResponder(cv) }
+        if !isSearchActive {
+            DispatchQueue.main.async {
+                cv.window?.makeFirstResponder(cv)
+            }
+        }
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let c = context.coordinator
         c.onVisibleSectionChanged = { idx in
-            DispatchQueue.main.async { self.visibleSectionIndex = idx }
+            DispatchQueue.main.async {
+                self.visibleSectionIndex = idx
+            }
         }
 
         let isDupNow  = duplicateResult != nil
@@ -251,7 +259,8 @@ struct MacThumbGridView: NSViewRepresentable {
         if photosChanged || sizeChanged || dupChanged || dateGroupsChanged {
             if sizeChanged {
                 let headerHeight: CGFloat = (duplicateResult != nil || isDateGrouped) ? 32 : 0
-                cv?.collectionViewLayout = c.makeLayout(itemSize: itemSize, cellHeight: cellHeight,
+                cv?.collectionViewLayout = c.makeLayout(itemSize: itemSize, 
+                                                        cellHeight: cellHeight,
                                                         headerHeight: headerHeight)
             }
             cv?.reloadData()

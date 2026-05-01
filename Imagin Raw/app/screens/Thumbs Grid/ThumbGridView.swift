@@ -84,7 +84,7 @@ struct ThumbGridView: View {
             Rectangle()
                 .fill(Color.secondary.opacity(0.25))
                 .frame(height: 1)
-            
+
             if viewModel.filteredPhotos.isEmpty {
                 HStack(spacing: 0) {
                     EmptyStateView(viewModel: viewModel)
@@ -246,7 +246,9 @@ struct ThumbGridView: View {
                     onToggleSidebar: { onToggleSidebar?() },
                     onReviewSelected: { photos in reviewGroup = buildReviewGroupItemFromPhotos(photos) }
                 )
-            }, thumbsManager: viewModel.thumbsManager
+            },
+            thumbsManager: viewModel.thumbsManager,
+            isSearchActive: searchPhotoResults != nil
         )
         .onAppear {
             viewModel.initializeSelection()
