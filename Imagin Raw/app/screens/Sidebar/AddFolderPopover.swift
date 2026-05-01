@@ -23,8 +23,10 @@ struct AddFolderPopover: View {
             VStack(spacing: 4) {
                 buttonVolumes
                 Divider()
+                #if os(iOS)
                 buttonPhotoLibrary
                 Divider()
+                #endif
                 buttonFolder
             }
             Spacer().frame(height: 4)
