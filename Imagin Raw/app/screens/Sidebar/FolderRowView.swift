@@ -8,12 +8,12 @@
 import SwiftUI
 
 struct FolderRowView: View {
+    @EnvironmentObject var filesModel: FilesModel
     let folder: FolderItem
     @Binding var expandedFolders: Set<URL>
     @Binding var selectedFolder: FolderItem?
     let saveExpandedState: () -> Void
     let onDoubleClick: () -> Void
-    @EnvironmentObject var filesModel: FilesModel
     let isRootFolder: Bool
 
     private var isExpanded: Bool {
@@ -29,7 +29,7 @@ struct FolderRowView: View {
     private var folderColor: Color {
         if isRootFolder {
             // Dark purple for root folders (user-added folders)
-            return Color(red: 0.4, green: 0.2, blue: 0.7)
+            return Color("PurpleColor")
         } else if hasChildren {
             // Regular blue for subfolders with children
             return Color.blue
@@ -129,13 +129,12 @@ struct FolderRowView: View {
                 )
             ) {
                 ForEach(folder.children ?? []) { childFolder in
-                    FolderRowView(
-                        folder: childFolder,
-                        expandedFolders: $expandedFolders,
-                        selectedFolder: $selectedFolder,
-                        saveExpandedState: saveExpandedState,
-                        onDoubleClick: onDoubleClick,
-                        isRootFolder: false // Child folders are never root folders
+                    FolderRowView(folder: childFolder,
+                                  expandedFolders: $expandedFolders,
+                                  selectedFolder: $selectedFolder,
+                                  saveExpandedState: saveExpandedState,
+                                  onDoubleClick: onDoubleClick,
+                                  isRootFolder: false // Child folders are never root folders
                     )
                 }
             } label: {

@@ -20,16 +20,14 @@ struct FoldersListView: View {
     var body: some View {
         List(selection: $filesModel.selectedFolder) {
             ForEach(Array(filesModel.rootFolders.enumerated()), id: \.element.id) { index, rootFolder in
-                FolderRowView(
-                    folder: rootFolder,
-                    expandedFolders: $expandedFolders,
-                    selectedFolder: $filesModel.selectedFolder,
-                    saveExpandedState: saveExpandedState,
-                    onDoubleClick: {
-                        onDoubleClick?()
-                    },
-                    isRootFolder: true
-                )
+                FolderRowView(folder: rootFolder,
+                              expandedFolders: $expandedFolders,
+                              selectedFolder: $filesModel.selectedFolder,
+                              saveExpandedState: saveExpandedState,
+                              onDoubleClick: {
+                                  onDoubleClick?()
+                              },
+                              isRootFolder: true)
             }
             .onDelete(perform: deleteFolders)
         }

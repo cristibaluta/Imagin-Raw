@@ -29,10 +29,8 @@ struct SidebarView: View {
         VStack(spacing: 0) {
             ZStack(alignment: .top) {
                 if isSearching {
-                    SearchResultsFoldersListView(
-                        folderResults: searcher.results,
-                        isSearching: searcher.isSearching
-                    )
+                    SearchResultsFoldersListView(folderResults: searcher.results,
+                                                 isSearching: searcher.isSearching)
                 } else {
                     FoldersListView {
                         self.onDoubleClick?()
@@ -78,24 +76,12 @@ struct SidebarView: View {
                 )
                 .padding(.horizontal, 10)
                 .padding(.top, 8)
-                .help("Powered by macOS Spotlight.")
+                .help("Powered by macOS Spotlight")
             }
 
             HStack {
                 Button(action: {
-                    if showingAddPopover {
-                        // Close with animation
-                        withAnimation {
-                            showingAddPopover = false
-                        }
-                    } else {
-                        // Open without animation
-                        var transaction = Transaction()
-                        transaction.disablesAnimations = true
-                        withTransaction(transaction) {
-                            showingAddPopover = true
-                        }
-                    }
+                    showingAddPopover.toggle()
                 }) {
                     Image(systemName: "plus")
                         .font(.system(size: 12, weight: .medium))
@@ -128,9 +114,9 @@ struct SidebarView: View {
                     if let selectedFolder = filesModel.selectedFolder {
                         // Only remove if the selected folder is a root folder
                         if isRootFolder(selectedFolder.url) {
-                            #if os(macOS)
+//                            #if os(macOS)
                             filesModel.removeFolder(at: selectedFolder.url)
-                            #endif
+//                            #endif
                         }
                     }
                 }) {
@@ -154,7 +140,6 @@ struct SidebarView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
-//            .background(Color(IRColor.controlBackgroundColor))
         }
         .background(Color(IRColor.underPageBackgroundColor))
         .fileImporter(
@@ -180,7 +165,9 @@ struct SidebarView: View {
     }
 
     private func isRootFolderSelected() -> Bool {
-        guard let selectedFolder = filesModel.selectedFolder else { return false }
+        guard let selectedFolder = filesModel.selectedFolder else {
+            return false
+        }
         return isRootFolder(selectedFolder.url)
     }
 
