@@ -41,25 +41,81 @@ struct ThumbnailRequest: Comparable {
 }
 
 struct PriorityQueue<T: Comparable> {
-    private var elements: [T] = []
+    private var heap: [T] = []
 
-    mutating func enqueue(_ element: T) {
-        elements.append(element)
-        elements.sort(by: >)
+    init() {}
+
+    // O(n) bulk initialisation via Floyd's heapify
+    init<S: Sequence>(_ sequence: S) where S.Element == T {
+        heap = Array(sequence)
+        guard heap.count > 1 else {
+            return
+        }
+        for i in stride(from: heap.count / 2 - 1, through: 0, by: -1) {
+            siftDown(from: i)
+        }
     }
 
+    // O(log n) insert via sift-up
+    mutating func enqueue(_ element: T) {
+        heap.append(element)
+        siftUp(from: heap.count - 1)
+    }
+
+    // O(log n) remove-max via sift-down
     mutating func dequeue() -> T? {
-        guard !elements.isEmpty else {
+        guard !heap.isEmpty else {
             return nil
         }
-        return elements.removeLast()
+        if heap.count == 1 {
+            return heap.removeLast()
+        }
+        let top = heap[0]
+        heap[0] = heap.removeLast()
+        siftDown(from: 0)
+        return top
     }
 
     mutating func removeAll() {
-        elements.removeAll()
+        heap.removeAll()
     }
 
-    var isEmpty: Bool { elements.isEmpty }
+    var isEmpty: Bool { heap.isEmpty }
+
+    // MARK: - Heap helpers
+
+    private mutating func siftUp(from index: Int) {
+        var child = index
+        while child > 0 {
+            let parent = (child - 1) / 2
+            guard heap[child] > heap[parent] else {
+                break
+            }
+            heap.swapAt(child, parent)
+            child = parent
+        }
+    }
+
+    private mutating func siftDown(from index: Int) {
+        let count = heap.count
+        var parent = index
+        while true {
+            let left = 2 * parent + 1
+            let right = 2 * parent + 2
+            var largest = parent
+            if left < count && heap[left] > heap[largest] {
+                largest = left
+            }
+            if right < count && heap[right] > heap[largest] {
+                largest = right
+            }
+            guard largest != parent else {
+                break
+            }
+            heap.swapAt(parent, largest)
+            parent = largest
+        }
+    }
 }
 
 class ThumbsManager: ObservableObject {
@@ -457,11 +513,7 @@ class ThumbsManager: ObservableObject {
     }
 
     private func rebuildQueue() {
-        var q = PriorityQueue<ThumbnailRequest>()
-        for r in pendingRequests.values {
-            q.enqueue(r)
-        }
-        priorityQueue = q
+        priorityQueue = PriorityQueue(pendingRequests.values)
     }
 
     // MARK: - Disk Cache Management
