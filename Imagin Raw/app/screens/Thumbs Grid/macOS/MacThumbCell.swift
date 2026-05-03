@@ -37,7 +37,6 @@ final class MacThumbCell: NSCollectionViewItem {
     // State
     private(set) var currentPath: String?
     private var currentPhoto: PhotoItem?
-    private var loadTask: DispatchWorkItem?
     private var callbacks: ThumbCellCallbacks?
     private var itemSize: CGFloat = 100
     private var currentImageSize: CGSize = .zero
@@ -287,8 +286,6 @@ final class MacThumbCell: NSCollectionViewItem {
         currentPhoto = photo
 
         if pathChanged {
-            loadTask?.cancel()
-            loadTask = nil
             thumbView.image = nil
             currentImageSize = .zero
 
@@ -298,20 +295,14 @@ final class MacThumbCell: NSCollectionViewItem {
                 layoutSubviews()
             } else {
                 let path = photo.path
-                let work = DispatchWorkItem { [weak self] in
-                    self?.thumbsManager.loadThumbnail(for: photo, priority: priority) { image in
-                        DispatchQueue.main.async {
-                            guard self?.currentPath == path else {
-                                return
-                            }
-                            self?.thumbView.image = image
-                            self?.currentImageSize = image?.size ?? .zero
-                            self?.layoutSubviews()
-                        }
+                thumbsManager.loadThumbnail(for: photo, priority: priority) { [weak self] image in
+                    guard self?.currentPath == path else {
+                        return
                     }
+                    self?.thumbView.image = image
+                    self?.currentImageSize = image?.size ?? .zero
+                    self?.layoutSubviews()
                 }
-                loadTask = work
-                DispatchQueue.global(qos: .userInitiated).async(execute: work)
             }
         }
 
@@ -426,8 +417,6 @@ final class MacThumbCell: NSCollectionViewItem {
     override func prepareForReuse() {
         super.prepareForReuse()
 
-        loadTask?.cancel()
-        loadTask = nil
         currentPath = nil
         currentPhoto = nil
         currentImageSize = .zero
