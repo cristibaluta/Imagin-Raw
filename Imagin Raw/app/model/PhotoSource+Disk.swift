@@ -7,6 +7,8 @@
 
 import Foundation
 import AVFoundation
+import CoreGraphics
+import ImageIO
 import CryptoKit
 
 struct DiskPhotoSource: PhotoSource {
@@ -35,11 +37,30 @@ struct DiskPhotoSource: PhotoSource {
             completion(img.resized(maxSize: targetSize))
             return
         }
-        guard let img = IRImage(contentsOfFile: path) else {
+        // HEIC, JPEG, PNG, TIFF — use ImageIO thumbnail path.
+        // This reads the embedded thumbnail track when available (common in HEIC from iPhone)
+        // and falls back to hardware-accelerated decode at the target size.
+        // Much faster than IRImage(contentsOfFile:) which decodes the full image.
+        let thumbOptions: [CFString: Any] = [
+            kCGImageSourceShouldCacheImmediately: false,
+            kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
+            kCGImageSourceCreateThumbnailFromImageAlways: false,
+            kCGImageSourceThumbnailMaxPixelSize: Int(targetSize * 2)
+        ]
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else {
             completion(nil)
             return
         }
-        completion(img.resized(maxSize: targetSize))
+        // Apply EXIF orientation — iPhone HEIC is often stored rotated
+        var orientation: Int32 = 1
+        if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+           let o = props[kCGImagePropertyOrientation] as? Int32 {
+            orientation = o
+        }
+        let oriented = (orientation != 1) ? (cg.applyingOrientation(orientation) ?? cg) : cg
+        let img = IRImage(cgImage: oriented, size: IRSize(width: oriented.width, height: oriented.height))
+        completion(img)
     }
 
     func loadPreview(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void) {

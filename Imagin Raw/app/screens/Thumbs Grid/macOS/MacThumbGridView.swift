@@ -191,6 +191,7 @@ struct MacThumbGridView: NSViewRepresentable {
                                                headerHeight: headerHeight)
         cv.dataSource = c
         cv.delegate = c
+        cv.prefetchDataSource = c
         cv.isSelectable = true
         cv.allowsMultipleSelection = true
         cv.backgroundColors = [NSColor.clear]
@@ -260,7 +261,7 @@ struct MacThumbGridView: NSViewRepresentable {
         if photosChanged || sizeChanged || dupChanged || dateGroupsChanged {
             if sizeChanged {
                 let headerHeight: CGFloat = (duplicateResult != nil || isDateGrouped) ? 32 : 0
-                cv?.collectionViewLayout = c.makeLayout(itemSize: itemSize, 
+                cv?.collectionViewLayout = c.makeLayout(itemSize: itemSize,
                                                         cellHeight: cellHeight,
                                                         headerHeight: headerHeight)
             }
@@ -361,7 +362,7 @@ struct MacThumbGridView: NSViewRepresentable {
 
     // MARK: - Coordinator
 
-    class Coordinator: NSObject, NSCollectionViewDataSource, NSCollectionViewDelegate {
+    class Coordinator: NSObject, NSCollectionViewDataSource, NSCollectionViewDelegate, NSCollectionViewPrefetching {
         var photos: [PhotoItem] = []
         var itemSize: CGFloat
         var cellHeight: CGFloat
@@ -447,6 +448,27 @@ struct MacThumbGridView: NSViewRepresentable {
                     }
                 }
             }
+        }
+
+        // MARK: NSCollectionViewPrefetching
+
+        func collectionView(_ collectionView: NSCollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
+            for indexPath in indexPaths {
+                let sectionPhotos = photosForSection(indexPath.section)
+                guard indexPath.item < sectionPhotos.count else {
+                    continue
+                }
+                let photo = sectionPhotos[indexPath.item]
+                guard thumbsManager.getCachedThumbnail(for: photo) == nil else {
+                    continue
+                }
+                thumbsManager.loadThumbnail(for: photo, priority: .low) { _ in }
+            }
+        }
+
+        func collectionView(_ collectionView: NSCollectionView, cancelPrefetchingForItemsAt indexPaths: [IndexPath]) {
+            // Low-priority requests are naturally superseded when a .high request
+            // arrives for the same key, so no explicit cancellation is needed.
         }
 
         init(itemSize: CGFloat, cellHeight: CGFloat, callbacks: ThumbCellCallbacks) {
