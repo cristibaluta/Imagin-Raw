@@ -319,8 +319,11 @@ class ThumbGridViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Observe PhotosModel's photos array and trigger filteredPhotos recalculation
+        // Observe PhotosModel's photos array and trigger filteredPhotos recalculation.
+        // Debounce during metadata loading so rapid batch updates (every 20 photos)
+        // don't hammer the main thread with sort + reloadData on every batch.
         newPhotosModel.$photos
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.updateFilteredPhotos()
             }
