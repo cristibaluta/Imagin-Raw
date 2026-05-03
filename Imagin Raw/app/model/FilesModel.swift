@@ -242,6 +242,18 @@ extension FilesModel {
                 }
             }
         }
+
+        // Refresh any /Volumes root folder so the new drive appears as a child.
+        // The children array was built at load time and won't reflect newly mounted drives otherwise.
+        let volumesPath = "/Volumes"
+        if let idx = rootFolders.firstIndex(where: { $0.url.path == volumesPath }) {
+            let refreshed = loadFolderTree(at: rootFolders[idx].url,
+                                           maxDepth: 2,
+                                           currentDepth: 0,
+                                           bookmarkData: rootFolders[idx].bookmarkData)
+            rootFolders[idx] = refreshed
+            print("🔄 Refreshed /Volumes sidebar entry after mount")
+        }
     }
 
     @objc private func volumeWillUnmount(_ notification: Notification) {
