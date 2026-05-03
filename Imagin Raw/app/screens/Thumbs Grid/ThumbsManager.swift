@@ -79,9 +79,6 @@ class ThumbsManager: ObservableObject {
     private let queueLock = NSLock()
     private var requestCounter = 0
 
-    private let processingLimit = 4
-    private let processingSemaphore: DispatchSemaphore
-    // Number of workers currently draining the queue
     private var activeWorkerCount = 0
     private let maxWorkers = 4
 
@@ -97,7 +94,6 @@ class ThumbsManager: ObservableObject {
         let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         cacheDirectory = cachesDir.appendingPathComponent("ro.imagin.raw/256")
         accessLogURL = cachesDir.appendingPathComponent("ro.imagin.raw/cache_access_log.json")
-        processingSemaphore = DispatchSemaphore(value: processingLimit)
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         loadAccessLog()
         evictDiskCacheIfNeeded()
@@ -356,7 +352,6 @@ class ThumbsManager: ObservableObject {
     }
 
     private func processRequest(_ request: ThumbnailRequest) {
-        processingSemaphore.wait()
         autoreleasepool {
             // Disk cache hit — only meaningful for file-based sources
             if let diskSource = request.source as? DiskPhotoSource,
@@ -365,7 +360,6 @@ class ThumbsManager: ObservableObject {
                 DispatchQueue.main.async {
                     request.completion(img)
                 }
-                processingSemaphore.signal()
                 return
             }
 
@@ -375,15 +369,11 @@ class ThumbsManager: ObservableObject {
                     DispatchQueue.main.async {
                         request.completion(nil)
                     }
-                    processingSemaphore.signal()
                     return
                 }
             }
 
             request.source.loadThumbnail(targetSize: thumbSize) { [weak self] img in
-                defer {
-                    self?.processingSemaphore.signal()
-                }
                 guard let img else {
                     DispatchQueue.main.async {
                         request.completion(nil)
