@@ -122,12 +122,17 @@ class ThumbsManager: ObservableObject {
 
     @Published private(set) var pendingQueueCount: Int = 0
 
-    // Memory cache
+    // Memory cache — protected by cacheLock (plain NSLock avoids sync/barrier overhead on the main thread)
     private var memoryCache: [String: CacheEntry] = [:]
     private var cacheAccessOrder: [String] = []
     private let maxMemoryCacheSize = 600
-    private let cacheQueue = DispatchQueue(label: "ro.imagin.thumbs.cache", attributes: .concurrent)
-    private let diskQueue = DispatchQueue(label: "ro.imagin.thumbs.disk", qos: .userInitiated)
+    private let cacheLock = NSLock()
+    // .utility keeps decode workers from competing with the main thread for CPU during scrolling
+    private let diskQueue = DispatchQueue(label: "ro.imagin.thumbs.disk", qos: .utility,
+                                         attributes: .concurrent, autoreleaseFrequency: .workItem)
+
+    private var accessLog: [String: Date] = [:]
+    private let accessLogLock = NSLock()
 
     // Request queue — protected by queueLock
     private var pendingRequests: [String: ThumbnailRequest] = [:]
@@ -141,8 +146,6 @@ class ThumbsManager: ObservableObject {
     private let cacheDirectory: URL
     private let accessLogURL: URL
     private let diskCacheLimitBytes: Int64 = 2 * 1024 * 1024 * 1024
-
-    private var accessLog: [String: Date] = [:]
 
     private let thumbSize: CGFloat = 256
 
@@ -288,13 +291,10 @@ class ThumbsManager: ObservableObject {
     func deleteCachedThumbnail(for path: String) {
         let source = DiskPhotoSource(path: path)
         let key = source.cacheKey
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self else {
-                return
-            }
-            memoryCache.removeValue(forKey: key)
-            cacheAccessOrder.removeAll { $0 == key }
-        }
+        cacheLock.lock()
+        memoryCache.removeValue(forKey: key)
+        cacheAccessOrder.removeAll { $0 == key }
+        cacheLock.unlock()
         diskQueue.async {
             let diskURL = self.diskCacheURL(for: source)
             if FileManager.default.fileExists(atPath: diskURL.path) {
@@ -314,24 +314,22 @@ class ThumbsManager: ObservableObject {
         let subdirName = "\(folderURL.lastPathComponent)_\(dirHash)"
         let subdirectory = cacheDirectory.appendingPathComponent(subdirName)
 
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self else {
-                return
-            }
-            let prefix = "\(dirHash)_"
-            let keysToRemove = self.memoryCache.keys.filter { $0.hasPrefix(prefix) }
-            keysToRemove.forEach {
-                self.memoryCache.removeValue(forKey: $0)
-                self.cacheAccessOrder.removeAll { $0 == $0 }
-            }
+        cacheLock.lock()
+        let prefix = "\(dirHash)_"
+        let keysToRemove = memoryCache.keys.filter { $0.hasPrefix(prefix) }
+        keysToRemove.forEach {
+            memoryCache.removeValue(forKey: $0)
+            cacheAccessOrder.removeAll { $0 == $0 }
         }
+        cacheLock.unlock()
         diskQueue.async { [weak self] in
-            guard let self else {
-                return
-            }
+            guard let self else { return }
             try? FileManager.default.removeItem(at: subdirectory)
+            accessLogLock.lock()
             accessLog.removeValue(forKey: subdirName)
-            saveAccessLog()
+            let snapshot = accessLog
+            accessLogLock.unlock()
+            saveAccessLogSnapshot(snapshot)
         }
     }
 
@@ -480,29 +478,21 @@ class ThumbsManager: ObservableObject {
     // MARK: - Memory Cache
 
     private func getCachedImage(for key: String) -> IRImage? {
-        return cacheQueue.sync {
-            guard let entry = memoryCache[key] else {
-                return nil
-            }
-            updateAccessOrder(for: key)
-            return entry.image
-        }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        guard let entry = memoryCache[key] else { return nil }
+        cacheAccessOrder.removeAll { $0 == key }
+        cacheAccessOrder.append(key)
+        return entry.image
     }
 
     private func setCachedImage(_ image: IRImage, for key: String) {
-        cacheQueue.async(flags: .barrier) { [weak self] in
-            guard let self else {
-                return
-            }
-            memoryCache[key] = CacheEntry(image: image, lastAccessed: Date())
-            updateAccessOrder(for: key)
-            evictIfNeeded()
-        }
-    }
-
-    private func updateAccessOrder(for key: String) {
+        cacheLock.lock()
+        memoryCache[key] = CacheEntry(image: image, lastAccessed: Date())
         cacheAccessOrder.removeAll { $0 == key }
         cacheAccessOrder.append(key)
+        evictIfNeeded()
+        cacheLock.unlock()
     }
 
     private func evictIfNeeded() {
@@ -528,25 +518,35 @@ class ThumbsManager: ObservableObject {
               let raw = try? JSONDecoder().decode([String: Date].self, from: data) else {
             return
         }
+        // Called only from init (single-threaded), no lock needed
         accessLog = raw
     }
 
     private func saveAccessLog() {
+        accessLogLock.lock()
+        let snapshot = accessLog
+        accessLogLock.unlock()
+        saveAccessLogSnapshot(snapshot)
+    }
+
+    private func saveAccessLogSnapshot(_ snapshot: [String: Date]) {
         diskQueue.async { [weak self] in
             guard let self,
-                  let data = try? JSONEncoder().encode(accessLog) else {
-                return
-            }
+                  let data = try? JSONEncoder().encode(snapshot) else { return }
             try? data.write(to: accessLogURL, options: .atomic)
         }
     }
 
     private func registerCacheSubdirectory(_ subdirName: String) {
+        accessLogLock.lock()
         guard accessLog[subdirName] == nil else {
+            accessLogLock.unlock()
             return
         }
         accessLog[subdirName] = Date()
-        saveAccessLog()
+        let snapshot = accessLog
+        accessLogLock.unlock()
+        saveAccessLogSnapshot(snapshot)
     }
 
     private func totalDiskCacheSize() -> Int64 {
@@ -568,21 +568,24 @@ class ThumbsManager: ObservableObject {
 
     private func evictDiskCacheIfNeeded() {
         diskQueue.async { [weak self] in
-            guard let self else {
-                return
-            }
+            guard let self else { return }
             let totalSize = totalDiskCacheSize()
-            guard totalSize > diskCacheLimitBytes else {
-                return
-            }
+            guard totalSize > diskCacheLimitBytes else { return }
+
+            accessLogLock.lock()
             let sorted = accessLog.sorted { $0.value < $1.value }
             let deleteCount = max(1, sorted.count / 3)
             for (subdirName, _) in sorted.prefix(deleteCount) {
-                let subdirURL = cacheDirectory.appendingPathComponent(subdirName)
-                try? FileManager.default.removeItem(at: subdirURL)
                 accessLog.removeValue(forKey: subdirName)
             }
-            saveAccessLog()
+            let snapshot = accessLog
+            accessLogLock.unlock()
+
+            for (subdirName, _) in sorted.prefix(deleteCount) {
+                let subdirURL = cacheDirectory.appendingPathComponent(subdirName)
+                try? FileManager.default.removeItem(at: subdirURL)
+            }
+            saveAccessLogSnapshot(snapshot)
         }
     }
 }

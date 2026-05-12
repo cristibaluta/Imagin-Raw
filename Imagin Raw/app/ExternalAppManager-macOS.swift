@@ -49,12 +49,13 @@ class ExternalAppManager: ObservableObject {
                 "lightroom", "photoshop", "After-Effects", "Premiere-Pro",
                 "com.dxo", "captureone", "photoraw", "darktable",
                 ".luminar", "affinity", "pixelmator", "gimp", "sketch", "canva",
-                ".on1.", "topaz", "nik", "hdr", "panorama", "preview"
+                ".on1.", "topaz", "nik", "hdr", "panorama", "preview", "com.apple.Photos"
             ]
 
             // Bundle IDs to ignore from the photo apps list
             let ignoredApps = [
-                "com.apple.PreviewShell"
+                "com.apple.PreviewShell",
+                "com.apple.PreviewShellMac"
             ]
 
             var apps: [PhotoApp] = []
@@ -82,9 +83,10 @@ class ExternalAppManager: ObservableObject {
                 // Check if app name contains photo-related keywords
                 let appNameLowercased = bundleID.lowercased()
                 let isPhotoApp = photoKeywords.contains { keyword in
-                    appNameLowercased.contains(keyword)
+                    appNameLowercased.contains(keyword.lowercased())
                 }
 
+                print(">>>>>> \(bundleID) \(isPhotoApp)")
                 if isPhotoApp {
                     let photoApp = PhotoApp(
                         name: name,
