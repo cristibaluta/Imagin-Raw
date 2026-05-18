@@ -264,13 +264,10 @@ struct ThumbGridView: View {
                 viewModel.lastSelectedIndex = 0
             }
         }
-        .onChange(of: filesModel.selectedFolder) { _, _ in
-            if let firstPhoto = viewModel.filteredPhotos.first {
-                filesModel.selectedPhoto = firstPhoto
-                viewModel.selectedPhotos.removeAll()
-                viewModel.selectedPhotos.insert(firstPhoto.id)
-                viewModel.lastSelectedIndex = 0
-                scrollToPhotoId = firstPhoto.id
+        .onChange(of: viewModel.filteredPhotos) { oldPhotos, newPhotos in
+            // Scroll to top when a new folder's photos first appear (transition from empty to non-empty)
+            if oldPhotos.isEmpty && !newPhotos.isEmpty, let first = newPhotos.first {
+                scrollToPhotoId = first.id
             }
         }
         #endif

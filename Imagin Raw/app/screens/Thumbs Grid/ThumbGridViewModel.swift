@@ -335,6 +335,7 @@ class ThumbGridViewModel: ObservableObject {
         // Clear selection when loading new folder
         selectedPhotos.removeAll()
         lastSelectedIndex = nil
+        filesModel.selectedPhoto = nil
     }
 
     func reloadPhotos() {
