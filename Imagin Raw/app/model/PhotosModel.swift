@@ -133,81 +133,84 @@ final class PhotosModel: ObservableObject {
 
     /// Load a specific list of file URLs as PhotoItems (used for search results).
     /// Returns basic info immediately, then enriches with metadata.
-    static func loadPhotos(for urls: [URL]) async -> [PhotoItem] {
-        let fm = FileManager.default
-
-        // Build basic PhotoItems first
-        var basicPhotos: [PhotoItem] = urls.map { url in
-            let date = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date()
-            return PhotoItem(path: url.path, xmp: nil, dateCreated: date, hasACR: false, hasJPG: false, inCameraRating: nil)
-        }
-
-        // Enrich with metadata in parallel
-        return await withTaskGroup(of: (Int, XmpMetadata?, Int?, Bool, Int64?, Int?, Int?, String?, String?, Date?).self, returning: [PhotoItem].self) { group in
-            for (index, photo) in basicPhotos.enumerated() {
-                group.addTask {
-                    let url = URL(fileURLWithPath: photo.path)
-                    let ext = url.pathExtension.lowercased()
-                    let isRaw = FilesExtensions.raw.contains(ext)
-
-                    // Try XMP sidecar
-                    let xmpURL = url.deletingPathExtension().appendingPathExtension("xmp")
-                    let xmp: XmpMetadata? = (try? String(contentsOf: xmpURL, encoding: .utf8)).flatMap {
-                        XmpParser.parseMetadata(from: $0)
-                    }
-
-                    let fileSize: Int64? = (try? fm.attributesOfItem(atPath: photo.path))?[.size] as? Int64
-                    var inCameraRating: Int? = nil
-                    var width: Int? = nil
-                    var height: Int? = nil
-                    var cameraMake: String? = nil
-                    var cameraModel: String? = nil
-                    var captureDate: Date? = nil
-
-                    if let metadata = RawWrapper.shared().extractMetadata(photo.path) {
-                        inCameraRating = (metadata["rating"] as? NSNumber)?.intValue
-                        width = (metadata["width"] as? NSNumber)?.intValue
-                        height = (metadata["height"] as? NSNumber)?.intValue
-                        cameraMake = metadata["cameraMake"] as? String
-                        cameraModel = metadata["cameraModel"] as? String
-                        captureDate = metadata["captureDate"] as? Date
-                    }
-
-                    return (index, xmp, inCameraRating, isRaw, fileSize, width, height, cameraMake, cameraModel, captureDate)
-                }
-            }
-
-            for await (index, xmp, rating, isRaw, fileSize, width, height, cameraMake, cameraModel, exifDate) in group {
-                let photo = basicPhotos[index]
-                let dateCreated: Date
-                if let exifDate {
-                    dateCreated = exifDate
-                } else if let xmpDateStr = xmp?.createDate,
-                          let parsed = Self.parseXmpDate(xmpDateStr) {
-                    dateCreated = parsed
-                } else {
-                    dateCreated = photo.dateCreated
-                }
-                basicPhotos[index] = PhotoItem(
-                    id: photo.id,
-                    path: photo.path,
-                    xmp: xmp,
-                    dateCreated: dateCreated,
-                    toDelete: photo.toDelete,
-                    hasACR: photo.hasACR,
-                    hasJPG: photo.hasJPG,
-                    inCameraRating: rating,
-                    isRawFile: isRaw,
-                    fileSizeBytes: fileSize,
-                    width: width,
-                    height: height,
-                    cameraMake: cameraMake,
-                    cameraModel: cameraModel
-                )
-            }
-            return basicPhotos
-        }
-    }
+//    static func loadPhotos(for urls: [URL]) async -> [PhotoItem] {
+//        let fm = FileManager.default
+//
+//        // Build basic PhotoItems first
+//        var basicPhotos: [PhotoItem] = urls.map { url in
+//            let date = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date()
+//            return PhotoItem(path: url.path, xmp: nil, dateCreated: date, hasACR: false, hasJPG: false, inCameraRating: nil)
+//        }
+//
+//        // Enrich with metadata in parallel
+//        return await withTaskGroup(of: (Int, XmpMetadata?, Int?, Bool, Int64?, Int?, Int?, String?, String?, Date?).self, returning: [PhotoItem].self) { group in
+//            for (index, photo) in basicPhotos.enumerated() {
+//                group.addTask {
+//                    let url = URL(fileURLWithPath: photo.path)
+//                    let ext = url.pathExtension.lowercased()
+//                    let isRaw = FilesExtensions.raw.contains(ext)
+//
+//                    // Try XMP sidecar
+//                    let xmpURL = url.deletingPathExtension().appendingPathExtension("xmp")
+//                    let xmp: XmpMetadata? = (try? String(contentsOf: xmpURL, encoding: .utf8)).flatMap {
+//                        XmpParser.parseMetadata(from: $0)
+//                    }
+//
+//                    let fileSize: Int64? = (try? fm.attributesOfItem(atPath: photo.path))?[.size] as? Int64
+//                    var inCameraRating: Int? = nil
+//                    var width: Int? = nil
+//                    var height: Int? = nil
+//                    var cameraMake: String? = nil
+//                    var cameraModel: String? = nil
+//                    var captureDate: Date? = nil
+//
+//                    if let metadata = RawWrapper.shared().extractMetadata(photo.path) {
+//                        inCameraRating = (metadata["rating"] as? NSNumber)?.intValue
+//                        width = (metadata["width"] as? NSNumber)?.intValue
+//                        height = (metadata["height"] as? NSNumber)?.intValue
+//                        cameraMake = metadata["cameraMake"] as? String
+//                        cameraModel = metadata["cameraModel"] as? String
+//                        captureDate = metadata["captureDate"] as? Date
+//                    }
+//
+//                    let fpoints = extractPanasonicFocusPoints(from: URL(fileURLWithPath: photo.path))
+//                    print(">>>>> focus points: \(fpoints)")
+//
+//                    return (index, xmp, inCameraRating, isRaw, fileSize, width, height, cameraMake, cameraModel, captureDate)
+//                }
+//            }
+//
+//            for await (index, xmp, rating, isRaw, fileSize, width, height, cameraMake, cameraModel, exifDate) in group {
+//                let photo = basicPhotos[index]
+//                let dateCreated: Date
+//                if let exifDate {
+//                    dateCreated = exifDate
+//                } else if let xmpDateStr = xmp?.createDate,
+//                          let parsed = Self.parseXmpDate(xmpDateStr) {
+//                    dateCreated = parsed
+//                } else {
+//                    dateCreated = photo.dateCreated
+//                }
+//                basicPhotos[index] = PhotoItem(
+//                    id: photo.id,
+//                    path: photo.path,
+//                    xmp: xmp,
+//                    dateCreated: dateCreated,
+//                    toDelete: photo.toDelete,
+//                    hasACR: photo.hasACR,
+//                    hasJPG: photo.hasJPG,
+//                    inCameraRating: rating,
+//                    isRawFile: isRaw,
+//                    fileSizeBytes: fileSize,
+//                    width: width,
+//                    height: height,
+//                    cameraMake: cameraMake,
+//                    cameraModel: cameraModel
+//                )
+//            }
+//            return basicPhotos
+//        }
+//    }
 
     /// Parse an XMP/ISO 8601 date string into a Date.
     /// Handles formats: "YYYY:MM:DD HH:MM:SS", "YYYY-MM-DDTHH:MM:SS", "YYYY-MM-DDTHH:MM:SS+HH:MM"
@@ -389,6 +392,8 @@ final class PhotosModel: ObservableObject {
                         cameraModel = metadata["cameraModel"] as? String
                         captureDate = metadata["captureDate"] as? Date
                     }
+//                    let fpoints = extractPanasonicFocusPoints(from: URL(fileURLWithPath: photo.path))
+//                    print(">>>>> focus points: \(fpoints)")
                     return (globalIndex, inCameraRating, width, height, cameraMake, cameraModel, captureDate)
                 }
             }.value

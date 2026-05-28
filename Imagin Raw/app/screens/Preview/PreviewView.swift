@@ -97,6 +97,8 @@ struct PreviewView: View {
                                 Image(nsImage: nsImage)
                                     .resizable()
                                     .scaledToFit()
+//                                    .overlay(FocusPointOverlay(nsImage: nsImage,
+//                                                               focusResult: parsePanasonicAFPoint(from: URL(fileURLWithPath: photo.path))))
                             }
                             //.animation(.easeInOut(duration: 0.35), value: showExportPanel)
                             Spacer(minLength: 0)
@@ -232,6 +234,43 @@ struct PreviewView: View {
                                  model: model,
                                  showExportPanel: $showExportPanel)
             }
+        }
+    }
+}
+
+struct FocusPointOverlay: View {
+    let nsImage: NSImage
+    let focusResult: PanasonicAFPoint?
+
+    var body: some View {
+        GeometryReader { geo in
+            if let point = focusResult {
+                let (renderedSize, offset) = renderedImageRect(in: geo.size)
+                let boxX = offset.x + (point.cx - point.width  / 2) * renderedSize.width
+                let boxY = offset.y + (point.cy - point.height / 2) * renderedSize.height
+                let boxW = point.width  * renderedSize.width
+                let boxH = point.height * renderedSize.height
+
+                Rectangle()
+                    .stroke(Color.yellow, lineWidth: 2)
+                    .frame(width: boxW, height: boxH)
+                    .position(x: boxX + boxW / 2, y: boxY + boxH / 2)
+            }
+        }
+    }
+
+    private func renderedImageRect(in containerSize: CGSize) -> (size: CGSize, offset: CGPoint) {
+        let imageAspect     = nsImage.size.width / nsImage.size.height
+        let containerAspect = containerSize.width / containerSize.height
+
+        if imageAspect > containerAspect {
+            let w = containerSize.width
+            let h = containerSize.width / imageAspect
+            return (CGSize(width: w, height: h), CGPoint(x: 0, y: (containerSize.height - h) / 2))
+        } else {
+            let h = containerSize.height
+            let w = containerSize.height * imageAspect
+            return (CGSize(width: w, height: h), CGPoint(x: (containerSize.width - w) / 2, y: 0))
         }
     }
 }
