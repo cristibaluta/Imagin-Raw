@@ -229,7 +229,8 @@ struct ThumbGridView: View {
                         ? viewModel.getSelectedPhotosForBulkAction()
                         : [rightClickedPhoto]
                     reviewGroup = buildReviewGroupItemFromPhotos(photos)
-                }
+                },
+                externalAppManager: externalAppManager
             ),
             duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
             onReview: { group, index in
@@ -323,7 +324,8 @@ struct ThumbGridView: View {
                         ? viewModel.getSelectedPhotosForBulkAction()
                         : [rightClickedPhoto]
                     reviewGroup = buildReviewGroupItemFromPhotos(photos)
-                }
+                },
+                externalAppManager: externalAppManager
             ),
             onSelectToggle: {_ in },
             onNavigate: { photo in

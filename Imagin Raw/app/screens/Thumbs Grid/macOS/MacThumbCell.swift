@@ -351,6 +351,23 @@ final class MacThumbCell: NSCollectionViewItem {
         let finder = NSMenuItem(title: "Show in Finder", action: #selector(menuShowInFinder), keyEquivalent: "")
         finder.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
         menu.addItem(finder)
+
+        // Open with submenu
+        if let apps = callbacks?.externalAppManager?.discoveredPhotoApps, !apps.isEmpty {
+            let openWithItem = NSMenuItem(title: "Open with", action: nil, keyEquivalent: "")
+            openWithItem.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
+            let openWithMenu = NSMenu()
+            for app in apps {
+                let appItem = NSMenuItem(title: app.displayName, action: #selector(menuOpenWithApp(_:)), keyEquivalent: "")
+                appItem.representedObject = app
+                appItem.image = NSWorkspace.shared.icon(forFile: app.url.path)
+                appItem.image?.size = NSSize(width: 16, height: 16)
+                openWithMenu.addItem(appItem)
+            }
+            openWithItem.submenu = openWithMenu
+            menu.addItem(openWithItem)
+        }
+
         let copy = NSMenuItem(title: "Copy to...", action: #selector(menuCopyTo), keyEquivalent: "")
         copy.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
         menu.addItem(copy)
@@ -378,6 +395,11 @@ final class MacThumbCell: NSCollectionViewItem {
     @objc private func menuShowInFinder() {
         guard let path = currentPath else { return }
         NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: "")
+    }
+    @objc private func menuOpenWithApp(_ sender: NSMenuItem) {
+        guard let app = sender.representedObject as? PhotoApp,
+              let photo = currentPhoto else { return }
+        callbacks?.externalAppManager?.openPhotos([photo], with: app)
     }
     @objc private func menuCopyTo() { guard let p = currentPhoto else { return }; callbacks?.onCopyTo(p) }
     @objc private func menuRenameTo() { guard let p = currentPhoto else { return }; callbacks?.onRenameTo(p) }

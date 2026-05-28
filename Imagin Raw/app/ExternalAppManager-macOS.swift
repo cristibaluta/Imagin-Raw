@@ -115,6 +115,18 @@ class ExternalAppManager: ObservableObject {
         return discoveredPhotoApps.first { $0.bundleIdentifier == savedBundleID }
     }
 
+    /// Opens photos with a specific app (without changing the default selection)
+    func openPhotos(_ photos: [PhotoItem], with app: PhotoApp) {
+        let urls = photos.map { URL(fileURLWithPath: $0.path) }
+        guard !urls.isEmpty else { return }
+        let configuration = NSWorkspace.OpenConfiguration()
+        NSWorkspace.shared.open(urls, withApplicationAt: app.url, configuration: configuration) { _, error in
+            if error != nil {
+                self.openPhotosWithDefaultApp(urls)
+            }
+        }
+    }
+
     /// Opens multiple photos in an external app or the default system app
     func openPhotos(_ photos: [PhotoItem]) {
         let urls = photos.map { URL(fileURLWithPath: $0.path) }
