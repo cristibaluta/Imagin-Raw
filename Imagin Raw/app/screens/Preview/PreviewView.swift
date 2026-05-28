@@ -24,6 +24,7 @@ struct PreviewView: View {
     @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .r4x5
     @State private var exportPadding: Double = appPrefs.get(.exportPadding)
     @State private var exportAlignment: ExportAlignment = ExportAlignment(rawValue: appPrefs.string(.exportAlignment)) ?? .center
+    @State private var showAFPoint = false
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
 
     private var effectiveAlignToTopLeft: Bool {
@@ -97,8 +98,8 @@ struct PreviewView: View {
                                 Image(nsImage: nsImage)
                                     .resizable()
                                     .scaledToFit()
-//                                    .overlay(FocusPointOverlay(nsImage: nsImage,
-//                                                               focusResult: parseOlympusAFPoint(from: URL(fileURLWithPath: photo.path))))
+                                    .overlay(showAFPoint ? FocusPointOverlay(nsImage: nsImage,
+                                                             focusResult: parseOlympusAFPoint(from: URL(fileURLWithPath: photo.path))) : nil)
 //                                    .overlay(FocusPointOverlay(nsImage: nsImage,
 //                                                               focusResult: parsePanasonicAFPoint(from: URL(fileURLWithPath: photo.path))))
                             }
@@ -234,6 +235,7 @@ struct PreviewView: View {
                 PreviewBottomBar(photo: photo,
                                  exifInfo: exifInfo,
                                  model: model,
+                                 showAFPoint: $showAFPoint,
                                  showExportPanel: $showExportPanel)
             }
         }

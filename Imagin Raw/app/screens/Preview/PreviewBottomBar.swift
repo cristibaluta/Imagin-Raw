@@ -9,12 +9,27 @@ struct PreviewBottomBar: View {
     let photo: PhotoItem
     let exifInfo: ExifInfo
     let model: PreviewViewModel
+    @Binding var showAFPoint: Bool
     @Binding var showExportPanel: Bool
 
     var body: some View {
         HStack(spacing: 0) {
             ExifBarView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
             Spacer()
+
+//            // AF point button
+//            Rectangle()
+//                .fill(Color.secondary.opacity(0.25))
+//                .frame(width: 1, height: 14)
+//            Button(action: { showAFPoint.toggle() }) {
+//                Image(systemName: "viewfinder")
+//                    .font(.system(size: 14, weight: .bold))
+//                    .foregroundColor(showAFPoint ? .accentColor : .secondary)
+//                    .frame(width: 20, height: 20)
+//                    .padding(.horizontal, 10)
+//            }
+//            .buttonStyle(PlainButtonStyle())
+//            .help(showAFPoint ? "Hide AF point" : "Show AF point")
 
             // Zoom button
             Rectangle()
