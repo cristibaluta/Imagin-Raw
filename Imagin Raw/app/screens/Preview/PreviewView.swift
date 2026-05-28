@@ -98,6 +98,8 @@ struct PreviewView: View {
                                     .resizable()
                                     .scaledToFit()
 //                                    .overlay(FocusPointOverlay(nsImage: nsImage,
+//                                                               focusResult: parseOlympusAFPoint(from: URL(fileURLWithPath: photo.path))))
+//                                    .overlay(FocusPointOverlay(nsImage: nsImage,
 //                                                               focusResult: parsePanasonicAFPoint(from: URL(fileURLWithPath: photo.path))))
                             }
                             //.animation(.easeInOut(duration: 0.35), value: showExportPanel)
@@ -240,7 +242,7 @@ struct PreviewView: View {
 
 struct FocusPointOverlay: View {
     let nsImage: NSImage
-    let focusResult: PanasonicAFPoint?
+    let focusResult: OlympusAFPoint?
 
     var body: some View {
         GeometryReader { geo in
