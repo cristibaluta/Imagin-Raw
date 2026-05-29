@@ -127,7 +127,7 @@ struct CheckboxToggleStyle: ToggleStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         HStack {
-            let labelColor = getColorForLabel(label)
+            let labelColor = PhotoLabel.color(for: label)
 
             Image(systemName: configuration.isOn ? "checkmark.square.fill" : "square.fill")
                 .foregroundColor(labelColor)
@@ -140,26 +140,6 @@ struct CheckboxToggleStyle: ToggleStyle {
         }
     }
 
-    private func getColorForLabel(_ label: String) -> Color {
-        switch label {
-        case "No Label":
-            return .secondary
-        case "Select":
-            return .red
-        case "Second":
-            return .yellow
-        case "Approved":
-            return .green
-        case "Review":
-            return .blue
-        case "To Do":
-            return .purple
-        case "Rejected":
-            return .red
-        default:
-            return .secondary
-        }
-    }
 }
 
 struct RatingCheckboxToggleStyle: ToggleStyle {

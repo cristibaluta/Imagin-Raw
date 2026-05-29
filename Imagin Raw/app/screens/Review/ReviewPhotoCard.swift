@@ -80,13 +80,13 @@ struct ReviewPhotoCard: View {
             if photo.toDelete {
                 Image(systemName: "xmark")
                     .font(.system(size: 32, weight: .bold))
-                    .foregroundColor(.red)
+                    .foregroundColor(PhotoLabel.color(for: "Rejected"))
                     .shadow(color: .black.opacity(0.8), radius: 4, x: 0, y: 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if isApproved {
                 Image(systemName: "checkmark")
                     .font(.system(size: 32, weight: .bold))
-                    .foregroundColor(.green)
+                    .foregroundColor(PhotoLabel.color(for: "Approved"))
                     .shadow(color: .black.opacity(0.8), radius: 4, x: 0, y: 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -116,7 +116,7 @@ struct ReviewPhotoCard: View {
                     // Approve
                     Button(action: onApprove) {
                         Image(systemName: "checkmark.circle\(isApproved ? ".fill" : "")")
-                            .foregroundColor(isApproved ? .green : .white)
+                            .foregroundColor(isApproved ? PhotoLabel.color(for: "Approved") : .white)
                     }
                     .buttonStyle(.plain)
                     .help(isApproved ? "Remove approval" : "Approve")
@@ -124,7 +124,7 @@ struct ReviewPhotoCard: View {
                     // Reject
                     Button(action: onMarkForDeletion) {
                         Image(systemName: photo.toDelete ? "arrow.uturn.backward" : "xmark.circle")
-                            .foregroundColor(photo.toDelete ? .white : .red)
+                            .foregroundColor(photo.toDelete ? .white : PhotoLabel.color(for: "Rejected"))
                     }
                     .buttonStyle(.plain)
                     .help(photo.toDelete ? "Undo reject" : "Reject")
@@ -139,8 +139,8 @@ struct ReviewPhotoCard: View {
         .contentShape(Rectangle())
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(photo.toDelete ? Color.red.opacity(0.7) :
-                        isApproved ? Color.green.opacity(0.7) : Color.clear,
+                .stroke(photo.toDelete ? PhotoLabel.color(for: "Rejected").opacity(0.7) :
+                        isApproved ? PhotoLabel.color(for: "Approved").opacity(0.7) : Color.clear,
                         lineWidth: 2)
         )
         .onAppear { loadPreview() }

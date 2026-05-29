@@ -231,50 +231,14 @@ struct ThumbCell: View {
     }
 
     private func getLabelBackgroundColor() -> Color {
-        // Check if photo is marked for deletion first
-        if photo.toDelete {
-            return .red
-        }
-
         guard let label = photo.xmp?.label else { return .clear }
-
-        switch label {
         case "Select":
-            return .red
-        case "Second":
-            return .yellow
-        case "Approved":
-            return Color(red: 133/255, green: 199/255, blue: 102/255) // Keep existing green
-        case "Review":
-            return .blue
-        case "To Do":
-            return .purple
-        default:
-            return .clear
-        }
+        return PhotoLabel.color(for: label)
     }
 
     private func getLabelTextColor() -> Color {
-        // Check if photo is marked for deletion first
-        if photo.toDelete {
-            return .black
-        }
-
+        if photo.toDelete { return .black }
         guard let label = photo.xmp?.label else { return .primary }
-
-        switch label {
-        case "Select":
-            return .white
-        case "Second":
-            return .black
-        case "Approved":
-            return .black
-        case "Review":
-            return .white
-        case "To Do":
-            return .white
-        default:
-            return .primary
-        }
+        return PhotoLabel.textColor(for: label)
     }
 }

@@ -301,7 +301,7 @@ final class IosThumbCell: UICollectionViewCell {
 
     private func applyLabelStyle(for photo: PhotoItem) {
         if photo.toDelete {
-            filenameLabel.backgroundColor = UIColor.orange
+            filenameLabel.backgroundColor = UIColor.systemOrange
             filenameLabel.textColor = .black
             return
         }
@@ -310,14 +310,8 @@ final class IosThumbCell: UICollectionViewCell {
             filenameLabel.textColor = .label
             return
         }
-        switch label {
-        case "Select":   filenameLabel.backgroundColor = .systemRed;    filenameLabel.textColor = .white
-        case "Second":   filenameLabel.backgroundColor = .systemYellow; filenameLabel.textColor = .black
-        case "Approved": filenameLabel.backgroundColor = UIColor(red: 133/255, green: 199/255, blue: 102/255, alpha: 1); filenameLabel.textColor = .black
-        case "Review":   filenameLabel.backgroundColor = .systemBlue;   filenameLabel.textColor = .white
-        case "To Do":    filenameLabel.backgroundColor = .systemPurple; filenameLabel.textColor = .white
-        default:         filenameLabel.backgroundColor = .clear;        filenameLabel.textColor = .label
-        }
+        filenameLabel.backgroundColor = PhotoLabel.uiColor(for: label)
+        filenameLabel.textColor = PhotoLabel.uiTextColor(for: label)
     }
 
     private var parentViewController: UIViewController? {

@@ -1048,18 +1048,6 @@ class ThumbGridViewModel: ObservableObject {
         }
     }
 
-    func getColorForLabel(_ label: String) -> Color {
-        switch label {
-        case "No Label": return .secondary
-        case "Select": return .red
-        case "Second": return .yellow
-        case "Approved": return .green
-        case "Review": return .blue
-        case "To Do": return .purple
-        case "Rejected": return .orange
-        default: return .secondary
-        }
-    }
 
     // MARK: - Private XMP Operations
     private func setPhotoRating(photo: PhotoItem, rating: Int) {

@@ -121,7 +121,7 @@ struct ThumbsBottomBar: View {
                         viewModel.selectedLabels.contains(label) ? "checkmark.square.fill" : "square.fill"
                     }
                     Image(systemName: iconName)
-                        .foregroundColor(viewModel.getColorForLabel(label))
+                        .foregroundColor(PhotoLabel.color(for: label))
                         .font(.system(size: 14, weight: .medium))
                 }
                 .buttonStyle(PlainButtonStyle())

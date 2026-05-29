@@ -415,23 +415,17 @@ final class MacThumbCell: NSCollectionViewItem {
 
     private func applyLabelStyle(for photo: PhotoItem) {
         if photo.toDelete {
-            filenameLabel.layer?.backgroundColor = NSColor.orange.cgColor
-            filenameLabel.textColor = .black;
+            filenameLabel.layer?.backgroundColor = NSColor.systemOrange.cgColor
+            filenameLabel.textColor = .black
             return
         }
         guard let label = photo.xmp?.label, !label.isEmpty else {
             filenameLabel.layer?.backgroundColor = NSColor.clear.cgColor
-            filenameLabel.textColor = .labelColor;
+            filenameLabel.textColor = .labelColor
             return
         }
-        switch label {
-            case "Select":   filenameLabel.layer?.backgroundColor = NSColor.systemRed.cgColor;    filenameLabel.textColor = .white
-            case "Second":   filenameLabel.layer?.backgroundColor = NSColor.systemYellow.cgColor; filenameLabel.textColor = .black
-            case "Approved": filenameLabel.layer?.backgroundColor = NSColor(red: 133/255, green: 199/255, blue: 102/255, alpha: 1).cgColor; filenameLabel.textColor = .black
-            case "Review":   filenameLabel.layer?.backgroundColor = NSColor.systemBlue.cgColor;   filenameLabel.textColor = .white
-            case "To Do":    filenameLabel.layer?.backgroundColor = NSColor.systemPurple.cgColor; filenameLabel.textColor = .white
-            default:         filenameLabel.layer?.backgroundColor = NSColor.clear.cgColor;         filenameLabel.textColor = .labelColor
-        }
+        filenameLabel.layer?.backgroundColor = PhotoLabel.nsColor(for: label).cgColor
+        filenameLabel.textColor = PhotoLabel.nsTextColor(for: label)
     }
 
     // MARK: Reuse
