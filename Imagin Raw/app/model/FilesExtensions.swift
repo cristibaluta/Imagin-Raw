@@ -7,6 +7,20 @@
 
 import Foundation
 
+enum RawBrand {
+    case olympus
+    case panasonic
+    case canon
+    case nikon
+    case sony
+    case fuji
+    case pentax
+    case other
+
+    /// Brands that support AF point parsing
+    static let afPointSupported: Set<RawBrand> = [.olympus]
+}
+
 enum FilesExtensions {
     static let raw: Set<String> = [
         "arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
@@ -23,4 +37,32 @@ enum FilesExtensions {
 
     /// All supported extensions (RAW + JPG + other + video)
     static let all: Set<String> = raw.union(jpg).union(other).union(video)
+
+    /// Determine the camera brand from a file extension
+    static func brand(for extension: String) -> RawBrand {
+        switch `extension`.lowercased() {
+        case "orf":
+            return .olympus
+        case "rw2":
+            return .panasonic
+        case "cr2", "cr3", "crw":
+            return .canon
+        case "nef", "nrw":
+            return .nikon
+        case "arw", "srf", "sr2":
+            return .sony
+        case "raf":
+            return .fuji
+        case "pef", "ptx":
+            return .pentax
+        default:
+            return .other
+        }
+    }
+
+    /// Determine the camera brand from a file path
+    static func brand(forPath path: String) -> RawBrand {
+        let ext = (path as NSString).pathExtension
+        return brand(for: ext)
+    }
 }
