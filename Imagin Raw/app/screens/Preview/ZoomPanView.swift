@@ -16,15 +16,15 @@ struct ZoomPanView: View {
     private var pixelSize: CGSize {
         if let rep = image.representations.first as? NSBitmapImageRep {
             let s = CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
-//            print("🔎 [zoom] pixelSize from BitmapRep: \(s.width)×\(s.height)")
+//            RCLog("🔎 [zoom] pixelSize from BitmapRep: \(s.width)×\(s.height)")
             return s
         }
         if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
             let s = CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
-//            print("🔎 [zoom] pixelSize from CGImage: \(s.width)×\(s.height)")
+//            RCLog("🔎 [zoom] pixelSize from CGImage: \(s.width)×\(s.height)")
             return s
         }
-//        print("🔎 [zoom] pixelSize fallback to image.size: \(image.size)")
+//        RCLog("🔎 [zoom] pixelSize fallback to image.size: \(image.size)")
         return image.size
     }
 

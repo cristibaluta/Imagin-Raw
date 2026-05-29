@@ -376,7 +376,7 @@ private struct ExportCanvasPreview: View, Animatable {
             case .right:  imgOffX = extraSpace - pad * scale
         }
         let imgOffY = 0.0
-//        print("alignment: \(alignment), dispCanvas: \(dispCanvasW) \(dispCanvasH), dispImg: \(dispImgW) \(dispImgH), imgOff: \(imgOffX) \(imgOffY)")
+//        RCLog("alignment: \(alignment), dispCanvas: \(dispCanvasW) \(dispCanvasH), dispImg: \(dispImgW) \(dispImgH), imgOff: \(imgOffX) \(imgOffY)")
 
         return Layout(
             dispCanvasW: dispCanvasW, dispCanvasH: dispCanvasH,

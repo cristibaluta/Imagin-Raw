@@ -25,7 +25,7 @@ final class PhotosModel: ObservableObject {
 
     deinit {
         metadataTask?.cancel()
-        print("🗑️ PhotosModel deallocated for: \(folder.url.lastPathComponent)")
+        RCLog("🗑️ PhotosModel deallocated for: \(folder.url.lastPathComponent)")
     }
 
     /// Load photos for the folder - call this when the model is created
@@ -87,14 +87,14 @@ final class PhotosModel: ObservableObject {
         let basicPhotos = Self.loadPhotosBasic(in: folder)
         photos = basicPhotos
 
-        print("📸 Loaded \(basicPhotos.count) photos (basic info) for: \(folder.url.lastPathComponent)")
+        RCLog("📸 Loaded \(basicPhotos.count) photos (basic info) for: \(folder.url.lastPathComponent)")
 
         // Load metadata asynchronously
         isLoadingMetadata = true
         let folderName = folder.url.lastPathComponent
 
         metadataTask = Task {
-            print("🔄 Starting metadata loading for: \(folderName)")
+            RCLog("🔄 Starting metadata loading for: \(folderName)")
 
             var currentPhotos = basicPhotos
             let batchCallback: @Sendable ([PhotoItem]) async -> Void = { [weak self] batch in
@@ -111,13 +111,13 @@ final class PhotosModel: ObservableObject {
             )
 
             guard !Task.isCancelled else {
-                print("⚠️ Metadata loading cancelled for: \(folderName)")
+                RCLog("⚠️ Metadata loading cancelled for: \(folderName)")
                 await MainActor.run { self.isLoadingMetadata = false }
                 return
             }
 
             await MainActor.run {
-                print("✅ Metadata loading completed for: \(folderName)")
+                RCLog("✅ Metadata loading completed for: \(folderName)")
                 self.photos = photosWithMetadata
                 self.isLoadingMetadata = false
             }
@@ -174,7 +174,7 @@ final class PhotosModel: ObservableObject {
 //                    }
 //
 //                    let fpoints = extractPanasonicFocusPoints(from: URL(fileURLWithPath: photo.path))
-//                    print(">>>>> focus points: \(fpoints)")
+//                    RCLog(">>>>> focus points: \(fpoints)")
 //
 //                    return (index, xmp, inCameraRating, isRaw, fileSize, width, height, cameraMake, cameraModel, captureDate)
 //                }
@@ -304,9 +304,9 @@ final class PhotosModel: ObservableObject {
             }
 
         let totalTime = Date().timeIntervalSince(startTime)
-        print("📊 loadPhotos (basic) Performance:")
-        print("   Total files: \(imageFiles.count)")
-        print("   Total time: \(String(format: "%.3f", totalTime))s")
+        RCLog("📊 loadPhotos (basic) Performance:")
+        RCLog("   Total files: \(imageFiles.count)")
+        RCLog("   Total time: \(String(format: "%.3f", totalTime))s")
 
         return result
     }
@@ -393,7 +393,7 @@ final class PhotosModel: ObservableObject {
                         captureDate = metadata["captureDate"] as? Date
                     }
 //                    let fpoints = extractPanasonicFocusPoints(from: URL(fileURLWithPath: photo.path))
-//                    print(">>>>> focus points: \(fpoints)")
+//                    RCLog(">>>>> focus points: \(fpoints)")
                     return (globalIndex, inCameraRating, width, height, cameraMake, cameraModel, captureDate)
                 }
             }.value
@@ -448,9 +448,9 @@ final class PhotosModel: ObservableObject {
         }
 
         let totalTime = Date().timeIntervalSince(startTime)
-        print("📊 loadPhotosMetadataAsync Performance:")
-        print("   Total files: \(photos.count)")
-        print("   Total time: \(String(format: "%.3f", totalTime))s")
+        RCLog("📊 loadPhotosMetadataAsync Performance:")
+        RCLog("   Total files: \(photos.count)")
+        RCLog("   Total time: \(String(format: "%.3f", totalTime))s")
 
         return updatedPhotos
     }

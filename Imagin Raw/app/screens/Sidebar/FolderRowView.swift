@@ -147,7 +147,7 @@ struct FolderRowView: View {
                 .tag(folder)
                 .onTapGesture {
                     #if os(iOS)
-                    print("👆 [Sidebar] tap folder: \(folder.title) already=\(selectedFolder?.url == folder.url)")
+                    RCLog("👆 [Sidebar] tap folder: \(folder.title) already=\(selectedFolder?.url == folder.url)")
                     if selectedFolder?.url == folder.url {
                         selectedFolder = nil
                         DispatchQueue.main.async { selectedFolder = folder }
@@ -207,7 +207,7 @@ struct FolderRowView: View {
             .tag(folder)
             .onTapGesture {
                 #if os(iOS)
-                print("👆 [Sidebar] tap leaf: \(folder.title) already=\(selectedFolder?.url == folder.url)")
+                RCLog("👆 [Sidebar] tap leaf: \(folder.title) already=\(selectedFolder?.url == folder.url)")
                 if selectedFolder?.url == folder.url {
                     selectedFolder = nil
                     DispatchQueue.main.async { selectedFolder = folder }

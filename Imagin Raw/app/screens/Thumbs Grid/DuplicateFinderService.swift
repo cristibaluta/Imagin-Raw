@@ -100,17 +100,17 @@ enum DuplicateFinderService {
         progress: @escaping (Int, Int) -> Void
     ) async -> DuplicateScanData? {
         let total = photos.count
-        print("🔍 Starting duplicate scan for \(total) photos (threshold ≤ \(scanThreshold))")
+        RCLog("🔍 Starting duplicate scan for \(total) photos (threshold ≤ \(scanThreshold))")
 
         guard #available(macOS 10.15, *) else {
-            print("❌ VNGenerateImageFeaturePrintRequest requires macOS 10.15+")
+            RCLog("❌ VNGenerateImageFeaturePrintRequest requires macOS 10.15+")
             return nil
         }
 
         let start = Date()
 
         // Resolve thumbnail URLs
-        print("🔍 Resolving thumbnail URLs...")
+        RCLog("🔍 Resolving thumbnail URLs...")
         let imageURLs: [Int: URL] = await withCheckedContinuation { continuation in
             DispatchQueue.main.async {
                 let group = DispatchGroup()
@@ -124,7 +124,7 @@ enum DuplicateFinderService {
                         urls[index] = diskURL;
                         lock.unlock()
                     } else {
-                        print("  ⏳ Generating thumb [\(index+1)/\(total)]: \(URL(fileURLWithPath: photo.path).lastPathComponent)")
+                        RCLog("  ⏳ Generating thumb [\(index+1)/\(total)]: \(URL(fileURLWithPath: photo.path).lastPathComponent)")
                         group.enter()
                         thumbsManager.loadThumbnail(for: photo.path, priority: .high) { _ in
                             if FileManager.default.fileExists(atPath: diskURL.path) {
@@ -132,14 +132,14 @@ enum DuplicateFinderService {
                                 urls[index] = diskURL;
                                 lock.unlock()
                             } else {
-                                print("  ⚠️ Thumb missing after generation: \(diskURL.lastPathComponent)")
+                                RCLog("  ⚠️ Thumb missing after generation: \(diskURL.lastPathComponent)")
                             }
                             group.leave()
                         }
                     }
                 }
                 group.notify(queue: .main) {
-                    print("🔍 Thumbnail URLs ready: \(urls.count)/\(total)")
+                    RCLog("🔍 Thumbnail URLs ready: \(urls.count)/\(total)")
                     continuation.resume(returning: urls)
                 }
             }
@@ -159,13 +159,13 @@ enum DuplicateFinderService {
                     }
                     if let obs = featurePrint(at: imageURL) {
                         results[index] = obs
-                        print("  ✅ [\(i+1)/\(total)] \(imageURL.lastPathComponent)")
+                        RCLog("  ✅ [\(i+1)/\(total)] \(imageURL.lastPathComponent)")
                     } else {
-                        print("  ⚠️ [\(i+1)/\(total)] No feature print: \(imageURL.lastPathComponent)")
+                        RCLog("  ⚠️ [\(i+1)/\(total)] No feature print: \(imageURL.lastPathComponent)")
                     }
                     DispatchQueue.main.async { progress(i + 1, total) }
                 }
-                print("🔍 Feature prints done: \(results.count)/\(total)")
+                RCLog("🔍 Feature prints done: \(results.count)/\(total)")
                 continuation.resume(returning: results)
             }
         }
@@ -199,7 +199,7 @@ enum DuplicateFinderService {
         let photosInOrder = sortedIndices.map { photos[$0] }
 
         let scanDuration = Date().timeIntervalSince(start)
-        print("🔍 Scan done in \(String(format: "%.2f", scanDuration))s")
+        RCLog("🔍 Scan done in \(String(format: "%.2f", scanDuration))s")
         return DuplicateScanData(photos: photosInOrder, distances: distanceMatrix, scanDuration: scanDuration)
     }
 
@@ -210,7 +210,7 @@ enum DuplicateFinderService {
         let request = VNGenerateImageFeaturePrintRequest()
         request.imageCropAndScaleOption = .scaleFill
         guard let data = try? Data(contentsOf: imageURL), !data.isEmpty else {
-            print("  ❌ Could not read data from \(imageURL.lastPathComponent)")
+            RCLog("  ❌ Could not read data from \(imageURL.lastPathComponent)")
             return nil
         }
         do {
@@ -218,7 +218,7 @@ enum DuplicateFinderService {
             try handler.perform([request])
             return request.results?.first
         } catch let error as NSError {
-            print("  ❌ Vision failed for \(imageURL.lastPathComponent): [\(error.domain) \(error.code)] \(error.localizedDescription)")
+            RCLog("  ❌ Vision failed for \(imageURL.lastPathComponent): [\(error.domain) \(error.code)] \(error.localizedDescription)")
             return nil
         }
     }

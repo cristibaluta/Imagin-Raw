@@ -86,7 +86,7 @@ class ExternalAppManager: ObservableObject {
                     appNameLowercased.contains(keyword.lowercased())
                 }
 
-                print(">>>>>> \(bundleID) \(isPhotoApp)")
+                RCLog(">>>>>> \(bundleID) \(isPhotoApp)")
                 if isPhotoApp {
                     let photoApp = PhotoApp(
                         name: name,

@@ -221,7 +221,7 @@ extension FilesModel {
             return
         }
 
-        print("🔌 Volume mounted: \(volumeURL.path)")
+        RCLog("🔌 Volume mounted: \(volumeURL.path)")
 
         // Check if any of our saved bookmarks are on this volume
         for bookmark in allFolderBookmarks {
@@ -236,7 +236,7 @@ extension FilesModel {
                             let folderTree = loadFolderTree(at: restoredURL, maxDepth: 2, currentDepth: 0, bookmarkData: bookmark.bookmarkData)
                             rootFolders.append(folderTree)
                             fileMonitor.startMonitoring(url: restoredURL)
-                            print("✅ Restored folder from mounted volume: \(restoredURL.path)")
+                            RCLog("✅ Restored folder from mounted volume: \(restoredURL.path)")
                         }
                     }
                 }
@@ -252,7 +252,7 @@ extension FilesModel {
                                            currentDepth: 0,
                                            bookmarkData: rootFolders[idx].bookmarkData)
             rootFolders[idx] = refreshed
-            print("🔄 Refreshed /Volumes sidebar entry after mount")
+            RCLog("🔄 Refreshed /Volumes sidebar entry after mount")
         }
     }
 
@@ -261,7 +261,7 @@ extension FilesModel {
             return
         }
 
-        print("🔌 Volume unmounting: \(volumeURL.path)")
+        RCLog("🔌 Volume unmounting: \(volumeURL.path)")
 
         // Find and remove root folders that are on this volume
         let foldersToRemove = rootFolders.filter { folder in
@@ -269,7 +269,7 @@ extension FilesModel {
         }
 
         for folder in foldersToRemove {
-            print("❌ Removing root folder from unmounted volume: \(folder.url.path)")
+            RCLog("❌ Removing root folder from unmounted volume: \(folder.url.path)")
 
             // If this was the selected folder, clear the selection
             if selectedFolder?.url == folder.url {
@@ -307,7 +307,7 @@ extension FilesModel {
         children = children.filter { child in
             let shouldKeep = !child.url.path.hasPrefix(volumeURL.path)
             if !shouldKeep {
-                print("❌ Removing child folder from unmounted volume: \(child.url.path)")
+                RCLog("❌ Removing child folder from unmounted volume: \(child.url.path)")
 
                 // If this was the selected folder, clear the selection
                 if selectedFolder?.url == child.url {
@@ -318,7 +318,7 @@ extension FilesModel {
         }
 
         if children.count < originalCount {
-            print("   📁 Filtered out \(originalCount - children.count) child(ren) from \(folder.url.path)")
+            RCLog("   📁 Filtered out \(originalCount - children.count) child(ren) from \(folder.url.path)")
         }
 
         // Recursively process remaining children to remove deeper nested volumes
@@ -340,11 +340,11 @@ extension FilesModel: FileSystemMonitorDelegate {
 
     func folderContentsDidChange(at url: URL) {
         guard !isInCopyMode else {
-            print("Ignore folder contents change event in copy mode")
+            RCLog("Ignore folder contents change event in copy mode")
             return
         }
         if lastDeletedFiles.contains(url) {
-            print("Ignore folder contents change event for deleted file: \(url)")
+            RCLog("Ignore folder contents change event for deleted file: \(url)")
             lastDeletedFiles.removeAll()
             return
         }

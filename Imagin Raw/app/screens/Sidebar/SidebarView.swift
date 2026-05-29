@@ -193,7 +193,7 @@ struct SidebarView: View {
     }
     #elseif os(iOS)
     private func addVolumesFolder() {
-        print("Not implemented on iOS")
+        RCLog("Not implemented on iOS")
     }
     #endif
 }

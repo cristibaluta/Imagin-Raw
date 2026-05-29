@@ -241,7 +241,7 @@ func restoreSecurityScopedAccess(from bookmarkData: Data) -> URL? {
         #endif
         if isStale {
             // TODO: Handle stale bookmarks by re-requesting access
-            print("Bookmark stale, need to request access again")
+            RCLog("Bookmark stale, need to request access again")
         }
 
         // Start accessing the security-scoped resource

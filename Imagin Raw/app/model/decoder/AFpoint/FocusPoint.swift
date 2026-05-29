@@ -117,7 +117,7 @@ public final class PanasonicFocusPointExtractor {
         }
 
         guard !focusPoints.isEmpty else { return nil }
-        print(focusPoints)
+        RCLog(focusPoints)
         return PanasonicFocusResult(
             imageWidth:  imageWidth,
             imageHeight: imageHeight,
@@ -218,13 +218,13 @@ public extension FocusPoint {
 let url = URL(fileURLWithPath: "/path/to/G9M2_photo.jpg")
 if let result = extractPanasonicFocusPoints(from: url) {
     let size = CGSize(width: result.imageWidth, height: result.imageHeight)
-    print("Image: \(result.imageWidth) × \(result.imageHeight)")
+    RCLog("Image: \(result.imageWidth) × \(result.imageHeight)")
     for (i, pt) in result.focusPoints.enumerated() {
-        print("Point \(i+1): \(pt)")
-        print("  → pixel rect: \(pt.rect(in: size))")
+        RCLog("Point \(i+1): \(pt)")
+        RCLog("  → pixel rect: \(pt.rect(in: size))")
     }
 } else {
-    print("No AF data found.")
+    RCLog("No AF data found.")
 }
 // Expected output for your dump:
 // Point 1: FocusPoint(cx=0.8214 cy=0.6125 w=0.0500 h=0.0500 inFocus=false)

@@ -1,6 +1,15 @@
 {
-  "originHash" : "9c3908e59b7da633452ae2a38e285228d7a1a41115469ad913d713c8bde45560",
+  "originHash" : "4ecea8d1a025170d30d6167c34c94373afc8e24995a7e2630a9bb2573ae9ebf1",
   "pins" : [
+    {
+      "identity" : "rclog",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/cristibaluta/RClog.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "e5777165170c2b77562ceb22eaffec8cbc48a69f"
+      }
+    },
     {
       "identity" : "rcpreferences",
       "kind" : "remoteSourceControl",

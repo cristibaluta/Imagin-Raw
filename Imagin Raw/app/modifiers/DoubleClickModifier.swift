@@ -13,7 +13,7 @@ extension View {
     /// Example
     /// ```
     /// Text("Hello")
-    /// .onDoubleClick { print("Double click detected") }
+    /// .onDoubleClick { RCLog("Double click detected") }
     /// ```
     /// - Parameters:
     /// - handler: Block invoked when a double click is detected

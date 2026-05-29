@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		56470CAA2F651AF800D86EA6 /* RCPreferences in Frameworks */ = {isa = PBXBuildFile; productRef = 56470CA92F651AF800D86EA6 /* RCPreferences */; };
+		6D5B10BD2FCA18390001BC86 /* RCLog in Frameworks */ = {isa = PBXBuildFile; productRef = 6D5B10BC2FCA18390001BC86 /* RCLog */; };
 		6D5ECDBC2FA075C90081FE79 /* Cairo.gpx in Resources */ = {isa = PBXBuildFile; fileRef = 6D5ECDBB2FA075C90081FE79 /* Cairo.gpx */; };
 		6D5ECDBD2FA075C90081FE79 /* Bursa.gpx in Resources */ = {isa = PBXBuildFile; fileRef = 6D5ECDBA2FA075C90081FE79 /* Bursa.gpx */; };
 		6DDA930C2F909E0D00EED29A /* Istanbul.gpx in Resources */ = {isa = PBXBuildFile; fileRef = 6DDA930B2F909E0D00EED29A /* Istanbul.gpx */; };
@@ -48,6 +49,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6D5B10BD2FCA18390001BC86 /* RCLog in Frameworks */,
 				56470CAA2F651AF800D86EA6 /* RCPreferences in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -95,6 +97,7 @@
 			name = "Imagin Raw";
 			packageProductDependencies = (
 				56470CA92F651AF800D86EA6 /* RCPreferences */,
+				6D5B10BC2FCA18390001BC86 /* RCLog */,
 			);
 			productName = "Imagin Raw";
 			productReference = 56470BD42F65188700D86EA6 /* Imagin Raw.app */;
@@ -126,6 +129,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				56470CA82F651AF800D86EA6 /* XCRemoteSwiftPackageReference "RCPreferences" */,
+				6D5B10BB2FCA18390001BC86 /* XCRemoteSwiftPackageReference "RClog" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 56470BD52F65188700D86EA6 /* Products */;
@@ -399,6 +403,14 @@
 				kind = branch;
 			};
 		};
+		6D5B10BB2FCA18390001BC86 /* XCRemoteSwiftPackageReference "RClog" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/cristibaluta/RClog.git";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -406,6 +418,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 56470CA82F651AF800D86EA6 /* XCRemoteSwiftPackageReference "RCPreferences" */;
 			productName = RCPreferences;
+		};
+		6D5B10BC2FCA18390001BC86 /* RCLog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6D5B10BB2FCA18390001BC86 /* XCRemoteSwiftPackageReference "RClog" */;
+			productName = RCLog;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

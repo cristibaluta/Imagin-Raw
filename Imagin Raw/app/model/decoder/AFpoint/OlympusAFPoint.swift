@@ -23,8 +23,6 @@ public struct OlympusAFPoint {
 /// Parse an ORF (or JPEG) file and return the Olympus AF point if present.
 public func parseOlympusAFPoint(from url: URL) -> OlympusAFPoint? {
     guard let data = try? Data(contentsOf: url, options: .mappedIfSafe) else { return nil }
-    print("[OlympusAF] Parsing:", url.lastPathComponent)
-    print("[OlympusAF] First bytes:", data.prefix(4).map { String(format: "%02X", $0) }.joined(separator: " "))
     return OlympusMakernoteParser(data: data).parse()
 }
 
@@ -157,7 +155,7 @@ private final class OlympusMakernoteParser {
 
         // Dump first 20 bytes of the MakerNote so we can see the header
         let headerBytes = (0..<min(20, data.count-offset)).map { String(format: "%02X", data[offset+$0]) }.joined(separator: " ")
-        print("[OlympusAF] MakerNote at offset=\(offset), first 20 bytes: \(headerBytes)")
+        RCLog("[OlympusAF] MakerNote at offset=\(offset), first 20 bytes: \(headerBytes)")
 
         let mnOrigin: Int  // start of "OLYMPUS\0"
         let mnBase:   Int  // base for resolving data offsets inside MN
@@ -169,30 +167,30 @@ private final class OlympusMakernoteParser {
             mnOrigin = offset
             mnBase   = offset + 8   // "II"/"MM" position
             ifdStart = offset + 12  // IFD count immediately follows 12-byte header
-            print("[OlympusAF] Format: OLYMPUS+TIFF mnOrigin=\(mnOrigin) mnBase=\(mnBase) ifdStart=\(ifdStart)")
+            RCLog("[OlympusAF] Format: OLYMPUS+TIFF mnOrigin=\(mnOrigin) mnBase=\(mnBase) ifdStart=\(ifdStart)")
         } else if matchesBytes(hdr6, at: offset) {
             mnOrigin = offset; mnBase = offset; ifdStart = offset + 8
-            print("[OlympusAF] Format: OLYMP (older) ifdStart=\(ifdStart)")
+            RCLog("[OlympusAF] Format: OLYMP (older) ifdStart=\(ifdStart)")
         } else {
             mnOrigin = offset; mnBase = offset; ifdStart = offset
-            print("[OlympusAF] Format: unknown, trying ifdStart=\(ifdStart)")
+            RCLog("[OlympusAF] Format: unknown, trying ifdStart=\(ifdStart)")
         }
 
-        print("[OlympusAF] MN IFD count = \(ifdStart+2 <= data.count ? Int(u16(at: ifdStart)) : -1)")
+        RCLog("[OlympusAF] MN IFD count = \(ifdStart+2 <= data.count ? Int(u16(at: ifdStart)) : -1)")
         return parseMNTopIFD(at: ifdStart, mnOrigin: mnOrigin, mnBase: mnBase, tiffStart: tiffStart)
     }
 
     private func parseMNTopIFD(at ifdOffset: Int, mnOrigin: Int, mnBase: Int, tiffStart: Int) -> OlympusAFPoint? {
         guard ifdOffset + 2 <= data.count else { return nil }
         let count = Int(u16(at: ifdOffset))
-        guard count > 0, count < 4096 else { print("[OlympusAF] MN top count out of range: \(count)"); return nil }
+        guard count > 0, count < 4096 else { RCLog("[OlympusAF] MN top count out of range: \(count)"); return nil }
 
         for i in 0..<count {
             let e = ifdOffset + 2 + i * 12
             guard e + 12 <= data.count else { break }
             let tag = u16(at: e); let type = u16(at: e+2); let cnt = Int(u32(at: e+4))
             let vOff = e + 8
-            print(String(format: "[OlympusAF] MN tag=0x%04X type=%d count=%d", tag, type, cnt))
+            RCLog(String(format: "[OlympusAF] MN tag=0x%04X type=%d count=%d", tag, type, cnt))
 
             if tag == 0x2020 {
                 let rawValue = Int(u32(at: vOff))
@@ -200,7 +198,7 @@ private final class OlympusMakernoteParser {
                 for (name, base) in [("tiffStart", tiffStart), ("mnOrigin", mnOrigin), ("mnBase", mnBase)] {
                     let cand = base + rawValue
                     let c = cand+2 <= data.count ? Int(u16(at: cand)) : -1
-                    print("[OlympusAF] 0x2020 base=\(name)(\(base)) rawVal=\(rawValue) → abs=\(cand) count=\(c)")
+                    RCLog("[OlympusAF] 0x2020 base=\(name)(\(base)) rawVal=\(rawValue) → abs=\(cand) count=\(c)")
                 }
                 // Auto-pick whichever base gives a plausible count (1–511)
                 var chosenOff = mnBase + rawValue
@@ -209,18 +207,18 @@ private final class OlympusMakernoteParser {
                     let c = cand+2 <= data.count ? Int(u16(at: cand)) : 0
                     if c > 0 && c < 512 { chosenOff = cand; break }
                 }
-                print("[OlympusAF] → CameraSettings at \(chosenOff)")
+                RCLog("[OlympusAF] → CameraSettings at \(chosenOff)")
                 return parseCameraSettingsIFD(at: chosenOff, mnBase: mnOrigin)
             }
         }
-        print("[OlympusAF] 0x2020 not found"); return nil
+        RCLog("[OlympusAF] 0x2020 not found"); return nil
     }
 
     private func parseCameraSettingsIFD(at ifdOffset: Int, mnBase: Int) -> OlympusAFPoint? {
-        guard ifdOffset+2 <= data.count else { print("[OlympusAF] CS out of bounds"); return nil }
+        guard ifdOffset+2 <= data.count else { RCLog("[OlympusAF] CS out of bounds"); return nil }
         let count = Int(u16(at: ifdOffset))
-        print("[OlympusAF] CameraSettings count=\(count) at \(ifdOffset)")
-        guard count > 0, count < 4096 else { print("[OlympusAF] CS count out of range: \(count)"); return nil }
+        RCLog("[OlympusAF] CameraSettings count=\(count) at \(ifdOffset)")
+        guard count > 0, count < 4096 else { RCLog("[OlympusAF] CS count out of range: \(count)"); return nil }
 
         var afTargetOff: Int?; var afTargetCount = 0
         var afSelectedOff: Int?; var afSelectedCount = 0
@@ -234,12 +232,12 @@ private final class OlympusMakernoteParser {
                 let sz = typeSize(type) * cnt
                 afTargetOff = sz <= 4 ? vOff : mnBase + Int(u32(at: vOff))
                 afTargetCount = cnt
-                print(String(format: "[OlympusAF] AFTargetInfo count=%d off=0x%X", cnt, afTargetOff!))
+                RCLog(String(format: "[OlympusAF] AFTargetInfo count=%d off=0x%X", cnt, afTargetOff!))
             case 0x0305:
                 let sz = typeSize(type) * cnt
                 afSelectedOff = sz <= 4 ? vOff : mnBase + Int(u32(at: vOff))
                 afSelectedCount = cnt
-                print(String(format: "[OlympusAF] AFPointSelected count=%d off=0x%X", cnt, afSelectedOff!))
+                RCLog(String(format: "[OlympusAF] AFPointSelected count=%d off=0x%X", cnt, afSelectedOff!))
             default: break
             }
         }
@@ -253,7 +251,7 @@ private final class OlympusMakernoteParser {
                 if w > 0, h > 0 {
                     let cx = (x + w/2) / fw, cy = (y + h/2) / fh
                     if cx > 0, cx < 1, cy > 0, cy < 1 {
-                        print(String(format: "[OlympusAF] AFTargetInfo → cx=%.4f cy=%.4f w=%.4f h=%.4f", cx, cy, w/fw, h/fh))
+                        RCLog(String(format: "[OlympusAF] AFTargetInfo → cx=%.4f cy=%.4f w=%.4f h=%.4f", cx, cy, w/fw, h/fh))
                         return OlympusAFPoint(cx: cx, cy: cy, width: w/fw, height: h/fh)
                     }
                 }
@@ -269,7 +267,7 @@ private final class OlympusMakernoteParser {
                 if rOff + 8 <= data.count {
                     let num = Int32(bitPattern: u32(at: rOff))
                     let den = Int32(bitPattern: u32(at: rOff + 4))
-                    print("[OlympusAF] AFPointSelected[\(idx)] num=\(num) den=\(den) → \(den != 0 ? Double(num)/Double(den) : 0)")
+                    RCLog("[OlympusAF] AFPointSelected[\(idx)] num=\(num) den=\(den) → \(den != 0 ? Double(num)/Double(den) : 0)")
                 }
             }
             // Index 1 = cx (x_pixel / frame_width), Index 2 = cy (y_pixel / frame_height)
@@ -287,12 +285,12 @@ private final class OlympusMakernoteParser {
                     if diffW > 0.001 { nw = diffW * 2 }
                     if diffH > 0.001 { nh = diffH * 2 }
                 }
-                print(String(format: "[OlympusAF] AFPointSelected → cx=%.4f cy=%.4f w=%.4f h=%.4f", cx, cy, nw, nh))
+                RCLog(String(format: "[OlympusAF] AFPointSelected → cx=%.4f cy=%.4f w=%.4f h=%.4f", cx, cy, nw, nh))
                 return OlympusAFPoint(cx: cx, cy: cy, width: nw, height: nh)
             }
         }
 
-        print("[OlympusAF] AF position not available"); return nil
+        RCLog("[OlympusAF] AF position not available"); return nil
     }
 
     // MARK: - Binary helpers
@@ -341,6 +339,6 @@ private final class OlympusMakernoteParser {
 /*
 let url = URL(fileURLWithPath: "/path/to/PA140123.ORF")
 if let af = parseOlympusAFPoint(from: url) {
-    print(String(format: "cx=%.4f cy=%.4f w=%.4f h=%.4f", af.cx, af.cy, af.width, af.height))
+    RCLog(String(format: "cx=%.4f cy=%.4f w=%.4f h=%.4f", af.cx, af.cy, af.width, af.height))
 }
 */

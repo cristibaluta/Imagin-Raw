@@ -278,7 +278,7 @@ class ThumbGridViewModel: ObservableObject {
 
     // MARK: - Photo Loading
     func loadPhotosForFolder(_ folder: FolderItem) {
-        print("📂 Loading photos for folder: \(folder.url.lastPathComponent)")
+        RCLog("📂 Loading photos for folder: \(folder.url.lastPathComponent)")
 
         // Cancel any existing subscriptions
         cancellables.removeAll()
@@ -296,7 +296,7 @@ class ThumbGridViewModel: ObservableObject {
         let newPhotosModel = PhotosModel(folder: folder)
         self.photosModel = newPhotosModel
 
-        print("   Old PhotosModel will be deallocated")
+        RCLog("   Old PhotosModel will be deallocated")
 
         // Observe the new ThumbsManager queue count
         newThumbsManager.$pendingQueueCount
@@ -313,9 +313,9 @@ class ThumbGridViewModel: ObservableObject {
         // Observe PhotosModel's isLoadingMetadata and update our published property
         newPhotosModel.$isLoadingMetadata
             .sink { [weak self] isLoading in
-                print("📡 PhotosModel.isLoadingMetadata changed to: \(isLoading)")
+                RCLog("📡 PhotosModel.isLoadingMetadata changed to: \(isLoading)")
                 self?.isLoadingMetadata = isLoading
-                print("📡 ThumbGridViewModel.isLoadingMetadata set to: \(isLoading)")
+                RCLog("📡 ThumbGridViewModel.isLoadingMetadata set to: \(isLoading)")
             }
             .store(in: &cancellables)
 
@@ -339,7 +339,7 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func reloadPhotos() {
-        print("🔄 Reloading photos")
+        RCLog("🔄 Reloading photos")
         photosModel?.reloadPhotos()
     }
 
@@ -933,7 +933,7 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func clearInvalidFilters() {
-        print("🔍 clearInvalidFilters called - photos: \(photos.count), labels: \(selectedLabels), ratings: \(selectedRatings)")
+        RCLog("🔍 clearInvalidFilters called - photos: \(photos.count), labels: \(selectedLabels), ratings: \(selectedRatings)")
 
         // Clear invalid label filters
         if !selectedLabels.isEmpty {
@@ -956,14 +956,14 @@ class ThumbGridViewModel: ObservableObject {
                 }
 
                 if !hasMatchingPhoto {
-                    print("   ❌ Label '\(label)' has no matching photos - will remove")
+                    RCLog("   ❌ Label '\(label)' has no matching photos - will remove")
                     labelsToRemove.insert(label)
                 }
             }
 
             // Remove invalid labels
             if !labelsToRemove.isEmpty {
-                print("   🗑️ Removing labels: \(labelsToRemove)")
+                RCLog("   🗑️ Removing labels: \(labelsToRemove)")
                 selectedLabels.subtract(labelsToRemove)
             }
         }
@@ -999,8 +999,8 @@ class ThumbGridViewModel: ObservableObject {
         // After clearing invalid filters, check if any photos would match the remaining filters
         // If we still have active filters but no photos match, clear all filters
         if !photos.isEmpty && (!selectedLabels.isEmpty || !selectedRatings.isEmpty) {
-            print("   🔎 Checking if remaining filters match any photos...")
-            print("   Remaining labels: \(selectedLabels), ratings: \(selectedRatings)")
+            RCLog("   🔎 Checking if remaining filters match any photos...")
+            RCLog("   Remaining labels: \(selectedLabels), ratings: \(selectedRatings)")
 
             // Manually check if any photo matches the remaining filters
             let hasMatchingPhoto = photos.contains { photo in
@@ -1037,14 +1037,14 @@ class ThumbGridViewModel: ObservableObject {
 
             // If no photos match the remaining filters, clear all filters
             if !hasMatchingPhoto {
-                print("   ❌ No photos match remaining filters - clearing ALL filters")
+                RCLog("   ❌ No photos match remaining filters - clearing ALL filters")
                 selectedLabels.removeAll()
                 selectedRatings.removeAll()
             } else {
-                print("   ✅ Some photos match remaining filters - keeping them")
+                RCLog("   ✅ Some photos match remaining filters - keeping them")
             }
         } else {
-            print("   ℹ️ No active filters remaining after cleanup")
+            RCLog("   ℹ️ No active filters remaining after cleanup")
         }
     }
 
@@ -1278,7 +1278,7 @@ class ThumbGridViewModel: ObservableObject {
                 if let data {
                     let result = data.recluster(threshold: self.similarityMode.distanceThreshold, sortBy: self.photoSortComparator)
                     self.duplicateScanResult = result
-                    print("🔍 Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", data.scanDuration))s")
+                    RCLog("🔍 Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", data.scanDuration))s")
                 }
                 self.isFindingDuplicates = false
                 self.isDuplicateMode = true

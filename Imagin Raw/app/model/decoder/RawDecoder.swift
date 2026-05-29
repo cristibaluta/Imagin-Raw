@@ -39,7 +39,7 @@ struct CoreGraphicsDecoder: RawDecoder {
                kCGImageSourceThumbnailMaxPixelSize: 10000
            ] as CFDictionary) {
             let n = normalizeToSRGB(cg)
-            print("🔎 [CoreGraphicsDecoder] embedded JPEG \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  \(n.width)×\(n.height)")
+            RCLog("🔎 [CoreGraphicsDecoder] embedded JPEG \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  \(n.width)×\(n.height)")
             return IRImage(cgImage: n, size: IRSize(width: n.width, height: n.height))
         }
 
@@ -50,11 +50,11 @@ struct CoreGraphicsDecoder: RawDecoder {
                kCGImageSourceShouldAllowFloat: false
            ] as CFDictionary) {
             let n = normalizeToSRGB(cg)
-            print("🔎 [CoreGraphicsDecoder] full demosaic \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  \(n.width)×\(n.height)")
+            RCLog("🔎 [CoreGraphicsDecoder] full demosaic \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  \(n.width)×\(n.height)")
             return IRImage(cgImage: n, size: IRSize(width: n.width, height: n.height))
         }
 
-        print("🔎 [CoreGraphicsDecoder] failed \(filename)")
+        RCLog("🔎 [CoreGraphicsDecoder] failed \(filename)")
         return nil
     }
 
@@ -83,11 +83,11 @@ struct CoreGraphicsDecoder: RawDecoder {
             kCGImageSourceCreateThumbnailWithTransform: false, // we rotate ourselves below
             kCGImageSourceThumbnailMaxPixelSize: maxSize
         ] as CFDictionary)
-        print("🖼 [CoreGraphicsDecoder] extractPreview RAW \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+        RCLog("🖼 [CoreGraphicsDecoder] extractPreview RAW \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
         guard let cg = sourceCG else { return nil }
         guard let oriented = cg.applyingOrientation(exifOrientation) else { return nil }
-        print("🖼 [CoreGraphicsDecoder] oriented \(oriented.width)×\(oriented.height) orientation=\(exifOrientation)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+        RCLog("🖼 [CoreGraphicsDecoder] oriented \(oriented.width)×\(oriented.height) orientation=\(exifOrientation)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
         return IRImage(cgImage: oriented, size: IRSize(width: oriented.width, height: oriented.height))
     }
 
@@ -118,7 +118,7 @@ private func loadNonRAW(url: URL, maxSize: CGFloat, label: String, t0: Date) -> 
               kCGImageSourceCreateThumbnailWithTransform: true, // applies EXIF orientation
               kCGImageSourceThumbnailMaxPixelSize: maxSize
           ] as CFDictionary) else { return nil }
-    print("🖼 [\(label)] non-RAW \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  \(cg.width)×\(cg.height)")
+    RCLog("🖼 [\(label)] non-RAW \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  \(cg.width)×\(cg.height)")
     return IRImage(cgImage: cg, size: IRSize(width: cg.width, height: cg.height))
 }
 
@@ -130,7 +130,7 @@ struct LibRawDecoder: RawDecoder {
         let t0 = Date()
         let filename = URL(fileURLWithPath: path).lastPathComponent
         let img = RawWrapper.shared().extractFullResolution(path)
-        print("🔎 [LibRawDecoder] done \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  success=\(img != nil)")
+        RCLog("🔎 [LibRawDecoder] done \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  success=\(img != nil)")
         return img
     }
 
@@ -146,10 +146,10 @@ struct LibRawDecoder: RawDecoder {
 
         // RAW: RawWrapper extracts embedded JPEG, then we apply orientation
         guard let data = RawWrapper.shared().extractEmbeddedJPEG(path) else {
-            print("🖼 [LibRawDecoder] extractEmbeddedJPEG failed \(filename)")
+            RCLog("🖼 [LibRawDecoder] extractEmbeddedJPEG failed \(filename)")
             return nil
         }
-        print("🖼 [LibRawDecoder] extractEmbeddedJPEG \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  bytes=\(data.count)")
+        RCLog("🖼 [LibRawDecoder] extractEmbeddedJPEG \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  bytes=\(data.count)")
         guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
         let sourceCG = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
         var exifOrientation: Int32 = 1
@@ -160,7 +160,7 @@ struct LibRawDecoder: RawDecoder {
 
         guard let cg = sourceCG else { return nil }
         guard let oriented = cg.applyingOrientation(exifOrientation) else { return nil }
-        print("🖼 [LibRawDecoder] oriented \(oriented.width)×\(oriented.height) orientation=\(exifOrientation)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+        RCLog("🖼 [LibRawDecoder] oriented \(oriented.width)×\(oriented.height) orientation=\(exifOrientation)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
 
         let srcW = CGFloat(oriented.width)
         let srcH = CGFloat(oriented.height)
@@ -180,7 +180,7 @@ struct LibRawDecoder: RawDecoder {
         ctx.interpolationQuality = .high
         ctx.draw(oriented, in: CGRect(x: 0, y: 0, width: dstW, height: dstH))
         guard let resized = ctx.makeImage() else { return nil }
-        print("🖼 [LibRawDecoder] resized to \(dstW)×\(dstH)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
+        RCLog("🖼 [LibRawDecoder] resized to \(dstW)×\(dstH)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
         return IRImage(cgImage: resized, size: IRSize(width: resized.width, height: resized.height))
     }
 }

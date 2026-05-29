@@ -39,8 +39,6 @@ public struct PanasonicAFPoint {
 /// Parse a JPEG or RW2 file and return the Panasonic AF point if present.
 public func parsePanasonicAFPoint(from url: URL) -> PanasonicAFPoint? {
     guard let data = try? Data(contentsOf: url, options: .mappedIfSafe) else { return nil }
-    print("Parsing file:", url.lastPathComponent)
-    print("First bytes:", data.prefix(4).map { String(format: "%02X", $0) }.joined(separator: " "))
     return PanasonicMakernoteParser(data: data).parse()
 }
 
@@ -136,7 +134,7 @@ private final class PanasonicMakernoteParser {
             if tag == 0x002E {  // JpgFromRaw — embedded JPEG
                 let (offset, _) = resolveOffset(valueOrOffset: vOff, type: type,
                                                 count: count, tiffStart: tiffStart)
-                print(String(format: "Found JpgFromRaw at offset 0x%X, parsing embedded JPEG...", offset))
+                RCLog(String(format: "Found JpgFromRaw at offset 0x%X, parsing embedded JPEG...", offset))
                 // Parse the embedded JPEG blob directly from the RW2 data
                 return parseJPEGAt(offset: offset)
             }
@@ -248,7 +246,7 @@ private final class PanasonicMakernoteParser {
             let type  = readUInt16(at: entryStart + 2)
             let count = Int(readUInt32(at: entryStart + 4))
             let vOff  = entryStart + 8
-            print(String(format: "IFD tag: 0x%04X", tag))
+            RCLog(String(format: "IFD tag: 0x%04X", tag))
             switch tag {
             case 0x004D:  // AFPointPosition
                 if type == 5 || type == 10, count >= 2 {
@@ -270,7 +268,7 @@ private final class PanasonicMakernoteParser {
                 }
             case 0x0126, 0x0127:  // ExifIFD pointer — follow it, Panasonic puts 0x004D in here on some models
                 let subIFDOffset = mnStart + Int(readUInt32(at: vOff))
-                print(String(format: "Following ExifIFD at offset 0x%X", subIFDOffset))
+                RCLog(String(format: "Following ExifIFD at offset 0x%X", subIFDOffset))
                 if let result = parseMakerNoteIFD(at: subIFDOffset, mnStart: mnStart) {
                     return result
                 }
@@ -302,7 +300,7 @@ private final class PanasonicMakernoteParser {
             let type   = readUInt16(at: entryStart + 2)
             let count  = Int(readUInt32(at: entryStart + 4))
             let valueOrOffset = entryStart + 8  // 4-byte value-or-offset field
-            print(String(format: "IFD0 tag: 0x%04X", tag))
+            RCLog(String(format: "IFD0 tag: 0x%04X", tag))
             switch tag {
             case 0x8769:   // ExifIFD pointer
                 exifIFDOffset = Int(readUInt32(at: valueOrOffset))
@@ -338,7 +336,7 @@ private final class PanasonicMakernoteParser {
             let type  = readUInt16(at: entryStart + 2)
             let count = Int(readUInt32(at: entryStart + 4))
             let valueOrOffset = entryStart + 8
-            print(String(format: "tag: 0x%04X (%d)", tag, tag))
+            RCLog(String(format: "tag: 0x%04X (%d)", tag, tag))
             if tag == 0x927C {  // MakerNote
                 let (off, len) = resolveOffset(valueOrOffset: valueOrOffset,
                                                type: type, count: count,
@@ -485,7 +483,7 @@ private final class PanasonicMakernoteParser {
 /*
 let url = URL(fileURLWithPath: "/path/to/P1015143.RW2")
 if let af = parsePanasonicAFPoint(from: url) {
-    print(String(format: "cx=%.4f cy=%.4f w=%.4f h=%.4f", af.cx, af.cy, af.width, af.height))
+    RCLog(String(format: "cx=%.4f cy=%.4f w=%.4f h=%.4f", af.cx, af.cy, af.width, af.height))
     // Expected from your exiftool output:
     //   cx=0.3600 cy=0.1600 w=0.2119 h=0.2832
 }

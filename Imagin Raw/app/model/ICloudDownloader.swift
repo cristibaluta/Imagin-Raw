@@ -39,7 +39,7 @@ enum ICloudDownloader {
                 return true
             }
             // status is .notDownloaded or .downloaded (partial) — fall through.
-            print("☁️ [ICloudDownloader] \(url.lastPathComponent) status=\(String(describing: status?.rawValue)) — triggering download")
+            RCLog("☁️ [ICloudDownloader] \(url.lastPathComponent) status=\(String(describing: status?.rawValue)) — triggering download")
         } else {
             // Can't read resource values — assume local.
             return fm.fileExists(atPath: url.path)
@@ -58,11 +58,11 @@ enum ICloudDownloader {
                                error: &coordinatorError) { localURL in
             // Inside this block the file is guaranteed to be on disk.
             success = fm.fileExists(atPath: localURL.path)
-            print("☁️ [ICloudDownloader] coordinator block executed — exists=\(success): \(localURL.lastPathComponent)")
+            RCLog("☁️ [ICloudDownloader] coordinator block executed — exists=\(success): \(localURL.lastPathComponent)")
         }
 
         if let err = coordinatorError {
-            print("☁️ [ICloudDownloader] coordinator error for \(url.lastPathComponent): \(err.localizedDescription)")
+            RCLog("☁️ [ICloudDownloader] coordinator error for \(url.lastPathComponent): \(err.localizedDescription)")
             return false
         }
 

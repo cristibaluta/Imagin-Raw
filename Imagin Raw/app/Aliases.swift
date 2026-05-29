@@ -9,6 +9,7 @@
 
 import AppKit
 import Cocoa
+@_exported import RCLog
 
 typealias IRImage = NSImage
 typealias IRSize = NSSize
@@ -18,6 +19,7 @@ typealias IRColor = NSColor
 #elseif os(iOS)
 
 import UIKit
+@_exported import RCLog
 
 typealias IRImage = UIImage
 typealias IRSize = CGSize

@@ -184,7 +184,7 @@ struct CopyOptionsView: View {
     }
     #elseif os(iOS)
     private func showFolderPicker(forBackup: Bool) {
-        print("Show folder picker")
+        RCLog("Show folder picker")
     }
     #endif
 }
