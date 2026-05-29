@@ -53,7 +53,7 @@ struct ReviewView: View {
                     .foregroundColor(model.groupIndex > 0 ? .primary : .secondary.opacity(0.3))
                     .disabled(model.groupIndex <= 0)
 
-                    Text("Group \(model.groupIndex + 1)/\(model.totalGroups) — \(model.similarity)% similar")
+                    Text("\(model.groupIndex + 1)/\(model.totalGroups)")
                         .font(.callout)
                         .foregroundColor(.secondary)
 
