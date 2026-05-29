@@ -40,23 +40,15 @@ enum PhotoLabel {
 
 #if os(macOS)
     static func nsColor(for label: String) -> NSColor {
-        switch label {
-        case "Select":   return .systemRed
-        case "Second":   return .systemYellow
-        case "Approved": return NSColor(red: 133/255, green: 199/255, blue: 102/255, alpha: 1)
-        case "Review":   return .systemBlue
-        case "To Do":    return .systemPurple
-        case "Rejected": return .systemOrange
-        default:         return .clear
-        }
+        NSColor(color(for: label))
+    }
+
+    static func nsCGColor(for label: String) -> CGColor {
+        nsColor(for: label).cgColor
     }
 
     static func nsTextColor(for label: String) -> NSColor {
-        switch label {
-        case "Second", "Approved": return .black
-        case "Select", "Review", "To Do", "Rejected": return .white
-        default: return .labelColor
-        }
+        NSColor(textColor(for: label))
     }
 #endif
 

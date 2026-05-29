@@ -424,7 +424,7 @@ final class MacThumbCell: NSCollectionViewItem {
             filenameLabel.textColor = .labelColor
             return
         }
-        filenameLabel.layer?.backgroundColor = PhotoLabel.nsColor(for: label).cgColor
+        filenameLabel.layer?.backgroundColor = PhotoLabel.nsCGColor(for: label)
         filenameLabel.textColor = PhotoLabel.nsTextColor(for: label)
     }
 
