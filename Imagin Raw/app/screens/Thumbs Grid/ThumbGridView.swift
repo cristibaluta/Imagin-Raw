@@ -259,6 +259,7 @@ struct ThumbGridView: View {
             thumbsManager: viewModel.thumbsManager,
             isSearchActive: searchPhotoResults != nil
         )
+        .id(filesModel.selectedFolder?.url)
         .onAppear {
             viewModel.initializeSelection()
         }

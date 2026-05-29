@@ -268,41 +268,6 @@ struct MacThumbGridView: NSViewRepresentable {
                                                         headerHeight: headerHeight)
             }
             cv?.reloadData()
-            // Scroll to top after folder switch (photos changed)
-            if photosChanged, let collectionView = cv {
-                DispatchQueue.main.async {
-                    collectionView.scroll(NSPoint.zero)
-                }
-            }
-            // Layout hasn't run yet after reloadData — scroll in the next runloop pass
-//            if let photoId = scrollToPhotoId, let collectionView = cv {
-//                let targetPhotos = photos
-//                let targetDateGroups = dateGroups
-//                let targetDuplicateResult = duplicateResult
-//                let targetIsDateGrouped = isDateGrouped
-//                DispatchQueue.main.async {
-//                    var ip: IndexPath?
-//                    if let result = targetDuplicateResult {
-//                        outer: for (s, group) in result.groups.enumerated() {
-//                            for (i, photo) in group.photos.enumerated() {
-//                                if photo.id == photoId { ip = IndexPath(item: i, section: s); break outer }
-//                            }
-//                        }
-//                    } else if targetIsDateGrouped {
-//                        outer: for (s, group) in targetDateGroups.enumerated() {
-//                            for (i, photo) in group.photos.enumerated() {
-//                                if photo.id == photoId { ip = IndexPath(item: i, section: s); break outer }
-//                            }
-//                        }
-//                    } else if let index = targetPhotos.firstIndex(where: { $0.id == photoId }) {
-//                        ip = IndexPath(item: index, section: 0)
-//                    }
-//                    if let ip {
-//                        collectionView.scrollToItems(at: [ip], scrollPosition: .top)
-//                    }
-//                    self.scrollToPhotoId = nil
-//                }
-//            }
             return
         } else {
             cv?.visibleItems().forEach { item in
