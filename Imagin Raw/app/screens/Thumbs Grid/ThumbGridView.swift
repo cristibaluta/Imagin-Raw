@@ -243,7 +243,8 @@ struct ThumbGridView: View {
                         : [rightClickedPhoto]
                     externalAppManager.openPhotos(photos, with: app)
                 },
-                externalAppManager: externalAppManager
+                externalAppManager: externalAppManager,
+                selectedPhotosCount: { viewModel.selectedPhotos.count }
             ),
             duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
             onReview: { group, index in
@@ -352,7 +353,8 @@ struct ThumbGridView: View {
                         : [rightClickedPhoto]
                     externalAppManager.openPhotos(photos, with: app)
                 },
-                externalAppManager: externalAppManager
+                externalAppManager: externalAppManager,
+                selectedPhotosCount: { viewModel.selectedPhotos.count }
             ),
             onSelectToggle: {_ in },
             onNavigate: { photo in

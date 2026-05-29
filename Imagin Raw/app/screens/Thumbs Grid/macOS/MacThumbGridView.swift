@@ -21,6 +21,7 @@ struct ThumbCellCallbacks {
     let onReviewSelected: (PhotoItem) -> Void
     let onOpenWith: (PhotoItem, PhotoApp) -> Void
     var externalAppManager: ExternalAppManager? = nil
+    var selectedPhotosCount: () -> Int = { 0 }
 }
 
 #if os(macOS)
