@@ -363,6 +363,7 @@ final class MacThumbCell: NSCollectionViewItem {
         for i in 0...5 {
             let title = i == 0 ? "No Rating" : String(repeating: "★", count: i)
             let item = NSMenuItem(title: title, action: #selector(menuSetRating(_:)), keyEquivalent: i > 0 ? "\(i)" : "")
+            item.keyEquivalentModifierMask = []
             item.tag = i
             if currentRating(for: photo) == i {
                 item.state = .on
@@ -382,6 +383,7 @@ final class MacThumbCell: NSCollectionViewItem {
         let currentLabel = photo.xmp?.label ?? ""
         for (name, key) in labels {
             let item = NSMenuItem(title: name, action: #selector(menuSetLabel(_:)), keyEquivalent: key)
+            item.keyEquivalentModifierMask = []
             item.representedObject = name
             if currentLabel == name { item.state = .on }
             let colorDot = NSImage(size: NSSize(width: 10, height: 10), flipped: false) { rect in
@@ -393,6 +395,7 @@ final class MacThumbCell: NSCollectionViewItem {
             labelMenu.addItem(item)
         }
         let removeItem = NSMenuItem(title: "No Label", action: #selector(menuRemoveLabel), keyEquivalent: "-")
+        removeItem.keyEquivalentModifierMask = []
         if currentLabel.isEmpty { removeItem.state = .on }
         labelMenu.addItem(.separator())
         labelMenu.addItem(removeItem)
