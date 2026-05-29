@@ -232,7 +232,6 @@ struct ThumbCell: View {
 
     private func getLabelBackgroundColor() -> Color {
         guard let label = photo.xmp?.label else { return .clear }
-        case "Select":
         return PhotoLabel.color(for: label)
     }
 
