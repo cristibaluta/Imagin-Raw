@@ -228,7 +228,6 @@ struct MacThumbGridView: NSViewRepresentable {
         let modeChanged = isDupNow != wasDup || isDateNow != wasDate
 
         let photosChanged    = c.photos.map(\.id) != photos.map(\.id)
-        let contentChanged   = !photosChanged && c.photos != photos
         let sizeChanged      = c.itemSize != itemSize || c.cellHeight != cellHeight
         let selectionChanged = c.selectedPhotos != selectedPhotos
         let dupChanged       = c.duplicateResult?.groups.map(\.id) != duplicateResult?.groups.map(\.id)
