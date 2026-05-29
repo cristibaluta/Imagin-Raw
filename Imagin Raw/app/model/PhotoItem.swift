@@ -120,7 +120,8 @@ struct PhotoItem: Identifiable {
     init(asset: PHAsset, basic: Bool = false) {
         self.id = UUID()
         if #available(iOS 26.0, macOS 26.0, *) {
-            self.dateCreated = asset.addedDate
+            let dateAdded = asset.value(forKey: "addedDate") as? Date
+            self.dateCreated = dateAdded ?? asset.creationDate ?? Date()//asset.addedDate
         } else {
             self.dateCreated = asset.creationDate ?? Date()
         }
