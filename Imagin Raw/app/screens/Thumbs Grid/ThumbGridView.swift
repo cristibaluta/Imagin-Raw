@@ -55,6 +55,8 @@ struct ThumbGridView: View {
     @Binding var currentPhotos: [PhotoItem]
     @State private var hasAppeared = false
 
+    @State private var ignoringSearchResults = false
+
     init(filesModel: FilesModel,
          searchPhotoResults: [PhotoItem]? = nil,
          onOpenSelectedPhotos: (([PhotoItem]) -> Void)?,
@@ -147,10 +149,21 @@ struct ThumbGridView: View {
                 viewModel.loadPhotosForFolder(folder)
             }
         }
-        .onChange(of: searchPhotoResults) { _, newResults in
+        .onChange(of: searchPhotoResults) { oldResults, newResults in
             if let results = newResults {
+                // If we were ignoring search results due to folder selection,
+                // only keep ignoring if the results haven't actually changed (same search query).
+                // New/different results mean the user typed again.
+                if ignoringSearchResults {
+                    if oldResults?.count != results.count || oldResults?.first?.id != results.first?.id {
+                        ignoringSearchResults = false
+                    } else {
+                        return
+                    }
+                }
                 viewModel.loadSearchResults(results)
             } else {
+                ignoringSearchResults = false
                 viewModel.clearSearchResults()
                 if let folder = filesModel.selectedFolder {
                     viewModel.loadPhotosForFolder(folder)
@@ -159,6 +172,7 @@ struct ThumbGridView: View {
         }
         .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
             guard let folder = newFolder, oldFolder?.url != newFolder?.url else { return }
+            ignoringSearchResults = true
             viewModel.clearSearchResults()
             viewModel.loadPhotosForFolder(folder)
             viewModel.exitDuplicateMode()
