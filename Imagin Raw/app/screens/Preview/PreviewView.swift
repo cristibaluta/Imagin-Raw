@@ -24,7 +24,7 @@ struct PreviewView: View {
     @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .r4x5
     @State private var exportPadding: Double = appPrefs.get(.exportPadding)
     @State private var exportAlignment: ExportAlignment = ExportAlignment(rawValue: appPrefs.string(.exportAlignment)) ?? .center
-    @State private var showAFPoint = false
+    @State private var showAFPoint: Bool = appPrefs.get(.showAFPoint)
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
 
     private var effectiveAlignToTopLeft: Bool {
@@ -68,6 +68,9 @@ struct PreviewView: View {
         }
         .onChange(of: exportAlignment) { _, newVal in
             appPrefs.set(newVal.rawValue, forKey: .exportAlignment)
+        }
+        .onChange(of: showAFPoint) { _, newVal in
+            appPrefs.set(newVal, forKey: .showAFPoint)
         }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
             gridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small

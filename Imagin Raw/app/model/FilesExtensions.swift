@@ -18,7 +18,7 @@ enum RawBrand {
     case other
 
     /// Brands that support AF point parsing
-    static let afPointSupported: Set<RawBrand> = [.olympus]
+    static let afPointSupported: Set<RawBrand> = []
 }
 
 enum FilesExtensions {

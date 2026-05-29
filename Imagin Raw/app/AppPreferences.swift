@@ -11,6 +11,7 @@ import RCPreferences
 enum AppPreference: String, RCPreferencesProtocol {
 
     // MARK: - Preview
+    case showAFPoint    = "ShowAFPoint"
     case alignToTopLeft = "ImageAlignmentTopLeft"
     case exportRatio    = "ExportAspectRatio"
     case exportPadding  = "ExportPadding"
@@ -49,6 +50,7 @@ enum AppPreference: String, RCPreferencesProtocol {
 
     func defaultValue() -> Any {
         switch self {
+        case .showAFPoint:              return false
         case .alignToTopLeft:           return false
         case .exportRatio:              return ExportAspectRatio.r4x5.rawValue
         case .exportPadding:            return 0.0
