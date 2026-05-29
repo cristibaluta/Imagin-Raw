@@ -318,9 +318,7 @@ final class MacThumbCell: NSCollectionViewItem {
         filenameLabel.stringValue = URL(fileURLWithPath: photo.path).lastPathComponent
         applyLabelStyle(for: photo)
         starView?.rating = currentRating(for: photo)
-        if pathChanged {
-            view.menu = makeContextMenu(for: photo)
-        }
+        view.menu = makeContextMenu(for: photo)
 
         if view.trackingAreas.isEmpty {
             setupTrackingArea()
@@ -341,6 +339,13 @@ final class MacThumbCell: NSCollectionViewItem {
 
     private func makeContextMenu(for photo: PhotoItem) -> NSMenu {
         let menu = NSMenu()
+        menu.delegate = self
+        return menu
+    }
+
+    private func populateMenu(_ menu: NSMenu) {
+        menu.removeAllItems()
+        guard let photo = currentPhoto else { return }
 
         // Review — resolves selected photos at action time
         let review = NSMenuItem(title: "Review Photos", action: #selector(menuReview), keyEquivalent: "")
@@ -384,7 +389,6 @@ final class MacThumbCell: NSCollectionViewItem {
             all.image = NSImage(systemSymbolName: "trash.fill", accessibilityDescription: nil)
             menu.addItem(all)
         }
-        return menu
     }
 
     @objc private func menuReview() {
@@ -446,6 +450,12 @@ final class MacThumbCell: NSCollectionViewItem {
         starView?.removeFromSuperview()
         starView = nil
         view.menu = nil
+    }
+}
+
+extension MacThumbCell: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        populateMenu(menu)
     }
 }
 
