@@ -353,6 +353,50 @@ final class MacThumbCell: NSCollectionViewItem {
         menu.addItem(review)
         menu.addItem(.separator())
 
+        // Rate submenu
+        let rateItem = NSMenuItem(title: "Rate", action: nil, keyEquivalent: "")
+        rateItem.image = NSImage(systemSymbolName: "star", accessibilityDescription: nil)
+        let rateMenu = NSMenu()
+        for i in 0...5 {
+            let title = i == 0 ? "No Rating" : String(repeating: "★", count: i)
+            let item = NSMenuItem(title: title, action: #selector(menuSetRating(_:)), keyEquivalent: i > 0 ? "\(i)" : "")
+            item.tag = i
+            if currentRating(for: photo) == i {
+                item.state = .on
+            }
+            rateMenu.addItem(item)
+        }
+        rateItem.submenu = rateMenu
+        menu.addItem(rateItem)
+
+        // Label submenu
+        let labelItem = NSMenuItem(title: "Label", action: nil, keyEquivalent: "")
+        labelItem.image = NSImage(systemSymbolName: "tag", accessibilityDescription: nil)
+        let labelMenu = NSMenu()
+        let labels: [(name: String, key: String)] = [
+            ("Select", "6"), ("Second", "7"), ("Approved", "8"), ("Review", "9"), ("To Do", "0")
+        ]
+        let currentLabel = photo.xmp?.label ?? ""
+        for (name, key) in labels {
+            let item = NSMenuItem(title: name, action: #selector(menuSetLabel(_:)), keyEquivalent: key)
+            item.representedObject = name
+            if currentLabel == name { item.state = .on }
+            let colorDot = NSImage(size: NSSize(width: 10, height: 10), flipped: false) { rect in
+                NSColor(PhotoLabel.color(for: name)).setFill()
+                NSBezierPath(ovalIn: rect).fill()
+                return true
+            }
+            item.image = colorDot
+            labelMenu.addItem(item)
+        }
+        let removeItem = NSMenuItem(title: "No Label", action: #selector(menuRemoveLabel), keyEquivalent: "-")
+        if currentLabel.isEmpty { removeItem.state = .on }
+        labelMenu.addItem(.separator())
+        labelMenu.addItem(removeItem)
+        labelItem.submenu = labelMenu
+        menu.addItem(labelItem)
+
+        menu.addItem(.separator())
         let finder = NSMenuItem(title: "Show in Finder", action: #selector(menuShowInFinder), keyEquivalent: "")
         finder.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
         menu.addItem(finder)
@@ -409,6 +453,18 @@ final class MacThumbCell: NSCollectionViewItem {
     @objc private func menuRenameTo() { guard let p = currentPhoto else { return }; callbacks?.onRenameTo(p) }
     @objc private func menuMoveToTrash() { guard let p = currentPhoto else { return }; callbacks?.onMoveToTrash(p) }
     @objc private func menuMoveAllToTrash() { guard let p = currentPhoto else { return }; callbacks?.onMoveAllMarkedToTrash(p)?.action() }
+    @objc private func menuSetRating(_ sender: NSMenuItem) {
+        guard let p = currentPhoto else { return }
+        callbacks?.onRatingChanged(p, sender.tag)
+    }
+    @objc private func menuSetLabel(_ sender: NSMenuItem) {
+        guard let p = currentPhoto, let label = sender.representedObject as? String else { return }
+        callbacks?.onLabelChanged(p, label)
+    }
+    @objc private func menuRemoveLabel() {
+        guard let p = currentPhoto else { return }
+        callbacks?.onLabelChanged(p, nil)
+    }
 
     // MARK: Helpers
 

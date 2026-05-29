@@ -201,6 +201,13 @@ struct ThumbGridView: View {
                 onRatingChanged: { photo, rating in
                     viewModel.applyRating(rating, to: [photo])
                 },
+                onLabelChanged: { photo, label in
+                    if let label {
+                        viewModel.applyLabel(label, to: [photo])
+                    } else {
+                        viewModel.removeLabels(from: [photo])
+                    }
+                },
                 onMoveToTrash: { rightClickedPhoto in
                     let photosToTrash = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
                     ? viewModel.getSelectedPhotosForBulkAction()
@@ -302,6 +309,13 @@ struct ThumbGridView: View {
                 },
                 onRatingChanged: { photo, rating in
                     viewModel.applyRating(rating, to: [photo])
+                },
+                onLabelChanged: { photo, label in
+                    if let label {
+                        viewModel.applyLabel(label, to: [photo])
+                    } else {
+                        viewModel.removeLabels(from: [photo])
+                    }
                 },
                 onMoveToTrash: { rightClickedPhoto in
                     let photosToTrash = viewModel.selectedPhotos.contains(rightClickedPhoto.id)

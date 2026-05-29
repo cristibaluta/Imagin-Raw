@@ -13,6 +13,7 @@ struct ThumbCellCallbacks {
     let onTap: (PhotoItem, NSEvent.ModifierFlags) -> Void
     let onDoubleClick: (PhotoItem) -> Void
     let onRatingChanged: (PhotoItem, Int) -> Void
+    let onLabelChanged: (PhotoItem, String?) -> Void
     let onMoveToTrash: (PhotoItem) -> Void
     let onCopyTo: (PhotoItem) -> Void
     let onRenameTo: (PhotoItem) -> Void
