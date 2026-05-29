@@ -399,7 +399,7 @@ final class MacThumbCell: NSCollectionViewItem {
     @objc private func menuOpenWithApp(_ sender: NSMenuItem) {
         guard let app = sender.representedObject as? PhotoApp,
               let photo = currentPhoto else { return }
-        callbacks?.externalAppManager?.openPhotos([photo], with: app)
+        callbacks?.onOpenWith(photo, app)
     }
     @objc private func menuCopyTo() { guard let p = currentPhoto else { return }; callbacks?.onCopyTo(p) }
     @objc private func menuRenameTo() { guard let p = currentPhoto else { return }; callbacks?.onRenameTo(p) }

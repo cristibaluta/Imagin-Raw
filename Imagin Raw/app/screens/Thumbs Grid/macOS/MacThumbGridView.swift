@@ -18,6 +18,7 @@ struct ThumbCellCallbacks {
     let onRenameTo: (PhotoItem) -> Void
     let onMoveAllMarkedToTrash: (PhotoItem) -> (count: Int, action: () -> Void)?
     let onReviewSelected: (PhotoItem) -> Void
+    let onOpenWith: (PhotoItem, PhotoApp) -> Void
     var externalAppManager: ExternalAppManager? = nil
 }
 

@@ -230,6 +230,12 @@ struct ThumbGridView: View {
                         : [rightClickedPhoto]
                     reviewGroup = buildReviewGroupItemFromPhotos(photos)
                 },
+                onOpenWith: { rightClickedPhoto, app in
+                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
+                        ? viewModel.getSelectedPhotosForBulkAction()
+                        : [rightClickedPhoto]
+                    externalAppManager.openPhotos(photos, with: app)
+                },
                 externalAppManager: externalAppManager
             ),
             duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
@@ -324,6 +330,12 @@ struct ThumbGridView: View {
                         ? viewModel.getSelectedPhotosForBulkAction()
                         : [rightClickedPhoto]
                     reviewGroup = buildReviewGroupItemFromPhotos(photos)
+                },
+                onOpenWith: { rightClickedPhoto, app in
+                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
+                        ? viewModel.getSelectedPhotosForBulkAction()
+                        : [rightClickedPhoto]
+                    externalAppManager.openPhotos(photos, with: app)
                 },
                 externalAppManager: externalAppManager
             ),
