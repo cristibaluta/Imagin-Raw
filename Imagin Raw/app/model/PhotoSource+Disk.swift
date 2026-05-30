@@ -28,10 +28,6 @@ struct DiskPhotoSource: PhotoSource {
             completion(videoThumbnail(url: url, targetSize: targetSize))
             return
         }
-        if ext == "psd" || ext == "psb" {
-            completion(PSDDecoder.thumbnail(at: path, maxSize: targetSize))
-            return
-        }
         if FilesExtensions.raw.contains(ext) {
             guard let data = RawWrapper.shared().extractEmbeddedJPEG(path),
                   let img = IRImage(data: data) else {
@@ -77,9 +73,7 @@ struct DiskPhotoSource: PhotoSource {
         let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
         DispatchQueue.global(qos: .userInitiated).async {
             let image: IRImage?
-            if ext == "psd" || ext == "psb" {
-                image = PSDDecoder.fullRes(at: path)
-            } else if FilesExtensions.raw.contains(ext) {
+            if FilesExtensions.raw.contains(ext) {
                 image = CoreGraphicsDecoder().decodeFullRes(at: path)
             } else if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
                       let cg = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) {
