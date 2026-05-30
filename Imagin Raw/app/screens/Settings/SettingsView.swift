@@ -83,6 +83,7 @@ struct SettingsView: View {
             appPrefs.reset(pref)
         }
         RCLog("All preferences reset to defaults (folders preserved)")
+        NotificationCenter.default.post(name: .preferencesDidReset, object: nil)
     }
 
     private func deleteAllCache() {

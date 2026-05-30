@@ -7,6 +7,10 @@
 
 import SwiftUI
 
+extension Notification.Name {
+    static let preferencesDidReset = Notification.Name("preferencesDidReset")
+}
+
 #if os(macOS)
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -17,11 +21,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct ImaginRawApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @State private var contentViewID = UUID()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .background(Color(NSColor(white: 0.2, alpha: 1.0)))
+                .id(contentViewID)
+                .onReceive(NotificationCenter.default.publisher(for: .preferencesDidReset)) { _ in
+                    contentViewID = UUID()
+                }
         }
         .windowToolbarStyle(.unified)
         .defaultSize(width: 1200, height: 800)
