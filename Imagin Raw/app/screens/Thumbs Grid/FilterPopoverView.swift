@@ -139,7 +139,6 @@ struct CheckboxToggleStyle: ToggleStyle {
             configuration.label
         }
     }
-
 }
 
 struct RatingCheckboxToggleStyle: ToggleStyle {
