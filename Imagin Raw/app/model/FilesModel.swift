@@ -166,6 +166,55 @@ final class FilesModel: ObservableObject {
         }
     }
 
+    func loadFolderChildren(for folder: FolderItem) -> [FolderItem] {
+        // Load children on demand (2 levels deep from this folder)
+        let childTree = loadFolderTree(at: folder.url, maxDepth: 2, currentDepth: 0)
+        return childTree.children ?? []
+    }
+
+    func loadFolderTree(at url: URL, maxDepth: Int = 2, currentDepth: Int = 0, bookmarkData: Data? = nil) -> FolderItem {
+        var children: [FolderItem] = []
+
+        let keys: Set<URLResourceKey> = [.isDirectoryKey, .isHiddenKey]
+        let fm = FileManager.default
+
+        if let items = try? fm.contentsOfDirectory(
+            at: url,
+            includingPropertiesForKeys: Array(keys),
+            options: [.skipsHiddenFiles]
+        ) {
+            let sortedFolders = items
+                .compactMap { item -> URL? in
+                    guard let values = try? item.resourceValues(forKeys: keys), values.isDirectory == true else { return nil }
+                    guard !item.lastPathComponent.hasSuffix(".photoslibrary") else { return nil }
+                    return item
+                }
+                .sorted {
+                    $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
+                }
+
+            for folder in sortedFolders {
+                if currentDepth < maxDepth {
+                    // Load recursively up to maxDepth
+                    children.append(loadFolderTree(at: folder, maxDepth: maxDepth, currentDepth: currentDepth + 1))
+                } else {
+                    // At maxDepth, just check if this folder has subfolders to determine if it should be expandable
+                    let hasSubfolders = hasDirectSubfolders(at: folder)
+                    children.append(FolderItem(
+                        url: folder,
+                        children: hasSubfolders ? [] : nil // Empty array means "expandable but not loaded", nil means "no children"
+                    ))
+                }
+            }
+        }
+
+        return FolderItem(
+            url: url,
+            children: children.isEmpty ? nil : children,
+            bookmarkData: bookmarkData
+        )
+    }
+
     // MARK: - PhotoKit
 
     /// Requests Photos authorisation then inserts the Photos Library root folder
@@ -197,6 +246,86 @@ final class FilesModel: ObservableObject {
 }
 
 #if os(macOS)
+
+// MARK: - Security-Scoped Bookmark Management
+
+struct FolderBookmark: Codable {
+    let url: URL
+    let bookmarkData: Data
+
+    enum CodingKeys: String, CodingKey {
+        case url, bookmarkData
+    }
+}
+
+func createSecurityScopedBookmark(for url: URL) -> Data? {
+    do {
+        #if os(macOS)
+        let bookmarkData = try url.bookmarkData(
+            options: [.withSecurityScope],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        #elseif os(iOS)
+        let bookmarkData = try url.bookmarkData()
+        #endif
+        return bookmarkData
+    } catch {
+        return nil
+    }
+}
+
+func restoreSecurityScopedAccess(from bookmarkData: Data) -> URL? {
+    var isStale = false
+    do {
+        #if os(macOS)
+        let url = try URL(
+            resolvingBookmarkData: bookmarkData,
+            options: [.withSecurityScope, .withoutUI],
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
+        )
+        #elseif os(iOS)
+        let url = try URL(
+            resolvingBookmarkData: bookmarkData,
+            bookmarkDataIsStale: &isStale
+        )
+        #endif
+        if isStale {
+            // TODO: Handle stale bookmarks by re-requesting access
+            RCLog("Bookmark stale, need to request access again")
+        }
+
+        // Start accessing the security-scoped resource
+        guard url.startAccessingSecurityScopedResource() else {
+            return nil
+        }
+
+        return url
+    } catch {
+        return nil
+    }
+}
+
+func hasDirectSubfolders(at url: URL) -> Bool {
+    let keys: Set<URLResourceKey> = [.isDirectoryKey, .isHiddenKey]
+    let fm = FileManager.default
+
+    guard let items = try? fm.contentsOfDirectory(
+        at: url,
+        includingPropertiesForKeys: Array(keys),
+        options: [.skipsHiddenFiles]
+    ) else { return false }
+
+    // Check if any item is a directory
+    for item in items {
+        if let values = try? item.resourceValues(forKeys: keys), values.isDirectory == true {
+            return true
+        }
+    }
+    return false
+}
+
 extension FilesModel {
 
     private func setupVolumeMonitoring() {
@@ -404,6 +533,5 @@ extension FilesModel: FileSystemMonitorDelegate {
             }
         }
     }
-
 }
 #endif
