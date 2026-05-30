@@ -25,6 +25,10 @@ struct ImaginRawApp: App {
         }
         .windowToolbarStyle(.unified)
         .defaultSize(width: 1200, height: 800)
+
+        Settings {
+            SettingsView()
+        }
     }
 }
 #elseif os(iOS)

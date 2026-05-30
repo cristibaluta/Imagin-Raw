@@ -53,6 +53,10 @@ struct ShortcutsHelpView: View {
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     Text("Space   Review mode")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    Text("C       Toggle Sidebar")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    Text("G       Toggle Grid type")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 }
                 .frame(width: 260)
             }
@@ -62,7 +66,5 @@ struct ShortcutsHelpView: View {
                 .multilineTextAlignment(.center)
             Spacer()
         }
-        .padding(40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
