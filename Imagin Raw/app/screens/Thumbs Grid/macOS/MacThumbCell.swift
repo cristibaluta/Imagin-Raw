@@ -350,7 +350,9 @@ final class MacThumbCell: NSCollectionViewItem {
         // Review — resolves selected photos at action time
         let selectedCount = callbacks?.selectedPhotosCount() ?? 0
         let reviewCount = max(selectedCount, 1)
-        let review = NSMenuItem(title: "Review Photos (\(reviewCount))", action: reviewCount >= 2 ? #selector(menuReview) : nil, keyEquivalent: " ")
+        let review = NSMenuItem(title: "Review Photos\(reviewCount >= 2 ? " (\(reviewCount))" : "")",
+                                action: reviewCount >= 2 ? #selector(menuReview) : nil,
+                                keyEquivalent: " ")
         review.keyEquivalentModifierMask = []
         review.image = NSImage(systemSymbolName: "eye", accessibilityDescription: nil)
         menu.addItem(review)
