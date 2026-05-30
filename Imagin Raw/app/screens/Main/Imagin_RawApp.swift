@@ -24,7 +24,7 @@ struct ImaginRawApp: App {
                 .background(Color(NSColor(white: 0.2, alpha: 1.0)))
         }
         .windowToolbarStyle(.unified)
-        .windowResizability(.contentSize)
+        .defaultSize(width: 1200, height: 800)
     }
 }
 #elseif os(iOS)
