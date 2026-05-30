@@ -13,24 +13,59 @@ protocol FileSystemMonitorDelegate: AnyObject {
     func folderContentsDidChange(at url: URL)
 }
 
+func fsEventsCallback(streamRef: ConstFSEventStreamRef,
+                     clientCallBackInfo: UnsafeMutableRawPointer?,
+                     numEvents: Int,
+                     eventPaths: UnsafeMutableRawPointer,
+                     eventFlags: UnsafePointer<FSEventStreamEventFlags>,
+                     eventIds: UnsafePointer<FSEventStreamEventId>) {
+    // Get the monitor ID from the context
+    guard let info = clientCallBackInfo else {
+        return
+    }
+    let monitorId = info.load(as: Int.self)
+
+    // Find the monitor in our global registry
+    guard let monitor = FileSystemMonitor.getMonitor(id: monitorId) else { return }
+
+    // Handle the eventPaths as CFArray
+    let cfArray = unsafeBitCast(eventPaths, to: CFArray.self)
+
+    for i in 0..<numEvents {
+        if let cfString = CFArrayGetValueAtIndex(cfArray, i) {
+            let pathString = unsafeBitCast(cfString, to: CFString.self) as String
+            let url = URL(fileURLWithPath: pathString)
+
+            if monitor.isRelevantChange(at: url, flags: eventFlags[i]) {
+                // Send the event through the throttled subject instead of calling delegate directly
+                monitor.fileChangeSubject.send(url)
+            }
+        }
+    }
+}
+
 class FileSystemMonitor {
     private var eventStream: FSEventStreamRef?
     private var monitoredPaths: [String] = []
     weak var delegate: FileSystemMonitorDelegate?
 
-    // Global monitor registry
-    private var nextId = 0
-    private var monitors: [Int: FileSystemMonitor] = [:]
+    // Static registry — closure callback cannot capture context, so lookups go through statics
+    private static var nextId = 0
+    private static var monitors: [Int: FileSystemMonitor] = [:]
     private var monitorId: Int
+
+    static func getMonitor(id: Int) -> FileSystemMonitor? {
+        return monitors[id]
+    }
 
     // Combine subjects for throttling
     let fileChangeSubject = PassthroughSubject<URL, Never>()
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        nextId += 1
-        self.monitorId = nextId
-        monitors[monitorId] = self
+        FileSystemMonitor.nextId += 1
+        self.monitorId = FileSystemMonitor.nextId
+        FileSystemMonitor.monitors[monitorId] = self
 
         // Set up throttling - wait 2 seconds after the last event
         fileChangeSubject
@@ -41,10 +76,6 @@ class FileSystemMonitor {
                 }
             }
             .store(in: &cancellables)
-    }
-
-    private func getMonitor(id: Int) -> FileSystemMonitor? {
-        return monitors[id]
     }
 
     func startMonitoring(url: URL) {
@@ -81,8 +112,6 @@ class FileSystemMonitor {
         guard !monitoredPaths.isEmpty else { return }
 
         let pathsArray = monitoredPaths as CFArray
-
-        // Create context with monitor ID
         let contextPtr = UnsafeMutablePointer<Int>.allocate(capacity: 1)
         contextPtr.pointee = monitorId
 
@@ -146,39 +175,9 @@ class FileSystemMonitor {
         return isRelevant
     }
 
-    func fsEventsCallback(streamRef: ConstFSEventStreamRef,
-                          clientCallBackInfo: UnsafeMutableRawPointer?,
-                          numEvents: Int,
-                          eventPaths: UnsafeMutableRawPointer,
-                          eventFlags: UnsafePointer<FSEventStreamEventFlags>,
-                          eventIds: UnsafePointer<FSEventStreamEventId>) {
-        // Get the monitor ID from the context
-        guard let info = clientCallBackInfo else {
-            return
-        }
-        let monitorId = info.load(as: Int.self)
-
-        // Find the monitor in our global registry
-        guard let monitor = getMonitor(id: monitorId) else { return }
-
-        // Handle the eventPaths as CFArray
-        let cfArray = unsafeBitCast(eventPaths, to: CFArray.self)
-
-        for i in 0..<numEvents {
-            if let cfString = CFArrayGetValueAtIndex(cfArray, i) {
-                let pathString = unsafeBitCast(cfString, to: CFString.self) as String
-                let url = URL(fileURLWithPath: pathString)
-
-                if monitor.isRelevantChange(at: url, flags: eventFlags[i]) {
-                    // Send the event through the throttled subject instead of calling delegate directly
-                    monitor.fileChangeSubject.send(url)
-                }
-            }
-        }
-    }
-
     deinit {
         stopAllMonitoring()
+        FileSystemMonitor.monitors.removeValue(forKey: monitorId)
     }
 }
 
