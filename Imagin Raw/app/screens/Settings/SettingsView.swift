@@ -78,10 +78,11 @@ struct SettingsView: View {
     // MARK: - Actions
 
     private func resetAllPreferences() {
-        let domain = Bundle.main.bundleIdentifier ?? "ro.imagin.raw"
-        UserDefaults.standard.removePersistentDomain(forName: domain)
-        UserDefaults.standard.synchronize()
-        RCLog("All preferences reset to defaults")
+        let preserved: Set<AppPreference> = [.userFolderBookmarks, .photoLibraryEnabled]
+        for pref in AppPreference.allCases where !preserved.contains(pref) {
+            appPrefs.reset(pref)
+        }
+        RCLog("All preferences reset to defaults (folders preserved)")
     }
 
     private func deleteAllCache() {

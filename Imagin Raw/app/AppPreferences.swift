@@ -8,7 +8,7 @@
 import Foundation
 import RCPreferences
 
-enum AppPreference: String, RCPreferencesProtocol {
+enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
 
     // MARK: - Preview
     case showAFPoint    = "ShowAFPoint"
