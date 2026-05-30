@@ -411,7 +411,6 @@ final class MacThumbCell: NSCollectionViewItem {
         approveItem.keyEquivalentModifierMask = []
         approveItem.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)
         if !isRaw { approveItem.isEnabled = false }
-        if photo.xmp?.label == "Approved" { approveItem.state = .on }
         menu.addItem(approveItem)
 
         // Reject
@@ -419,7 +418,6 @@ final class MacThumbCell: NSCollectionViewItem {
         rejectItem.keyEquivalentModifierMask = []
         rejectItem.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
         if !isRaw { rejectItem.isEnabled = false }
-        if photo.toDelete { rejectItem.state = .on }
         menu.addItem(rejectItem)
 
         menu.addItem(.separator())
