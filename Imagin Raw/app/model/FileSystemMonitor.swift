@@ -275,6 +275,7 @@ func loadFolderTree(at url: URL, maxDepth: Int = 2, currentDepth: Int = 0, bookm
         let sortedFolders = items
             .compactMap { item -> URL? in
                 guard let values = try? item.resourceValues(forKeys: keys), values.isDirectory == true else { return nil }
+                guard !item.lastPathComponent.hasSuffix(".photoslibrary") else { return nil }
                 return item
             }
             .sorted {
