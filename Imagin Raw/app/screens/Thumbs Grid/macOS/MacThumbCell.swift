@@ -356,9 +356,12 @@ final class MacThumbCell: NSCollectionViewItem {
         menu.addItem(review)
         menu.addItem(.separator())
 
+        let isRaw = photo.isRawFile
+
         // Rate submenu
         let rateItem = NSMenuItem(title: "Rate", action: nil, keyEquivalent: "")
         rateItem.image = NSImage(systemSymbolName: "star", accessibilityDescription: nil)
+        if !isRaw { rateItem.isEnabled = false }
         let rateMenu = NSMenu()
         for i in 0...5 {
             let title = i == 0 ? "No Rating" : String(repeating: "★", count: i)
@@ -376,6 +379,7 @@ final class MacThumbCell: NSCollectionViewItem {
         // Label submenu
         let labelItem = NSMenuItem(title: "Label", action: nil, keyEquivalent: "")
         labelItem.image = NSImage(systemSymbolName: "tag", accessibilityDescription: nil)
+        if !isRaw { labelItem.isEnabled = false }
         let labelMenu = NSMenu()
         let labels: [(name: String, key: String)] = [
             ("Select", "6"), ("Second", "7"), ("Approved", "8"), ("Review", "9"), ("To Do", "0")
@@ -403,16 +407,18 @@ final class MacThumbCell: NSCollectionViewItem {
         menu.addItem(labelItem)
 
         // Approve
-        let approveItem = NSMenuItem(title: "Approve", action: #selector(menuApprove), keyEquivalent: "a")
+        let approveItem = NSMenuItem(title: "Approve", action: isRaw ? #selector(menuApprove) : nil, keyEquivalent: "a")
         approveItem.keyEquivalentModifierMask = []
         approveItem.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)
+        if !isRaw { approveItem.isEnabled = false }
         if photo.xmp?.label == "Approved" { approveItem.state = .on }
         menu.addItem(approveItem)
 
         // Reject
-        let rejectItem = NSMenuItem(title: "Reject", action: #selector(menuReject), keyEquivalent: "x")
+        let rejectItem = NSMenuItem(title: "Reject", action: isRaw ? #selector(menuReject) : nil, keyEquivalent: "x")
         rejectItem.keyEquivalentModifierMask = []
         rejectItem.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
+        if !isRaw { rejectItem.isEnabled = false }
         if photo.toDelete { rejectItem.state = .on }
         menu.addItem(rejectItem)
 
@@ -443,8 +449,11 @@ final class MacThumbCell: NSCollectionViewItem {
         let rename = NSMenuItem(title: "Rename...", action: #selector(menuRenameTo), keyEquivalent: "")
         rename.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: nil)
         menu.addItem(rename)
+
         menu.addItem(.separator())
-        let trash = NSMenuItem(title: "Move to Trash", action: #selector(menuMoveToTrash), keyEquivalent: "")
+
+        let trash = NSMenuItem(title: "Move to Trash", action: #selector(menuMoveToTrash), keyEquivalent: String(Unicode.Scalar(NSBackspaceCharacter)!))
+        trash.keyEquivalentModifierMask = [.command]
         trash.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
         menu.addItem(trash)
         if photo.toDelete, let info = callbacks?.onMoveAllMarkedToTrash(photo) {
