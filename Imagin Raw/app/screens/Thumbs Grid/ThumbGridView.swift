@@ -245,6 +245,8 @@ struct ThumbGridView: View {
                     let marked = viewModel.getPhotosMarkedForDeletion()
                     return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
                 },
+                onApprove: { photo in viewModel.applyLabel("Approved", to: [photo]) },
+                onReject: { photo in viewModel.toggleDeleteState(for: [photo]) },
                 onReviewSelected: { rightClickedPhoto in
                     let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
                         ? viewModel.getSelectedPhotosForBulkAction()
@@ -355,6 +357,8 @@ struct ThumbGridView: View {
                     let marked = viewModel.getPhotosMarkedForDeletion()
                     return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
                 },
+                onApprove: { photo in viewModel.applyLabel("Approved", to: [photo]) },
+                onReject: { photo in viewModel.toggleDeleteState(for: [photo]) },
                 onReviewSelected: { rightClickedPhoto in
                     let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
                         ? viewModel.getSelectedPhotosForBulkAction()

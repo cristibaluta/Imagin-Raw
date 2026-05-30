@@ -402,6 +402,20 @@ final class MacThumbCell: NSCollectionViewItem {
         labelItem.submenu = labelMenu
         menu.addItem(labelItem)
 
+        // Approve
+        let approveItem = NSMenuItem(title: "Approve", action: #selector(menuApprove), keyEquivalent: "a")
+        approveItem.keyEquivalentModifierMask = []
+        approveItem.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)
+        if photo.xmp?.label == "Approved" { approveItem.state = .on }
+        menu.addItem(approveItem)
+
+        // Reject
+        let rejectItem = NSMenuItem(title: "Reject", action: #selector(menuReject), keyEquivalent: "x")
+        rejectItem.keyEquivalentModifierMask = []
+        rejectItem.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
+        if photo.toDelete { rejectItem.state = .on }
+        menu.addItem(rejectItem)
+
         menu.addItem(.separator())
         let finder = NSMenuItem(title: "Show in Finder", action: #selector(menuShowInFinder), keyEquivalent: "")
         finder.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
@@ -470,6 +484,14 @@ final class MacThumbCell: NSCollectionViewItem {
     @objc private func menuRemoveLabel() {
         guard let p = currentPhoto else { return }
         callbacks?.onLabelChanged(p, nil)
+    }
+    @objc private func menuApprove() {
+        guard let p = currentPhoto else { return }
+        callbacks?.onApprove(p)
+    }
+    @objc private func menuReject() {
+        guard let p = currentPhoto else { return }
+        callbacks?.onReject(p)
     }
 
     // MARK: Helpers
