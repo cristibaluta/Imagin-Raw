@@ -31,7 +31,7 @@ enum FilesExtensions {
 
     static let jpg: Set<String> = ["jpg", "jpeg"]
 
-    static let other: Set<String> = ["png", "heic", "tiff", "tif"]
+    static let other: Set<String> = ["png", "heic", "tiff", "tif", "psd", "psb"]
 
     static let video: Set<String> = ["mp4", "mov", "m4v", "avi", "mkv", "hevc"]
 
