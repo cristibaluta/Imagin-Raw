@@ -79,6 +79,7 @@ struct ThumbsBottomBar: View {
                 .foregroundColor(.primary)
         }
         .buttonStyle(PlainButtonStyle())
+        .help("Toggle grid size (G)")
     }
 
     private var buttonSort: some View {
