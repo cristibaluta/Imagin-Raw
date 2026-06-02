@@ -11,6 +11,7 @@ import AppKit
 
 protocol FileSystemMonitorDelegate: AnyObject {
     func folderContentsDidChange(at url: URL)
+    func photoMetadataDidChange(forPhotoAt url: URL)
 }
 
 func fsEventsCallback(streamRef: ConstFSEventStreamRef,
@@ -37,8 +38,10 @@ func fsEventsCallback(streamRef: ConstFSEventStreamRef,
             let url = URL(fileURLWithPath: pathString)
 
             if monitor.isRelevantChange(at: url, flags: eventFlags[i]) {
-                // Send the event through the throttled subject instead of calling delegate directly
                 monitor.fileChangeSubject.send(url)
+            }
+            if monitor.isSidecarChange(at: url, flags: eventFlags[i]) {
+                monitor.sidecarChangeSubject.send(url)
             }
         }
     }
@@ -60,6 +63,7 @@ class FileSystemMonitor {
 
     // Combine subjects for throttling
     let fileChangeSubject = PassthroughSubject<URL, Never>()
+    let sidecarChangeSubject = PassthroughSubject<URL, Never>()
     private var cancellables = Set<AnyCancellable>()
 
     init() {
@@ -73,6 +77,15 @@ class FileSystemMonitor {
             .sink { [weak self] url in
                 Task {
                     self?.delegate?.folderContentsDidChange(at: url)
+                }
+            }
+            .store(in: &cancellables)
+
+        sidecarChangeSubject
+            .debounce(for: .seconds(2), scheduler: DispatchQueue.main)
+            .sink { [weak self] url in
+                Task {
+                    self?.delegate?.photoMetadataDidChange(forPhotoAt: url)
                 }
             }
             .store(in: &cancellables)
@@ -144,35 +157,40 @@ class FileSystemMonitor {
     }
 
     func isRelevantChange(at url: URL, flags: FSEventStreamEventFlags) -> Bool {
-        // Check if the change is in one of our monitored paths
         let pathString = url.path
         let isInMonitoredPath = monitoredPaths.contains { pathString.hasPrefix($0) }
-
         guard isInMonitoredPath else { return false }
 
-        // Ignore XMP and ACR files - these are metadata files we create and don't need to trigger reloads
-        let fileExtension = URL(fileURLWithPath: pathString).pathExtension.lowercased()
-        if fileExtension == "xmp" || fileExtension == "acr" {
-            return false
-        }
+        let fileExtension = url.pathExtension.lowercased()
+
+        // XMP/ACR sidecars are handled separately via isSidecarChange — never trigger a full reload
+        if fileExtension == "xmp" || fileExtension == "acr" { return false }
+
+        let isFileCreated  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated))  != 0
+        let isFileRemoved  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRemoved))  != 0
+        let isFileRenamed  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRenamed))  != 0
 
         let isPhotoFile = FilesExtensions.all.contains(fileExtension)
-
-        // We're only interested in photo files being created or removed (not modified)
-        let isFileCreated = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated)) != 0
-        let isFileRemoved = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRemoved)) != 0
-        let isFileRenamed = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRenamed)) != 0
-
-        // Also handle directory changes (new folders being added)
         let isDirectoryEvent = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemIsDir)) != 0
         let isDirectoryChange = isDirectoryEvent && (isFileCreated || isFileRemoved || isFileRenamed)
 
-        // Only trigger reload for:
-        // 1. Photo files being created, removed, or renamed
-        // 2. Directory changes (new folders)
-        let isRelevant = (isPhotoFile && (isFileCreated || isFileRemoved || isFileRenamed)) || isDirectoryChange
+        return (isPhotoFile && (isFileCreated || isFileRemoved || isFileRenamed)) || isDirectoryChange
+    }
 
-        return isRelevant
+    func isSidecarChange(at url: URL, flags: FSEventStreamEventFlags) -> Bool {
+        let pathString = url.path
+        let isInMonitoredPath = monitoredPaths.contains { pathString.hasPrefix($0) }
+        guard isInMonitoredPath else { return false }
+
+        let fileExtension = url.pathExtension.lowercased()
+        guard fileExtension == "xmp" || fileExtension == "acr" else { return false }
+
+        let isFileCreated  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated))  != 0
+        let isFileRemoved  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRemoved))  != 0
+        let isFileModified = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemModified)) != 0
+        let isFileRenamed  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRenamed))  != 0
+
+        return isFileCreated || isFileModified || isFileRemoved || isFileRenamed
     }
 
     deinit {

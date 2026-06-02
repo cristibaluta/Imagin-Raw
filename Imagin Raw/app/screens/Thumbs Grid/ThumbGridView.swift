@@ -184,6 +184,11 @@ struct ThumbGridView: View {
                 viewModel.reloadPhotos()
             }
         }
+        .onChange(of: filesModel.photoMetadataDidChangeURL) { _, url in
+            if let url {
+                viewModel.reloadMetadata(forSidecar: url)
+            }
+        }
         .onChange(of: windowWidth) { _, newWidth in
             viewModel.windowWidth = newWidth
         }

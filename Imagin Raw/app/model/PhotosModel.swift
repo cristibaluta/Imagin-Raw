@@ -129,6 +129,49 @@ final class PhotosModel: ObservableObject {
         loadPhotos()
     }
 
+    /// Re-reads XMP for a single photo (identified by its sidecar URL) and updates it in-place,
+    /// preserving the PhotoItem UUID so the grid only redraws that one cell.
+    func reloadMetadata(forSidecar sidecarURL: URL) {
+        let baseName = sidecarURL.deletingPathExtension().lastPathComponent
+
+        // Find the matching photo by base filename (strip extension from both)
+        guard let idx = photos.firstIndex(where: {
+            URL(fileURLWithPath: $0.path).deletingPathExtension().lastPathComponent == baseName
+        }) else { return }
+
+        let existing = photos[idx]
+
+        Task.detached(priority: .utility) {
+            // Re-read XMP if file still exists, otherwise clear it (deleted case)
+            let xmp: XmpMetadata?
+            if FileManager.default.fileExists(atPath: sidecarURL.path),
+               let content = try? String(contentsOf: sidecarURL, encoding: .utf8) {
+                xmp = XmpParser.parseMetadata(from: content)
+            } else {
+                xmp = nil
+            }
+            await MainActor.run {
+                self.photos[idx] = PhotoItem(
+                    id: existing.id,
+                    path: existing.path,
+                    xmp: xmp,
+                    dateCreated: existing.dateCreated,
+                    dateModified: existing.dateModified,
+                    toDelete: existing.toDelete,
+                    hasACR: existing.hasACR,
+                    hasJPG: existing.hasJPG,
+                    inCameraRating: existing.inCameraRating,
+                    isRawFile: existing.isRawFile,
+                    fileSizeBytes: existing.fileSizeBytes,
+                    width: existing.width,
+                    height: existing.height,
+                    cameraMake: existing.cameraMake,
+                    cameraModel: existing.cameraModel
+                )
+            }
+        }
+    }
+
     // MARK: - Static Photo Loading Methods
 
     /// Load a specific list of file URLs as PhotoItems (used for search results).

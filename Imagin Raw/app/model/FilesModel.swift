@@ -15,6 +15,7 @@ final class FilesModel: ObservableObject {
     @Published var selectedFolder: FolderItem?
     @Published var selectedPhoto: PhotoItem?
     @Published var folderContentDidChange: FolderItem?
+    @Published var photoMetadataDidChangeURL: URL?
 
     /// The ThumbsManager for the currently loaded album. Updated by ThumbGridViewModel on folder load.
     var currentThumbsManager: ThumbsManager?
@@ -487,6 +488,12 @@ extension FilesModel: FileSystemMonitorDelegate {
                 folderContentDidChange = selectedFolder
             }
         }
+    }
+
+    func photoMetadataDidChange(forPhotoAt url: URL) {
+        guard let selectedFolder = selectedFolder,
+              url.path.hasPrefix(selectedFolder.url.path) else { return }
+        photoMetadataDidChangeURL = url
     }
 
     private func refreshFolderTree(for changedURL: URL) {

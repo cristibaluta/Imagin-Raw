@@ -343,6 +343,10 @@ class ThumbGridViewModel: ObservableObject {
         photosModel?.reloadPhotos()
     }
 
+    func reloadMetadata(forSidecar url: URL) {
+        photosModel?.reloadMetadata(forSidecar: url)
+    }
+
     /// Show an explicit list of PhotoItems (Spotlight photo search results).
     func loadSearchResults(_ items: [PhotoItem]) {
         searchResultsPhotos = items
