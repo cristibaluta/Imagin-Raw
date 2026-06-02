@@ -10,6 +10,7 @@ struct PreviewBottomBar: View {
     let exifInfo: ExifInfo
     let model: PreviewViewModel
     @Binding var showAFPoint: Bool
+    @Binding var showEditPanel: Bool
     @Binding var showExportPanel: Bool
 
     private var supportsAFPoint: Bool {
@@ -65,6 +66,20 @@ struct PreviewBottomBar: View {
             .buttonStyle(PlainButtonStyle())
             .disabled(model.isLoadingFullRes)
             .help(model.fullResImage != nil ? "Exit zoom (Z)" : "Zoom to 100% (Z)")
+
+            // Edit button
+//            Rectangle()
+//                .fill(Color.secondary.opacity(0.25))
+//                .frame(width: 1, height: 14)
+//            Button(action: { showEditPanel.toggle() }) {
+//                Image(systemName: "wand.and.stars")
+//                    .font(.system(size: 14, weight: .medium))
+//                    .foregroundColor(showEditPanel ? .accentColor : .secondary)
+//                    .frame(width: 20, height: 20)
+//                    .padding(.horizontal, 10)
+//            }
+//            .buttonStyle(PlainButtonStyle())
+//            .help("Edit: perspective correction")
 
             // Export button
             Rectangle()

@@ -21,6 +21,7 @@ struct PreviewView: View {
     @StateObject private var model = PreviewViewModel()
     @State private var gridType: ThumbGridViewModel.GridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
     @State private var showExportPanel = false
+    @State private var showEditPanel = false
     @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .r4x5
     @State private var exportPadding: Double = appPrefs.get(.exportPadding)
     @State private var exportAlignment: ExportAlignment = ExportAlignment(rawValue: appPrefs.string(.exportAlignment)) ?? .center
@@ -52,6 +53,7 @@ struct PreviewView: View {
         .onChange(of: photo) { _, newPhoto in
             model.setPhoto(newPhoto)
             showExportPanel = false
+            showEditPanel = false
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleZoom)) { _ in
             if model.fullResImage != nil {
@@ -71,6 +73,15 @@ struct PreviewView: View {
         }
         .onChange(of: showAFPoint) { _, newVal in
             appPrefs.set(newVal, forKey: .showAFPoint)
+        }
+        .sheet(isPresented: $showEditPanel) {
+            if let preview = model.preview {
+                PerspectiveCorrectionView(image: preview) { corrected in
+                    showEditPanel = false
+                    // TODO: store corrected image for export
+                }
+                .frame(minWidth: 700, minHeight: 500)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
             gridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
@@ -239,6 +250,7 @@ struct PreviewView: View {
                                  exifInfo: exifInfo,
                                  model: model,
                                  showAFPoint: $showAFPoint,
+                                 showEditPanel: $showEditPanel,
                                  showExportPanel: $showExportPanel)
             }
         }
