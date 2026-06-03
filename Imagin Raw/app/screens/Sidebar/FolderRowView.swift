@@ -82,9 +82,21 @@ struct FolderRowView: View {
         return nil
     }
 
+    private func sortedChildren(_ children: [FolderItem]) -> [FolderItem] {
+        switch filesModel.sidebarSortOption {
+        case .name:
+            return children.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        case .dateCreated:
+            return children.sorted { a, b in
+                let dateA = (try? a.url.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date.distantPast
+                let dateB = (try? b.url.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date.distantPast
+                return dateA < dateB // oldest first, newer folders at the bottom
+            }
+        }
+    }
+
     #if os(macOS)
-    private func ejectVolume() {
-        guard let volumePath = volumePath else {
+    private func ejectVolume() {        guard let volumePath = volumePath else {
             return
         }
 
@@ -128,7 +140,7 @@ struct FolderRowView: View {
                     }
                 )
             ) {
-                ForEach(folder.children ?? []) { childFolder in
+                ForEach(sortedChildren(folder.children ?? [])) { childFolder in
                     FolderRowView(folder: childFolder,
                                   expandedFolders: $expandedFolders,
                                   selectedFolder: $selectedFolder,

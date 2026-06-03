@@ -16,6 +16,22 @@ final class FilesModel: ObservableObject {
     @Published var selectedPhoto: PhotoItem?
     @Published var folderContentDidChange: FolderItem?
     @Published var photoMetadataDidChangeURL: URL?
+    @Published var sidebarSortOption: SidebarSortOption = {
+        let saved = appPrefs.string(.sidebarSortOption)
+        return SidebarSortOption(rawValue: saved) ?? .name
+    }()
+
+    enum SidebarSortOption: String, CaseIterable {
+        case name = "name"
+        case dateCreated = "dateCreated"
+
+        var displayName: String {
+            switch self {
+            case .name: return "Name"
+            case .dateCreated: return "Date Created"
+            }
+        }
+    }
 
     /// The ThumbsManager for the currently loaded album. Updated by ThumbGridViewModel on folder load.
     var currentThumbsManager: ThumbsManager?

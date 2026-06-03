@@ -20,6 +20,7 @@ enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
     // MARK: - Sidebar
     case expandedFolders = "ExpandedFolders"
     case selectedFolder = "SelectedFolder"
+    case sidebarSortOption = "SidebarSortOption"
 
     // MARK: - Thumbs Grid
     case sortOption = "SelectedSortOption"
@@ -58,6 +59,7 @@ enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
         case .expandedFolders:          return Data()
         case .selectedFolder:           return Data()
         case .sortOption:               return "Date Captured"
+        case .sidebarSortOption:        return "name"
         case .gridType:                 return "SmallGrid"
         case .similarityMode:           return 65
         case .selectedExternalApp:      return ""
