@@ -225,23 +225,14 @@ class ThumbGridViewModel: ObservableObject {
         // Otherwise keep the existing lastSelectedIndex value
     }
 
-    private static let dateGroupFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEEE, MMM d, yyyy"  // e.g. "Monday, Sept 12, 2025"
-        return f
-    }()
-
     private func buildDateGroups(from photos: [PhotoItem]) -> [(title: String, photos: [PhotoItem])] {
         switch sortOption {
         case .name:
             return []
         case .dateCaptured:
-            return groupByKey(photos) { Self.dateGroupFormatter.string(from: $0.dateCreated) }
+            return groupByKey(photos) { $0.dateCreated.EEEEMMMdyyyy }
         case .dateModified:
-            return groupByKey(photos) {
-                let date = $0.dateModified ?? $0.dateCreated
-                return Self.dateGroupFormatter.string(from: date)
-            }
+            return groupByKey(photos) { ($0.dateModified ?? $0.dateCreated).EEEEMMMdyyyy }
         case .fileType:
             return groupByKey(photos) {
                 URL(fileURLWithPath: $0.path).pathExtension.uppercased()
