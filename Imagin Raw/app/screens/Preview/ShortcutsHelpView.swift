@@ -34,20 +34,21 @@ struct ShortcutsHelpView: View {
                     Text("6 - 0   Labels")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                         .foregroundColor(.primary)
-                    Text("A       Approve Label")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.primary)
                     Text("-       Remove Label")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                         .foregroundColor(.primary)
+                    Text(" ")
+                    Text("A       Approve")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.primary)
+                    Text("X       Reject")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 }
                 .frame(width: 200)
 
                 // col 2
                 VStack(alignment: .leading) {
                     Text("Z       Zoom in/out")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("X       Mark for deletion")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     Text("⌘ Del   Move to trash")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
