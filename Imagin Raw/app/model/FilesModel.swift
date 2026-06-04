@@ -24,11 +24,13 @@ final class FilesModel: ObservableObject {
     enum SidebarSortOption: String, CaseIterable {
         case name = "name"
         case dateCreated = "dateCreated"
+        case nameThenDate = "nameThenDate"
 
         var displayName: String {
             switch self {
-            case .name: return "Name"
+            case .name:        return "Name"
             case .dateCreated: return "Date Created"
+            case .nameThenDate: return "Name + Date Created"
             }
         }
     }

@@ -15,6 +15,8 @@ struct FolderRowView: View {
     let saveExpandedState: () -> Void
     let onDoubleClick: () -> Void
     let isRootFolder: Bool
+    /// Depth of this folder: 0 = root, 1 = first level inside root, 2+ = deeper
+    let depth: Int
 
     private var isExpanded: Bool {
         expandedFolders.contains(folder.url)
@@ -83,15 +85,27 @@ struct FolderRowView: View {
     }
 
     private func sortedChildren(_ children: [FolderItem]) -> [FolderItem] {
+        // depth == 0 means this is a root folder, so its children are level 1.
+        // depth == 1 means children are level 2, etc.
+        let childDepth = depth + 1
+        let sortByDate: Bool
         switch filesModel.sidebarSortOption {
         case .name:
-            return children.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            sortByDate = false        // all levels by name
         case .dateCreated:
+            sortByDate = true         // all levels by date
+        case .nameThenDate:
+            sortByDate = childDepth >= 2  // level 1 by name, level 2+ by date
+        }
+
+        if sortByDate {
             return children.sorted { a, b in
                 let dateA = (try? a.url.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date.distantPast
                 let dateB = (try? b.url.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date.distantPast
-                return dateA < dateB // oldest first, newer folders at the bottom
+                return dateA < dateB
             }
+        } else {
+            return children.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
         }
     }
 
@@ -146,7 +160,8 @@ struct FolderRowView: View {
                                   selectedFolder: $selectedFolder,
                                   saveExpandedState: saveExpandedState,
                                   onDoubleClick: onDoubleClick,
-                                  isRootFolder: false // Child folders are never root folders
+                                  isRootFolder: false,
+                                  depth: depth + 1
                     )
                 }
             } label: {
