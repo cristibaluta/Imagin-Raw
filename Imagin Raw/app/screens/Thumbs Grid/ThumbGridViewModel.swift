@@ -907,13 +907,9 @@ class ThumbGridViewModel: ObservableObject {
             return .handled
         }
 
-        // Toggle reject state (X key, works for all files)
-        let rawPhotos = photos.filter { $0.isRawFile }
-        guard !rawPhotos.isEmpty else { return .ignored }
-
         // Rating keys (1-5)
         if let rating = Int(key), rating >= 1 && rating <= 5 {
-            applyRating(rating, to: rawPhotos)
+            applyRating(rating, to: photos)
             return .handled
         }
 
@@ -927,13 +923,13 @@ class ThumbGridViewModel: ObservableObject {
         ]
 
         if let label = labelMap[key] {
-            applyLabel(label, to: rawPhotos)
+            applyLabel(label, to: photos)
             return .handled
         }
 
         // Remove label
         if key == "-" {
-            removeLabels(from: rawPhotos)
+            removeLabels(from: photos)
             return .handled
         }
 
@@ -944,7 +940,7 @@ class ThumbGridViewModel: ObservableObject {
         }
 
         if key == "a" || key == "A" {
-            applyLabel(labelMap["8"]!, to: rawPhotos)
+            applyLabel(labelMap["8"]!, to: photos)
             return .handled
         }
 

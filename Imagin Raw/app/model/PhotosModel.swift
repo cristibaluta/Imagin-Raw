@@ -137,18 +137,25 @@ final class PhotosModel: ObservableObject {
         // Find the matching photo by base filename (strip extension from both)
         guard let idx = photos.firstIndex(where: {
             URL(fileURLWithPath: $0.path).deletingPathExtension().lastPathComponent == baseName
-        }) else { return }
+        }) else {
+            RCLog("⚠️ reloadMetadata: no photo found for sidecar \(baseName)")
+            return
+        }
 
         let existing = photos[idx]
+        RCLog("🔄 reloadMetadata: updating photo at idx \(idx) for sidecar \(baseName)")
 
         Task.detached(priority: .utility) {
             // Re-read XMP if file still exists, otherwise clear it (deleted case)
             let xmp: XmpMetadata?
-            if FileManager.default.fileExists(atPath: sidecarURL.path),
+            let fileExists = FileManager.default.fileExists(atPath: sidecarURL.path)
+            if fileExists,
                let content = try? String(contentsOf: sidecarURL, encoding: .utf8) {
                 xmp = XmpParser.parseMetadata(from: content)
+                RCLog("✅ reloadMetadata: XMP loaded for \(baseName), rating=\(xmp?.rating ?? 0) label=\(xmp?.label ?? "")")
             } else {
                 xmp = nil
+                RCLog("🗑️ reloadMetadata: XMP deleted for \(baseName), clearing metadata")
             }
             await MainActor.run {
                 self.photos[idx] = PhotoItem(
@@ -168,6 +175,7 @@ final class PhotosModel: ObservableObject {
                     cameraMake: existing.cameraMake,
                     cameraModel: existing.cameraModel
                 )
+                RCLog("✅ reloadMetadata: photos[\(idx)] updated, xmp=\(xmp == nil ? "nil" : "set")")
             }
         }
     }
@@ -446,7 +454,25 @@ final class PhotosModel: ObservableObject {
                 let url = URL(fileURLWithPath: photo.path)
                 let baseName = url.deletingPathExtension().lastPathComponent
                 let fileExtension = url.pathExtension.lowercased()
-                let xmp = xmpParsed[baseName]
+                let xmp: XmpMetadata?
+                let isRaw = FilesExtensions.raw.contains(fileExtension)
+                if let sidecar = xmpParsed[baseName] {
+                    // Sidecar takes priority for all file types
+                    xmp = sidecar
+                } else if !isRaw && JpegMetadataWriter.isSupported(url) {
+                    // No sidecar — read embedded XMP from the file itself (JPEG, PNG, TIFF, HEIC)
+                    let embedded = JpegMetadataWriter.readMetadata(from: url)
+                    if embedded.rating != nil || embedded.label != nil {
+                        xmp = XmpMetadata(label: embedded.label, rating: embedded.rating,
+                                          creator: nil, rights: nil, createDate: nil, modifyDate: nil,
+                                          cameraModel: nil, lens: nil, focalLength: nil, aperture: nil,
+                                          shutterSpeed: nil, iso: nil, exposureBias: nil)
+                    } else {
+                        xmp = nil
+                    }
+                } else {
+                    xmp = nil
+                }
 
                 // Capture date priority:
                 // 1. EXIF DateTimeOriginal from ImageIO/LibRaw (actual shutter press time)
@@ -472,7 +498,7 @@ final class PhotosModel: ObservableObject {
                     hasACR: photo.hasACR,
                     hasJPG: photo.hasJPG,
                     inCameraRating: rating,
-                    isRawFile: FilesExtensions.raw.contains(fileExtension),
+                    isRawFile: isRaw,
                     fileSizeBytes: fileSizes[photo.path],
                     width: width,
                     height: height,

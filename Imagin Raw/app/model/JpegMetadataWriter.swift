@@ -29,13 +29,17 @@ enum JpegMetadataWriter {
             return Metadata()
         }
         var result = Metadata()
-        if let ratingTag = CGImageMetadataCopyTagWithPath(raw, nil, "xmp:Rating" as CFString),
-           let val = CGImageMetadataTagCopyValue(ratingTag) as? String {
-            result.rating = Int(val)
-        }
-        if let labelTag = CGImageMetadataCopyTagWithPath(raw, nil, "xmp:Label" as CFString),
-           let val = CGImageMetadataTagCopyValue(labelTag) as? String {
-            result.label = val
+        // Enumerate all tags to find xmp:Rating and xmp:Label regardless of namespace registration
+        CGImageMetadataEnumerateTagsUsingBlock(raw, nil, nil) { path, tag in
+            let pathStr = path as String
+            let value = CGImageMetadataTagCopyValue(tag)
+            if pathStr.hasSuffix(":Rating") || pathStr == "Rating" {
+                if let v = value as? String { result.rating = Int(v) }
+                else if let v = value as? NSNumber { result.rating = v.intValue }
+            } else if pathStr.hasSuffix(":Label") || pathStr == "Label" {
+                if let v = value as? String, !v.isEmpty { result.label = v }
+            }
+            return true
         }
         return result
     }
@@ -129,6 +133,43 @@ enum JpegMetadataWriter {
     }
 
     // MARK: - Helpers
+
+    /// Dumps all metadata tags to the log for debugging.
+    static func dumpMetadata(from url: URL) {
+        RCLog("🔍 JpegMetadataWriter.dumpMetadata: \(url.lastPathComponent)")
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            RCLog("  ❌ Cannot create image source")
+            return
+        }
+        // Also dump top-level image properties (EXIF, IPTC, etc.)
+        if let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] {
+            RCLog("  📦 CGImageSourceCopyPropertiesAtIndex keys: \(props.keys.sorted())")
+            for (key, val) in props.sorted(by: { $0.key < $1.key }) {
+                if let dict = val as? [String: Any] {
+                    RCLog("  [\(key)]:")
+                    for (k2, v2) in dict.sorted(by: { $0.key < $1.key }) {
+                        RCLog("    \(k2) = \(v2)")
+                    }
+                } else {
+                    RCLog("  \(key) = \(val)")
+                }
+            }
+        }
+        // Dump CGImageMetadata tags (XMP)
+        guard let raw = CGImageSourceCopyMetadataAtIndex(source, 0, nil) else {
+            RCLog("  ⚠️ No CGImageMetadata found")
+            return
+        }
+        RCLog("  📋 CGImageMetadata tags:")
+        CGImageMetadataEnumerateTagsUsingBlock(raw, nil, nil) { path, tag in
+            let ns   = CGImageMetadataTagCopyNamespace(tag) as String? ?? "?"
+            let prefix = CGImageMetadataTagCopyPrefix(tag) as String? ?? "?"
+            let name = CGImageMetadataTagCopyName(tag) as String? ?? "?"
+            let value = CGImageMetadataTagCopyValue(tag)
+            RCLog("    path=\(path)  ns=\(ns)  prefix=\(prefix)  name=\(name)  value=\(String(describing: value))")
+            return true
+        }
+    }
 
     /// File extensions that support embedded metadata writing via ImageIO.
     static let supportedExtensions: Set<String> = ["jpg", "jpeg", "png", "tiff", "tif", "heic", "psd"]
