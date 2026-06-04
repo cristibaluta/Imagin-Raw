@@ -19,7 +19,7 @@ struct FoldersListView: View {
 
     var body: some View {
         List(selection: $filesModel.selectedFolder) {
-            ForEach(Array(filesModel.rootFolders.enumerated()), id: \.element.id) { index, rootFolder in
+            ForEach(Array(sortedRootFolders.enumerated()), id: \.element.id) { index, rootFolder in
                 FolderRowView(folder: rootFolder,
                               expandedFolders: $expandedFolders,
                               selectedFolder: $filesModel.selectedFolder,
@@ -42,6 +42,13 @@ struct FoldersListView: View {
         .onChange(of: filesModel.selectedFolder) { _, newValue in
             saveSelectedFolder(newValue)
         }
+    }
+
+    private var sortedRootFolders: [FolderItem] {
+        // The /Volumes entry always goes last; everything else keeps added order
+        let volumes = filesModel.rootFolders.filter { $0.url.path == "/Volumes" }
+        let regular = filesModel.rootFolders.filter { $0.url.path != "/Volumes" }
+        return regular + volumes
     }
 
     private func loadExpandedState() {
