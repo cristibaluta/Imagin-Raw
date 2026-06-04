@@ -14,7 +14,7 @@ class ThumbGridViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var selectedPhotos: Set<UUID> = []
     @Published var selectedLabels: Set<String> = []
-    @Published var selectedRatings: Set<Int> = [] // Rating filters (1-5)
+    @Published var selectedRatings: Set<Int> = []
     @Published var sortOption: SortOption = .name
     @Published var gridType: GridType = .small
     @Published var windowWidth: CGFloat = 1200
@@ -27,24 +27,23 @@ class ThumbGridViewModel: ObservableObject {
     @Published var duplicateScanProgress: (done: Int, total: Int) = (0, 0)
     @Published var duplicateScanResult: DuplicateScanResult? = nil
     @Published var similarityMode: DuplicateFinderService.SimilarityMode = .loose
+    @Published private(set) var filteredPhotos: [PhotoItem] = []
+    @Published private(set) var dateGroups: [(title: String, photos: [PhotoItem])] = []
+    @Published var photosToCopy: [PhotoItem] = []
+    @Published var copyDestinationURL: URL?
+    @Published var thumbsManager: ThumbsManager = ThumbsManager()
 
     private var duplicateScanData: DuplicateScanData? = nil
 
-    // Cached filtered photos to avoid recalculating on every access
-    @Published private(set) var filteredPhotos: [PhotoItem] = []
-    /// Non-empty only when sortOption produces groups (date or file type sorts).
-    @Published private(set) var dateGroups: [(title: String, photos: [PhotoItem])] = []
-
-    @Published var photosToCopy: [PhotoItem] = []
-    @Published var copyDestinationURL: URL?
-
-    @Published var thumbsManager: ThumbsManager = ThumbsManager()
-
     // MARK: - Dependencies
     private let filesModel: FilesModel
-    private var photosModel: PhotosModel?
+    private(set) var photosModel: PhotosModel?
     private var searchResultsPhotos: [PhotoItem]? = nil
     private var cancellables = Set<AnyCancellable>()
+
+    // MARK: - Services
+    private let metadataService = PhotoMetadataService()
+    private let trashService    = PhotoTrashService()
 
     // MARK: - Enums
     enum SortOption: String, CaseIterable {
@@ -59,42 +58,13 @@ class ThumbGridViewModel: ObservableObject {
         case small = "SmallGrid"
         case large = "LargeGrid"
 
-        var id: String { self.rawValue }
+        var id: String { rawValue }
 
-        var columnCount: Int {
-            switch self {
-            case .small: return 3
-            case .large: return 5
-            }
-        }
-
-        var thumbSize: CGFloat {
-            switch self {
-            case .small: return 110
-            case .large: return 210
-            }
-        }
-
-        var cellHeight: CGFloat {
-            switch self {
-            case .small: return 150
-            case .large: return 250
-            }
-        }
-
-        var displayName: String {
-            switch self {
-            case .small: return "Small"
-            case .large: return "Large"
-            }
-        }
-
-        var iconName: String {
-            switch self {
-            case .small: return "square.grid.3x3"
-            case .large: return "square.grid.4x4.fill"
-            }
-        }
+        var columnCount: Int  { self == .small ? 3 : 5 }
+        var thumbSize: CGFloat { self == .small ? 110 : 210 }
+        var cellHeight: CGFloat { self == .small ? 150 : 250 }
+        var displayName: String { self == .small ? "Small" : "Large" }
+        var iconName: String { self == .small ? "square.grid.3x3" : "square.grid.4x4.fill" }
     }
 
     // MARK: - Initialization
@@ -104,98 +74,65 @@ class ThumbGridViewModel: ObservableObject {
         loadGridType()
         loadSimilarityMode()
         setupFilteredPhotosObservers()
+        setupServices()
+    }
+
+    private func setupServices() {
+        metadataService.filesModel = filesModel
+        metadataService.onPhotoUpdated = { [weak self] in self?.updateFilteredPhotos() }
+        trashService.filesModel = filesModel
+        trashService.thumbsManager = thumbsManager
+        trashService.onPhotosChanged = { [weak self] in self?.updateFilteredPhotos() }
     }
 
     private func setupFilteredPhotosObservers() {
-        // Recalculate filteredPhotos whenever relevant properties change
-        Publishers.CombineLatest4(
-            $selectedLabels,
-            $selectedRatings,
-            $sortOption,
-            $isLoadingMetadata
-        )
-        .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
-        .sink { [weak self] _ in
-            self?.updateFilteredPhotos()
-        }
-        .store(in: &cancellables)
-    }
-    var photoSortComparator: (PhotoItem, PhotoItem) -> Bool {
-        switch sortOption {
-        case .name:
-            return { photo1, photo2 in
-                let name1 = URL(fileURLWithPath: photo1.path).lastPathComponent
-                let name2 = URL(fileURLWithPath: photo2.path).lastPathComponent
-                return name1.localizedStandardCompare(name2) == .orderedAscending
-            }
-        case .dateCaptured:
-            return { $0.dateCreated < $1.dateCreated }
-        case .dateModified:
-            return { ($0.dateModified ?? $0.dateCreated) < ($1.dateModified ?? $1.dateCreated) }
-        case .fileType:
-            // Within each file-type group, sort by capture date
-            return { photo1, photo2 in
-                let ext1 = URL(fileURLWithPath: photo1.path).pathExtension.lowercased()
-                let ext2 = URL(fileURLWithPath: photo2.path).pathExtension.lowercased()
-                if ext1 != ext2 {
-                    return ext1 < ext2
-                }
-                return photo1.dateCreated < photo2.dateCreated
-            }
-        case .rating:
-            // Higher rating first (5 → 0), within same rating sort by capture date
-            return { photo1, photo2 in
-                let r1 = photo1.effectiveRating
-                let r2 = photo2.effectiveRating
-                if r1 != r2 {
-                    return r1 > r2
-                }
-                return photo1.dateCreated < photo2.dateCreated
-            }
-        }
+        Publishers.CombineLatest4($selectedLabels, $selectedRatings, $sortOption, $isLoadingMetadata)
+            .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in self?.updateFilteredPhotos() }
+            .store(in: &cancellables)
     }
 
-    // TODO this is called too often, when i just label a photo
-    private func updateFilteredPhotos() {
+    // MARK: - Computed Properties
+
+    var photos: [PhotoItem] { searchResultsPhotos ?? photosModel?.photos ?? [] }
+
+    var availableLabels: [String] { PhotoFilterService.availableLabels(from: photos) }
+
+    var photoSortComparator: (PhotoItem, PhotoItem) -> Bool {
+        PhotoFilterService.comparator(for: sortOption)
+    }
+
+    private static let sidebarWidth: CGFloat = 200
+    private static let previewMinWidth: CGFloat = 280
+    private static let gap: CGFloat = 3
+
+    var effectiveColumnCount: Int {
+        guard gridType == .large else { return gridType.columnCount }
+        let available = windowWidth - (isSidebarCollapsed ? 0 : Self.sidebarWidth) - Self.previewMinWidth
+        return max(2, Int(floor((available + Self.gap) / (gridType.thumbSize + Self.gap))))
+    }
+
+    var dynamicColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(minimum: gridType.thumbSize), spacing: 8), count: effectiveColumnCount)
+    }
+
+    var gridWidth: CGFloat {
+        let cols = CGFloat(effectiveColumnCount)
+        let thumbsWidth = cols * gridType.thumbSize + (cols + 1) * Self.gap
+        let minimap: CGFloat = (!dateGroups.isEmpty && !isDuplicateMode) ? MinimapView.width : 0
+        return thumbsWidth + minimap + 1
+    }
+
+    var showCachingProgress: Bool { cachingQueueCount > 0 }
+
+    // MARK: - Filtering
+
+    func updateFilteredPhotos() {
+        let lastSelectedPhotoId = filesModel.selectedPhoto?.id
         var result = photos
 
-        // Get the currently selected photo ID from filesModel instead of looking it up in the old filteredPhotos
-        // This prevents issues when filteredPhotos hasn't been updated yet (e.g., right after deletion)
-        let lastSelectedPhotoId = filesModel.selectedPhoto?.id
-
-        // If metadata is still loading, show all photos (don't apply filters yet)
-        // This prevents showing an empty view while waiting for metadata
         if !isLoadingMetadata {
-            // Apply label filtering only after metadata is loaded
-            if !selectedLabels.isEmpty {
-                result = result.filter { photo in
-                    if selectedLabels.contains("Rejected") && photo.toDelete {
-                        return true
-                    }
-
-                    let photoLabel = photo.xmp?.label ?? ""
-
-                    if selectedLabels.contains("No Label") && photoLabel.isEmpty && !photo.toDelete {
-                        return true
-                    }
-
-                    return selectedLabels.contains(photoLabel) && !photo.toDelete
-                }
-            }
-
-            // Apply rating filtering only after metadata is loaded
-            if !selectedRatings.isEmpty {
-                result = result.filter { photo in
-                    // Get the effective rating (XMP or in-camera fallback)
-                    let rating: Int
-                    if let xmpRating = photo.xmp?.rating, xmpRating > 0 {
-                        rating = xmpRating
-                    } else {
-                        rating = photo.inCameraRating ?? 0
-                    }
-                    return selectedRatings.contains(rating)
-                }
-            }
+            result = PhotoFilterService.apply(labels: selectedLabels, ratings: selectedRatings, to: result)
         }
 
         if !photos.isEmpty && result.isEmpty {
@@ -204,126 +141,76 @@ class ThumbGridViewModel: ObservableObject {
             result = photos
         }
 
-        // Apply sorting
         result = result.sorted(by: photoSortComparator)
-
         filteredPhotos = result
+        dateGroups = PhotoFilterService.buildDateGroups(from: result, sortOption: sortOption)
 
-        // Build date groups when sorted by date
-        dateGroups = buildDateGroups(from: result)
-
-        // Update lastSelectedIndex to match the selected photo's position in the new filtered list
-        if let selectedPhotoId = lastSelectedPhotoId {
-            self.lastSelectedIndex = filteredPhotos.firstIndex(where: { $0.id == selectedPhotoId })
-            // If the photo wasn't found but we have a valid selection, preserve the current index
-            // This prevents losing the index during reloads when photos are temporarily not in the array
-        }
-        // Only set to nil if there's no selected photo at all
-        else if filesModel.selectedPhoto == nil {
-            self.lastSelectedIndex = nil
-        }
-        // Otherwise keep the existing lastSelectedIndex value
-    }
-
-    private func buildDateGroups(from photos: [PhotoItem]) -> [(title: String, photos: [PhotoItem])] {
-        switch sortOption {
-        case .name:
-            return []
-        case .dateCaptured:
-            return groupByKey(photos) { $0.dateCreated.EEEEMMMdyyyy }
-        case .dateModified:
-            return groupByKey(photos) { ($0.dateModified ?? $0.dateCreated).EEEEMMMdyyyy }
-        case .fileType:
-            return groupByKey(photos) {
-                URL(fileURLWithPath: $0.path).pathExtension.uppercased()
-            }
-        case .rating:
-            return groupByKey(photos) { photo in
-                let r = photo.effectiveRating
-                return r == 0 ? "No Rating" : "\(r) Star\(r == 1 ? "" : "s")"
-            }
+        if let id = lastSelectedPhotoId {
+            lastSelectedIndex = filteredPhotos.firstIndex { $0.id == id }
+        } else if filesModel.selectedPhoto == nil {
+            lastSelectedIndex = nil
         }
     }
 
-    private func groupByKey(_ photos: [PhotoItem], key: (PhotoItem) -> String) -> [(title: String, photos: [PhotoItem])] {
-        var groups: [(title: String, photos: [PhotoItem])] = []
-        var currentKey: String? = nil
-        var currentPhotos: [PhotoItem] = []
-        for photo in photos {
-            let k = key(photo)
-            if k != currentKey {
-                if let existing = currentKey, !currentPhotos.isEmpty {
-                    groups.append((title: existing, photos: currentPhotos))
-                }
-                currentKey = k
-                currentPhotos = [photo]
-            } else {
-                currentPhotos.append(photo)
+    func clearInvalidFilters() {
+        let before = (selectedLabels, selectedRatings)
+        selectedLabels = selectedLabels.filter { label in
+            photos.contains { photo in
+                if label == "Rejected" { return photo.toDelete }
+                let pl = photo.xmp?.label ?? ""
+                if label == "No Label" { return pl.isEmpty && !photo.toDelete }
+                return pl == label && !photo.toDelete
             }
         }
-        if let last = currentKey, !currentPhotos.isEmpty {
-            groups.append((title: last, photos: currentPhotos))
+        selectedRatings = selectedRatings.filter { rating in
+            photos.contains { $0.effectiveRating == rating }
         }
-        return groups
+        RCLog("🔍 clearInvalidFilters: labels \(before.0)→\(selectedLabels) ratings \(before.1)→\(selectedRatings)")
+    }
+
+    func toggleLabelFilter(_ label: String) {
+        if selectedLabels.contains(label) { selectedLabels.remove(label) }
+        else { selectedLabels.insert(label) }
     }
 
     // MARK: - Photo Loading
+
     func loadPhotosForFolder(_ folder: FolderItem) {
         RCLog("📂 Loading photos for folder: \(folder.url.lastPathComponent)")
-
-        // Cancel any existing subscriptions
         cancellables.removeAll()
-
-        // Re-setup filtered photos observers after clearing cancellables
         setupFilteredPhotosObservers()
 
-        // Create a fresh ThumbsManager for this album — old one deallocates, clearing its cache
         thumbsManager.stopQueue()
         let newThumbsManager = ThumbsManager()
-        self.thumbsManager = newThumbsManager
+        thumbsManager = newThumbsManager
         filesModel.currentThumbsManager = newThumbsManager
+        trashService.thumbsManager = newThumbsManager
 
-        // Create a new PhotosModel for this folder
         let newPhotosModel = PhotosModel(folder: folder)
-        self.photosModel = newPhotosModel
+        photosModel = newPhotosModel
+        metadataService.photosModel = newPhotosModel
+        trashService.photosModel = newPhotosModel
 
-        RCLog("   Old PhotosModel will be deallocated")
-
-        // Observe the new ThumbsManager queue count
         newThumbsManager.$pendingQueueCount
             .receive(on: DispatchQueue.main)
             .assign(to: &$cachingQueueCount)
 
-        // Set up subscriptions to observe the new PhotosModel's changes
         newPhotosModel.objectWillChange
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
+            .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
 
-        // Observe PhotosModel's isLoadingMetadata and update our published property
         newPhotosModel.$isLoadingMetadata
             .sink { [weak self] isLoading in
-                RCLog("📡 PhotosModel.isLoadingMetadata changed to: \(isLoading)")
                 self?.isLoadingMetadata = isLoading
-                RCLog("📡 ThumbGridViewModel.isLoadingMetadata set to: \(isLoading)")
             }
             .store(in: &cancellables)
 
-        // Observe PhotosModel's photos array and trigger filteredPhotos recalculation.
-        // Debounce during metadata loading so rapid batch updates (every 20 photos)
-        // don't hammer the main thread with sort + reloadData on every batch.
         newPhotosModel.$photos
             .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.updateFilteredPhotos()
-            }
+            .sink { [weak self] _ in self?.updateFilteredPhotos() }
             .store(in: &cancellables)
 
-        // Load photos
         newPhotosModel.loadPhotos()
-
-        // Clear selection when loading new folder
         selectedPhotos.removeAll()
         lastSelectedIndex = nil
         filesModel.selectedPhoto = nil
@@ -336,15 +223,12 @@ class ThumbGridViewModel: ObservableObject {
 
     func reloadMetadata(forSidecar url: URL) {
         photosModel?.reloadMetadata(forSidecar: url)
-        // $photos debounce (300ms) will propagate the change.
-        // Schedule an explicit updateFilteredPhotos after the async mutation completes.
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+            try? await Task.sleep(nanoseconds: 500_000_000)
             self.updateFilteredPhotos()
         }
     }
 
-    /// Show an explicit list of PhotoItems (Spotlight photo search results).
     func loadSearchResults(_ items: [PhotoItem]) {
         searchResultsPhotos = items
         selectedPhotos.removeAll()
@@ -352,327 +236,90 @@ class ThumbGridViewModel: ObservableObject {
         updateFilteredPhotos()
     }
 
-    /// Clear search results, reverting to folder-based photos.
     func clearSearchResults() {
         searchResultsPhotos = nil
         updateFilteredPhotos()
     }
 
-    // MARK: - Computed Properties
-    var photos: [PhotoItem] {
-        return searchResultsPhotos ?? photosModel?.photos ?? []
-    }
+    // MARK: - Selection
 
-    var availableLabels: [String] {
-        var labelSet = Set<String>()
-        var hasToDelete = false
-
-        for photo in photos {
-            if photo.toDelete {
-                hasToDelete = true
-            }
-            if let label = photo.xmp?.label, !label.isEmpty {
-                labelSet.insert(label)
-            }
-        }
-
-        var result: [String] = []
-        if labelSet.count > 0 {
-            // We add No Label only if there are any of the other labels
-            result.append("No Label")
-        }
-
-        let standardOrder = ["Select", "Second", "Approved", "Review", "To Do"]
-        for label in standardOrder {
-            if labelSet.contains(label) {
-                result.append(label)
-            }
-        }
-
-        if hasToDelete {
-            result.append("Rejected")
-        }
-
-        return result
-    }
-
-    /// Sidebar ideal width + detail panel minimum width
-    private static let sidebarWidth: CGFloat = 200
-    private static let previewMinWidth: CGFloat = 280
-    private static let gap: CGFloat = 3
-
-    /// For .large: how many thumb columns fit in the available space between sidebar and preview panel.
-    /// For .small: fixed 3 columns.
-    var effectiveColumnCount: Int {
-        guard gridType == .large else {
-            return gridType.columnCount
-        }
-        let usedWidth = (isSidebarCollapsed ? 0 : Self.sidebarWidth) + Self.previewMinWidth
-        let available = windowWidth - usedWidth
-        let thumbSize = gridType.thumbSize
-        let cols = Int(floor((available + Self.gap) / (thumbSize + Self.gap)))
-        return max(2, cols)
-    }
-
-    var dynamicColumns: [GridItem] {
-        let spacing: CGFloat = 8
-        return Array(repeating: GridItem(.flexible(minimum: gridType.thumbSize), spacing: spacing), count: effectiveColumnCount)
-    }
-
-    var gridWidth: CGFloat {
-        let cols = CGFloat(effectiveColumnCount)
-        let thumbSize = gridType.thumbSize
-        let thumbsWidth = cols * thumbSize + (cols + 1) * Self.gap
-        // Add minimap width so the NavigationSplitView content column is wide enough to fit both
-        let showMinimap = !dateGroups.isEmpty && !isDuplicateMode
-        let minimap = showMinimap ? MinimapView.width : 0
-        let separator: CGFloat = 1
-        return thumbsWidth + minimap + separator
-    }
-
-    // MARK: - Caching Progress
-    var showCachingProgress: Bool {
-        return cachingQueueCount > 0
-    }
-
-    // MARK: - Selection Management
     func handlePhotoTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
         let photoIndex = filteredPhotos.firstIndex(where: { $0.id == photo.id }) ?? 0
-
         if modifiers.contains(.command) {
-            if selectedPhotos.contains(photo.id) {
-                selectedPhotos.remove(photo.id)
-            } else {
-                selectedPhotos.insert(photo.id)
-                filesModel.selectedPhoto = photo
-                lastSelectedIndex = photoIndex
-            }
+            if selectedPhotos.contains(photo.id) { selectedPhotos.remove(photo.id) }
+            else { selectedPhotos.insert(photo.id); filesModel.selectedPhoto = photo; lastSelectedIndex = photoIndex }
         } else if modifiers.contains(.shift) {
-            let lastSelectedIndex = self.lastSelectedIndex ?? 0
-            let startIndex = min(lastSelectedIndex, photoIndex)
-            let endIndex = max(lastSelectedIndex, photoIndex)
-
-            for index in startIndex...endIndex {
-                if index >= filteredPhotos.count {
-                    break
-                }
-                selectedPhotos.insert(filteredPhotos[index].id)
-            }
+            let start = min(lastSelectedIndex ?? 0, photoIndex)
+            let end = max(lastSelectedIndex ?? 0, photoIndex)
+            for i in start...end where i < filteredPhotos.count { selectedPhotos.insert(filteredPhotos[i].id) }
             filesModel.selectedPhoto = photo
         } else {
-            selectedPhotos.removeAll()
-            selectedPhotos.insert(photo.id)
+            selectedPhotos = [photo.id]
             filesModel.selectedPhoto = photo
             lastSelectedIndex = photoIndex
         }
     }
 
     func selectAll() {
-        selectedPhotos.removeAll()
-        for photo in filteredPhotos {
-            selectedPhotos.insert(photo.id)
-        }
-        if let firstPhoto = filteredPhotos.first {
-            filesModel.selectedPhoto = firstPhoto
-            lastSelectedIndex = 0
-        }
+        selectedPhotos = Set(filteredPhotos.map { $0.id })
+        if let first = filteredPhotos.first { filesModel.selectedPhoto = first; lastSelectedIndex = 0 }
     }
 
     func navigateToPhoto(at newIndex: Int) {
         guard newIndex >= 0 && newIndex < filteredPhotos.count else { return }
-
-        selectedPhotos.removeAll()
-        selectedPhotos.insert(filteredPhotos[newIndex].id)
+        selectedPhotos = [filteredPhotos[newIndex].id]
         filesModel.selectedPhoto = filteredPhotos[newIndex]
         lastSelectedIndex = newIndex
     }
 
     func initializeSelection() {
-        if filesModel.selectedPhoto == nil && !filteredPhotos.isEmpty {
-            filesModel.selectedPhoto = filteredPhotos.first
-            selectedPhotos.removeAll()
-            if let firstPhoto = filteredPhotos.first {
-                selectedPhotos.insert(firstPhoto.id)
-            }
+        if filesModel.selectedPhoto == nil, let first = filteredPhotos.first {
+            filesModel.selectedPhoto = first
+            selectedPhotos = [first.id]
         }
     }
 
-    // MARK: - Rating & Label Management
-    func applyRating(_ rating: Int, to photos: [PhotoItem]) {
-        for photo in photos {
-            let url = URL(fileURLWithPath: photo.path)
-            if photo.isRawFile {
-                setPhotoRating(photo: photo, rating: rating)
-            } else if JpegMetadataWriter.isSupported(url) {
-                let existing = JpegMetadataWriter.readMetadata(from: url)
-                let ok = JpegMetadataWriter.write(
-                    JpegMetadataWriter.Metadata(rating: rating, label: existing.label),
-                    to: url
-                )
-                if ok {
-                    updatePhotoWithXmpMetadata(photo: photo,
-                                              xmpMetadata: xmpUpdating(photo: photo, rating: rating, label: existing.label ?? photo.xmp?.label))
-                }
-            }
+    func getPhotosMarkedForDeletion() -> [PhotoItem] { photos.filter { $0.toDelete } }
+
+    func getSelectedPhotosForBulkAction() -> [PhotoItem] {
+        guard let allPhotos = photosModel?.photos else { return [] }
+        if selectedPhotos.count > 1 { return allPhotos.filter { selectedPhotos.contains($0.id) } }
+        if let sel = filesModel.selectedPhoto {
+            return [allPhotos.first(where: { $0.id == sel.id }) ?? sel]
         }
+        return []
+    }
+
+    // MARK: - Rating & Label (delegate to service)
+
+    func applyRating(_ rating: Int, to photos: [PhotoItem]) {
+        metadataService.applyRating(rating, to: photos)
     }
 
     func applyLabel(_ label: String, to photos: [PhotoItem]) {
-        for photo in photos {
-            let url = URL(fileURLWithPath: photo.path)
-            if photo.isRawFile {
-                createAndSaveXmpFile(for: photo, targetLabel: label)
-            } else if JpegMetadataWriter.isSupported(url) {
-                let existing = JpegMetadataWriter.readMetadata(from: url)
-                let newLabel = (existing.label == label) ? "" : label
-                let ok = JpegMetadataWriter.write(
-                    JpegMetadataWriter.Metadata(rating: existing.rating, label: newLabel),
-                    to: url
-                )
-                if ok {
-                    updatePhotoWithXmpMetadata(photo: photo,
-                                              xmpMetadata: xmpUpdating(photo: photo,
-                                                                       rating: existing.rating ?? photo.xmp?.rating,
-                                                                       label: newLabel.isEmpty ? nil : newLabel))
-                }
-            }
-        }
+        metadataService.applyLabel(label, to: photos)
     }
 
     func removeLabels(from photos: [PhotoItem]) {
-        for photo in photos {
-            let url = URL(fileURLWithPath: photo.path)
-            if photo.isRawFile {
-                removeAnyLabel(for: photo)
-            } else if JpegMetadataWriter.isSupported(url) {
-                let existing = JpegMetadataWriter.readMetadata(from: url)
-                let ok = JpegMetadataWriter.write(
-                    JpegMetadataWriter.Metadata(rating: existing.rating, label: ""),
-                    to: url
-                )
-                if ok {
-                    updatePhotoWithXmpMetadata(photo: photo,
-                                              xmpMetadata: xmpUpdating(photo: photo,
-                                                                       rating: existing.rating ?? photo.xmp?.rating,
-                                                                       label: nil))
-                }
-            }
-        }
-    }
-
-    /// Build an updated XmpMetadata preserving all existing fields except the ones being changed.
-    private func xmpUpdating(photo: PhotoItem, rating: Int?, label: String?) -> XmpMetadata {
-        let e = photo.xmp
-        return XmpMetadata(label: label, rating: rating, creator: e?.creator, rights: e?.rights,
-                           createDate: e?.createDate, modifyDate: e?.modifyDate, cameraModel: e?.cameraModel,
-                           lens: e?.lens, focalLength: e?.focalLength, aperture: e?.aperture,
-                           shutterSpeed: e?.shutterSpeed, iso: e?.iso, exposureBias: e?.exposureBias)
+        metadataService.removeLabels(from: photos)
     }
 
     func toggleDeleteState(for photos: [PhotoItem]) {
-        for photo in photos {
-            toggleToDeleteState(for: photo)
-        }
+        metadataService.toggleDeleteState(for: photos)
     }
 
-    // MARK: - Undo support
-    // Each entry maps trashed file URL back to its original URL
-    private var undoStack: [[(trashedURL: URL, originalURL: URL)]] = []
+    // MARK: - Trash (delegate to service)
 
     func movePhotosToTrash(_ photos: [PhotoItem]) {
-
-        var undoEntry: [(trashedURL: URL, originalURL: URL)] = []
-
-        for photo in photos {
-            let url = URL(fileURLWithPath: photo.path)
-            let fileExtension = url.pathExtension.lowercased()
-            let baseName = url.deletingPathExtension().lastPathComponent
-            let directory = url.deletingLastPathComponent()
-
-            do {
-                // Move main file to trash, capturing the resulting trash URL for undo
-                var trashedURL: NSURL?
-                try FileManager.default.trashItem(at: url, resultingItemURL: &trashedURL)
-                if let trashedURL = trashedURL as? URL {
-                    undoEntry.append((trashedURL: trashedURL, originalURL: url))
-                }
-
-                // Delete the cached thumbnail
-                thumbsManager.deleteCachedThumbnail(for: photo.path)
-//                PreviewsManager.shared.deleteCachedPreview(for: photo.path)
-
-                // If this is a RAW file, also delete associated files
-                if FilesExtensions.raw.contains(fileExtension) {
-                    for jpgExt in ["jpg", "jpeg", "JPG", "JPEG"] {
-                        let jpgURL = directory.appendingPathComponent("\(baseName).\(jpgExt)")
-                        if FileManager.default.fileExists(atPath: jpgURL.path) {
-                            var trashedJpgURL: NSURL?
-                            try? FileManager.default.trashItem(at: jpgURL, resultingItemURL: &trashedJpgURL)
-                            if let trashedJpgURL = trashedJpgURL as? URL {
-                                undoEntry.append((trashedURL: trashedJpgURL, originalURL: jpgURL))
-                            }
-                        }
-                    }
-
-                    let xmpURL = directory.appendingPathComponent("\(baseName).xmp")
-                    if FileManager.default.fileExists(atPath: xmpURL.path) {
-                        var trashedXmpURL: NSURL?
-                        try? FileManager.default.trashItem(at: xmpURL, resultingItemURL: &trashedXmpURL)
-                        if let trashedXmpURL = trashedXmpURL as? URL {
-                            undoEntry.append((trashedURL: trashedXmpURL, originalURL: xmpURL))
-                        }
-                    }
-
-                    let acrURL = directory.appendingPathComponent("\(baseName).acr")
-                    if FileManager.default.fileExists(atPath: acrURL.path) {
-                        var trashedAcrURL: NSURL?
-                        try? FileManager.default.trashItem(at: acrURL, resultingItemURL: &trashedAcrURL)
-                        if let trashedAcrURL = trashedAcrURL as? URL {
-                            undoEntry.append((trashedURL: trashedAcrURL, originalURL: acrURL))
-                        }
-                    }
-                }
-
-                // Remove from photos array
-                if let index = photosModel?.photos.firstIndex(where: { $0.id == photo.id }) {
-                    photosModel?.photos.remove(at: index)
-                    filesModel.lastDeletedFiles.append(url)
-                }
-            } catch {
-                // Silently handle errors
-            }
-        }
-
-        if !undoEntry.isEmpty {
-            undoStack.append(undoEntry)
-        }
-
-        // Clear selection after moving
+        let saved = lastSelectedIndex
+        let (newPhoto, newIndex) = trashService.movePhotosToTrash(
+            photos, filteredPhotos: filteredPhotos, lastSelectedIndex: saved)
         selectedPhotos.removeAll()
-
-        // Save the last selected index before updateFilteredPhotos resets it
-        let savedLastSelectedIndex = lastSelectedIndex
-
-        // Force immediate update of filtered photos to reflect the deletion
         updateFilteredPhotos()
-
-        // Select a photo near the last selected index if available
-        if !filteredPhotos.isEmpty {
-            // Try to select the photo at the same index, or the closest one if that index is now out of bounds
-            let targetIndex: Int
-            if let lastIndex = savedLastSelectedIndex {
-                // If the last index is still valid, use it
-                // Otherwise, select the last photo (which is now at lastIndex - 1 if we deleted the last one)
-                targetIndex = min(lastIndex, filteredPhotos.count - 1)
-            } else {
-                // No previous selection, default to first photo
-                targetIndex = 0
-            }
-
-            let photoToSelect = filteredPhotos[targetIndex]
-            filesModel.selectedPhoto = photoToSelect
-            selectedPhotos.insert(photoToSelect.id)
-            lastSelectedIndex = targetIndex
+        if let p = newPhoto {
+            filesModel.selectedPhoto = p
+            selectedPhotos.insert(p.id)
+            lastSelectedIndex = newIndex
         } else {
             filesModel.selectedPhoto = nil
             lastSelectedIndex = nil
@@ -680,41 +327,7 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func undoLastTrash() {
-        guard let lastEntry = undoStack.popLast() else { return }
-        for item in lastEntry {
-            do {
-                try FileManager.default.moveItem(at: item.trashedURL, to: item.originalURL)
-                // Invalidate the cached thumbnail so it gets regenerated on reload
-                thumbsManager.deleteCachedThumbnail(for: item.originalURL.path)
-            } catch {
-                // Silently handle errors
-            }
-        }
-        // Explicitly reload since the file system watcher may not fire fast enough
-        reloadPhotos()
-    }
-
-    func getPhotosMarkedForDeletion() -> [PhotoItem] {
-        return photos.filter { $0.toDelete }
-    }
-
-    func getSelectedPhotosForBulkAction() -> [PhotoItem] {
-        // Always get photos from the source of truth (photosModel.photos), not from cached filteredPhotos
-        // This ensures we get the most current version of photos, even if filteredPhotos hasn't updated yet
-        guard let photos = photosModel?.photos else { return [] }
-
-        if selectedPhotos.count > 1 {
-            // Get current versions of all selected photos from photosModel
-            return photos.filter { selectedPhotos.contains($0.id) }
-        } else if let selectedPhoto = filesModel.selectedPhoto {
-            // Get the current version of the single selected photo from photosModel
-            if let currentPhoto = photos.first(where: { $0.id == selectedPhoto.id }) {
-                return [currentPhoto]
-            }
-            return [selectedPhoto]
-        } else {
-            return []
-        }
+        trashService.undoLastTrash { [weak self] in self?.reloadPhotos() }
     }
 
     // MARK: - Key Handling
@@ -728,36 +341,28 @@ class ThumbGridViewModel: ObservableObject {
         let chars = event.charactersIgnoringModifiers ?? ""
         let key: KeyEquivalent
         switch event.keyCode {
-        case 123: key = .leftArrow
-        case 124: key = .rightArrow
-        case 125: key = .downArrow
-        case 126: key = .upArrow
-        case 36, 76: key = .return
-        case 49: key = KeyEquivalent(" ")
-        case 51: key = .delete
+        case 123: key = .leftArrow;  case 124: key = .rightArrow
+        case 125: key = .downArrow;  case 126: key = .upArrow
+        case 36, 76: key = .return;  case 49: key = KeyEquivalent(" ");  case 51: key = .delete
         default:
             guard let first = chars.first else { return false }
             key = KeyEquivalent(first)
         }
 
-        // Z — toggle zoom
-        if key == KeyEquivalent("z") {
-            NotificationCenter.default.post(name: .toggleZoom, object: nil)
-            return true
-        }
-
+        if key == KeyEquivalent("z") { NotificationCenter.default.post(name: .toggleZoom, object: nil); return true }
         guard !filteredPhotos.isEmpty else { return false }
 
-        let currentIndex = filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
-        var newIndex = currentIndex
+        let cur = filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
+        var next = cur
 
         switch key {
-        case .leftArrow:  newIndex = max(0, currentIndex - 1)
-        case .rightArrow: newIndex = min(filteredPhotos.count - 1, currentIndex + 1)
-        case .upArrow:    newIndex = max(0, currentIndex - gridType.columnCount)
-        case .downArrow:  newIndex = min(filteredPhotos.count - 1, currentIndex + gridType.columnCount)
+        case .leftArrow:  next = max(0, cur - 1)
+        case .rightArrow: next = min(filteredPhotos.count - 1, cur + 1)
+        case .upArrow:    next = max(0, cur - gridType.columnCount)
+        case .downArrow:  next = min(filteredPhotos.count - 1, cur + gridType.columnCount)
         case .return:
-            handleReturnKey(openPhotos: openPhotos)
+            let photos = getSelectedPhotosForBulkAction()
+            openPhotos(selectedPhotos.count > 1 ? filteredPhotos.filter { selectedPhotos.contains($0.id) } : photos)
             return true
         case KeyEquivalent(" "):
             let photos = getSelectedPhotosForBulkAction()
@@ -766,11 +371,7 @@ class ThumbGridViewModel: ObservableObject {
         case .delete:
             let photos = getSelectedPhotosForBulkAction()
             if !photos.isEmpty {
-                if event.modifierFlags.contains(.command) {
-                    movePhotosToTrash(photos)
-                } else {
-                    toggleDeleteState(for: photos)
-                }
+                event.modifierFlags.contains(.command) ? movePhotosToTrash(photos) : toggleDeleteState(for: photos)
             }
             return true
         default:
@@ -781,25 +382,16 @@ class ThumbGridViewModel: ObservableObject {
             if chars == "g" || chars == "G" { toggleGridType(); return true }
             let photos = getSelectedPhotosForBulkAction()
             guard !photos.isEmpty else { return false }
-            // Approve
             if chars == "a" || chars == "A" { applyLabel("Approved", to: photos); return true }
-            // Ratings 1-5 (not 0, which is reserved for "To Do" label via labelMap)
-            if let rating = Int(chars), rating >= 1 && rating <= 5 { applyRating(rating, to: photos); return true }
-            // Toggle delete
+            if let r = Int(chars), r >= 1 && r <= 5 { applyRating(r, to: photos); return true }
             if chars == "x" || chars == "X" { toggleDeleteState(for: photos); return true }
-            // Labels via number keys 6-0
-            let labelMap: [String: String] = ["6": "Select", "7": "Second", "8": "Approved", "9": "Review", "0": "To Do"]
+            let labelMap = ["6": "Select", "7": "Second", "8": "Approved", "9": "Review", "0": "To Do"]
             if let label = labelMap[chars] { applyLabel(label, to: photos); return true }
-            // Remove label
             if chars == "-" { removeLabels(from: photos); return true }
             return false
         }
 
-        if newIndex != currentIndex {
-            navigateToPhoto(at: newIndex)
-            scrollTo(filteredPhotos[newIndex].id)
-            return true
-        }
+        if next != cur { navigateToPhoto(at: next); scrollTo(filteredPhotos[next].id); return true }
         #endif
         return false
     }
@@ -808,487 +400,66 @@ class ThumbGridViewModel: ObservableObject {
                         scrollTo: (UUID) -> Void,
                         openPhotos: ([PhotoItem]) -> Void,
                         onToggleSidebar: (() -> Void)?) -> KeyPress.Result {
-
-        // Z — toggle zoom in LargePreviewView
         if keyPress.key == KeyEquivalent("z") {
-            NotificationCenter.default.post(name: .toggleZoom, object: nil)
-            return .handled
+            NotificationCenter.default.post(name: .toggleZoom, object: nil); return .handled
         }
+        guard !filteredPhotos.isEmpty else { return .ignored }
 
-        guard !filteredPhotos.isEmpty else {
-            return .ignored
-        }
-
-        let currentIndex = filteredPhotos.firstIndex {
-            $0.id == filesModel.selectedPhoto?.id
-        } ?? 0
-        var newIndex = currentIndex
+        let cur = filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
+        var next = cur
 
         switch keyPress.key {
-        case .leftArrow:
-            newIndex = max(0, currentIndex - 1)
-        case .rightArrow:
-            newIndex = min(filteredPhotos.count - 1, currentIndex + 1)
-        case .upArrow:
-            newIndex = max(0, currentIndex - gridType.columnCount)
-        case .downArrow:
-            newIndex = min(filteredPhotos.count - 1, currentIndex + gridType.columnCount)
+        case .leftArrow:  next = max(0, cur - 1)
+        case .rightArrow: next = min(filteredPhotos.count - 1, cur + 1)
+        case .upArrow:    next = max(0, cur - gridType.columnCount)
+        case .downArrow:  next = min(filteredPhotos.count - 1, cur + gridType.columnCount)
         case .return:
-            handleReturnKey(openPhotos: openPhotos)
+            let photos = getSelectedPhotosForBulkAction()
+            openPhotos(selectedPhotos.count > 1 ? filteredPhotos.filter { selectedPhotos.contains($0.id) } : photos)
             return .handled
         default:
             return handleOtherKeys(keyPress, onToggleSidebar: onToggleSidebar)
         }
 
-        if newIndex != currentIndex {
-            navigateToPhoto(at: newIndex)
-            scrollTo(filteredPhotos[newIndex].id)
-            return .handled
-        }
-
+        if next != cur { navigateToPhoto(at: next); scrollTo(filteredPhotos[next].id); return .handled }
         return .ignored
-    }
-
-    private func handleReturnKey(openPhotos: ([PhotoItem]) -> Void) {
-        let photosToOpen: [PhotoItem]
-        if selectedPhotos.count > 1 {
-            photosToOpen = filteredPhotos.filter { selectedPhotos.contains($0.id) }
-        } else if let selectedPhoto = filesModel.selectedPhoto {
-            photosToOpen = [selectedPhoto]
-        } else {
-            return
-        }
-        openPhotos(photosToOpen)
     }
 
     private func handleOtherKeys(_ keyPress: KeyPress, onToggleSidebar: (() -> Void)?) -> KeyPress.Result {
         let key = keyPress.characters
-
-        // Toggle sidebar (works regardless of selection)
-        if key == "c" || key == "C" {
-            onToggleSidebar?()
-            return .handled
-        }
-
-        // Toggle grid type (works regardless of selection)
-        if key == "g" || key == "G" {
-            toggleGridType()
-            return .handled
-        }
+        if key == "c" || key == "C" { onToggleSidebar?(); return .handled }
+        if key == "g" || key == "G" { toggleGridType(); return .handled }
 
         let photos = getSelectedPhotosForBulkAction()
         guard !photos.isEmpty else { return .ignored }
 
-        // Command+A for Select All
-        if keyPress.modifiers.contains(.command) && keyPress.characters == "a" {
-            selectAll()
-            return .handled
-        }
-
-        // Command+Z for Undo last trash
-        if keyPress.modifiers.contains(.command) && keyPress.characters == "z" {
-            undoLastTrash()
-            return .handled
-        }
-
-        // Cmd+Delete — immediately trash selected photos
+        if keyPress.modifiers.contains(.command) && key == "a" { selectAll(); return .handled }
+        if keyPress.modifiers.contains(.command) && key == "z" { undoLastTrash(); return .handled }
         if keyPress.modifiers.contains(.command) &&
-            (keyPress.key == .delete || keyPress.characters == "\u{7F}") {
-            movePhotosToTrash(photos)
-            return .handled
-        }
+            (keyPress.key == .delete || key == "\u{7F}") { movePhotosToTrash(photos); return .handled }
 
-        // Rating keys (1-5)
-        if let rating = Int(key), rating >= 1 && rating <= 5 {
-            applyRating(rating, to: photos)
-            return .handled
-        }
-
-        // Label keys (6-0)
-        let labelMap: [String: String] = [
-            "6": "Select",
-            "7": "Second",
-            "8": "Approved",
-            "9": "Review",
-            "0": "To Do"
-        ]
-
-        if let label = labelMap[key] {
-            applyLabel(label, to: photos)
-            return .handled
-        }
-
-        // Remove label
-        if key == "-" {
-            removeLabels(from: photos)
-            return .handled
-        }
-
-        // Toggle reject state (X key)
-        if key == "x" || key == "X" {
-            toggleDeleteState(for: photos)
-            return .handled
-        }
-
-        if key == "a" || key == "A" {
-            applyLabel(labelMap["8"]!, to: photos)
-            return .handled
-        }
-
+        if let r = Int(key), r >= 1 && r <= 5 { applyRating(r, to: photos); return .handled }
+        let labelMap = ["6": "Select", "7": "Second", "8": "Approved", "9": "Review", "0": "To Do"]
+        if let label = labelMap[key] { applyLabel(label, to: photos); return .handled }
+        if key == "-" { removeLabels(from: photos); return .handled }
+        if key == "x" || key == "X" { toggleDeleteState(for: photos); return .handled }
+        if key == "a" || key == "A" { applyLabel("Approved", to: photos); return .handled }
         return .ignored
     }
 
     // MARK: - Persistence
-    func saveSortOption() {
-        appPrefs.set(sortOption.rawValue, forKey: .sortOption)
-    }
 
+    func saveSortOption() { appPrefs.set(sortOption.rawValue, forKey: .sortOption) }
     func loadSortOption() {
         let saved = appPrefs.string(.sortOption)
-        // Migrate old "Date Created" value to new "Date Captured"
         let migrated = saved == "Date Created" ? "Date Captured" : saved
-        if let option = SortOption(rawValue: migrated) {
-            sortOption = option
-        }
+        if let opt = SortOption(rawValue: migrated) { sortOption = opt }
     }
-
-    func saveGridType() {
-        appPrefs.set(gridType.rawValue, forKey: .gridType)
-    }
-
+    func saveGridType() { appPrefs.set(gridType.rawValue, forKey: .gridType) }
     func loadGridType() {
-        let saved = appPrefs.string(.gridType)
-        if let type = GridType(rawValue: saved) {
-            gridType = type
-        }
+        if let t = GridType(rawValue: appPrefs.string(.gridType)) { gridType = t }
     }
-
-    func toggleGridType() {
-        gridType = (gridType == .small) ? .large : .small
-        saveGridType()
-    }
-
-    func toggleLabelFilter(_ label: String) {
-        if selectedLabels.contains(label) {
-            selectedLabels.remove(label)
-        } else {
-            selectedLabels.insert(label)
-        }
-    }
-
-    func clearInvalidFilters() {
-        RCLog("🔍 clearInvalidFilters called - photos: \(photos.count), labels: \(selectedLabels), ratings: \(selectedRatings)")
-
-        // Clear invalid label filters
-        if !selectedLabels.isEmpty {
-            var labelsToRemove: Set<String> = []
-
-            for label in selectedLabels {
-                // Check if any photo matches this label
-                let hasMatchingPhoto = photos.contains { photo in
-                    if label == "Rejected" && photo.toDelete {
-                        return true
-                    }
-
-                    let photoLabel = photo.xmp?.label ?? ""
-
-                    if label == "No Label" && photoLabel.isEmpty && !photo.toDelete {
-                        return true
-                    }
-
-                    return photoLabel == label && !photo.toDelete
-                }
-
-                if !hasMatchingPhoto {
-                    RCLog("   ❌ Label '\(label)' has no matching photos - will remove")
-                    labelsToRemove.insert(label)
-                }
-            }
-
-            // Remove invalid labels
-            if !labelsToRemove.isEmpty {
-                RCLog("   🗑️ Removing labels: \(labelsToRemove)")
-                selectedLabels.subtract(labelsToRemove)
-            }
-        }
-
-        // Clear invalid rating filters
-        if !selectedRatings.isEmpty {
-            var ratingsToRemove: Set<Int> = []
-
-            for rating in selectedRatings {
-                // Check if any photo has this rating
-                let hasMatchingPhoto = photos.contains { photo in
-                    // Get the effective rating (XMP or in-camera fallback)
-                    let effectiveRating: Int
-                    if let xmpRating = photo.xmp?.rating, xmpRating > 0 {
-                        effectiveRating = xmpRating
-                    } else {
-                        effectiveRating = photo.inCameraRating ?? 0
-                    }
-                    return effectiveRating == rating
-                }
-
-                if !hasMatchingPhoto {
-                    ratingsToRemove.insert(rating)
-                }
-            }
-
-            // Remove invalid ratings
-            if !ratingsToRemove.isEmpty {
-                selectedRatings.subtract(ratingsToRemove)
-            }
-        }
-
-        // After clearing invalid filters, check if any photos would match the remaining filters
-        // If we still have active filters but no photos match, clear all filters
-        if !photos.isEmpty && (!selectedLabels.isEmpty || !selectedRatings.isEmpty) {
-            RCLog("   🔎 Checking if remaining filters match any photos...")
-            RCLog("   Remaining labels: \(selectedLabels), ratings: \(selectedRatings)")
-
-            // Manually check if any photo matches the remaining filters
-            let hasMatchingPhoto = photos.contains { photo in
-                var matchesLabel = selectedLabels.isEmpty
-                var matchesRating = selectedRatings.isEmpty
-
-                // Check label filter
-                if !selectedLabels.isEmpty {
-                    if selectedLabels.contains("Rejected") && photo.toDelete {
-                        matchesLabel = true
-                    } else {
-                        let photoLabel = photo.xmp?.label ?? ""
-                        if selectedLabels.contains("No Label") && photoLabel.isEmpty && !photo.toDelete {
-                            matchesLabel = true
-                        } else if selectedLabels.contains(photoLabel) && !photo.toDelete {
-                            matchesLabel = true
-                        }
-                    }
-                }
-
-                // Check rating filter
-                if !selectedRatings.isEmpty {
-                    let effectiveRating: Int
-                    if let xmpRating = photo.xmp?.rating, xmpRating > 0 {
-                        effectiveRating = xmpRating
-                    } else {
-                        effectiveRating = photo.inCameraRating ?? 0
-                    }
-                    matchesRating = selectedRatings.contains(effectiveRating)
-                }
-
-                return matchesLabel && matchesRating
-            }
-
-            // If no photos match the remaining filters, clear all filters
-            if !hasMatchingPhoto {
-                RCLog("   ❌ No photos match remaining filters - clearing ALL filters")
-                selectedLabels.removeAll()
-                selectedRatings.removeAll()
-            } else {
-                RCLog("   ✅ Some photos match remaining filters - keeping them")
-            }
-        } else {
-            RCLog("   ℹ️ No active filters remaining after cleanup")
-        }
-    }
-
-
-    // MARK: - Private XMP Operations
-    private func setPhotoRating(photo: PhotoItem, rating: Int) {
-        let photoURL = URL(fileURLWithPath: photo.path)
-        let photoDirectory = photoURL.deletingLastPathComponent()
-        let photoName = photoURL.deletingPathExtension().lastPathComponent
-        let xmpFileName = "\(photoName).xmp"
-        let xmpFileURL = photoDirectory.appendingPathComponent(xmpFileName)
-
-        var xmpContent: String
-
-        if FileManager.default.fileExists(atPath: xmpFileURL.path) {
-            do {
-                xmpContent = try String(contentsOf: xmpFileURL, encoding: .utf8)
-                xmpContent = XmpParser.updateRating(in: xmpContent, rating: rating)
-            } catch {
-                return
-            }
-        } else {
-            xmpContent = XmpParser.createXmpContent(rating: rating, label: photo.xmp?.label)
-        }
-
-        do {
-            try xmpContent.write(to: xmpFileURL, atomically: true, encoding: .utf8)
-            if let parsedMetadata = XmpParser.parseMetadata(from: xmpContent) {
-                updatePhotoWithXmpMetadata(photo: photo, xmpMetadata: parsedMetadata)
-            }
-        } catch {
-            // Silently handle error
-        }
-    }
-
-    private func createAndSaveXmpFile(for photo: PhotoItem, targetLabel: String) {
-        let photoURL = URL(fileURLWithPath: photo.path)
-        let photoDirectory = photoURL.deletingLastPathComponent()
-        let photoName = photoURL.deletingPathExtension().lastPathComponent
-        let xmpFileName = "\(photoName).xmp"
-        let xmpFileURL = photoDirectory.appendingPathComponent(xmpFileName)
-
-        var xmpContent: String
-        var currentLabel: String? = nil
-
-        if FileManager.default.fileExists(atPath: xmpFileURL.path) {
-            do {
-                xmpContent = try String(contentsOf: xmpFileURL, encoding: .utf8)
-
-                if let existingMetadata = XmpParser.parseMetadata(from: xmpContent) {
-                    currentLabel = existingMetadata.label
-                }
-
-                let newLabel: String? = (currentLabel == targetLabel) ? nil : targetLabel
-                xmpContent = updateXmpLabel(in: xmpContent, newLabel: newLabel)
-            } catch {
-                return
-            }
-        } else {
-            xmpContent = XmpParser.createXmpContent(rating: photo.xmp?.rating ?? 0, label: targetLabel)
-        }
-
-        do {
-            try xmpContent.write(to: xmpFileURL, atomically: true, encoding: .utf8)
-            if let parsedMetadata = XmpParser.parseMetadata(from: xmpContent) {
-                updatePhotoWithXmpMetadata(photo: photo, xmpMetadata: parsedMetadata)
-            }
-        } catch {
-            // Silently handle error
-        }
-    }
-
-    private func removeAnyLabel(for photo: PhotoItem) {
-        let photoURL = URL(fileURLWithPath: photo.path)
-        let photoDirectory = photoURL.deletingLastPathComponent()
-        let photoName = photoURL.deletingPathExtension().lastPathComponent
-        let xmpFileName = "\(photoName).xmp"
-        let xmpFileURL = photoDirectory.appendingPathComponent(xmpFileName)
-
-        guard FileManager.default.fileExists(atPath: xmpFileURL.path) else {
-            return
-        }
-
-        do {
-            var xmpContent = try String(contentsOf: xmpFileURL, encoding: .utf8)
-            xmpContent = updateXmpLabel(in: xmpContent, newLabel: nil)
-            try xmpContent.write(to: xmpFileURL, atomically: true, encoding: .utf8)
-
-            if let parsedMetadata = XmpParser.parseMetadata(from: xmpContent) {
-                updatePhotoWithXmpMetadata(photo: photo, xmpMetadata: parsedMetadata)
-            }
-        } catch {
-            // Silently handle error
-        }
-    }
-
-    private func updateXmpLabel(in xmpContent: String, newLabel: String?) -> String {
-        var updatedContent = xmpContent
-        let labelPattern = #"xmp:Label="[^"]*""#
-
-        if let range = updatedContent.range(of: labelPattern, options: .regularExpression) {
-            if let newLabel = newLabel {
-                updatedContent.replaceSubrange(range, with: "xmp:Label=\"\(newLabel)\"")
-            } else {
-                updatedContent.replaceSubrange(range, with: "xmp:Label=\"\"")
-            }
-        } else if let newLabel = newLabel {
-            let descriptionPattern = #"(<rdf:Description[^>]*)"#
-            if let match = updatedContent.range(of: descriptionPattern, options: .regularExpression) {
-                let insertPosition = updatedContent.index(match.upperBound, offsetBy: 0)
-                let labelAttribute = "\n   xmp:Label=\"\(newLabel)\""
-                updatedContent.insert(contentsOf: labelAttribute, at: insertPosition)
-            }
-        }
-
-        // Update MetadataDate
-        let currentDate = Date()
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = [.withInternetDateTime, .withTimeZone, .withColonSeparatorInTimeZone]
-        dateFormatter.timeZone = TimeZone.current
-        let currentDateString = dateFormatter.string(from: currentDate)
-
-        let metadataDatePattern = #"xmp:MetadataDate="[^"]*""#
-        if let range = updatedContent.range(of: metadataDatePattern, options: .regularExpression) {
-            updatedContent.replaceSubrange(range, with: "xmp:MetadataDate=\"\(currentDateString)\"")
-        } else {
-            let descriptionPattern = #"(<rdf:Description[^>]*)"#
-            if let match = updatedContent.range(of: descriptionPattern, options: .regularExpression) {
-                let insertPosition = updatedContent.index(match.upperBound, offsetBy: 0)
-                let metadataAttribute = "\n   xmp:MetadataDate=\"\(currentDateString)\""
-                updatedContent.insert(contentsOf: metadataAttribute, at: insertPosition)
-            }
-        }
-
-        return updatedContent
-    }
-
-    private func toggleToDeleteState(for photo: PhotoItem) {
-        guard let photosModel = photosModel,
-              let photoIndex = photosModel.photos.firstIndex(where: { $0.path == photo.path }) else {
-            return
-        }
-
-        let currentPhoto = photosModel.photos[photoIndex]
-
-        let updatedPhoto = PhotoItem(
-            id: currentPhoto.id,
-            path: currentPhoto.path,
-            xmp: currentPhoto.xmp,
-            dateCreated: currentPhoto.dateCreated,
-            toDelete: !currentPhoto.toDelete,
-            hasACR: currentPhoto.hasACR,
-            hasJPG: currentPhoto.hasJPG,
-            inCameraRating: currentPhoto.inCameraRating,
-            isRawFile: currentPhoto.isRawFile,
-            fileSizeBytes: currentPhoto.fileSizeBytes,
-            width: currentPhoto.width,
-            height: currentPhoto.height,
-            cameraMake: currentPhoto.cameraMake,
-            cameraModel: currentPhoto.cameraModel
-        )
-
-        photosModel.photos[photoIndex] = updatedPhoto
-        filesModel.selectedPhoto = updatedPhoto
-
-        // Manually trigger filteredPhotos update to ensure UI reflects changes immediately
-        updateFilteredPhotos()
-    }
-
-    private func updatePhotoWithXmpMetadata(photo: PhotoItem, xmpMetadata: XmpMetadata) {
-        guard let photosModel = photosModel,
-              let photoIndex = photosModel.photos.firstIndex(where: { $0.path == photo.path }) else {
-            return
-        }
-
-        let currentPhoto = photosModel.photos[photoIndex]
-
-        let updatedPhoto = PhotoItem(
-            id: photo.id,
-            path: photo.path,
-            xmp: xmpMetadata,
-            dateCreated: photo.dateCreated,
-            toDelete: currentPhoto.toDelete,
-            hasACR: currentPhoto.hasACR,
-            hasJPG: currentPhoto.hasJPG,
-            inCameraRating: currentPhoto.inCameraRating,
-            isRawFile: currentPhoto.isRawFile,
-            fileSizeBytes: currentPhoto.fileSizeBytes,
-            width: currentPhoto.width,
-            height: currentPhoto.height,
-            cameraMake: currentPhoto.cameraMake,
-            cameraModel: currentPhoto.cameraModel
-        )
-
-        photosModel.photos[photoIndex] = updatedPhoto
-        filesModel.selectedPhoto = updatedPhoto
-
-        // Manually trigger filteredPhotos update to ensure UI reflects changes immediately
-        updateFilteredPhotos()
-    }
+    func toggleGridType() { gridType = gridType == .small ? .large : .small; saveGridType() }
 
     // MARK: - Duplicate Finding
 
@@ -1296,7 +467,6 @@ class ThumbGridViewModel: ObservableObject {
         guard !isFindingDuplicates else { return }
         let photosToScan = filteredPhotos
         guard !photosToScan.isEmpty else { return }
-
         isFindingDuplicates = true
         duplicateScanProgress = (0, photosToScan.count)
         duplicateScanResult = nil
@@ -1304,23 +474,17 @@ class ThumbGridViewModel: ObservableObject {
 
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
-
-            // Wait for thumb generation to finish before scanning
-            // (DuplicateFinderService reads from thumb cache)
             while await self.cachingQueueCount > 0 {
-                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s
+                try? await Task.sleep(nanoseconds: 300_000_000)
             }
             let data = await DuplicateFinderService.scan(
-                photos: photosToScan,
-                thumbsManager: thumbsManager,
-                progress: { done, total in
-                    DispatchQueue.main.async { self.duplicateScanProgress = (done, total) }
-                }
-            )
+                photos: photosToScan, thumbsManager: thumbsManager,
+                progress: { done, total in DispatchQueue.main.async { self.duplicateScanProgress = (done, total) } })
             await MainActor.run {
                 self.duplicateScanData = data
                 if let data {
-                    let result = data.recluster(threshold: self.similarityMode.distanceThreshold, sortBy: self.photoSortComparator)
+                    let result = data.recluster(threshold: self.similarityMode.distanceThreshold,
+                                               sortBy: self.photoSortComparator)
                     self.duplicateScanResult = result
                     RCLog("🔍 Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", data.scanDuration))s")
                 }
@@ -1332,26 +496,17 @@ class ThumbGridViewModel: ObservableObject {
 
     func setSimilarityMode(_ mode: DuplicateFinderService.SimilarityMode) {
         similarityMode = mode
-        saveSimilarityMode()
-        // Re-cluster instantly from cached distances — no Vision re-run
+        appPrefs.set(mode.rawValue, forKey: .similarityMode)
         if let data = duplicateScanData {
             duplicateScanResult = data.recluster(threshold: mode.distanceThreshold, sortBy: photoSortComparator)
         }
     }
 
-    func exitDuplicateMode() {
-        isDuplicateMode = false
-        duplicateScanResult = nil
-        duplicateScanData = nil
-    }
+    func exitDuplicateMode() { isDuplicateMode = false; duplicateScanResult = nil; duplicateScanData = nil }
 
     func loadSimilarityMode() {
-        let saved = appPrefs.int(.similarityMode)
-        similarityMode = DuplicateFinderService.SimilarityMode(rawValue: saved) ?? .loose
+        similarityMode = DuplicateFinderService.SimilarityMode(rawValue: appPrefs.int(.similarityMode)) ?? .loose
     }
 
-    func saveSimilarityMode() {
-        appPrefs.set(similarityMode.rawValue, forKey: .similarityMode)
-    }
-
+    func saveSimilarityMode() { appPrefs.set(similarityMode.rawValue, forKey: .similarityMode) }
 }
