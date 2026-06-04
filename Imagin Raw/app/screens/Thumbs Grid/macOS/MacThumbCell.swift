@@ -181,7 +181,7 @@ final class MacThumbCell: NSCollectionViewItem {
         let size = itemSize
         let thumbY = h - size
         let labelH: CGFloat = 16
-        let starH: CGFloat = photo.isRawFile ? 14 : 0
+        let starH: CGFloat = (photo.isRawFile || JpegMetadataWriter.isSupported(URL(fileURLWithPath: photo.path))) ? 14 : 0
         let labelY = thumbY - labelH - 2
 
         let imgPad: CGFloat = 2
@@ -210,7 +210,8 @@ final class MacThumbCell: NSCollectionViewItem {
         filenameLabel.frame = CGRect(x: labelX, y: labelY + 1, width: labelW, height: labelH)
 
         // Star view
-        if photo.isRawFile {
+        let supportsRating = photo.isRawFile || JpegMetadataWriter.isSupported(URL(fileURLWithPath: photo.path))
+        if supportsRating {
             if starView == nil {
                 let sv = MacStarRatingView()
                 sv.onRatingChanged = { [weak self] r in
@@ -359,11 +360,13 @@ final class MacThumbCell: NSCollectionViewItem {
         menu.addItem(.separator())
 
         let isRaw = photo.isRawFile
+        let url = URL(fileURLWithPath: photo.path)
+        let supportsMetadata = isRaw || JpegMetadataWriter.isSupported(url)
 
         // Rate submenu
         let rateItem = NSMenuItem(title: "Rate", action: nil, keyEquivalent: "")
         rateItem.image = NSImage(systemSymbolName: "star", accessibilityDescription: nil)
-        if !isRaw { rateItem.isEnabled = false }
+        if !supportsMetadata { rateItem.isEnabled = false }
         let rateMenu = NSMenu()
         for i in 0...5 {
             let title = i == 0 ? "No Rating" : String(repeating: "★", count: i)
@@ -381,7 +384,7 @@ final class MacThumbCell: NSCollectionViewItem {
         // Label submenu
         let labelItem = NSMenuItem(title: "Label", action: nil, keyEquivalent: "")
         labelItem.image = NSImage(systemSymbolName: "tag", accessibilityDescription: nil)
-        if !isRaw { labelItem.isEnabled = false }
+        if !supportsMetadata { labelItem.isEnabled = false }
         let labelMenu = NSMenu()
         let labels: [(name: String, key: String)] = [
             ("Select", "6"), ("Second", "7"), ("Approved", "8"), ("Review", "9"), ("To Do", "0")
@@ -409,17 +412,17 @@ final class MacThumbCell: NSCollectionViewItem {
         menu.addItem(labelItem)
 
         // Approve
-        let approveItem = NSMenuItem(title: "Approve", action: isRaw ? #selector(menuApprove) : nil, keyEquivalent: "a")
+        let approveItem = NSMenuItem(title: "Approve", action: supportsMetadata ? #selector(menuApprove) : nil, keyEquivalent: "a")
         approveItem.keyEquivalentModifierMask = []
         approveItem.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)
-        if !isRaw { approveItem.isEnabled = false }
+        if !supportsMetadata { approveItem.isEnabled = false }
         menu.addItem(approveItem)
 
         // Reject
-        let rejectItem = NSMenuItem(title: "Reject", action: isRaw ? #selector(menuReject) : nil, keyEquivalent: "x")
+        let rejectItem = NSMenuItem(title: "Reject", action: supportsMetadata ? #selector(menuReject) : nil, keyEquivalent: "x")
         rejectItem.keyEquivalentModifierMask = []
         rejectItem.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
-        if !isRaw { rejectItem.isEnabled = false }
+        if !supportsMetadata { rejectItem.isEnabled = false }
         menu.addItem(rejectItem)
 
         menu.addItem(.separator())
@@ -554,7 +557,7 @@ extension MacThumbCell: NSMenuDelegate {
 
 extension MacThumbCell {
     override func mouseEntered(with event: NSEvent) {
-        starView?.isHidden = !(currentPhoto?.isRawFile ?? false)
+        starView?.isHidden = currentPhoto.map { !($0.isRawFile || JpegMetadataWriter.isSupported(URL(fileURLWithPath: $0.path))) } ?? true
     }
 
     override func mouseExited(with event: NSEvent) {

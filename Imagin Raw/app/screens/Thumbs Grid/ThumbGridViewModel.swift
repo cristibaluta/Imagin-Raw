@@ -345,6 +345,12 @@ class ThumbGridViewModel: ObservableObject {
 
     func reloadMetadata(forSidecar url: URL) {
         photosModel?.reloadMetadata(forSidecar: url)
+        // $photos debounce (300ms) will propagate the change.
+        // Schedule an explicit updateFilteredPhotos after the async mutation completes.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+            self.updateFilteredPhotos()
+        }
     }
 
     /// Show an explicit list of PhotoItems (Spotlight photo search results).
@@ -502,27 +508,74 @@ class ThumbGridViewModel: ObservableObject {
 
     // MARK: - Rating & Label Management
     func applyRating(_ rating: Int, to photos: [PhotoItem]) {
-        // Only apply rating to RAW files
-        let rawPhotos = photos.filter { $0.isRawFile }
-        for photo in rawPhotos {
-            setPhotoRating(photo: photo, rating: rating)
+        for photo in photos {
+            let url = URL(fileURLWithPath: photo.path)
+            if photo.isRawFile {
+                setPhotoRating(photo: photo, rating: rating)
+            } else if JpegMetadataWriter.isSupported(url) {
+                let existing = JpegMetadataWriter.readMetadata(from: url)
+                let ok = JpegMetadataWriter.write(
+                    JpegMetadataWriter.Metadata(rating: rating, label: existing.label),
+                    to: url
+                )
+                if ok {
+                    updatePhotoWithXmpMetadata(photo: photo,
+                                              xmpMetadata: xmpUpdating(photo: photo, rating: rating, label: existing.label ?? photo.xmp?.label))
+                }
+            }
         }
     }
 
     func applyLabel(_ label: String, to photos: [PhotoItem]) {
-        // Only apply labels to RAW files
-        let rawPhotos = photos.filter { $0.isRawFile }
-        for photo in rawPhotos {
-            createAndSaveXmpFile(for: photo, targetLabel: label)
+        for photo in photos {
+            let url = URL(fileURLWithPath: photo.path)
+            if photo.isRawFile {
+                createAndSaveXmpFile(for: photo, targetLabel: label)
+            } else if JpegMetadataWriter.isSupported(url) {
+                let existing = JpegMetadataWriter.readMetadata(from: url)
+                let newLabel = (existing.label == label) ? "" : label
+                let ok = JpegMetadataWriter.write(
+                    JpegMetadataWriter.Metadata(rating: existing.rating, label: newLabel),
+                    to: url
+                )
+                if ok {
+                    updatePhotoWithXmpMetadata(photo: photo,
+                                              xmpMetadata: xmpUpdating(photo: photo,
+                                                                       rating: existing.rating ?? photo.xmp?.rating,
+                                                                       label: newLabel.isEmpty ? nil : newLabel))
+                }
+            }
         }
     }
 
     func removeLabels(from photos: [PhotoItem]) {
-        // Only remove labels from RAW files
-        let rawPhotos = photos.filter { $0.isRawFile }
-        for photo in rawPhotos {
-            removeAnyLabel(for: photo)
+        for photo in photos {
+            let url = URL(fileURLWithPath: photo.path)
+            if photo.isRawFile {
+                removeAnyLabel(for: photo)
+            } else if JpegMetadataWriter.isSupported(url) {
+                let existing = JpegMetadataWriter.readMetadata(from: url)
+                let ok = JpegMetadataWriter.write(
+                    JpegMetadataWriter.Metadata(rating: existing.rating, label: ""),
+                    to: url
+                )
+                if ok {
+                    updatePhotoWithXmpMetadata(photo: photo,
+                                              xmpMetadata: xmpUpdating(photo: photo,
+                                                                       rating: existing.rating ?? photo.xmp?.rating,
+                                                                       label: nil))
+                }
+            }
         }
+    }
+
+    /// Build an updated XmpMetadata preserving all existing fields except the ones being changed.
+    private func xmpUpdating(photo: PhotoItem, rating: Int?, label: String?) -> XmpMetadata {
+        let e = photo.xmp
+        return XmpMetadata(label: label, rating: rating, creator: e?.creator, rights: e?.rights,
+                           createDate: e?.createDate, modifyDate: e?.modifyDate, cameraModel: e?.cameraModel,
+                           lens: e?.lens, focalLength: e?.focalLength, aperture: e?.aperture,
+                           shutterSpeed: e?.shutterSpeed, iso: e?.iso, exposureBias: e?.exposureBias)
     }
 
     func toggleDeleteState(for photos: [PhotoItem]) {
