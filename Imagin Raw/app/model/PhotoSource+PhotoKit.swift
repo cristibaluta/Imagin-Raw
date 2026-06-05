@@ -10,8 +10,6 @@ import Foundation
 import Photos
 import CryptoKit
 
-// MARK: - Well-known virtual URL
-
 extension URL {
     /// Sentinel URL used to represent the top-level "Photos Library" entry in the sidebar.
     static let photoLibraryRoot = URL(string: "imagin-raw://photos-library")!

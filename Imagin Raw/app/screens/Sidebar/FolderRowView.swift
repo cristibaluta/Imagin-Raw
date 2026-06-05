@@ -110,7 +110,8 @@ struct FolderRowView: View {
     }
 
     #if os(macOS)
-    private func ejectVolume() {        guard let volumePath = volumePath else {
+    private func ejectVolume() {
+        guard let volumePath else {
             return
         }
 

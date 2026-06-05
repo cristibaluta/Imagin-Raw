@@ -12,25 +12,40 @@ struct FoldersListView: View {
     @State private var expandedFolders: Set<URL> = []
     let onDoubleClick: (() -> Void)?
 
-    // Default initializer for backwards compatibility
-    init(onDoubleClick: (() -> Void)? = nil) {
-        self.onDoubleClick = onDoubleClick
-    }
-
     var body: some View {
         List(selection: $filesModel.selectedFolder) {
-            ForEach(Array(sortedRootFolders.enumerated()), id: \.element.id) { index, rootFolder in
-                FolderRowView(folder: rootFolder,
-                              expandedFolders: $expandedFolders,
-                              selectedFolder: $filesModel.selectedFolder,
-                              saveExpandedState: saveExpandedState,
-                              onDoubleClick: {
-                                  onDoubleClick?()
-                              },
-                              isRootFolder: true,
-                              depth: 0)
+            if sourcesFolders.count > 0 {
+                Section(header: Text("Sources").font(.caption)) {
+                    ForEach(Array(sourcesFolders.enumerated()), id: \.element.id) { index, rootFolder in
+                        FolderRowView(folder: rootFolder,
+                                      expandedFolders: $expandedFolders,
+                                      selectedFolder: $filesModel.selectedFolder,
+                                      saveExpandedState: saveExpandedState,
+                                      onDoubleClick: {
+                                          onDoubleClick?()
+                                      },
+                                      isRootFolder: true,
+                                      depth: 0)
+                    }
+                    .onDelete(perform: deleteFolders)
+                }
             }
-            .onDelete(perform: deleteFolders)
+            if volumesFolders.count > 0 {
+                Section(header: Text("Volumes").font(.caption)) {
+                    ForEach(Array(volumesFolders.enumerated()), id: \.element.id) { index, rootFolder in
+                        FolderRowView(folder: rootFolder,
+                                      expandedFolders: $expandedFolders,
+                                      selectedFolder: $filesModel.selectedFolder,
+                                      saveExpandedState: saveExpandedState,
+                                      onDoubleClick: {
+                                          onDoubleClick?()
+                                      },
+                                      isRootFolder: true,
+                                      depth: 0)
+                    }
+                    .onDelete(perform: deleteFolders)
+                }
+            }
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)// removes sidebar header bg color
@@ -44,11 +59,12 @@ struct FoldersListView: View {
         }
     }
 
-    private var sortedRootFolders: [FolderItem] {
-        // The /Volumes entry always goes last; everything else keeps added order
-        let volumes = filesModel.rootFolders.filter { $0.url.path == "/Volumes" }
-        let regular = filesModel.rootFolders.filter { $0.url.path != "/Volumes" }
-        return regular + volumes
+    private var sourcesFolders: [FolderItem] {
+        filesModel.rootFolders.filter { !$0.url.path.hasPrefix("/Volumes") }
+    }
+
+    private var volumesFolders: [FolderItem] {
+        filesModel.rootFolders.filter { $0.url.path.hasPrefix("/Volumes") }
     }
 
     private func loadExpandedState() {
