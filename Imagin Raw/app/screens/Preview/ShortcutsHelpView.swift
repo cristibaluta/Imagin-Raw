@@ -61,7 +61,7 @@ struct ShortcutsHelpView: View {
                 }
                 .frame(width: 260)
             }
-            Text("Note: In Review mode you can press the keys after you hover a photo, no need to click on it.")
+            Text("Note: In Review Mode you can label and rate photos while you hover.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

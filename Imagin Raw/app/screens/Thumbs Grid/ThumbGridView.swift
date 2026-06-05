@@ -273,9 +273,6 @@ struct ThumbGridView: View {
             },
             dateGroups: viewModel.dateGroups,
             sortOption: viewModel.sortOption,
-            scrollToPhotoId: $scrollToPhotoId,
-            scrollToCenteredPhotoId: $scrollToCenteredPhotoId,
-            visibleSectionIndex: $visibleSectionIndex,
             onKeyPress: { event in
                 viewModel.handleKeyEvent(
                     event,
@@ -286,7 +283,10 @@ struct ThumbGridView: View {
                 )
             },
             thumbsManager: viewModel.thumbsManager,
-            isSearchActive: searchPhotoResults != nil
+            isSearchActive: searchPhotoResults != nil,
+            scrollToPhotoId: $scrollToPhotoId,
+            scrollToCenteredPhotoId: $scrollToCenteredPhotoId,
+            visibleSectionIndex: $visibleSectionIndex
         )
         .id(filesModel.selectedFolder?.url)
         .onAppear {

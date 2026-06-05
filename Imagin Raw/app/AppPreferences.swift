@@ -10,6 +10,9 @@ import RCPreferences
 
 enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
 
+    // MARK: - Appearance
+    case theme = "AppTheme"
+
     // MARK: - Preview
     case showAFPoint    = "ShowAFPoint"
     case alignToTopLeft = "ImageAlignmentTopLeft"
@@ -51,6 +54,7 @@ enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
 
     func defaultValue() -> Any {
         switch self {
+        case .theme:                    return "system"
         case .showAFPoint:              return false
         case .alignToTopLeft:           return false
         case .exportRatio:              return ExportAspectRatio.r4x5.rawValue

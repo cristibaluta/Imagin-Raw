@@ -12,17 +12,36 @@ struct SettingsView: View {
     @State private var showResetConfirmation = false
     @State private var showCacheConfirmation = false
     @State private var cacheSize: String = "Calculating..."
+    @State private var selectedTheme: String = appPrefs.string(.theme)
 
     var body: some View {
         VStack(spacing: 20) {
-            // Reset Preferences
+
+            // Theme
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Appearance")
+                        .font(.headline)
+                }
+                Spacer()
+                Picker("", selection: $selectedTheme) {
+                    Text("System").tag("system")
+                    Text("Light").tag("light")
+                    Text("Dark").tag("dark")
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 180)
+                .onChange(of: selectedTheme) { _, value in
+                    appPrefs.set(value, forKey: .theme)
+                    NotificationCenter.default.post(name: .preferencesDidReset, object: nil)
+                }
+            }
+
+            Divider()
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Reset All Preferences")
                         .font(.headline)
-                    Text("Restore all settings to their default values. Does not delete photos or folders.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
                 Spacer()
                 Button("Reset") {
@@ -34,11 +53,9 @@ struct SettingsView: View {
                         resetAllPreferences()
                     }
                 } message: {
-                    Text("Are you sure? This will reset all settings to defaults. The app will need to be restarted.")
+                    Text("Are you sure? This will reset all settings to defaults.")
                 }
             }
-
-            Divider()
 
             // Delete Cache
             HStack {
@@ -78,7 +95,7 @@ struct SettingsView: View {
     // MARK: - Actions
 
     private func resetAllPreferences() {
-        let preserved: Set<AppPreference> = [.userFolderBookmarks, .photoLibraryEnabled]
+        let preserved: Set<AppPreference> = [.userFolderBookmarks, .photoLibraryEnabled, .theme]
         for pref in AppPreference.allCases where !preserved.contains(pref) {
             appPrefs.reset(pref)
         }

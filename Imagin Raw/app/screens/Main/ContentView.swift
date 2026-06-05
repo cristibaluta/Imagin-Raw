@@ -11,6 +11,7 @@ struct ContentView: View {
     @StateObject private var filesModel = FilesModel()
     @StateObject private var externalAppManager = ExternalAppManager()
     @StateObject private var searcher = SpotlightSearcher()
+    @Environment(\.colorScheme) private var colorScheme
     @State private var searchText = ""
     @SceneStorage("columnVisibility") private var columnVisibilityStorage: String = "all"
     @State private var showFolderPopover = false
@@ -117,10 +118,6 @@ struct ContentView: View {
                     .zIndex(100)
                 }
             }
-            #if os(macOS)
-            .frame(minWidth: 900, minHeight: 600)
-            #endif
-            .preferredColorScheme(.dark)
             .onChange(of: geo.size.width) { _, w in
                 windowWidth = w
             }

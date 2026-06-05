@@ -36,8 +36,9 @@ final class MacThumbCell: NSCollectionViewItem {
 
     // State
     private(set) var currentPath: String?
-    private var currentPhoto: PhotoItem?
-    private var callbacks: ThumbCellCallbacks?
+    var currentPhoto: PhotoItem?
+    var callbacks: ThumbCellCallbacks?
+    private var theme: NSAppearance.Name?
     private var itemSize: CGFloat = 100
     private var currentImageSize: CGSize = .zero
     private var layersConfigured = false
@@ -137,8 +138,14 @@ final class MacThumbCell: NSCollectionViewItem {
         layoutSubviews()
     }
 
+    private var cellBackgroundColor: NSColor {
+        let isDark = theme == .darkAqua
+        return NSColor(white: isDark ? 0.15 : 0.65, alpha: 1)
+    }
+
     private func configureLayers() {
-        view.layer?.backgroundColor = NSColor(white: 0.15, alpha: 1).cgColor
+        //        print("draw bg theme \(theme)")
+        //        view.layer?.backgroundColor = cellBackgroundColor.cgColor
         view.layer?.cornerRadius = 6
 
         selectionBorder.layer?.borderWidth = 0
@@ -254,7 +261,9 @@ final class MacThumbCell: NSCollectionViewItem {
     }
 
     private func setupTrackingArea() {
-        view.trackingAreas.forEach { view.removeTrackingArea($0) }
+        view.trackingAreas.forEach {
+            view.removeTrackingArea($0)
+        }
         let ta = NSTrackingArea(rect: view.bounds,
                                 options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
                                 owner: self,
@@ -264,7 +273,9 @@ final class MacThumbCell: NSCollectionViewItem {
 
     // MARK: Configure
 
-    var thumbImage: IRImage? { thumbView.image }
+    var thumbImage: IRImage? {
+        thumbView.image
+    }
 
     func setThumb(_ image: IRImage) {
         thumbView.image = image
@@ -273,14 +284,19 @@ final class MacThumbCell: NSCollectionViewItem {
     }
 
     func configure(with photo: PhotoItem,
+                   theme: NSAppearance.Name?,
                    isSelected: Bool,
                    itemSize: CGFloat,
                    thumbsManager: ThumbsManager,
                    priority: ThumbnailRequest.Priority = .high,
                    callbacks: ThumbCellCallbacks) {
-        self.callbacks = callbacks
+
+        self.theme = theme ?? ((NSApp.keyWindow ?? NSApp.mainWindow)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) ?? .aqua)
         self.itemSize = itemSize
+        self.callbacks = callbacks
         self.thumbsManager = thumbsManager
+
+        view.layer?.backgroundColor = cellBackgroundColor.cgColor
 
         let pathChanged = currentPath != photo.path
         currentPath = photo.path
@@ -333,182 +349,12 @@ final class MacThumbCell: NSCollectionViewItem {
         selectionBorder.isHidden = true
         view.layer?.backgroundColor = isSelected
             ? NSColor.systemBlue.withAlphaComponent(0.7).cgColor
-            : NSColor(white: 0.15, alpha: 1).cgColor
-    }
-
-    // MARK: Context menu
-
-    private func makeContextMenu(for photo: PhotoItem) -> NSMenu {
-        let menu = NSMenu()
-        menu.delegate = self
-        return menu
-    }
-
-    private func populateMenu(_ menu: NSMenu) {
-        menu.removeAllItems()
-        guard let photo = currentPhoto else { return }
-
-        // Review — resolves selected photos at action time
-        let selectedCount = callbacks?.selectedPhotosCount() ?? 0
-        let reviewCount = max(selectedCount, 1)
-        let review = NSMenuItem(title: "Review Photos\(reviewCount >= 2 ? " (\(reviewCount))" : "")",
-                                action: reviewCount >= 2 ? #selector(menuReview) : nil,
-                                keyEquivalent: " ")
-        review.keyEquivalentModifierMask = []
-        review.image = NSImage(systemSymbolName: "eye", accessibilityDescription: nil)
-        menu.addItem(review)
-        menu.addItem(.separator())
-
-        let isRaw = photo.isRawFile
-        let url = URL(fileURLWithPath: photo.path)
-        let supportsMetadata = isRaw || JpegMetadataWriter.isSupported(url)
-
-        // Rate submenu
-        let rateItem = NSMenuItem(title: "Rate", action: nil, keyEquivalent: "")
-        rateItem.image = NSImage(systemSymbolName: "star", accessibilityDescription: nil)
-        if !supportsMetadata { rateItem.isEnabled = false }
-        let rateMenu = NSMenu()
-        for i in 0...5 {
-            let title = i == 0 ? "No Rating" : String(repeating: "★", count: i)
-            let item = NSMenuItem(title: title, action: #selector(menuSetRating(_:)), keyEquivalent: i > 0 ? "\(i)" : "")
-            item.keyEquivalentModifierMask = []
-            item.tag = i
-            if currentRating(for: photo) == i {
-                item.state = .on
-            }
-            rateMenu.addItem(item)
-        }
-        rateItem.submenu = rateMenu
-        menu.addItem(rateItem)
-
-        // Label submenu
-        let labelItem = NSMenuItem(title: "Label", action: nil, keyEquivalent: "")
-        labelItem.image = NSImage(systemSymbolName: "tag", accessibilityDescription: nil)
-        if !supportsMetadata { labelItem.isEnabled = false }
-        let labelMenu = NSMenu()
-        let labels: [(name: String, key: String)] = [
-            ("Select", "6"), ("Second", "7"), ("Approved", "8"), ("Review", "9"), ("To Do", "0")
-        ]
-        let currentLabel = photo.xmp?.label ?? ""
-        for (name, key) in labels {
-            let item = NSMenuItem(title: name, action: #selector(menuSetLabel(_:)), keyEquivalent: key)
-            item.keyEquivalentModifierMask = []
-            item.representedObject = name
-            if currentLabel == name { item.state = .on }
-            let colorDot = NSImage(size: NSSize(width: 10, height: 10), flipped: false) { rect in
-                NSColor(PhotoLabel.color(for: name)).setFill()
-                NSBezierPath(ovalIn: rect).fill()
-                return true
-            }
-            item.image = colorDot
-            labelMenu.addItem(item)
-        }
-        let removeItem = NSMenuItem(title: "No Label", action: #selector(menuRemoveLabel), keyEquivalent: "-")
-        removeItem.keyEquivalentModifierMask = []
-        if currentLabel.isEmpty { removeItem.state = .on }
-        labelMenu.addItem(.separator())
-        labelMenu.addItem(removeItem)
-        labelItem.submenu = labelMenu
-        menu.addItem(labelItem)
-
-        // Approve
-        let approveItem = NSMenuItem(title: "Approve", action: supportsMetadata ? #selector(menuApprove) : nil, keyEquivalent: "a")
-        approveItem.keyEquivalentModifierMask = []
-        approveItem.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)
-        if !supportsMetadata { approveItem.isEnabled = false }
-        menu.addItem(approveItem)
-
-        // Reject
-        let rejectItem = NSMenuItem(title: "Reject", action: supportsMetadata ? #selector(menuReject) : nil, keyEquivalent: "x")
-        rejectItem.keyEquivalentModifierMask = []
-        rejectItem.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
-        if !supportsMetadata { rejectItem.isEnabled = false }
-        menu.addItem(rejectItem)
-
-        menu.addItem(.separator())
-        let finder = NSMenuItem(title: "Show in Finder", action: #selector(menuShowInFinder), keyEquivalent: "")
-        finder.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
-        menu.addItem(finder)
-
-        // Open with submenu
-        if let apps = callbacks?.externalAppManager?.discoveredPhotoApps, !apps.isEmpty {
-            let openWithItem = NSMenuItem(title: "Open with", action: nil, keyEquivalent: "")
-            openWithItem.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
-            let openWithMenu = NSMenu()
-            for app in apps {
-                let appItem = NSMenuItem(title: app.displayName, action: #selector(menuOpenWithApp(_:)), keyEquivalent: "")
-                appItem.representedObject = app
-                appItem.image = NSWorkspace.shared.icon(forFile: app.url.path)
-                appItem.image?.size = NSSize(width: 16, height: 16)
-                openWithMenu.addItem(appItem)
-            }
-            openWithItem.submenu = openWithMenu
-            menu.addItem(openWithItem)
-        }
-
-        let copy = NSMenuItem(title: "Copy to...", action: #selector(menuCopyTo), keyEquivalent: "")
-        copy.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
-        menu.addItem(copy)
-        let rename = NSMenuItem(title: "Rename...", action: #selector(menuRenameTo), keyEquivalent: "")
-        rename.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: nil)
-        menu.addItem(rename)
-
-        menu.addItem(.separator())
-
-        let trash = NSMenuItem(title: "Move to Trash", action: #selector(menuMoveToTrash), keyEquivalent: String(Unicode.Scalar(NSBackspaceCharacter)!))
-        trash.keyEquivalentModifierMask = [.command]
-        trash.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
-        menu.addItem(trash)
-        if photo.toDelete, let info = callbacks?.onMoveAllMarkedToTrash(photo) {
-            let all = NSMenuItem(title: "Move to Trash all Rejected Photos (\(info.count))",
-                                 action: #selector(menuMoveAllToTrash), keyEquivalent: "")
-            all.image = NSImage(systemSymbolName: "trash.fill", accessibilityDescription: nil)
-            menu.addItem(all)
-        }
-    }
-
-    @objc private func menuReview() {
-        guard let p = currentPhoto else { return }
-        callbacks?.onReviewSelected(p)
-    }
-
-    @objc private func menuShowInFinder() {
-        guard let path = currentPath else { return }
-        NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: "")
-    }
-    @objc private func menuOpenWithApp(_ sender: NSMenuItem) {
-        guard let app = sender.representedObject as? PhotoApp,
-              let photo = currentPhoto else { return }
-        callbacks?.onOpenWith(photo, app)
-    }
-    @objc private func menuCopyTo() { guard let p = currentPhoto else { return }; callbacks?.onCopyTo(p) }
-    @objc private func menuRenameTo() { guard let p = currentPhoto else { return }; callbacks?.onRenameTo(p) }
-    @objc private func menuMoveToTrash() { guard let p = currentPhoto else { return }; callbacks?.onMoveToTrash(p) }
-    @objc private func menuMoveAllToTrash() { guard let p = currentPhoto else { return }; callbacks?.onMoveAllMarkedToTrash(p)?.action() }
-    @objc private func menuSetRating(_ sender: NSMenuItem) {
-        guard let p = currentPhoto else { return }
-        callbacks?.onRatingChanged(p, sender.tag)
-    }
-    @objc private func menuSetLabel(_ sender: NSMenuItem) {
-        guard let p = currentPhoto, let label = sender.representedObject as? String else { return }
-        callbacks?.onLabelChanged(p, label)
-    }
-    @objc private func menuRemoveLabel() {
-        guard let p = currentPhoto else { return }
-        callbacks?.onLabelChanged(p, nil)
-    }
-    @objc private func menuApprove() {
-        guard let p = currentPhoto else { return }
-        callbacks?.onApprove(p)
-    }
-    @objc private func menuReject() {
-        guard let p = currentPhoto else { return }
-        callbacks?.onReject(p)
+            : cellBackgroundColor.cgColor
     }
 
     // MARK: Helpers
 
-    private func currentRating(for photo: PhotoItem) -> Int {
+    func currentRating(for photo: PhotoItem) -> Int {
         if let r = photo.xmp?.rating, r > 0 { return r }
         return photo.inCameraRating ?? 0
     }

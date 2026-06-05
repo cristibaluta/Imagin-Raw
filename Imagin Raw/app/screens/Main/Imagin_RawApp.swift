@@ -22,13 +22,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 struct ImaginRawApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var contentViewID = UUID()
+    @State private var theme: String = appPrefs.string(.theme)
+
+    private var colorScheme: ColorScheme? {
+        switch theme {
+            case "light": return .light
+            case "dark":  return .dark
+            default:      return nil
+        }
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .background(Color(NSColor(white: 0.2, alpha: 1.0)))
+                .preferredColorScheme(colorScheme)
+                .background(Color(NSColor(white: colorScheme == .dark ? 0.25 : 0.85, alpha: 1.0)))
                 .id(contentViewID)
                 .onReceive(NotificationCenter.default.publisher(for: .preferencesDidReset)) { _ in
+                    theme = appPrefs.string(.theme)
                     contentViewID = UUID()
                 }
         }
