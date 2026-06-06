@@ -29,9 +29,9 @@ enum FilesExtensions {
         "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"
     ]
 
-    static let jpg: Set<String> = ["jpg", "jpeg"]
+    static let jpg: Set<String> = ["jpg", "jpeg", "heic"]
 
-    static let other: Set<String> = ["png", "heic", "tiff", "tif", "psd", "psb"]
+    static let other: Set<String> = ["png", "tiff", "tif", "psd", "psb"]
 
     static let video: Set<String> = ["mp4", "mov", "m4v", "avi", "mkv", "hevc"]
 

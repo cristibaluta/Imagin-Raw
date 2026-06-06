@@ -95,8 +95,14 @@ class SpotlightSearcher: ObservableObject {
                 folderItems.append(FolderItem(url: url, children: nil))
             } else if supportedExtensions.contains(url.pathExtension.lowercased()) {
                 let date = (item.value(forAttribute: kMDItemFSCreationDate as String) as? Date) ?? Date()
-                photos.append(PhotoItem(path: path, xmp: nil, dateCreated: date,
-                                        hasACR: false, hasJPG: false, inCameraRating: nil))
+                photos.append(PhotoItem(url: url,
+                                        path: path,
+                                        dateCreated: date,
+                                        hasACR: false,
+                                        hasJPG: false,
+                                        hasXMP: false,
+                                        xmp: nil,
+                                        inCameraRating: nil))
             }
             #endif
         }

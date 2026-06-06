@@ -8,14 +8,23 @@
 import Foundation
 import Photos
 
-struct PhotoItem: Identifiable {
-    let id: UUID
-    var path: String          // file path on disk, OR PHAsset.localIdentifier for PhotoKit items
-    let xmp: XmpMetadata?
-    let dateCreated: Date      // EXIF capture date (shutter press time)
-    let dateModified: Date?    // File system last-modified date
+struct PhotoItemMetadata {
     let hasACR: Bool
     let hasJPG: Bool
+    let sidecar: XmpMetadata?
+}
+
+struct PhotoItem: Identifiable, Sendable {
+    let id: UUID
+    var url: URL
+    var path: String          // file path on disk, OR PHAsset.localIdentifier for PhotoKit items
+    let dateCreated: Date      // EXIF capture date (shutter press time)
+    let dateModified: Date?    // File system last-modified date
+
+    let hasACR: Bool
+    let hasJPG: Bool
+    let hasXMP: Bool
+    let xmp: XmpMetadata?
     let inCameraRating: Int?
     let isRawFile: Bool
     let fileSizeBytes: Int64?
@@ -52,12 +61,14 @@ struct PhotoItem: Identifiable {
 
     // MARK: - File-based init
 
-    init(path: String,
-         xmp: XmpMetadata? = nil,
+    init(url: URL,
+         path: String,
          dateCreated: Date,
          dateModified: Date? = nil,
          hasACR: Bool = false,
          hasJPG: Bool = false,
+         hasXMP: Bool = false,
+         xmp: XmpMetadata? = nil,
          inCameraRating: Int? = nil,
          isRawFile: Bool = false,
          fileSizeBytes: Int64? = nil,
@@ -66,12 +77,14 @@ struct PhotoItem: Identifiable {
          cameraMake: String? = nil,
          cameraModel: String? = nil) {
         self.id = UUID()
+        self.url = url
         self.path = path
         self.xmp = xmp
         self.dateCreated = dateCreated
         self.dateModified = dateModified
         self.hasACR = hasACR
         self.hasJPG = hasJPG
+        self.hasXMP = hasXMP
         self.inCameraRating = inCameraRating
         self.isRawFile = isRawFile
         self.fileSizeBytes = fileSizeBytes
@@ -84,13 +97,15 @@ struct PhotoItem: Identifiable {
 
     // Preserves the existing ID when updating XMP metadata
     init(id: UUID,
+         url: URL,
          path: String,
-         xmp: XmpMetadata?,
          dateCreated: Date,
          dateModified: Date? = nil,
          toDelete: Bool,
          hasACR: Bool = false,
          hasJPG: Bool = false,
+         hasXMP: Bool = false,
+         xmp: XmpMetadata? = nil,
          inCameraRating: Int? = nil,
          isRawFile: Bool = false,
          fileSizeBytes: Int64? = nil,
@@ -99,6 +114,7 @@ struct PhotoItem: Identifiable {
          cameraMake: String? = nil,
          cameraModel: String? = nil) {
         self.id = id
+        self.url = url
         self.path = path
         self.xmp = xmp
         self.dateCreated = dateCreated
@@ -106,6 +122,7 @@ struct PhotoItem: Identifiable {
         self.toDelete = toDelete
         self.hasACR = hasACR
         self.hasJPG = hasJPG
+        self.hasXMP = hasXMP
         self.inCameraRating = inCameraRating
         self.isRawFile = isRawFile
         self.fileSizeBytes = fileSizeBytes
@@ -128,6 +145,7 @@ struct PhotoItem: Identifiable {
         self.dateModified = asset.modificationDate
         self.hasACR = false
         self.hasJPG = false
+        self.hasXMP = false
         self.inCameraRating = nil
         self.isRawFile = false
         self.width = asset.pixelWidth == 0 ? nil : asset.pixelWidth
@@ -151,6 +169,7 @@ struct PhotoItem: Identifiable {
             let filename = primary?.originalFilename ?? asset.localIdentifier
             self.path = asset.localIdentifier + "/" + filename
         }
+        self.url = URL(string: self.path)!
     }
 
     /// Returns a copy with the real filename appended — used by the background enrichment pass.
@@ -174,6 +193,7 @@ extension PhotoItem: Hashable {
         lhs.dateModified == rhs.dateModified &&
         lhs.hasACR == rhs.hasACR &&
         lhs.hasJPG == rhs.hasJPG &&
+        lhs.hasXMP == rhs.hasXMP &&
         lhs.inCameraRating == rhs.inCameraRating &&
         lhs.isRawFile == rhs.isRawFile &&
         lhs.fileSizeBytes == rhs.fileSizeBytes &&

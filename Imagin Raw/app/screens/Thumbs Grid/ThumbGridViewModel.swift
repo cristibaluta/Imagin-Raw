@@ -11,7 +11,6 @@ import Combine
 
 @MainActor
 class ThumbGridViewModel: ObservableObject {
-    // MARK: - Published Properties
     @Published var selectedPhotos: Set<UUID> = []
     @Published var selectedLabels: Set<String> = []
     @Published var selectedRatings: Set<Int> = []
@@ -67,7 +66,6 @@ class ThumbGridViewModel: ObservableObject {
         var iconName: String { self == .small ? "square.grid.3x3" : "square.grid.4x4.fill" }
     }
 
-    // MARK: - Initialization
     init(filesModel: FilesModel) {
         self.filesModel = filesModel
         loadSortOption()
@@ -92,11 +90,13 @@ class ThumbGridViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    // MARK: - Computed Properties
+    var photos: [PhotoItem] {
+        searchResultsPhotos ?? photosModel?.photos ?? []
+    }
 
-    var photos: [PhotoItem] { searchResultsPhotos ?? photosModel?.photos ?? [] }
-
-    var availableLabels: [String] { PhotoFilterService.availableLabels(from: photos) }
+    var availableLabels: [String] {
+        PhotoFilterService.availableLabels(from: photos)
+    }
 
     var photoSortComparator: (PhotoItem, PhotoItem) -> Bool {
         PhotoFilterService.comparator(for: sortOption)
@@ -341,16 +341,27 @@ class ThumbGridViewModel: ObservableObject {
         let chars = event.charactersIgnoringModifiers ?? ""
         let key: KeyEquivalent
         switch event.keyCode {
-        case 123: key = .leftArrow;  case 124: key = .rightArrow
-        case 125: key = .downArrow;  case 126: key = .upArrow
-        case 36, 76: key = .return;  case 49: key = KeyEquivalent(" ");  case 51: key = .delete
-        default:
-            guard let first = chars.first else { return false }
-            key = KeyEquivalent(first)
+            case 123: key = .leftArrow
+            case 124: key = .rightArrow
+            case 125: key = .downArrow
+            case 126: key = .upArrow
+            case 36, 76: key = .return
+            case 49: key = KeyEquivalent(" ")
+            case 51: key = .delete
+            default:
+                guard let first = chars.first else {
+                    return false
+                }
+                key = KeyEquivalent(first)
         }
 
-        if key == KeyEquivalent("z") { NotificationCenter.default.post(name: .toggleZoom, object: nil); return true }
-        guard !filteredPhotos.isEmpty else { return false }
+        if key == KeyEquivalent("z") {
+            NotificationCenter.default.post(name: .toggleZoom, object: nil)
+            return true
+        }
+        guard !filteredPhotos.isEmpty else {
+            return false
+        }
 
         let cur = filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
         var next = cur
@@ -400,10 +411,14 @@ class ThumbGridViewModel: ObservableObject {
                         scrollTo: (UUID) -> Void,
                         openPhotos: ([PhotoItem]) -> Void,
                         onToggleSidebar: (() -> Void)?) -> KeyPress.Result {
+
         if keyPress.key == KeyEquivalent("z") {
-            NotificationCenter.default.post(name: .toggleZoom, object: nil); return .handled
+            NotificationCenter.default.post(name: .toggleZoom, object: nil)
+            return .handled
         }
-        guard !filteredPhotos.isEmpty else { return .ignored }
+        guard !filteredPhotos.isEmpty else {
+            return .ignored
+        }
 
         let cur = filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
         var next = cur
@@ -427,11 +442,19 @@ class ThumbGridViewModel: ObservableObject {
 
     private func handleOtherKeys(_ keyPress: KeyPress, onToggleSidebar: (() -> Void)?) -> KeyPress.Result {
         let key = keyPress.characters
-        if key == "c" || key == "C" { onToggleSidebar?(); return .handled }
-        if key == "g" || key == "G" { toggleGridType(); return .handled }
+        if key == "c" || key == "C" {
+            onToggleSidebar?()
+            return .handled
+        }
+        if key == "g" || key == "G" {
+            toggleGridType()
+            return .handled
+        }
 
         let photos = getSelectedPhotosForBulkAction()
-        guard !photos.isEmpty else { return .ignored }
+        guard !photos.isEmpty else {
+            return .ignored
+        }
 
         if keyPress.modifiers.contains(.command) && key == "a" { selectAll(); return .handled }
         if keyPress.modifiers.contains(.command) && key == "z" { undoLastTrash(); return .handled }
@@ -502,11 +525,17 @@ class ThumbGridViewModel: ObservableObject {
         }
     }
 
-    func exitDuplicateMode() { isDuplicateMode = false; duplicateScanResult = nil; duplicateScanData = nil }
+    func exitDuplicateMode() {
+        isDuplicateMode = false
+        duplicateScanResult = nil
+        duplicateScanData = nil
+    }
 
     func loadSimilarityMode() {
         similarityMode = DuplicateFinderService.SimilarityMode(rawValue: appPrefs.int(.similarityMode)) ?? .loose
     }
 
-    func saveSimilarityMode() { appPrefs.set(similarityMode.rawValue, forKey: .similarityMode) }
+    func saveSimilarityMode() {
+        appPrefs.set(similarityMode.rawValue, forKey: .similarityMode)
+    }
 }

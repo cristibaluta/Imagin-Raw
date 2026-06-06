@@ -136,9 +136,13 @@ class PhotoMetadataService {
         let name = photoURL.deletingPathExtension().lastPathComponent
         let xmpURL = dir.appendingPathComponent("\(name).xmp")
         guard FileManager.default.fileExists(atPath: xmpURL.path),
-              var content = try? String(contentsOf: xmpURL, encoding: .utf8) else { return }
+              var content = try? String(contentsOf: xmpURL, encoding: .utf8) else {
+            return
+        }
         content = updateXmpLabel(in: content, newLabel: nil)
-        guard (try? content.write(to: xmpURL, atomically: true, encoding: .utf8)) != nil else { return }
+        guard (try? content.write(to: xmpURL, atomically: true, encoding: .utf8)) != nil else {
+            return
+        }
         if let parsed = XmpParser.parseMetadata(from: content) {
             updatePhotoWithXmpMetadata(photo: photo, xmpMetadata: parsed)
         }
@@ -148,11 +152,21 @@ class PhotoMetadataService {
         guard let photosModel,
               let idx = photosModel.photos.firstIndex(where: { $0.path == photo.path }) else { return }
         let cur = photosModel.photos[idx]
-        photosModel.photos[idx] = PhotoItem(id: cur.id, path: cur.path, xmp: cur.xmp,
-                                            dateCreated: cur.dateCreated, dateModified: cur.dateModified,
-                                            toDelete: !cur.toDelete, hasACR: cur.hasACR, hasJPG: cur.hasJPG,
-                                            inCameraRating: cur.inCameraRating, isRawFile: cur.isRawFile,
-                                            fileSizeBytes: cur.fileSizeBytes, width: cur.width, height: cur.height,
+        photosModel.photos[idx] = PhotoItem(id: cur.id,
+                                            url: cur.url,
+                                            path: cur.path,
+                                            dateCreated: cur.dateCreated,
+                                            dateModified: cur.dateModified,
+                                            toDelete: !cur.toDelete,
+                                            hasACR: cur.hasACR,
+                                            hasJPG: cur.hasJPG,
+                                            hasXMP: cur.hasXMP,
+                                            xmp: cur.xmp,
+                                            inCameraRating: cur.inCameraRating,
+                                            isRawFile: cur.isRawFile,
+                                            fileSizeBytes: cur.fileSizeBytes,
+                                            width: cur.width,
+                                            height: cur.height,
                                             cameraMake: cur.cameraMake, cameraModel: cur.cameraModel)
         filesModel?.selectedPhoto = photosModel.photos[idx]
         onPhotoUpdated?()
@@ -162,9 +176,16 @@ class PhotoMetadataService {
         guard let photosModel,
               let idx = photosModel.photos.firstIndex(where: { $0.path == photo.path }) else { return }
         let cur = photosModel.photos[idx]
-        photosModel.photos[idx] = PhotoItem(id: photo.id, path: photo.path, xmp: xmpMetadata,
-                                            dateCreated: photo.dateCreated, dateModified: cur.dateModified,
-                                            toDelete: cur.toDelete, hasACR: cur.hasACR, hasJPG: cur.hasJPG,
+        photosModel.photos[idx] = PhotoItem(id: photo.id,
+                                            url: photo.url,
+                                            path: photo.path,
+                                            dateCreated: photo.dateCreated,
+                                            dateModified: cur.dateModified,
+                                            toDelete: cur.toDelete,
+                                            hasACR: cur.hasACR,
+                                            hasJPG: cur.hasJPG,
+                                            hasXMP: cur.hasXMP,
+                                            xmp: xmpMetadata,
                                             inCameraRating: cur.inCameraRating, isRawFile: cur.isRawFile,
                                             fileSizeBytes: cur.fileSizeBytes, width: cur.width, height: cur.height,
                                             cameraMake: cur.cameraMake, cameraModel: cur.cameraModel)

@@ -18,6 +18,7 @@ final class PhotosModel: ObservableObject {
 
     private let folder: FolderItem
     private var metadataTask: Task<Void, Never>?
+    let queue = OperationQueue()
 
     init(folder: FolderItem) {
         self.folder = folder
@@ -25,98 +26,107 @@ final class PhotosModel: ObservableObject {
 
     deinit {
         metadataTask?.cancel()
+        queue.cancelAllOperations()
         RCLog("🗑️ PhotosModel deallocated for: \(folder.url.lastPathComponent)")
     }
 
     func loadPhotos() {
         if folder.url.isPhotoKitAlbum || folder.url.isPhotoLibraryRoot {
-            isLoadingMetadata = true
-            metadataTask = Task {
-                // Step 1 — fast: load basic items (no PHAssetResource lookup)
-                let basicItems = await Task.detached(priority: .userInitiated) { [folder] in
-                    if folder.url.isPhotoLibraryRoot {
-                        return PhotoKitSource.loadAllPhotos(basic: true)
-                    } else {
-                        return PhotoKitSource.loadPhotos(
-                            albumIdentifier: folder.url.photoKitAlbumIdentifier ?? "",
-                            basic: true)
-                    }
-                }.value
-
-                guard !Task.isCancelled else {
-                    return
-                }
-                self.photos = basicItems
-
-                // Step 2 — slower: enrich with real filenames in background batches
-                let batchSize = 200
-                var enriched = basicItems
-                let total = enriched.count
-                var idx = 0
-                while idx < total {
-                    guard !Task.isCancelled else {
-                        break
-                    }
-                    let end = min(idx + batchSize, total)
-                    let slice = Array(enriched[idx..<end])
-                    let filled = await Task.detached(priority: .utility) {
-                        slice.map { item -> PhotoItem in
-                            guard let asset = item.phAsset else {
-                                return item
-                            }
-                            let resources = PHAssetResource.assetResources(for: asset)
-                            let primary = resources.first(where: {
-                                $0.type == .photo || $0.type == .video || $0.type == .fullSizePhoto
-                            }) ?? resources.first
-                            guard let filename = primary?.originalFilename else {
-                                return item
-                            }
-                            return item.withFilename(filename)
-                        }
-                    }.value
-                    enriched.replaceSubrange(idx..<end, with: filled)
-                    self.photos = enriched
-                    idx = end
-                }
-                self.isLoadingMetadata = false
-            }
-            return
+            loadPhotoKitPhotos()
+        } else {
+            loadLocalPhotos()
+            loadLocalExifs()
         }
-        // File-based path
-        let basicPhotos = Self.loadPhotosBasic(in: folder)
-        photos = basicPhotos
+    }
 
-        RCLog("📸 Loaded \(basicPhotos.count) photos (basic info) for: \(folder.url.lastPathComponent)")
-
-        // Load metadata asynchronously
+    private func loadPhotoKitPhotos() {
         isLoadingMetadata = true
-        let folderName = folder.url.lastPathComponent
-
         metadataTask = Task {
-            RCLog("🔄 Starting metadata loading for: \(folderName)")
-
-            let batchCallback: @Sendable ([PhotoItem]) async -> Void = { [weak self] batch in
-                guard let self else { return }
-                await MainActor.run {
-                    self.photos = batch
+            // Step 1 — fast: load basic items (no PHAssetResource lookup)
+            let basicItems = await Task.detached(priority: .userInitiated) { [folder] in
+                if folder.url.isPhotoLibraryRoot {
+                    return PhotoKitSource.loadAllPhotos(basic: true)
+                } else {
+                    return PhotoKitSource.loadPhotos(
+                        albumIdentifier: folder.url.photoKitAlbumIdentifier ?? "",
+                        basic: true)
                 }
-            }
+            }.value
 
-            let photosWithMetadata = await Self.loadPhotosMetadataAsync(
-                in: folder,
-                photos: basicPhotos,
-                onBatch: batchCallback
-            )
-
-            guard !Task.isCancelled else {
-                RCLog("⚠️ Metadata loading cancelled for: \(folderName)")
-                await MainActor.run { self.isLoadingMetadata = false }
+            if Task.isCancelled {
                 return
             }
 
-            await MainActor.run {
-                RCLog("✅ Metadata loading completed for: \(folderName)")
-                self.photos = photosWithMetadata
+            self.photos = basicItems
+
+            // Step 2 — slower: enrich with real filenames in background batches
+            let batchSize = 200
+            var enriched = basicItems
+            let total = enriched.count
+            var idx = 0
+            while idx < total {
+                if Task.isCancelled {
+                    break
+                }
+                let end = min(idx + batchSize, total)
+                let slice = Array(enriched[idx..<end])
+                let filled = await Task.detached(priority: .utility) {
+                    slice.map { item -> PhotoItem in
+                        guard let asset = item.phAsset else {
+                            return item
+                        }
+                        let resources = PHAssetResource.assetResources(for: asset)
+                        let primary = resources.first(where: {
+                            $0.type == .photo || $0.type == .video || $0.type == .fullSizePhoto
+                        }) ?? resources.first
+                        guard let filename = primary?.originalFilename else {
+                            return item
+                        }
+                        return item.withFilename(filename)
+                    }
+                }.value
+                enriched.replaceSubrange(idx..<end, with: filled)
+                self.photos = enriched
+                idx = end
+            }
+            isLoadingMetadata = false
+        }
+    }
+
+    private func loadLocalPhotos() {
+
+        RCLog("Load photos (basic info) for: \(folder.url.lastPathComponent)")
+        let startTime = Date()
+
+        let basicPhotos = Self.loadPhotos(in: folder)
+        RCLog("loadPhotos: \(basicPhotos.count) in \(String(format: "%.3f", Date().timeIntervalSince(startTime)))s")
+
+        self.photos = basicPhotos
+    }
+
+    private func loadLocalExifs() {
+        let startTime = Date()
+        isLoadingMetadata = true
+
+        queue.maxConcurrentOperationCount = ProcessInfo.processInfo.activeProcessorCount
+        queue.qualityOfService = .utility
+        RCLog("start loading exif using \(queue.maxConcurrentOperationCount) threads")
+
+        let lock = NSLock()
+        var photosWithExifs: [PhotoItem] = []
+
+        for photo in photos {
+            let op = LoadExifOperation(photo: photo) { enriched in
+                lock.withLock {
+                    photosWithExifs.append(enriched)
+                }
+            }
+            queue.addOperation(op)
+        }
+        queue.addBarrierBlock {
+            DispatchQueue.main.async {
+                RCLog("loaded Exifs in \(String(format: "%.3f", Date().timeIntervalSince(startTime)))s")
+                self.photos = photosWithExifs
                 self.isLoadingMetadata = false
             }
         }
@@ -158,13 +168,15 @@ final class PhotosModel: ObservableObject {
             await MainActor.run {
                 self.photos[idx] = PhotoItem(
                     id: existing.id,
+                    url: existing.url,
                     path: existing.path,
-                    xmp: xmp,
                     dateCreated: existing.dateCreated,
                     dateModified: existing.dateModified,
                     toDelete: existing.toDelete,
                     hasACR: existing.hasACR,
                     hasJPG: existing.hasJPG,
+                    hasXMP: existing.hasXMP,
+                    xmp: xmp,
                     inCameraRating: existing.inCameraRating,
                     isRawFile: existing.isRawFile,
                     fileSizeBytes: existing.fileSizeBytes,
@@ -178,264 +190,73 @@ final class PhotosModel: ObservableObject {
         }
     }
 
-    /// Parse an XMP/ISO 8601 date string into a Date.
-    /// Handles formats: "YYYY:MM:DD HH:MM:SS", "YYYY-MM-DDTHH:MM:SS", "YYYY-MM-DDTHH:MM:SS+HH:MM"
-    static func parseXmpDate(_ string: String) -> Date? {
-        let formatters: [DateFormatter] = [
-            {
-                let f = DateFormatter()
-                f.locale = Locale(identifier: "en_US_POSIX")
-                f.dateFormat = "yyyy:MM:dd HH:mm:ss"
-                return f
-            }(),
-            {
-                let f = DateFormatter()
-                f.locale = Locale(identifier: "en_US_POSIX")
-                f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-                return f
-            }(),
-        ]
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = iso.date(from: string) {
-            return d
-        }
-        iso.formatOptions = [.withInternetDateTime]
-        if let d = iso.date(from: string) {
-            return d
-        }
-        for f in formatters {
-            if let d = f.date(from: string) {
-                return d
-            }
-        }
-        return nil
-    }
-
-    private static func loadPhotosBasic(in folder: FolderItem) -> [PhotoItem] {
+    /// Load all the files in the folder
+    /// They will be analised 
+    static private func loadPhotos(in folder: FolderItem) -> [PhotoItem] {
         let fm = FileManager.default
-        let allowed = FilesExtensions.all
 
         let files = (try? fm.contentsOfDirectory(
             at: folder.url,
-            includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey],
+            includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey],
             options: [.skipsHiddenFiles]
         )) ?? []
 
-        // Create a set of base filenames that have RAW versions
-        let rawBaseNames = Set(files
-            .filter { FilesExtensions.raw.contains($0.pathExtension.lowercased()) }
-            .map { $0.deletingPathExtension().lastPathComponent })
-
-        // Separate image files from XMP and ACR files, filtering out JPGs with RAW counterparts
-        let imageFiles = files.filter { file in
-            let ext = file.pathExtension.lowercased()
-            guard allowed.contains(ext) else { return false }
-
-            // If it's a JPG and a RAW version exists, skip it
-            if ["jpg", "jpeg"].contains(ext) {
-                let baseName = file.deletingPathExtension().lastPathComponent
-                return !rawBaseNames.contains(baseName)
-            }
-
-            return true
-        }
-        let acrFiles = files.filter { $0.pathExtension.lowercased() == "acr" }
-        let jpgFiles = files.filter { ["jpg", "jpeg"].contains($0.pathExtension.lowercased()) }
-
+        // Analyze the files and split by category
+        var images: [URL] = []
         var acrLookup: Set<String> = Set()
-        for acrFile in acrFiles {
-            let baseName = acrFile.deletingPathExtension().lastPathComponent
-            acrLookup.insert(baseName)
-        }
-
         var jpgLookup: Set<String> = Set()
-        for jpgFile in jpgFiles {
-            let baseName = jpgFile.deletingPathExtension().lastPathComponent
-            jpgLookup.insert(baseName)
+        var xmpLookup: Set<String> = Set()
+
+        let rawBaseNames = Set(
+            files
+                .filter { FilesExtensions.raw.contains($0.pathExtension.lowercased()) }
+                .map { $0.deletingPathExtension().lastPathComponent }
+        )
+
+        for file in files {
+            let ext = file.pathExtension.lowercased()
+            if FilesExtensions.all.contains(ext) {
+                if FilesExtensions.jpg.contains(ext) {
+                    if rawBaseNames.contains(file.deletingPathExtension().lastPathComponent) {
+                        jpgLookup.insert(file.lastPathComponent)
+                    } else {
+                        images.append(file)
+                    }
+                } else {
+                    images.append(file)
+                }
+            } else if ext == "xmp" {
+                xmpLookup.insert(file.deletingPathExtension().lastPathComponent)
+            } else if ext == "acr" {
+                acrLookup.insert(file.deletingPathExtension().lastPathComponent)
+            }
         }
 
         // Create PhotoItems with basic info only - no XMP or rating yet
-        let startTime = Date()
-        let result = imageFiles
+        return images
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
             .map { imageFile in
                 let baseName = imageFile.deletingPathExtension().lastPathComponent
-                let resValues = try? imageFile.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+                let fileExtension = imageFile.pathExtension.lowercased()
+                let resValues = try? imageFile.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey])
                 let creationDate = resValues?.creationDate ?? Date()
                 let modifiedDate = resValues?.contentModificationDate
+                let size = resValues?.fileSize as? Int64
+                let isRaw = FilesExtensions.raw.contains(fileExtension)
+
                 let hasACR = acrLookup.contains(baseName)
                 let hasJPG = jpgLookup.contains(baseName)
-                return PhotoItem(path: imageFile.path, xmp: nil, dateCreated: creationDate, dateModified: modifiedDate, hasACR: hasACR, hasJPG: hasJPG, inCameraRating: nil)
+                let hasXMP = xmpLookup.contains(baseName)
+
+                return PhotoItem(url: imageFile,
+                                 path: imageFile.path,
+                                 dateCreated: creationDate,
+                                 dateModified: modifiedDate,
+                                 hasACR: hasACR,
+                                 hasJPG: hasJPG,
+                                 hasXMP: hasXMP,
+                                 isRawFile: isRaw,
+                                 fileSizeBytes: size)
             }
-
-        let totalTime = Date().timeIntervalSince(startTime)
-        RCLog("📊 loadPhotos (basic) Performance:")
-        RCLog("   Total files: \(imageFiles.count)")
-        RCLog("   Total time: \(String(format: "%.3f", totalTime))s")
-
-        return result
-    }
-
-    private static func loadPhotosMetadataAsync(
-        in folder: FolderItem,
-        photos: [PhotoItem],
-        onBatch: (@Sendable ([PhotoItem]) async -> Void)? = nil
-    ) async -> [PhotoItem] {
-        let fm = FileManager.default
-
-        let files = (try? fm.contentsOfDirectory(
-            at: folder.url,
-            includingPropertiesForKeys: nil,
-            options: [.skipsHiddenFiles]
-        )) ?? []
-
-        // Build XMP lookup off main thread
-        let xmpLookup: [String: String] = await Task.detached(priority: .utility) {
-            var lookup: [String: String] = [:]
-            for xmpFile in files where xmpFile.pathExtension.lowercased() == "xmp" {
-                let baseName = xmpFile.deletingPathExtension().lastPathComponent
-                if let content = try? String(contentsOf: xmpFile, encoding: .utf8) {
-                    lookup[baseName] = content
-                }
-            }
-            return lookup
-        }.value
-
-        // Parse XMP off main thread
-        let xmpParsed: [String: XmpMetadata] = await Task.detached(priority: .utility) {
-            var parsed: [String: XmpMetadata] = [:]
-            for (baseName, content) in xmpLookup {
-                parsed[baseName] = XmpParser.parseMetadata(from: content)
-            }
-            return parsed
-        }.value
-
-        // File sizes off main thread
-        let fileSizes: [String: Int64] = await Task.detached(priority: .utility) {
-            var sizes: [String: Int64] = [:]
-            for photo in photos {
-                sizes[photo.path] = (try? fm.attributesOfItem(atPath: photo.path))?[.size] as? Int64
-            }
-            return sizes
-        }.value
-
-        // File modified dates off main thread
-        let fileModDates: [String: Date] = await Task.detached(priority: .utility) {
-            var dates: [String: Date] = [:]
-            for photo in photos {
-                dates[photo.path] = (try? fm.attributesOfItem(atPath: photo.path))?[.modificationDate] as? Date
-            }
-            return dates
-        }.value
-
-        let startTime = Date()
-
-        // Extract RAW metadata in batches on main actor, yielding between batches
-        // so thumbnails and previews can load concurrently
-        let batchSize = 20
-        var updatedPhotos = photos
-
-        for batchStart in stride(from: 0, to: photos.count, by: batchSize) {
-            let batchEnd = min(batchStart + batchSize, photos.count)
-            let batch = Array(photos[batchStart..<batchEnd])
-
-            // Process one batch off the main thread — extractMetadata is thread-safe
-            let batchResults: [(Int, Int?, Int?, Int?, String?, String?, Date?)] = await Task.detached(priority: .utility) {
-                batch.enumerated().map { (localIndex, photo) in
-                    let globalIndex = batchStart + localIndex
-                    var inCameraRating: Int? = nil
-                    var width: Int? = nil
-                    var height: Int? = nil
-                    var cameraMake: String? = nil
-                    var cameraModel: String? = nil
-                    var captureDate: Date? = nil
-                    if let metadata = RawWrapper.shared().extractMetadata(photo.path) {
-                        inCameraRating = (metadata["rating"] as? NSNumber)?.intValue
-                        width = (metadata["width"] as? NSNumber)?.intValue
-                        height = (metadata["height"] as? NSNumber)?.intValue
-                        cameraMake = metadata["cameraMake"] as? String
-                        cameraModel = metadata["cameraModel"] as? String
-                        captureDate = metadata["captureDate"] as? Date
-                    }
-//                    let fpoints = extractPanasonicFocusPoints(from: URL(fileURLWithPath: photo.path))
-//                    RCLog(">>>>> focus points: \(fpoints)")
-                    return (globalIndex, inCameraRating, width, height, cameraMake, cameraModel, captureDate)
-                }
-            }.value
-
-            for (index, rating, width, height, cameraMake, cameraModel, exifDate) in batchResults {
-                let photo = photos[index]
-                let url = URL(fileURLWithPath: photo.path)
-                let baseName = url.deletingPathExtension().lastPathComponent
-                let fileExtension = url.pathExtension.lowercased()
-                let xmp: XmpMetadata?
-                let isRaw = FilesExtensions.raw.contains(fileExtension)
-                if let sidecar = xmpParsed[baseName] {
-                    // Sidecar takes priority for all file types
-                    xmp = sidecar
-                } else if !isRaw && JpegMetadataWriter.isSupported(url) {
-                    // No sidecar — read embedded XMP from the file itself (JPEG, PNG, TIFF, HEIC)
-                    let embedded = JpegMetadataWriter.readMetadata(from: url)
-                    if embedded.rating != nil || embedded.label != nil {
-                        xmp = XmpMetadata(label: embedded.label, rating: embedded.rating,
-                                          creator: nil, rights: nil, createDate: nil, modifyDate: nil,
-                                          cameraModel: nil, lens: nil, focalLength: nil, aperture: nil,
-                                          shutterSpeed: nil, iso: nil, exposureBias: nil)
-                    } else {
-                        xmp = nil
-                    }
-                } else {
-                    xmp = nil
-                }
-
-                // Capture date priority:
-                // 1. EXIF DateTimeOriginal from ImageIO/LibRaw (actual shutter press time)
-                // 2. XMP CreateDate from sidecar (set by camera or Lightroom)
-                // 3. Keep existing date (file system creation date, last resort)
-                let captureDate: Date
-                if let exifDate {
-                    captureDate = exifDate
-                } else if let xmpDateStr = xmp?.createDate,
-                          let parsed = Self.parseXmpDate(xmpDateStr) {
-                    captureDate = parsed
-                } else {
-                    captureDate = photo.dateCreated
-                }
-
-                updatedPhotos[index] = PhotoItem(
-                    id: photo.id,
-                    path: photo.path,
-                    xmp: xmp,
-                    dateCreated: captureDate,
-                    dateModified: fileModDates[photo.path] ?? photo.dateModified,
-                    toDelete: photo.toDelete,
-                    hasACR: photo.hasACR,
-                    hasJPG: photo.hasJPG,
-                    inCameraRating: rating,
-                    isRawFile: isRaw,
-                    fileSizeBytes: fileSizes[photo.path],
-                    width: width,
-                    height: height,
-                    cameraMake: cameraMake,
-                    cameraModel: cameraModel
-                )
-            }
-
-            // Publish partial results so thumbs/preview update progressively
-            if let onBatch {
-                await onBatch(updatedPhotos)
-            }
-
-            // Yield to let other tasks (thumb generation, preview loading) run
-            await Task.yield()
-        }
-
-        let totalTime = Date().timeIntervalSince(startTime)
-        RCLog("📊 loadPhotosMetadataAsync Performance:")
-        RCLog("   Total files: \(photos.count)")
-        RCLog("   Total time: \(String(format: "%.3f", totalTime))s")
-
-        return updatedPhotos
     }
 }
