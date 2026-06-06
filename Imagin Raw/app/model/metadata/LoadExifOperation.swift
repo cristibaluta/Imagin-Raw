@@ -8,10 +8,12 @@ import Foundation
 
 final class LoadExifOperation: Operation, @unchecked Sendable {
     private let photo: PhotoItem
+    private let forceReloadExif: Bool
     private let completion: (PhotoItem) -> Void
 
-    init(photo: PhotoItem, completion: @escaping (PhotoItem) -> Void) {
+    init(photo: PhotoItem, forceReloadExif: Bool = false, completion: @escaping (PhotoItem) -> Void) {
         self.photo = photo
+        self.forceReloadExif = forceReloadExif
         self.completion = completion
     }
 
@@ -28,7 +30,7 @@ final class LoadExifOperation: Operation, @unchecked Sendable {
 
     private func loadExif(for photo: PhotoItem) -> PhotoItem {
         var xmp: XmpMetadata?
-        if photo.hasXMP {
+        if photo.hasXMP || forceReloadExif {
             let xmpFile = photo.url.deletingPathExtension().appendingPathExtension("xmp")
             if let content = try? String(contentsOf: xmpFile, encoding: .utf8) {
                 xmp = XmpParser.parseMetadata(from: content)
@@ -93,7 +95,7 @@ final class LoadExifOperation: Operation, @unchecked Sendable {
             toDelete: photo.toDelete,
             hasACR: photo.hasACR,
             hasJPG: photo.hasJPG,
-            hasXMP: photo.hasXMP,
+            hasXMP: xmp != nil,
             xmp: xmp,
             inCameraRating: inCameraRating,
             isRawFile: photo.isRawFile,

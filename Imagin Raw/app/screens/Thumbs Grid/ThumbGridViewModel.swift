@@ -222,10 +222,8 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func reloadMetadata(forSidecar url: URL) {
-        photosModel?.reloadMetadata(forSidecar: url)
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            self.updateFilteredPhotos()
+        photosModel?.reloadMetadata(forSidecar: url) { [weak self] in
+            self?.updateFilteredPhotos()
         }
     }
 

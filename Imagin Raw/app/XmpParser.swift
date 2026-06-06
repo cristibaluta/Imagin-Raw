@@ -236,8 +236,12 @@ class XmpParser {
             let xmlDoc = try XMLDocument(xmlString: xmpContent, options: [.documentTidyXML])
 
             // Find the rdf:Description element with proper namespace handling
-            xmlDoc.rootElement()?.addNamespace(XMLNode.namespace(withName: "rdf", stringValue: "http://www.w3.org/1999/02/22-rdf-syntax-ns#") as! XMLNode)
-            xmlDoc.rootElement()?.addNamespace(XMLNode.namespace(withName: "xmp", stringValue: "http://ns.adobe.com/xap/1.0/") as! XMLNode)
+            xmlDoc.rootElement()?.addNamespace(
+                XMLNode.namespace(withName: "rdf", stringValue: "http://www.w3.org/1999/02/22-rdf-syntax-ns#") as! XMLNode
+            )
+            xmlDoc.rootElement()?.addNamespace(
+                XMLNode.namespace(withName: "xmp", stringValue: "http://ns.adobe.com/xap/1.0/") as! XMLNode
+            )
 
             let xpath = "//rdf:Description"
             let nodes = try xmlDoc.nodes(forXPath: xpath)
@@ -273,8 +277,12 @@ class XmpParser {
             let xmlDoc = try XMLDocument(xmlString: xmpContent, options: [.documentTidyXML])
 
             // Find the rdf:Description element with proper namespace handling
-            xmlDoc.rootElement()?.addNamespace(XMLNode.namespace(withName: "rdf", stringValue: "http://www.w3.org/1999/02/22-rdf-syntax-ns#") as! XMLNode)
-            xmlDoc.rootElement()?.addNamespace(XMLNode.namespace(withName: "xmp", stringValue: "http://ns.adobe.com/xap/1.0/") as! XMLNode)
+            xmlDoc.rootElement()?.addNamespace(
+                XMLNode.namespace(withName: "rdf", stringValue: "http://www.w3.org/1999/02/22-rdf-syntax-ns#") as! XMLNode
+            )
+            xmlDoc.rootElement()?.addNamespace(
+                XMLNode.namespace(withName: "xmp", stringValue: "http://ns.adobe.com/xap/1.0/") as! XMLNode
+            )
 
             let xpath = "//rdf:Description"
             let nodes = try xmlDoc.nodes(forXPath: xpath)

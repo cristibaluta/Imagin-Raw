@@ -19,6 +19,7 @@ final class PhotosModel: ObservableObject {
     private let folder: FolderItem
     private var metadataTask: Task<Void, Never>?
     let queue = OperationQueue()
+    let queueLock = NSLock()
 
     init(folder: FolderItem) {
         self.folder = folder
@@ -94,105 +95,7 @@ final class PhotosModel: ObservableObject {
     }
 
     private func loadLocalPhotos() {
-
         RCLog("Load photos (basic info) for: \(folder.url.lastPathComponent)")
-        let startTime = Date()
-
-        let basicPhotos = Self.loadPhotos(in: folder)
-        RCLog("loadPhotos: \(basicPhotos.count) in \(String(format: "%.3f", Date().timeIntervalSince(startTime)))s")
-
-        self.photos = basicPhotos
-    }
-
-    private func loadLocalExifs() {
-        let startTime = Date()
-        isLoadingMetadata = true
-
-        queue.maxConcurrentOperationCount = ProcessInfo.processInfo.activeProcessorCount
-        queue.qualityOfService = .utility
-        RCLog("start loading exif using \(queue.maxConcurrentOperationCount) threads")
-
-        let lock = NSLock()
-        var photosWithExifs: [PhotoItem] = []
-
-        for photo in photos {
-            let op = LoadExifOperation(photo: photo) { enriched in
-                lock.withLock {
-                    photosWithExifs.append(enriched)
-                }
-            }
-            queue.addOperation(op)
-        }
-        queue.addBarrierBlock {
-            DispatchQueue.main.async {
-                RCLog("loaded Exifs in \(String(format: "%.3f", Date().timeIntervalSince(startTime)))s")
-                self.photos = photosWithExifs
-                self.isLoadingMetadata = false
-            }
-        }
-    }
-
-    func reloadPhotos() {
-        metadataTask?.cancel()
-        loadPhotos()
-    }
-
-    /// Re-reads XMP for a single photo (identified by its sidecar URL) and updates it in-place,
-    /// preserving the PhotoItem UUID so the grid only redraws that one cell.
-    func reloadMetadata(forSidecar sidecarURL: URL) {
-        let baseName = sidecarURL.deletingPathExtension().lastPathComponent
-
-        // Find the matching photo by base filename (strip extension from both)
-        guard let idx = photos.firstIndex(where: {
-            URL(fileURLWithPath: $0.path).deletingPathExtension().lastPathComponent == baseName
-        }) else {
-            RCLog("⚠️ reloadMetadata: no photo found for sidecar \(baseName)")
-            return
-        }
-
-        let existing = photos[idx]
-        RCLog("🔄 reloadMetadata: updating photo at idx \(idx) for sidecar \(baseName)")
-
-        Task.detached(priority: .utility) {
-            // Re-read XMP if file still exists, otherwise clear it (deleted case)
-            let xmp: XmpMetadata?
-            let fileExists = FileManager.default.fileExists(atPath: sidecarURL.path)
-            if fileExists,
-               let content = try? String(contentsOf: sidecarURL, encoding: .utf8) {
-                xmp = XmpParser.parseMetadata(from: content)
-                RCLog("✅ reloadMetadata: XMP loaded for \(baseName), rating=\(xmp?.rating ?? 0) label=\(xmp?.label ?? "")")
-            } else {
-                xmp = nil
-                RCLog("🗑️ reloadMetadata: XMP deleted for \(baseName), clearing metadata")
-            }
-            await MainActor.run {
-                self.photos[idx] = PhotoItem(
-                    id: existing.id,
-                    url: existing.url,
-                    path: existing.path,
-                    dateCreated: existing.dateCreated,
-                    dateModified: existing.dateModified,
-                    toDelete: existing.toDelete,
-                    hasACR: existing.hasACR,
-                    hasJPG: existing.hasJPG,
-                    hasXMP: existing.hasXMP,
-                    xmp: xmp,
-                    inCameraRating: existing.inCameraRating,
-                    isRawFile: existing.isRawFile,
-                    fileSizeBytes: existing.fileSizeBytes,
-                    width: existing.width,
-                    height: existing.height,
-                    cameraMake: existing.cameraMake,
-                    cameraModel: existing.cameraModel
-                )
-                RCLog("✅ reloadMetadata: photos[\(idx)] updated, xmp=\(xmp == nil ? "nil" : "set")")
-            }
-        }
-    }
-
-    /// Load all the files in the folder
-    /// They will be analised 
-    static private func loadPhotos(in folder: FolderItem) -> [PhotoItem] {
         let fm = FileManager.default
 
         let files = (try? fm.contentsOfDirectory(
@@ -233,7 +136,7 @@ final class PhotosModel: ObservableObject {
         }
 
         // Create PhotoItems with basic info only - no XMP or rating yet
-        return images
+        let basicPhotos = images
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
             .map { imageFile in
                 let baseName = imageFile.deletingPathExtension().lastPathComponent
@@ -258,5 +161,64 @@ final class PhotosModel: ObservableObject {
                                  isRawFile: isRaw,
                                  fileSizeBytes: size)
             }
+
+        self.photos = basicPhotos
+    }
+
+    private func loadLocalExifs() {
+        let startTime = Date()
+        isLoadingMetadata = true
+
+        queue.maxConcurrentOperationCount = ProcessInfo.processInfo.activeProcessorCount
+        queue.qualityOfService = .utility
+        RCLog("start loading exif using \(queue.maxConcurrentOperationCount) threads")
+
+        var photosWithExifs: [PhotoItem] = []
+
+        for photo in photos {
+            let op = LoadExifOperation(photo: photo) { [weak self] photoWithExif in
+                self?.queueLock.withLock {
+                    photosWithExifs.append(photoWithExif)
+                }
+            }
+            queue.addOperation(op)
+        }
+        queue.addBarrierBlock {
+            DispatchQueue.main.async {
+                RCLog("loaded Exifs in \(String(format: "%.3f", Date().timeIntervalSince(startTime)))s")
+                self.photos = photosWithExifs
+                self.isLoadingMetadata = false
+            }
+        }
+    }
+
+    func reloadPhotos() {
+        metadataTask?.cancel()
+        loadPhotos()
+    }
+
+    /// Re-reads XMP for a single photo (identified by its sidecar URL) and updates it in-place,
+    /// preserving the PhotoItem UUID so the grid only redraws that one cell.
+    func reloadMetadata(forSidecar sidecarURL: URL, completion: @escaping (() -> Void)) {
+        let baseName = sidecarURL.deletingPathExtension().lastPathComponent
+
+        // Find the matching photo by base filename (strip extension from both)
+        guard let idx = photos.firstIndex(where: {
+            URL(fileURLWithPath: $0.path).deletingPathExtension().lastPathComponent == baseName
+        }) else {
+            RCLog("⚠️ reloadMetadata: no photo found for sidecar \(baseName)")
+            return
+        }
+
+        let photo = photos[idx]
+
+        let op = LoadExifOperation(photo: photo, forceReloadExif: true) { [weak self] photoWithExif in
+            self?.queueLock.withLock {
+                RCLog("🔄 reloadMetadata: updating photo at idx \(idx) for sidecar \(baseName)")
+                self?.photos[idx] = photoWithExif
+                completion()
+            }
+        }
+        queue.addOperation(op)
     }
 }
