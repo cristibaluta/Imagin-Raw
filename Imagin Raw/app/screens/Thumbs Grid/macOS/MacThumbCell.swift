@@ -230,6 +230,7 @@ final class MacThumbCell: NSCollectionViewItem {
             }
             let rating = currentRating(for: photo)
             starView?.rating = rating
+            starView?.theme = theme
             starView?.frame = CGRect(x: 0, y: labelY - starH - 2, width: w, height: starH)
             starView?.isHidden = rating == 0
         } else {

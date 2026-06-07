@@ -30,7 +30,7 @@ struct SortPopoverView: View {
                         }) {
                             HStack {
                                 Image(systemName: filesModel.sidebarSortOption == option ? "circle.fill" : "circle")
-                                    .foregroundColor(filesModel.sidebarSortOption == option ? .blue : .gray)
+                                    .foregroundColor(filesModel.sidebarSortOption == option ? .primary : .gray)
                                 Text(option.displayName)
                                 Spacer()
                             }
@@ -56,7 +56,7 @@ struct SortPopoverView: View {
                         }) {
                             HStack {
                                 Image(systemName: sortOption == option ? "circle.fill" : "circle")
-                                    .foregroundColor(sortOption == option ? .blue : .gray)
+                                    .foregroundColor(sortOption == option ? .primary : .gray)
                                 Text(option.rawValue)
                                 Spacer()
                             }

@@ -20,19 +20,32 @@ final class MacStarRatingView: NSView {
     var maxRating: Int = 5
     var starSize: CGFloat = 14
     var onRatingChanged: ((Int) -> Void)?
+    var theme: NSAppearance.Name? {
+        didSet {
+            if oldValue != theme {
+                needsDisplay = true
+            }
+        }
+    }
 
-    override var isFlipped: Bool { true }
+    override var isFlipped: Bool {
+        true
+    }
 
     override func draw(_ dirtyRect: NSRect) {
-        guard maxRating > 0 else { return }
+        guard maxRating > 0 else {
+            return
+        }
         let spacing: CGFloat = 2
         let total = CGFloat(maxRating) * starSize + CGFloat(maxRating - 1) * spacing
         var x = (bounds.width - total) / 2
         let y = (bounds.height - starSize) / 2
+        let isDark = theme == .darkAqua
 
         for i in 1...maxRating {
             let filled = i <= rating
-            let color: NSColor = filled ? .systemYellow : NSColor.white.withAlphaComponent(0.3)
+            let color: NSColor = filled ? (isDark ? .white : .black)
+                                        : NSColor.white.withAlphaComponent(0.3)
             color.setFill()
             let path = starPath(in: CGRect(x: x, y: y, width: starSize, height: starSize))
             path.fill()

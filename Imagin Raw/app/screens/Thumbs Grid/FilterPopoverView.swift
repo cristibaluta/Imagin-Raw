@@ -104,7 +104,7 @@ struct FilterPopoverView: View {
                             // Show stars
                             ForEach(1...5, id: \.self) { star in
                                 Image(systemName: star <= rating ? "star.fill" : "star")
-                                    .foregroundColor(star <= rating ? .yellow : .gray)
+                                    .foregroundColor(star <= rating ? .primary : .gray)
                                     .font(.system(size: 10))
                             }
                             if count > 0 {
@@ -145,7 +145,7 @@ struct RatingCheckboxToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack {
             Image(systemName: configuration.isOn ? "checkmark.square.fill" : "square")
-                .foregroundColor(configuration.isOn ? .blue : .secondary)
+                .foregroundColor(configuration.isOn ? .primary : .secondary)
                 .font(.system(size: 16, weight: .medium))
                 .onTapGesture {
                     configuration.isOn.toggle()

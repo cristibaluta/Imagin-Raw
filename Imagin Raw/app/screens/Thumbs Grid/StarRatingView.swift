@@ -52,9 +52,9 @@ struct StarRatingView: View {
     
     private func starColor(for index: Int) -> Color {
         if hoverRating > 0 {
-            return index <= hoverRating ? .yellow : .gray.opacity(0.3)
+            return index <= hoverRating ? .black : .gray.opacity(0.3)
         } else {
-            return index <= rating ? .yellow : .gray.opacity(0.3)
+            return index <= rating ? .black : .gray.opacity(0.3)
         }
     }
 }
