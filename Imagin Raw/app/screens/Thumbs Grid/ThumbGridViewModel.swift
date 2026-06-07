@@ -136,8 +136,10 @@ class ThumbGridViewModel: ObservableObject {
 
     func updateFilteredPhotos() {
         let lastSelectedPhotoId = filesModel.selectedPhoto?.id
+        RCLog("lastSelectedPhotoId \(lastSelectedPhotoId)")
         var result = photos
 
+        // Filter photos
         if !isLoadingMetadata {
             result = PhotoFilterService.apply(labels: selectedLabels, ratings: selectedRatings, to: result)
         }
@@ -148,12 +150,16 @@ class ThumbGridViewModel: ObservableObject {
             result = photos
         }
 
+        // Sort photos
         result = result.sorted(by: photoSortComparator)
         filteredAndSortedPhotos = result
+
+        // Group photos
         dateGroups = PhotoFilterService.buildDateGroups(from: result, sortOption: sortOption)
 
         if let id = lastSelectedPhotoId {
             lastSelectedIndex = filteredAndSortedPhotos.firstIndex { $0.id == id }
+            RCLog("lastSelectedIndex \(lastSelectedIndex)")
         } else if filesModel.selectedPhoto == nil {
             lastSelectedIndex = nil
         }

@@ -137,14 +137,13 @@ final class PhotosModel: ObservableObject {
 
         // Create PhotoItems with basic info only - no XMP or rating yet
         let basicPhotos = images
-            .sorted { $0.lastPathComponent < $1.lastPathComponent }
             .map { imageFile in
                 let baseName = imageFile.deletingPathExtension().lastPathComponent
                 let fileExtension = imageFile.pathExtension.lowercased()
                 let resValues = try? imageFile.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey])
                 let creationDate = resValues?.creationDate ?? Date()
                 let modifiedDate = resValues?.contentModificationDate
-                let size = resValues?.fileSize as? Int64
+                let size = resValues?.fileSize as? Int
                 let isRaw = FilesExtensions.raw.contains(fileExtension)
 
                 let hasACR = acrLookup.contains(baseName)
@@ -159,7 +158,7 @@ final class PhotosModel: ObservableObject {
                                  hasJPG: hasJPG,
                                  hasXMP: hasXMP,
                                  isRawFile: isRaw,
-                                 fileSizeBytes: size)
+                                 fileSizeBytes: Int64(size ?? 0))
             }
 
         self.photos = basicPhotos

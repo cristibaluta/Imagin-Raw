@@ -247,10 +247,10 @@ struct ThumbGridView: View {
         #if os(macOS)
         .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
             if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
-                filesModel.selectedPhoto = newPhotos.first
-                viewModel.selectedPhotos.removeAll()
-                viewModel.selectedPhotos.insert(newPhotos.first!.id)
-                viewModel.lastSelectedIndex = 0
+//                filesModel.selectedPhoto = newPhotos.first
+//                viewModel.selectedPhotos.removeAll()
+//                viewModel.selectedPhotos.insert(newPhotos.first!.id)
+//                viewModel.lastSelectedIndex = 0
             }
         }
         .onChange(of: viewModel.filteredAndSortedPhotos) { oldPhotos, newPhotos in
