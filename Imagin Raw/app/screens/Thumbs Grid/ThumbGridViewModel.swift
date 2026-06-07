@@ -26,7 +26,7 @@ class ThumbGridViewModel: ObservableObject {
     @Published var duplicateScanProgress: (done: Int, total: Int) = (0, 0)
     @Published var duplicateScanResult: DuplicateScanResult? = nil
     @Published var similarityMode: DuplicateFinderService.SimilarityMode = .loose
-    @Published private(set) var filteredPhotos: [PhotoItem] = []
+    @Published private(set) var filteredAndSortedPhotos: [PhotoItem] = []
     @Published private(set) var dateGroups: [(title: String, photos: [PhotoItem])] = []
     @Published var photosToCopy: [PhotoItem] = []
     @Published var copyDestinationURL: URL?
@@ -82,9 +82,6 @@ class ThumbGridViewModel: ObservableObject {
         }
         trashService.filesModel = filesModel
         trashService.thumbsManager = thumbsManager
-        trashService.onPhotosChanged = { [weak self] in
-            self?.updateFilteredPhotos()
-        }
     }
 
     private func setupFilteredPhotosObservers() {
@@ -152,11 +149,11 @@ class ThumbGridViewModel: ObservableObject {
         }
 
         result = result.sorted(by: photoSortComparator)
-        filteredPhotos = result
+        filteredAndSortedPhotos = result
         dateGroups = PhotoFilterService.buildDateGroups(from: result, sortOption: sortOption)
 
         if let id = lastSelectedPhotoId {
-            lastSelectedIndex = filteredPhotos.firstIndex { $0.id == id }
+            lastSelectedIndex = filteredAndSortedPhotos.firstIndex { $0.id == id }
         } else if filesModel.selectedPhoto == nil {
             lastSelectedIndex = nil
         }
@@ -263,7 +260,7 @@ class ThumbGridViewModel: ObservableObject {
     // MARK: - Selection
 
     func handlePhotoTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
-        let photoIndex = filteredPhotos.firstIndex(where: { $0.id == photo.id }) ?? 0
+        let photoIndex = filteredAndSortedPhotos.firstIndex(where: { $0.id == photo.id }) ?? 0
         if modifiers.contains(.command) {
             // Toggle selected state
             if selectedPhotos.contains(photo.id) {
@@ -276,8 +273,8 @@ class ThumbGridViewModel: ObservableObject {
         } else if modifiers.contains(.shift) {
             let start = min(lastSelectedIndex ?? 0, photoIndex)
             let end = max(lastSelectedIndex ?? 0, photoIndex)
-            for i in start...end where i < filteredPhotos.count {
-                selectedPhotos.insert(filteredPhotos[i].id)
+            for i in start...end where i < filteredAndSortedPhotos.count {
+                selectedPhotos.insert(filteredAndSortedPhotos[i].id)
             }
             filesModel.selectedPhoto = photo
         } else {
@@ -288,24 +285,24 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func selectAll() {
-        selectedPhotos = Set(filteredPhotos.map { $0.id })
-        if let first = filteredPhotos.first {
+        selectedPhotos = Set(filteredAndSortedPhotos.map { $0.id })
+        if let first = filteredAndSortedPhotos.first {
             filesModel.selectedPhoto = first
             lastSelectedIndex = 0
         }
     }
 
     func navigateToPhoto(at newIndex: Int) {
-        guard newIndex >= 0 && newIndex < filteredPhotos.count else {
+        guard newIndex >= 0 && newIndex < filteredAndSortedPhotos.count else {
             return
         }
-        selectedPhotos = [filteredPhotos[newIndex].id]
-        filesModel.selectedPhoto = filteredPhotos[newIndex]
+        selectedPhotos = [filteredAndSortedPhotos[newIndex].id]
+        filesModel.selectedPhoto = filteredAndSortedPhotos[newIndex]
         lastSelectedIndex = newIndex
     }
 
     func initializeSelection() {
-        if filesModel.selectedPhoto == nil, let first = filteredPhotos.first {
+        if filesModel.selectedPhoto == nil, let first = filteredAndSortedPhotos.first {
             filesModel.selectedPhoto = first
             selectedPhotos = [first.id]
         }
@@ -346,19 +343,28 @@ class ThumbGridViewModel: ObservableObject {
         metadataService.toggleDeleteState(for: photos)
     }
 
-    // MARK: - Trash (delegate to service)
-
     func movePhotosToTrash(_ photos: [PhotoItem]) {
-        let saved = lastSelectedIndex
-        let (newPhoto, newIndex) = trashService.movePhotosToTrash(photos,
-                                                                  filteredPhotos: filteredPhotos,
-                                                                  lastSelectedIndex: saved)
+        guard let first = photos.first else {
+            return
+        }
+        // 1. Get the index of the photo to delete
+        let index = filteredAndSortedPhotos.firstIndex { $0.id == first.id }
+
+        // 2. Move selected photos to trash
+        let photosToDelete = selectedPhotos.contains(first.id)
+            ? getSelectedPhotosForBulkAction()
+            : photos
+        trashService.movePhotosToTrash(photosToDelete)
         selectedPhotos.removeAll()
         updateFilteredPhotos()
-        if let p = newPhoto {
-            filesModel.selectedPhoto = p
-            selectedPhotos.insert(p.id)
-            lastSelectedIndex = newIndex
+
+        // 3. Find the next closest index after the photos were deleted
+        if let index,  index < filteredAndSortedPhotos.count {
+            let nextIndex = min(index, filteredAndSortedPhotos.count - 1)
+            let nextPhoto = filteredAndSortedPhotos[nextIndex]
+            filesModel.selectedPhoto = nextPhoto
+            selectedPhotos = [nextPhoto.id]
+            lastSelectedIndex = nextIndex
         } else {
             filesModel.selectedPhoto = nil
             lastSelectedIndex = nil
@@ -366,9 +372,8 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func undoLastTrash() {
-        trashService.undoLastTrash { [weak self] in
-            self?.reloadPhotos()
-        }
+        trashService.undoLastTrash()
+        reloadPhotos()
     }
 
     // MARK: - Key Handling
@@ -396,25 +401,21 @@ class ThumbGridViewModel: ObservableObject {
                 key = KeyEquivalent(first)
         }
 
-        if key == KeyEquivalent("z") {
-            NotificationCenter.default.post(name: .toggleZoom, object: nil)
-            return true
-        }
-        guard !filteredPhotos.isEmpty else {
+        if filteredAndSortedPhotos.isEmpty {
             return false
         }
 
-        let cur = filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
+        let cur = filteredAndSortedPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
         var next = cur
 
         switch key {
         case .leftArrow:  next = max(0, cur - 1)
-        case .rightArrow: next = min(filteredPhotos.count - 1, cur + 1)
+        case .rightArrow: next = min(filteredAndSortedPhotos.count - 1, cur + 1)
         case .upArrow:    next = max(0, cur - gridType.columnCount)
-        case .downArrow:  next = min(filteredPhotos.count - 1, cur + gridType.columnCount)
+        case .downArrow:  next = min(filteredAndSortedPhotos.count - 1, cur + gridType.columnCount)
         case .return:
             let photos = getSelectedPhotosForBulkAction()
-            openPhotos(selectedPhotos.count > 1 ? filteredPhotos.filter { selectedPhotos.contains($0.id) } : photos)
+            openPhotos(selectedPhotos.count > 1 ? filteredAndSortedPhotos.filter { selectedPhotos.contains($0.id) } : photos)
             return true
         case KeyEquivalent(" "):
             let photos = getSelectedPhotosForBulkAction()
@@ -428,9 +429,22 @@ class ThumbGridViewModel: ObservableObject {
             return true
         default:
             let mods = event.modifierFlags
-            if mods.contains(.command) && chars == "a" { selectAll(); return true }
-            if mods.contains(.command) && chars == "z" { undoLastTrash(); return true }
-            if chars == "c" || chars == "C" { onToggleSidebar?(); return true }
+            if mods.contains(.command) && chars == "a" {
+                selectAll()
+                return true
+            }
+            if chars == "z" {
+                if mods.contains(.command) {
+                    undoLastTrash()
+                } else {
+                    NotificationCenter.default.post(name: .toggleZoom, object: nil)
+                }
+                return true
+            }
+            if chars == "c" || chars == "C" {
+                onToggleSidebar?()
+                return true
+            }
             if chars == "g" || chars == "G" { toggleGridType(); return true }
             let photos = getSelectedPhotosForBulkAction()
             guard !photos.isEmpty else { return false }
@@ -445,13 +459,14 @@ class ThumbGridViewModel: ObservableObject {
 
         if next != cur {
             navigateToPhoto(at: next)
-            scrollTo(filteredPhotos[next].id)
+            scrollTo(filteredAndSortedPhotos[next].id)
             return true
         }
         #endif
         return false
     }
 
+    // Used by lazygridview. Deprecated
     func handleKeyPress(_ keyPress: KeyPress,
                         scrollTo: (UUID) -> Void,
                         openPhotos: ([PhotoItem]) -> Void,
@@ -461,21 +476,21 @@ class ThumbGridViewModel: ObservableObject {
             NotificationCenter.default.post(name: .toggleZoom, object: nil)
             return .handled
         }
-        guard !filteredPhotos.isEmpty else {
+        guard !filteredAndSortedPhotos.isEmpty else {
             return .ignored
         }
 
-        let cur = filteredPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
+        let cur = filteredAndSortedPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
         var next = cur
 
         switch keyPress.key {
             case .leftArrow:  next = max(0, cur - 1)
-            case .rightArrow: next = min(filteredPhotos.count - 1, cur + 1)
+            case .rightArrow: next = min(filteredAndSortedPhotos.count - 1, cur + 1)
             case .upArrow:    next = max(0, cur - gridType.columnCount)
-            case .downArrow:  next = min(filteredPhotos.count - 1, cur + gridType.columnCount)
+            case .downArrow:  next = min(filteredAndSortedPhotos.count - 1, cur + gridType.columnCount)
             case .return:
                 let photos = getSelectedPhotosForBulkAction()
-                openPhotos(selectedPhotos.count > 1 ? filteredPhotos.filter { selectedPhotos.contains($0.id) } : photos)
+                openPhotos(selectedPhotos.count > 1 ? filteredAndSortedPhotos.filter { selectedPhotos.contains($0.id) } : photos)
                 return .handled
             default:
                 return handleOtherKeys(keyPress, onToggleSidebar: onToggleSidebar)
@@ -483,7 +498,7 @@ class ThumbGridViewModel: ObservableObject {
 
         if next != cur {
             navigateToPhoto(at: next)
-            scrollTo(filteredPhotos[next].id)
+            scrollTo(filteredAndSortedPhotos[next].id)
             return .handled
         }
         return .ignored
@@ -550,7 +565,7 @@ class ThumbGridViewModel: ObservableObject {
         guard !isFindingDuplicates else {
             return
         }
-        let photosToScan = filteredPhotos
+        let photosToScan = filteredAndSortedPhotos
         guard !photosToScan.isEmpty else {
             return
         }

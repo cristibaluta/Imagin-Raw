@@ -15,11 +15,12 @@ protocol ThumbCellDelegate: Sendable {
     func onMoveToTrash(photo: PhotoItem) -> Void
     func onCopyTo(photo: PhotoItem) -> Void
     func onRenameTo(photo: PhotoItem) -> Void
-    func onMoveAllMarkedToTrash(photo: PhotoItem) -> (count: Int, action: () -> Void)?
+    func onMoveAllMarkedToTrash(photo: PhotoItem) -> Void
     func onApprove(photo: PhotoItem) -> Void
     func onReject(photo: PhotoItem) -> Void
     func onReviewSelected(photo: PhotoItem) -> Void
     func onOpenWith(photo: PhotoItem, app: PhotoApp) -> Void
     func selectedPhotosCount() -> Int
+    func markedForDeletionCount() -> Int
     func discoveredPhotoApps() -> [PhotoApp]
 }

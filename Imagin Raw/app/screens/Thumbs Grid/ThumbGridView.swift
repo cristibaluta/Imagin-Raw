@@ -92,7 +92,7 @@ struct ThumbGridView: View {
                 .fill(Color.secondary.opacity(0.25))
                 .frame(height: 1)
 
-            if viewModel.filteredPhotos.isEmpty {
+            if viewModel.filteredAndSortedPhotos.isEmpty {
                 HStack(spacing: 0) {
                     EmptyStateView(viewModel: viewModel)
                         .padding(20)
@@ -215,7 +215,7 @@ struct ThumbGridView: View {
         #if os(macOS)
         MacThumbGridView(
             delegate: self,
-            photos: viewModel.filteredPhotos,
+            photos: viewModel.filteredAndSortedPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,
             selectedPhotos: viewModel.selectedPhotos,
@@ -253,7 +253,7 @@ struct ThumbGridView: View {
                 viewModel.lastSelectedIndex = 0
             }
         }
-        .onChange(of: viewModel.filteredPhotos) { oldPhotos, newPhotos in
+        .onChange(of: viewModel.filteredAndSortedPhotos) { oldPhotos, newPhotos in
             // Scroll to top when a new folder's photos first appear (transition from empty to non-empty)
             if oldPhotos.isEmpty && !newPhotos.isEmpty, let first = newPhotos.first {
                 scrollToPhotoId = first.id
@@ -267,7 +267,7 @@ struct ThumbGridView: View {
         }
         #elseif os(iOS)
         IosThumbGridView(
-            photos: viewModel.filteredPhotos,
+            photos: viewModel.filteredAndSortedPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,
             columnCount: viewModel.gridType.columnCount,
@@ -309,7 +309,7 @@ struct ThumbGridView: View {
                 }
             }
         }
-        .onChange(of: viewModel.filteredPhotos) { oldPhotos, newPhotos in
+        .onChange(of: viewModel.filteredAndSortedPhotos) { oldPhotos, newPhotos in
             currentPhotos = newPhotos
             let url = filesModel.selectedFolder?.url
             let isPhotoKit = url?.isPhotoLibraryRoot == true || url?.isPhotoKitAlbum == true
@@ -364,7 +364,7 @@ extension ThumbGridView: ThumbCellDelegate {
     func onDoubleClick(photo: PhotoItem) {
         filesModel.selectedPhoto = photo
         if viewModel.selectedPhotos.count > 1 {
-            let selectedPhotoItems = viewModel.filteredPhotos.filter {
+            let selectedPhotoItems = viewModel.filteredAndSortedPhotos.filter {
                 viewModel.selectedPhotos.contains($0.id)
             }
             externalAppManager.openPhotos(selectedPhotoItems)
@@ -383,10 +383,7 @@ extension ThumbGridView: ThumbCellDelegate {
         }
     }
     func onMoveToTrash(photo: PhotoItem) {
-        let photos = viewModel.selectedPhotos.contains(photo.id)
-            ? viewModel.getSelectedPhotosForBulkAction()
-            : [photo]
-        viewModel.movePhotosToTrash(photos)
+        viewModel.movePhotosToTrash([photo])
     }
     func onCopyTo(photo: PhotoItem) {
         let photos = viewModel.selectedPhotos.contains(photo.id)
@@ -400,12 +397,9 @@ extension ThumbGridView: ThumbCellDelegate {
             : [photo]
         renameSheetPhotos = PhotosSheetItem(photos: photos)
     }
-    func onMoveAllMarkedToTrash(photo: PhotoItem) -> (count: Int, action: () -> Void)? {
-        guard photo.toDelete else {
-            return nil
-        }
+    func onMoveAllMarkedToTrash(photo: PhotoItem) {
         let marked = viewModel.getPhotosMarkedForDeletion()
-        return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
+        viewModel.movePhotosToTrash(marked)
     }
     func onApprove(photo: PhotoItem) {
         viewModel.applyLabel("Approved", to: [photo])
@@ -427,6 +421,9 @@ extension ThumbGridView: ThumbCellDelegate {
     }
     func selectedPhotosCount() -> Int {
         viewModel.selectedPhotos.count
+    }
+    func markedForDeletionCount() -> Int {
+        viewModel.getPhotosMarkedForDeletion().count
     }
     func discoveredPhotoApps() -> [PhotoApp] {
         externalAppManager.discoveredPhotoApps

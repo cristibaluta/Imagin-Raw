@@ -26,7 +26,7 @@ struct PhotoGridView: View {
         ScrollViewReader { proxy in
             ScrollView(.vertical) {
                 LazyVGrid(columns: viewModel.dynamicColumns, spacing: 8) {
-                    ForEach(viewModel.filteredPhotos, id: \.id) { photo in
+                    ForEach(viewModel.filteredAndSortedPhotos, id: \.id) { photo in
                         createThumbCell(for: photo)
                     }
                 }
@@ -68,7 +68,7 @@ struct PhotoGridView: View {
                     }
                 }
                 .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
-                    if let firstPhoto = viewModel.filteredPhotos.first {
+                    if let firstPhoto = viewModel.filteredAndSortedPhotos.first {
                         filesModel.selectedPhoto = firstPhoto
                         viewModel.selectedPhotos.removeAll()
                         viewModel.selectedPhotos.insert(firstPhoto.id)

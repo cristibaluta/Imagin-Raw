@@ -134,10 +134,10 @@ extension MacThumbCell {
         trash.keyEquivalentModifierMask = [.command]
         trash.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
         menu.addItem(trash)
-        if photo.toDelete, let info = delegate?.onMoveAllMarkedToTrash(photo: photo) {
-            let all = NSMenuItem(title: "Move to Trash all Rejected Photos (\(info.count))",
+        if photo.toDelete, let count = delegate?.markedForDeletionCount(), count > 0 {
+            let all = NSMenuItem(title: "Move to Trash all Rejected Photos (\(count))",
                                  action: #selector(handleMoveAllToTrash), keyEquivalent: "")
-            all.image = NSImage(systemSymbolName: "trash.fill", accessibilityDescription: nil)
+            all.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
             menu.addItem(all)
         }
     }
@@ -189,7 +189,7 @@ extension MacThumbCell {
         guard let p = currentPhoto else {
             return
         }
-        delegate?.onMoveAllMarkedToTrash(photo: p)?.action()
+        delegate?.onMoveAllMarkedToTrash(photo: p)
     }
 
     @objc private func handleSetRating(_ sender: NSMenuItem) {

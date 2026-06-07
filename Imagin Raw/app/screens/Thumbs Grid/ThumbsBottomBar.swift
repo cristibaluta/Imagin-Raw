@@ -188,7 +188,7 @@ struct ThumbsBottomBar: View {
                 Text("\(viewModel.selectedPhotos.count) of \(viewModel.photos.count) selected")
                     .foregroundColor(.blue)
             } else if viewModel.selectedLabels.count > 0 || viewModel.selectedRatings.count > 0 {
-                Text("\(viewModel.filteredPhotos.count) of \(viewModel.photos.count) photos")
+                Text("\(viewModel.filteredAndSortedPhotos.count) of \(viewModel.photos.count) photos")
                     .foregroundColor(.secondary)
             } else {
                 Text("\(viewModel.photos.count) photos")

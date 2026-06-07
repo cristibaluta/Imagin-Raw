@@ -13,13 +13,10 @@ class PhotoTrashService {
     weak var photosModel: PhotosModel?
     weak var filesModel: FilesModel?
     var thumbsManager: ThumbsManager?
-    var onPhotosChanged: (() -> Void)?
 
     private var undoStack: [[(trashedURL: URL, originalURL: URL)]] = []
 
-    func movePhotosToTrash(_ photos: [PhotoItem],
-                           filteredPhotos: [PhotoItem],
-                           lastSelectedIndex: Int?) -> (newSelectedPhoto: PhotoItem?, newLastIndex: Int?) {
+    func movePhotosToTrash(_ photos: [PhotoItem]) {
         var undoEntry: [(trashedURL: URL, originalURL: URL)] = []
 
         for photo in photos {
@@ -36,12 +33,14 @@ class PhotoTrashService {
                 thumbsManager?.deleteCachedThumbnail(for: photo.path)
 
                 if FilesExtensions.raw.contains(ext) {
-                    for jpgExt in ["jpg", "jpeg", "JPG", "JPEG"] {
+                    for jpgExt in ["jpg", "jpeg", "JPG", "JPEG", "heic", "HEIC"] {
                         let j = dir.appendingPathComponent("\(base).\(jpgExt)")
                         if FileManager.default.fileExists(atPath: j.path) {
                             var t: NSURL?
                             try? FileManager.default.trashItem(at: j, resultingItemURL: &t)
-                            if let t = t as? URL { undoEntry.append((t, j)) }
+                            if let t = t as? URL {
+                                undoEntry.append((t, j))
+                            }
                         }
                     }
                     for sidecar in ["\(base).xmp", "\(base).acr"] {
@@ -49,7 +48,9 @@ class PhotoTrashService {
                         if FileManager.default.fileExists(atPath: s.path) {
                             var t: NSURL?
                             try? FileManager.default.trashItem(at: s, resultingItemURL: &t)
-                            if let t = t as? URL { undoEntry.append((t, s)) }
+                            if let t = t as? URL {
+                                undoEntry.append((t, s))
+                            }
                         }
                     }
                 }
@@ -61,29 +62,18 @@ class PhotoTrashService {
             } catch {}
         }
 
-        if !undoEntry.isEmpty { undoStack.append(undoEntry) }
-
-        // Compute next selection
-        onPhotosChanged?()
-
-        let remaining = photosModel?.photos ?? []
-        if remaining.isEmpty { return (nil, nil) }
-
-        let targetIndex = min(lastSelectedIndex ?? 0, remaining.count - 1)
-        // filteredPhotos isn't yet updated here, so use photosModel directly
-        // The VM will call updateFilteredPhotos right after
-        return (remaining[safe: targetIndex], targetIndex)
+        if !undoEntry.isEmpty {
+            undoStack.append(undoEntry)
+        }
     }
 
-    func undoLastTrash(reloadPhotos: () -> Void) {
-        guard let last = undoStack.popLast() else { return }
-        for item in last {
-            do {
-                try FileManager.default.moveItem(at: item.trashedURL, to: item.originalURL)
-                thumbsManager?.deleteCachedThumbnail(for: item.originalURL.path)
-            } catch {}
+    func undoLastTrash() {
+        guard let last = undoStack.popLast() else {
+            return
         }
-        reloadPhotos()
+        for item in last {
+            try? FileManager.default.moveItem(at: item.trashedURL, to: item.originalURL)
+        }
     }
 }
 
