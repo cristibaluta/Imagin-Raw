@@ -29,11 +29,11 @@ private final class MacKeyableCollectionView: NSCollectionView {
 }
 
 struct MacThumbGridView: NSViewRepresentable {
+    let delegate: ThumbCellDelegate
     let photos: [PhotoItem]
     let itemSize: CGFloat
     let cellHeight: CGFloat
     let selectedPhotos: Set<UUID>
-    let callbacks: ThumbCellCallbacks
     var duplicateResult: DuplicateScanResult? = nil
     var onReview: ((DuplicateGroup, Int) -> Void)? = nil
     var dateGroups: [(title: String, photos: [PhotoItem])] = []
@@ -47,7 +47,7 @@ struct MacThumbGridView: NSViewRepresentable {
     @Binding var visibleSectionIndex: Int
 
     func makeCoordinator() -> MacThumbGridCoordinator {
-        MacThumbGridCoordinator(itemSize: itemSize, cellHeight: cellHeight, callbacks: callbacks)
+        MacThumbGridCoordinator(itemSize: itemSize, cellHeight: cellHeight, delegate: delegate)
     }
 
     private var isDateGrouped: Bool { sortOption != .name && !dateGroups.isEmpty }
@@ -125,7 +125,7 @@ struct MacThumbGridView: NSViewRepresentable {
         c.itemSize = itemSize
         c.cellHeight = cellHeight
         c.selectedPhotos = selectedPhotos
-        c.callbacks = callbacks
+        c.delegate = delegate
         c.duplicateResult = duplicateResult
         c.onReview = onReview
         c.dateGroups = dateGroups
@@ -165,7 +165,7 @@ struct MacThumbGridView: NSViewRepresentable {
                                         itemSize: itemSize,
                                         thumbsManager: thumbsManager,
                                         priority: .high,
-                                        callbacks: callbacks)
+                                        delegate: delegate)
                 } else if selectionChanged {
                     thumbItem.updateSelection(isSelected: isSelected)
                 }

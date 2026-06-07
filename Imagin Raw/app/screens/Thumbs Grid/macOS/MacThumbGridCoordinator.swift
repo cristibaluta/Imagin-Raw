@@ -12,7 +12,7 @@ class MacThumbGridCoordinator: NSObject {
     var itemSize: CGFloat
     var cellHeight: CGFloat
     var selectedPhotos: Set<UUID> = []
-    var callbacks: ThumbCellCallbacks
+    var delegate: ThumbCellDelegate
     var duplicateResult: DuplicateScanResult? = nil
     var onKeyDown: ((NSEvent) -> Bool)?
     var onReview: ((DuplicateGroup, Int) -> Void)?
@@ -31,10 +31,10 @@ class MacThumbGridCoordinator: NSObject {
         sortOption != .name && !dateGroups.isEmpty
     }
 
-    init(itemSize: CGFloat, cellHeight: CGFloat, callbacks: ThumbCellCallbacks) {
+    init(itemSize: CGFloat, cellHeight: CGFloat, delegate: ThumbCellDelegate) {
         self.itemSize = itemSize
         self.cellHeight = cellHeight
-        self.callbacks = callbacks
+        self.delegate = delegate
     }
 
     deinit {
@@ -184,7 +184,7 @@ extension MacThumbGridCoordinator: NSCollectionViewDataSource {
                        itemSize: itemSize,
                        thumbsManager: thumbsManager,
                        priority: priority,
-                       callbacks: callbacks)
+                       delegate: delegate)
         return item
     }
 

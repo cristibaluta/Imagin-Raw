@@ -22,6 +22,11 @@ private struct ReviewGroupItemID: Identifiable {
     let id = UUID()
 }
 
+struct PhotosSheetItem: Identifiable {
+    let id = UUID()
+    let photos: [PhotoItem]
+}
+
 struct GridWidthPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 450
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
@@ -30,9 +35,10 @@ struct GridWidthPreferenceKey: PreferenceKey {
 }
 
 struct ThumbGridView: View {
-    @StateObject private var viewModel: ThumbGridViewModel
     @EnvironmentObject var externalAppManager: ExternalAppManager
     @EnvironmentObject var filesModel: FilesModel
+
+    @StateObject private var viewModel: ThumbGridViewModel
 
     let searchPhotoResults: [PhotoItem]?
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
@@ -40,7 +46,6 @@ struct ThumbGridView: View {
     let onToggleSidebar: (() -> Void)?
     let isSidebarCollapsed: Bool
     let windowWidth: CGFloat
-//    @FocusState private var isFocused: Bool
     @Binding var openSelectedPhotosCallback: (() -> Void)?
 
     @State private var useCollectionView = true
@@ -54,7 +59,6 @@ struct ThumbGridView: View {
     @Binding var reviewGroup: ReviewGroupItem?
     @Binding var currentPhotos: [PhotoItem]
     @State private var hasAppeared = false
-
     @State private var ignoringSearchResults = false
 
     init(filesModel: FilesModel,
@@ -136,7 +140,9 @@ struct ThumbGridView: View {
         }
         .onAppear {
             // Only run once
-            guard !hasAppeared else { return }
+            guard !hasAppeared else {
+                return
+            }
             hasAppeared = true
 
             openSelectedPhotosCallback = { [viewModel] in
@@ -171,7 +177,9 @@ struct ThumbGridView: View {
             }
         }
         .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
-            guard let folder = newFolder, oldFolder?.url != newFolder?.url else { return }
+            guard let folder = newFolder, oldFolder?.url != newFolder?.url else {
+                return
+            }
             ignoringSearchResults = true
             viewModel.clearSearchResults()
             viewModel.loadPhotosForFolder(folder)
@@ -206,67 +214,11 @@ struct ThumbGridView: View {
     private var collectionPhotoGridView: some View {
         #if os(macOS)
         MacThumbGridView(
+            delegate: self,
             photos: viewModel.filteredPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,
             selectedPhotos: viewModel.selectedPhotos,
-            callbacks: ThumbCellCallbacks(
-                onTap: { photo, modifiers in
-                    viewModel.handlePhotoTap(photo: photo, modifiers: modifiers)
-                },
-                onDoubleClick: { photo in
-                    handleDoubleClick(photo: photo)
-                },
-                onRatingChanged: { photo, rating in
-                    viewModel.applyRating(rating, to: [photo])
-                },
-                onLabelChanged: { photo, label in
-                    if let label {
-                        viewModel.applyLabel(label, to: [photo])
-                    } else {
-                        viewModel.removeLabels(from: [photo])
-                    }
-                },
-                onMoveToTrash: { rightClickedPhoto in
-                    let photosToTrash = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                    ? viewModel.getSelectedPhotosForBulkAction()
-                    : [rightClickedPhoto]
-                    viewModel.movePhotosToTrash(photosToTrash)
-                },
-                onCopyTo: { rightClickedPhoto in
-                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                    ? viewModel.getSelectedPhotosForBulkAction()
-                    : [rightClickedPhoto]
-                    copyToViewModel = CopyToViewModel(photos: photos)
-                },
-                onRenameTo: { rightClickedPhoto in
-                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                    ? viewModel.getSelectedPhotosForBulkAction()
-                    : [rightClickedPhoto]
-                    renameSheetPhotos = PhotosSheetItem(photos: photos)
-                },
-                onMoveAllMarkedToTrash: { photo in
-                    guard photo.toDelete else { return nil }
-                    let marked = viewModel.getPhotosMarkedForDeletion()
-                    return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
-                },
-                onApprove: { photo in viewModel.applyLabel("Approved", to: [photo]) },
-                onReject: { photo in viewModel.toggleDeleteState(for: [photo]) },
-                onReviewSelected: { rightClickedPhoto in
-                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                        ? viewModel.getSelectedPhotosForBulkAction()
-                        : [rightClickedPhoto]
-                    reviewGroup = buildReviewGroupItemFromPhotos(photos)
-                },
-                onOpenWith: { rightClickedPhoto, app in
-                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                        ? viewModel.getSelectedPhotosForBulkAction()
-                        : [rightClickedPhoto]
-                    externalAppManager.openPhotos(photos, with: app)
-                },
-                externalAppManager: externalAppManager,
-                selectedPhotosCount: { viewModel.selectedPhotos.count }
-            ),
             duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
             onReview: { group, index in
                 reviewGroup = buildReviewGroupItem(group: group, index: index)
@@ -321,64 +273,7 @@ struct ThumbGridView: View {
             columnCount: viewModel.gridType.columnCount,
             selectedPhotos: viewModel.selectedPhotos,
             isSelectMode: isSelectMode,
-            callbacks: ThumbCellCallbacks(
-                onTap: { photo, _ in
-                    viewModel.handlePhotoTap(photo: photo, modifiers: .none)
-                    filesModel.selectedPhoto = photo
-                },
-                onDoubleClick: { photo in
-                    handleDoubleClick(photo: photo)
-                },
-                onRatingChanged: { photo, rating in
-                    viewModel.applyRating(rating, to: [photo])
-                },
-                onLabelChanged: { photo, label in
-                    if let label {
-                        viewModel.applyLabel(label, to: [photo])
-                    } else {
-                        viewModel.removeLabels(from: [photo])
-                    }
-                },
-                onMoveToTrash: { rightClickedPhoto in
-                    let photosToTrash = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                        ? viewModel.getSelectedPhotosForBulkAction()
-                        : [rightClickedPhoto]
-                    viewModel.movePhotosToTrash(photosToTrash)
-                },
-                onCopyTo: { rightClickedPhoto in
-                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                        ? viewModel.getSelectedPhotosForBulkAction()
-                        : [rightClickedPhoto]
-                    copyToViewModel = CopyToViewModel(photos: photos)
-                },
-                onRenameTo: { rightClickedPhoto in
-                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                        ? viewModel.getSelectedPhotosForBulkAction()
-                        : [rightClickedPhoto]
-                    renameSheetPhotos = PhotosSheetItem(photos: photos)
-                },
-                onMoveAllMarkedToTrash: { photo in
-                    guard photo.toDelete else { return nil }
-                    let marked = viewModel.getPhotosMarkedForDeletion()
-                    return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
-                },
-                onApprove: { photo in viewModel.applyLabel("Approved", to: [photo]) },
-                onReject: { photo in viewModel.toggleDeleteState(for: [photo]) },
-                onReviewSelected: { rightClickedPhoto in
-                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                        ? viewModel.getSelectedPhotosForBulkAction()
-                        : [rightClickedPhoto]
-                    reviewGroup = buildReviewGroupItemFromPhotos(photos)
-                },
-                onOpenWith: { rightClickedPhoto, app in
-                    let photos = viewModel.selectedPhotos.contains(rightClickedPhoto.id)
-                        ? viewModel.getSelectedPhotosForBulkAction()
-                        : [rightClickedPhoto]
-                    externalAppManager.openPhotos(photos, with: app)
-                },
-                externalAppManager: externalAppManager,
-                selectedPhotosCount: { viewModel.selectedPhotos.count }
-            ),
+            delegate: self,
             onSelectToggle: {_ in },
             onNavigate: { photo in
 
@@ -432,20 +327,6 @@ struct ThumbGridView: View {
         PhotoGridView(viewModel: viewModel)
     }
 
-    // MARK: - Event Handlers
-
-    private func handleDoubleClick(photo: PhotoItem) {
-        filesModel.selectedPhoto = photo
-        if viewModel.selectedPhotos.count > 1 {
-            let selectedPhotoItems = viewModel.filteredPhotos.filter {
-                viewModel.selectedPhotos.contains($0.id)
-            }
-            externalAppManager.openPhotos(selectedPhotoItems)
-        } else {
-            externalAppManager.openPhotos([photo])
-        }
-    }
-
     private func buildReviewGroupItem(group: DuplicateGroup, index: Int) -> ReviewGroupItem {
         let groups = viewModel.duplicateScanResult?.groups ?? []
         return ReviewGroupItem(
@@ -476,7 +357,78 @@ struct ThumbGridView: View {
     }
 }
 
-struct PhotosSheetItem: Identifiable {
-    let id = UUID()
-    let photos: [PhotoItem]
+extension ThumbGridView: ThumbCellDelegate {
+    func onTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
+        viewModel.handlePhotoTap(photo: photo, modifiers: modifiers)
+    }
+    func onDoubleClick(photo: PhotoItem) {
+        filesModel.selectedPhoto = photo
+        if viewModel.selectedPhotos.count > 1 {
+            let selectedPhotoItems = viewModel.filteredPhotos.filter {
+                viewModel.selectedPhotos.contains($0.id)
+            }
+            externalAppManager.openPhotos(selectedPhotoItems)
+        } else {
+            externalAppManager.openPhotos([photo])
+        }
+    }
+    func onRatingChanged(photo: PhotoItem, rating: Int) {
+        viewModel.applyRating(rating, to: [photo])
+    }
+    func onLabelChanged(photo: PhotoItem, label: String?) {
+        if let label {
+            viewModel.applyLabel(label, to: [photo])
+        } else {
+            viewModel.removeLabels(from: [photo])
+        }
+    }
+    func onMoveToTrash(photo: PhotoItem) {
+        let photos = viewModel.selectedPhotos.contains(photo.id)
+            ? viewModel.getSelectedPhotosForBulkAction()
+            : [photo]
+        viewModel.movePhotosToTrash(photos)
+    }
+    func onCopyTo(photo: PhotoItem) {
+        let photos = viewModel.selectedPhotos.contains(photo.id)
+            ? viewModel.getSelectedPhotosForBulkAction()
+            : [photo]
+        copyToViewModel = CopyToViewModel(photos: photos)
+    }
+    func onRenameTo(photo: PhotoItem) {
+        let photos = viewModel.selectedPhotos.contains(photo.id)
+            ? viewModel.getSelectedPhotosForBulkAction()
+            : [photo]
+        renameSheetPhotos = PhotosSheetItem(photos: photos)
+    }
+    func onMoveAllMarkedToTrash(photo: PhotoItem) -> (count: Int, action: () -> Void)? {
+        guard photo.toDelete else {
+            return nil
+        }
+        let marked = viewModel.getPhotosMarkedForDeletion()
+        return (count: marked.count, action: { viewModel.movePhotosToTrash(marked) })
+    }
+    func onApprove(photo: PhotoItem) {
+        viewModel.applyLabel("Approved", to: [photo])
+    }
+    func onReject(photo: PhotoItem) {
+        viewModel.toggleDeleteState(for: [photo])
+    }
+    func onReviewSelected(photo: PhotoItem) {
+        let photos = viewModel.selectedPhotos.contains(photo.id)
+            ? viewModel.getSelectedPhotosForBulkAction()
+            : [photo]
+        reviewGroup = buildReviewGroupItemFromPhotos(photos)
+    }
+    func onOpenWith(photo: PhotoItem, app: PhotoApp) {
+        let photos = viewModel.selectedPhotos.contains(photo.id)
+            ? viewModel.getSelectedPhotosForBulkAction()
+            : [photo]
+        externalAppManager.openPhotos(photos, with: app)
+    }
+    func selectedPhotosCount() -> Int {
+        viewModel.selectedPhotos.count
+    }
+    func discoveredPhotoApps() -> [PhotoApp] {
+        externalAppManager.discoveredPhotoApps
+    }
 }

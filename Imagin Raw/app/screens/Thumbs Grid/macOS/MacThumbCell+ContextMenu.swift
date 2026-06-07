@@ -22,7 +22,7 @@ extension MacThumbCell {
         }
 
         // Review — resolves selected photos at action time
-        let selectedCount = callbacks?.selectedPhotosCount() ?? 0
+        let selectedCount = delegate?.selectedPhotosCount() ?? 0
         let reviewCount = max(selectedCount, 1)
         let review = NSMenuItem(title: "Review Photos\(reviewCount >= 2 ? " (\(reviewCount))" : "")",
                                 action: reviewCount >= 2 ? #selector(handleReview) : nil,
@@ -106,7 +106,7 @@ extension MacThumbCell {
         menu.addItem(finder)
 
         // Open with submenu
-        if let apps = callbacks?.externalAppManager?.discoveredPhotoApps, !apps.isEmpty {
+        if let apps = delegate?.discoveredPhotoApps(), !apps.isEmpty {
             let openWithItem = NSMenuItem(title: "Open with", action: nil, keyEquivalent: "")
             openWithItem.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
             let openWithMenu = NSMenu()
@@ -134,7 +134,7 @@ extension MacThumbCell {
         trash.keyEquivalentModifierMask = [.command]
         trash.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
         menu.addItem(trash)
-        if photo.toDelete, let info = callbacks?.onMoveAllMarkedToTrash(photo) {
+        if photo.toDelete, let info = delegate?.onMoveAllMarkedToTrash(photo: photo) {
             let all = NSMenuItem(title: "Move to Trash all Rejected Photos (\(info.count))",
                                  action: #selector(handleMoveAllToTrash), keyEquivalent: "")
             all.image = NSImage(systemSymbolName: "trash.fill", accessibilityDescription: nil)
@@ -146,7 +146,7 @@ extension MacThumbCell {
         guard let p = currentPhoto else {
             return
         }
-        callbacks?.onReviewSelected(p)
+        delegate?.onReviewSelected(photo: p)
     }
 
     @objc private func handleShowInFinder() {
@@ -161,69 +161,69 @@ extension MacThumbCell {
               let photo = currentPhoto else {
             return
         }
-        callbacks?.onOpenWith(photo, app)
+        delegate?.onOpenWith(photo: photo, app: app)
     }
 
     @objc private func handleCopyTo() {
         guard let p = currentPhoto else {
             return
         }
-        callbacks?.onCopyTo(p)
+        delegate?.onCopyTo(photo: p)
     }
 
     @objc private func handleRenameTo() {
         guard let p = currentPhoto else {
             return
         }
-        callbacks?.onRenameTo(p)
+        delegate?.onRenameTo(photo: p)
     }
 
     @objc private func handleMoveToTrash() {
         guard let p = currentPhoto else {
             return
         }
-        callbacks?.onMoveToTrash(p)
+        delegate?.onMoveToTrash(photo: p)
     }
 
     @objc private func handleMoveAllToTrash() {
         guard let p = currentPhoto else {
             return
         }
-        callbacks?.onMoveAllMarkedToTrash(p)?.action()
+        delegate?.onMoveAllMarkedToTrash(photo: p)?.action()
     }
 
     @objc private func handleSetRating(_ sender: NSMenuItem) {
         guard let p = currentPhoto else {
             return
         }
-        callbacks?.onRatingChanged(p, sender.tag)
+        delegate?.onRatingChanged(photo: p, rating: sender.tag)
     }
 
     @objc private func handleSetLabel(_ sender: NSMenuItem) {
         guard let p = currentPhoto, let label = sender.representedObject as? String else {
             return
         }
-        callbacks?.onLabelChanged(p, label)
+        delegate?.onLabelChanged(photo: p, label: label)
     }
 
     @objc private func handleRemoveLabel() {
         guard let p = currentPhoto else {
             return
         }
-        callbacks?.onLabelChanged(p, nil)
+        delegate?.onLabelChanged(photo: p, label: nil)
     }
 
     @objc private func handleApprove() {
         guard let p = currentPhoto else {
             return
         }
-        callbacks?.onApprove(p)
+        delegate?.onApprove(photo: p)
     }
 
     @objc private func handleReject() {
         guard let p = currentPhoto else {
             return
         }
-        callbacks?.onReject(p)
+        delegate?.onReject(photo: p)
     }
 }

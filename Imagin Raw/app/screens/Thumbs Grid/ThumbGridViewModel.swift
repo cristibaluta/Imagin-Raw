@@ -77,16 +77,22 @@ class ThumbGridViewModel: ObservableObject {
 
     private func setupServices() {
         metadataService.filesModel = filesModel
-        metadataService.onPhotoUpdated = { [weak self] in self?.updateFilteredPhotos() }
+        metadataService.onPhotoUpdated = { [weak self] in
+            self?.updateFilteredPhotos()
+        }
         trashService.filesModel = filesModel
         trashService.thumbsManager = thumbsManager
-        trashService.onPhotosChanged = { [weak self] in self?.updateFilteredPhotos() }
+        trashService.onPhotosChanged = { [weak self] in
+            self?.updateFilteredPhotos()
+        }
     }
 
     private func setupFilteredPhotosObservers() {
         Publishers.CombineLatest4($selectedLabels, $selectedRatings, $sortOption, $isLoadingMetadata)
             .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
-            .sink { [weak self] _ in self?.updateFilteredPhotos() }
+            .sink { [weak self] _ in
+                self?.updateFilteredPhotos()
+            }
             .store(in: &cancellables)
     }
 
@@ -107,7 +113,9 @@ class ThumbGridViewModel: ObservableObject {
     private static let gap: CGFloat = 3
 
     var effectiveColumnCount: Int {
-        guard gridType == .large else { return gridType.columnCount }
+        if gridType == .small {
+            return gridType.columnCount
+        }
         let available = windowWidth - (isSidebarCollapsed ? 0 : Self.sidebarWidth) - Self.previewMinWidth
         return max(2, Int(floor((available + Self.gap) / (gridType.thumbSize + Self.gap))))
     }
@@ -123,7 +131,9 @@ class ThumbGridViewModel: ObservableObject {
         return thumbsWidth + minimap + 1
     }
 
-    var showCachingProgress: Bool { cachingQueueCount > 0 }
+    var showCachingProgress: Bool {
+        cachingQueueCount > 0
+    }
 
     // MARK: - Filtering
 
@@ -156,9 +166,13 @@ class ThumbGridViewModel: ObservableObject {
         let before = (selectedLabels, selectedRatings)
         selectedLabels = selectedLabels.filter { label in
             photos.contains { photo in
-                if label == "Rejected" { return photo.toDelete }
+                if label == "Rejected" {
+                    return photo.toDelete
+                }
                 let pl = photo.xmp?.label ?? ""
-                if label == "No Label" { return pl.isEmpty && !photo.toDelete }
+                if label == "No Label" {
+                    return pl.isEmpty && !photo.toDelete
+                }
                 return pl == label && !photo.toDelete
             }
         }
@@ -169,8 +183,11 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func toggleLabelFilter(_ label: String) {
-        if selectedLabels.contains(label) { selectedLabels.remove(label) }
-        else { selectedLabels.insert(label) }
+        if selectedLabels.contains(label) {
+            selectedLabels.remove(label)
+        } else {
+            selectedLabels.insert(label)
+        }
     }
 
     // MARK: - Photo Loading
@@ -196,7 +213,9 @@ class ThumbGridViewModel: ObservableObject {
             .assign(to: &$cachingQueueCount)
 
         newPhotosModel.objectWillChange
-            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
             .store(in: &cancellables)
 
         newPhotosModel.$isLoadingMetadata
@@ -207,7 +226,9 @@ class ThumbGridViewModel: ObservableObject {
 
         newPhotosModel.$photos
             .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
-            .sink { [weak self] _ in self?.updateFilteredPhotos() }
+            .sink { [weak self] _ in
+                self?.updateFilteredPhotos()
+            }
             .store(in: &cancellables)
 
         newPhotosModel.loadPhotos()
@@ -244,12 +265,20 @@ class ThumbGridViewModel: ObservableObject {
     func handlePhotoTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
         let photoIndex = filteredPhotos.firstIndex(where: { $0.id == photo.id }) ?? 0
         if modifiers.contains(.command) {
-            if selectedPhotos.contains(photo.id) { selectedPhotos.remove(photo.id) }
-            else { selectedPhotos.insert(photo.id); filesModel.selectedPhoto = photo; lastSelectedIndex = photoIndex }
+            // Toggle selected state
+            if selectedPhotos.contains(photo.id) {
+                selectedPhotos.remove(photo.id)
+            } else {
+                selectedPhotos.insert(photo.id)
+                filesModel.selectedPhoto = photo
+                lastSelectedIndex = photoIndex
+            }
         } else if modifiers.contains(.shift) {
             let start = min(lastSelectedIndex ?? 0, photoIndex)
             let end = max(lastSelectedIndex ?? 0, photoIndex)
-            for i in start...end where i < filteredPhotos.count { selectedPhotos.insert(filteredPhotos[i].id) }
+            for i in start...end where i < filteredPhotos.count {
+                selectedPhotos.insert(filteredPhotos[i].id)
+            }
             filesModel.selectedPhoto = photo
         } else {
             selectedPhotos = [photo.id]
@@ -260,11 +289,16 @@ class ThumbGridViewModel: ObservableObject {
 
     func selectAll() {
         selectedPhotos = Set(filteredPhotos.map { $0.id })
-        if let first = filteredPhotos.first { filesModel.selectedPhoto = first; lastSelectedIndex = 0 }
+        if let first = filteredPhotos.first {
+            filesModel.selectedPhoto = first
+            lastSelectedIndex = 0
+        }
     }
 
     func navigateToPhoto(at newIndex: Int) {
-        guard newIndex >= 0 && newIndex < filteredPhotos.count else { return }
+        guard newIndex >= 0 && newIndex < filteredPhotos.count else {
+            return
+        }
         selectedPhotos = [filteredPhotos[newIndex].id]
         filesModel.selectedPhoto = filteredPhotos[newIndex]
         lastSelectedIndex = newIndex
@@ -277,11 +311,17 @@ class ThumbGridViewModel: ObservableObject {
         }
     }
 
-    func getPhotosMarkedForDeletion() -> [PhotoItem] { photos.filter { $0.toDelete } }
+    func getPhotosMarkedForDeletion() -> [PhotoItem] {
+        photos.filter { $0.toDelete }
+    }
 
     func getSelectedPhotosForBulkAction() -> [PhotoItem] {
-        guard let allPhotos = photosModel?.photos else { return [] }
-        if selectedPhotos.count > 1 { return allPhotos.filter { selectedPhotos.contains($0.id) } }
+        guard let allPhotos = photosModel?.photos else {
+            return []
+        }
+        if selectedPhotos.count > 1 {
+            return allPhotos.filter { selectedPhotos.contains($0.id) }
+        }
         if let sel = filesModel.selectedPhoto {
             return [allPhotos.first(where: { $0.id == sel.id }) ?? sel]
         }
@@ -310,8 +350,9 @@ class ThumbGridViewModel: ObservableObject {
 
     func movePhotosToTrash(_ photos: [PhotoItem]) {
         let saved = lastSelectedIndex
-        let (newPhoto, newIndex) = trashService.movePhotosToTrash(
-            photos, filteredPhotos: filteredPhotos, lastSelectedIndex: saved)
+        let (newPhoto, newIndex) = trashService.movePhotosToTrash(photos,
+                                                                  filteredPhotos: filteredPhotos,
+                                                                  lastSelectedIndex: saved)
         selectedPhotos.removeAll()
         updateFilteredPhotos()
         if let p = newPhoto {
@@ -325,7 +366,9 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func undoLastTrash() {
-        trashService.undoLastTrash { [weak self] in self?.reloadPhotos() }
+        trashService.undoLastTrash { [weak self] in
+            self?.reloadPhotos()
+        }
     }
 
     // MARK: - Key Handling
@@ -400,7 +443,11 @@ class ThumbGridViewModel: ObservableObject {
             return false
         }
 
-        if next != cur { navigateToPhoto(at: next); scrollTo(filteredPhotos[next].id); return true }
+        if next != cur {
+            navigateToPhoto(at: next)
+            scrollTo(filteredPhotos[next].id)
+            return true
+        }
         #endif
         return false
     }
@@ -422,19 +469,23 @@ class ThumbGridViewModel: ObservableObject {
         var next = cur
 
         switch keyPress.key {
-        case .leftArrow:  next = max(0, cur - 1)
-        case .rightArrow: next = min(filteredPhotos.count - 1, cur + 1)
-        case .upArrow:    next = max(0, cur - gridType.columnCount)
-        case .downArrow:  next = min(filteredPhotos.count - 1, cur + gridType.columnCount)
-        case .return:
-            let photos = getSelectedPhotosForBulkAction()
-            openPhotos(selectedPhotos.count > 1 ? filteredPhotos.filter { selectedPhotos.contains($0.id) } : photos)
-            return .handled
-        default:
-            return handleOtherKeys(keyPress, onToggleSidebar: onToggleSidebar)
+            case .leftArrow:  next = max(0, cur - 1)
+            case .rightArrow: next = min(filteredPhotos.count - 1, cur + 1)
+            case .upArrow:    next = max(0, cur - gridType.columnCount)
+            case .downArrow:  next = min(filteredPhotos.count - 1, cur + gridType.columnCount)
+            case .return:
+                let photos = getSelectedPhotosForBulkAction()
+                openPhotos(selectedPhotos.count > 1 ? filteredPhotos.filter { selectedPhotos.contains($0.id) } : photos)
+                return .handled
+            default:
+                return handleOtherKeys(keyPress, onToggleSidebar: onToggleSidebar)
         }
 
-        if next != cur { navigateToPhoto(at: next); scrollTo(filteredPhotos[next].id); return .handled }
+        if next != cur {
+            navigateToPhoto(at: next)
+            scrollTo(filteredPhotos[next].id)
+            return .handled
+        }
         return .ignored
     }
 
@@ -470,42 +521,63 @@ class ThumbGridViewModel: ObservableObject {
 
     // MARK: - Persistence
 
-    func saveSortOption() { appPrefs.set(sortOption.rawValue, forKey: .sortOption) }
+    func saveSortOption() {
+        appPrefs.set(sortOption.rawValue, forKey: .sortOption)
+    }
     func loadSortOption() {
         let saved = appPrefs.string(.sortOption)
         let migrated = saved == "Date Created" ? "Date Captured" : saved
-        if let opt = SortOption(rawValue: migrated) { sortOption = opt }
+        if let opt = SortOption(rawValue: migrated) {
+            sortOption = opt
+        }
     }
-    func saveGridType() { appPrefs.set(gridType.rawValue, forKey: .gridType) }
+    func saveGridType() {
+        appPrefs.set(gridType.rawValue, forKey: .gridType)
+    }
     func loadGridType() {
-        if let t = GridType(rawValue: appPrefs.string(.gridType)) { gridType = t }
+        if let t = GridType(rawValue: appPrefs.string(.gridType)) {
+            gridType = t
+        }
     }
-    func toggleGridType() { gridType = gridType == .small ? .large : .small; saveGridType() }
+    func toggleGridType() {
+        gridType = gridType == .small ? .large : .small
+        saveGridType()
+    }
 
     // MARK: - Duplicate Finding
 
     func findDuplicates() {
-        guard !isFindingDuplicates else { return }
+        guard !isFindingDuplicates else {
+            return
+        }
         let photosToScan = filteredPhotos
-        guard !photosToScan.isEmpty else { return }
+        guard !photosToScan.isEmpty else {
+            return
+        }
         isFindingDuplicates = true
         duplicateScanProgress = (0, photosToScan.count)
         duplicateScanResult = nil
         duplicateScanData = nil
 
         Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else { return }
+            guard let self else {
+                return
+            }
             while await self.cachingQueueCount > 0 {
                 try? await Task.sleep(nanoseconds: 300_000_000)
             }
             let data = await DuplicateFinderService.scan(
                 photos: photosToScan, thumbsManager: thumbsManager,
-                progress: { done, total in DispatchQueue.main.async { self.duplicateScanProgress = (done, total) } })
+                progress: { done, total in
+                    DispatchQueue.main.async {
+                        self.duplicateScanProgress = (done, total)
+                    }
+                })
             await MainActor.run {
                 self.duplicateScanData = data
                 if let data {
                     let result = data.recluster(threshold: self.similarityMode.distanceThreshold,
-                                               sortBy: self.photoSortComparator)
+                                                sortBy: self.photoSortComparator)
                     self.duplicateScanResult = result
                     RCLog("🔍 Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", data.scanDuration))s")
                 }
@@ -531,9 +603,5 @@ class ThumbGridViewModel: ObservableObject {
 
     func loadSimilarityMode() {
         similarityMode = DuplicateFinderService.SimilarityMode(rawValue: appPrefs.int(.similarityMode)) ?? .loose
-    }
-
-    func saveSimilarityMode() {
-        appPrefs.set(similarityMode.rawValue, forKey: .similarityMode)
     }
 }

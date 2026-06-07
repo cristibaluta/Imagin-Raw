@@ -496,6 +496,10 @@ extension FilesModel: FileSystemMonitorDelegate {
             lastDeletedFiles.removeAll()
             return
         }
+        if url.pathComponents.contains("Photos Library.photoslibrary") {
+            RCLog("Photos Library.photoslibrary changed, ignore it")
+            return
+        }
         // Find and refresh the affected folder in our tree
         refreshFolderTree(for: url)
 

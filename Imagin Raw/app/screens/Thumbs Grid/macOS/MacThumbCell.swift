@@ -37,7 +37,7 @@ final class MacThumbCell: NSCollectionViewItem {
     // State
     private(set) var currentPath: String?
     var currentPhoto: PhotoItem?
-    var callbacks: ThumbCellCallbacks?
+    var delegate: ThumbCellDelegate?
     private var theme: NSAppearance.Name?
     private var itemSize: CGFloat = 100
     private var currentImageSize: CGSize = .zero
@@ -223,7 +223,7 @@ final class MacThumbCell: NSCollectionViewItem {
                 let sv = MacStarRatingView()
                 sv.onRatingChanged = { [weak self] r in
                     guard let self, let p = self.currentPhoto else { return }
-                    self.callbacks?.onRatingChanged(p, r)
+                    self.delegate?.onRatingChanged(photo: p, rating: r)
                 }
                 view.addSubview(sv)
                 starView = sv
@@ -290,11 +290,11 @@ final class MacThumbCell: NSCollectionViewItem {
                    itemSize: CGFloat,
                    thumbsManager: ThumbsManager,
                    priority: ThumbnailRequest.Priority = .high,
-                   callbacks: ThumbCellCallbacks) {
+                   delegate: ThumbCellDelegate) {
 
         self.theme = theme ?? ((NSApp.keyWindow ?? NSApp.mainWindow)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) ?? .aqua)
         self.itemSize = itemSize
-        self.callbacks = callbacks
+        self.delegate = delegate
         self.thumbsManager = thumbsManager
 
         view.layer?.backgroundColor = cellBackgroundColor.cgColor
@@ -423,9 +423,9 @@ extension MacThumbCell {
             return
         }
         if event.clickCount == 1 {
-            callbacks?.onTap(photo, event.modifierFlags)
+            delegate?.onTap(photo: photo, modifiers: event.modifierFlags)
         } else if event.clickCount == 2 {
-            callbacks?.onDoubleClick(photo)
+            delegate?.onDoubleClick(photo: photo)
         }
     }
 }
