@@ -77,6 +77,9 @@ struct MacThumbGridView: NSViewRepresentable {
         cv.dataSource = c
         cv.delegate = c
         cv.prefetchDataSource = c
+        cv.registerForDraggedTypes([.URL])
+        cv.setDraggingSourceOperationMask(.every, forLocal: false)
+//        cv.setDraggingSourceOperationMask(.every, forLocal: true)
         cv.isSelectable = true
         cv.allowsMultipleSelection = true
         cv.backgroundColors = [NSColor.clear]

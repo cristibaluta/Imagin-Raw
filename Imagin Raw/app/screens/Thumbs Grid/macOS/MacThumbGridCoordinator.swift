@@ -23,6 +23,7 @@ class MacThumbGridCoordinator: NSObject {
     weak var scrollView: NSScrollView?
     var onVisibleSectionChanged: ((Int) -> Void)?
     var thumbsManager: ThumbsManager!
+    var lastClickedIndexPath: IndexPath?
 
     private var isScrolling = false
     private var scrollEndTimer: Timer?
@@ -102,7 +103,9 @@ class MacThumbGridCoordinator: NSObject {
             let ip = IndexPath(item: 0, section: section)
             guard let attrs = layout?.layoutAttributesForSupplementaryView(
                 ofKind: NSCollectionView.elementKindSectionHeader, at: ip) else { continue }
-            if attrs.frame.minY <= topY + 1 { activeSection = section }
+            if attrs.frame.minY <= topY + 1 {
+                activeSection = section
+            }
         }
         onVisibleSectionChanged?(activeSection)
     }
@@ -173,8 +176,7 @@ extension MacThumbGridCoordinator: NSCollectionViewDataSource {
     func collectionView(_ cv: NSCollectionView,
                         itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
 
-        let item = cv.makeItem(withIdentifier: MacThumbCell.identifier,
-                               for: indexPath) as! MacThumbCell
+        let item = cv.makeItem(withIdentifier: MacThumbCell.identifier, for: indexPath) as! MacThumbCell
 
         let photo = photosForSection(indexPath.section)[indexPath.item]
         let priority: ThumbnailRequest.Priority = isScrolling ? .low : .high
@@ -219,5 +221,75 @@ extension MacThumbGridCoordinator: NSCollectionViewDataSource {
 
 extension MacThumbGridCoordinator: NSCollectionViewDelegate {
 
+    func collectionView(_ collectionView: NSCollectionView, shouldSelectItemsAt indexPaths: Set<IndexPath>) -> Set<IndexPath> {
+
+        // 1. Get the current active mouse/keyboard event modifier keys
+        let currentEvent = NSApp.currentEvent
+        let isShiftPressed = currentEvent?.modifierFlags.contains(.shift) ?? false
+
+        // 2. If Shift is held down and we have a starting point anchor
+        if isShiftPressed, let startPath = lastClickedIndexPath, let endPath = indexPaths.first {
+
+            // Handle single-section ranges (assumes items are in section 0)
+            if startPath.section == endPath.section {
+                let startItem = startPath.item
+                let endItem = endPath.item
+
+                let minItem = min(startItem, endItem)
+                let maxItem = max(startItem, endItem)
+
+                // Construct a set containing EVERY index path in between the two clicks
+                var rangeIndexPaths = Set<IndexPath>()
+                for itemIndex in minItem...maxItem {
+                    rangeIndexPaths.insert(IndexPath(item: itemIndex, section: startPath.section))
+                }
+
+                // Manually select everything inside the range
+                collectionView.selectItems(at: rangeIndexPaths, scrollPosition: [])
+
+                // Return an empty set so AppKit doesn't override what we just did
+                return []
+            }
+        }
+
+        // 3. If it's a normal click (or Cmd+Click), treat the current item as the new anchor
+        if let singlePath = indexPaths.first {
+            lastClickedIndexPath = singlePath
+        }
+
+        return indexPaths
+    }
+
+    func collectionView(_ collectionView: NSCollectionView,
+                        canDragItemsAt indexPaths: Set<IndexPath>,
+                        with event: NSEvent) -> Bool {
+        return true
+    }
+
+    func collectionView(_ collectionView: NSCollectionView,
+                        pasteboardWriterForItemAt indexPath: IndexPath) -> NSPasteboardWriting? {
+        let photo = photosForSection(indexPath.section)[indexPath.item]
+        return photo.url as NSPasteboardWriting
+    }
+
+    func collectionView(_ collectionView: NSCollectionView,
+                        draggingSession session: NSDraggingSession,
+                        willBeginAt screenPoint: NSPoint,
+                        forItemsAt indexPaths: Set<IndexPath>) {
+        RCLog("start dragging \(indexPaths)")
+    }
+
+    func collectionView(_ collectionView: NSCollectionView,
+                        draggingSession session: NSDraggingSession,
+                        endedAt screenPoint: NSPoint,
+                        dragOperation operation: NSDragOperation) {
+        RCLog("ended dragging \(screenPoint) \(operation)")
+
+        if operation == .delete {
+            // Handle scenario where item was dragged to the Trash
+        } else if operation == .move {
+            // File was moved to another app, update your local UI if needed
+        }
+    }
 }
 #endif
