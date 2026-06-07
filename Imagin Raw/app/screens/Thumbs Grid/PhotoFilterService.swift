@@ -13,29 +13,14 @@ struct PhotoFilterService {
     // MARK: - Filter
 
     static func apply(labels: Set<String>, ratings: Set<Int>, to photos: [PhotoItem]) -> [PhotoItem] {
-        var result = photos
-
-        if !labels.isEmpty {
-            result = result.filter { photo in
-                if labels.contains("Rejected") && photo.toDelete {
-                    return true
-                }
-                let photoLabel = photo.xmp?.label ?? ""
-                if labels.contains("No Label") && photoLabel.isEmpty && !photo.toDelete {
-                    return true
-                }
-                return labels.contains(photoLabel) && !photo.toDelete
-            }
+        return photos.filter { photo in
+            let label = photo.xmp?.label ?? ""
+            let rating = photo.xmp?.rating.flatMap { $0 > 0 ? $0 : nil } ?? photo.inCameraRating ?? 0
+            return labels.contains(label) ||
+                    ratings.contains(rating) ||
+                    (labels.contains("Rejected") && photo.toDelete) ||
+                    (labels.contains("No Label") && label.isEmpty && !photo.toDelete)
         }
-
-        if !ratings.isEmpty {
-            result = result.filter { photo in
-                let r = photo.xmp?.rating.flatMap { $0 > 0 ? $0 : nil } ?? photo.inCameraRating ?? 0
-                return ratings.contains(r)
-            }
-        }
-
-        return result
     }
 
     // MARK: - Sort

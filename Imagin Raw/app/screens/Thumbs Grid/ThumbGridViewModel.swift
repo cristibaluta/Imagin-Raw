@@ -78,7 +78,7 @@ class ThumbGridViewModel: ObservableObject {
     private func setupServices() {
         metadataService.filesModel = filesModel
         metadataService.onPhotoUpdated = { [weak self] in
-            self?.updateFilteredPhotos()
+            self?.filterAndSortPhotos()
         }
         trashService.filesModel = filesModel
         trashService.thumbsManager = thumbsManager
@@ -88,7 +88,7 @@ class ThumbGridViewModel: ObservableObject {
         Publishers.CombineLatest4($selectedLabels, $selectedRatings, $sortOption, $isLoadingMetadata)
             .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.updateFilteredPhotos()
+                self?.filterAndSortPhotos()
             }
             .store(in: &cancellables)
     }
@@ -134,9 +134,8 @@ class ThumbGridViewModel: ObservableObject {
 
     // MARK: - Filtering
 
-    func updateFilteredPhotos() {
+    func filterAndSortPhotos() {
         let lastSelectedPhotoId = filesModel.selectedPhoto?.id
-        RCLog("lastSelectedPhotoId \(lastSelectedPhotoId)")
         var result = photos
 
         // Filter photos
@@ -145,8 +144,6 @@ class ThumbGridViewModel: ObservableObject {
         }
 
         if !photos.isEmpty && result.isEmpty {
-            selectedLabels.removeAll()
-            selectedRatings.removeAll()
             result = photos
         }
 
@@ -230,7 +227,7 @@ class ThumbGridViewModel: ObservableObject {
         newPhotosModel.$photos
             .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.updateFilteredPhotos()
+                self?.filterAndSortPhotos()
             }
             .store(in: &cancellables)
 
@@ -247,7 +244,7 @@ class ThumbGridViewModel: ObservableObject {
 
     func reloadMetadata(forSidecar url: URL) {
         photosModel?.reloadMetadata(forSidecar: url) { [weak self] in
-            self?.updateFilteredPhotos()
+            self?.filterAndSortPhotos()
         }
     }
 
@@ -255,12 +252,12 @@ class ThumbGridViewModel: ObservableObject {
         searchResultsPhotos = items
         selectedPhotos.removeAll()
         lastSelectedIndex = nil
-        updateFilteredPhotos()
+        filterAndSortPhotos()
     }
 
     func clearSearchResults() {
         searchResultsPhotos = nil
-        updateFilteredPhotos()
+        filterAndSortPhotos()
     }
 
     // MARK: - Selection
@@ -362,7 +359,7 @@ class ThumbGridViewModel: ObservableObject {
             : photos
         trashService.movePhotosToTrash(photosToDelete)
         selectedPhotos.removeAll()
-        updateFilteredPhotos()
+        filterAndSortPhotos()
 
         // 3. Find the next closest index after the photos were deleted
         if let index,  index < filteredAndSortedPhotos.count {
@@ -398,7 +395,7 @@ class ThumbGridViewModel: ObservableObject {
             case 125: key = .downArrow
             case 126: key = .upArrow
             case 36, 76: key = .return
-            case 49: key = KeyEquivalent(" ")
+            case 49: key = .space
             case 51: key = .delete
             default:
                 guard let first = chars.first else {
@@ -415,52 +412,100 @@ class ThumbGridViewModel: ObservableObject {
         var next = cur
 
         switch key {
-        case .leftArrow:  next = max(0, cur - 1)
-        case .rightArrow: next = min(filteredAndSortedPhotos.count - 1, cur + 1)
-        case .upArrow:    next = max(0, cur - gridType.columnCount)
-        case .downArrow:  next = min(filteredAndSortedPhotos.count - 1, cur + gridType.columnCount)
-        case .return:
-            let photos = getSelectedPhotosForBulkAction()
-            openPhotos(selectedPhotos.count > 1 ? filteredAndSortedPhotos.filter { selectedPhotos.contains($0.id) } : photos)
-            return true
-        case KeyEquivalent(" "):
-            let photos = getSelectedPhotosForBulkAction()
-            if !photos.isEmpty { onReviewSelected?(photos) }
-            return true
-        case .delete:
-            let photos = getSelectedPhotosForBulkAction()
-            if !photos.isEmpty {
-                event.modifierFlags.contains(.command) ? movePhotosToTrash(photos) : toggleDeleteState(for: photos)
-            }
-            return true
-        default:
-            let mods = event.modifierFlags
-            if mods.contains(.command) && chars == "a" {
-                selectAll()
+            case .leftArrow:  next = max(0, cur - 1)
+            case .rightArrow: next = min(filteredAndSortedPhotos.count - 1, cur + 1)
+            case .upArrow:    next = max(0, cur - gridType.columnCount)
+            case .downArrow:  next = min(filteredAndSortedPhotos.count - 1, cur + gridType.columnCount)
+            case .return:
+                let photos = getSelectedPhotosForBulkAction()
+                openPhotos(selectedPhotos.count > 1 ? filteredAndSortedPhotos.filter { selectedPhotos.contains($0.id) } : photos)
                 return true
-            }
-            if chars == "z" {
-                if mods.contains(.command) {
-                    undoLastTrash()
-                } else {
-                    NotificationCenter.default.post(name: .toggleZoom, object: nil)
+            case .space:
+                let photos = getSelectedPhotosForBulkAction()
+                if !photos.isEmpty {
+                    onReviewSelected?(photos)
                 }
                 return true
-            }
-            if chars == "c" || chars == "C" {
-                onToggleSidebar?()
+            case .delete:
+                let photos = getSelectedPhotosForBulkAction()
+                if !photos.isEmpty {
+                    event.modifierFlags.contains(.command) ? movePhotosToTrash(photos) : toggleDeleteState(for: photos)
+                }
                 return true
-            }
-            if chars == "g" || chars == "G" { toggleGridType(); return true }
-            let photos = getSelectedPhotosForBulkAction()
-            guard !photos.isEmpty else { return false }
-            if chars == "a" || chars == "A" { applyLabel("Approved", to: photos); return true }
-            if let r = Int(chars), r >= 1 && r <= 5 { applyRating(r, to: photos); return true }
-            if chars == "x" || chars == "X" { toggleDeleteState(for: photos); return true }
-            let labelMap = ["6": "Select", "7": "Second", "8": "Approved", "9": "Review", "0": "To Do"]
-            if let label = labelMap[chars] { applyLabel(label, to: photos); return true }
-            if chars == "-" { removeLabels(from: photos); return true }
-            return false
+            default:
+                let mods = event.modifierFlags
+                if mods.contains(.command) && chars == "a" {
+                    selectAll()
+                    return true
+                }
+                if chars == "z" {
+                    if mods.contains(.command) {
+                        undoLastTrash()
+                    } else {
+                        NotificationCenter.default.post(name: .toggleZoom, object: nil)
+                    }
+                    return true
+                }
+                if chars == "c" || chars == "C" {
+                    onToggleSidebar?()
+                    return true
+                }
+                if chars == "g" || chars == "G" {
+                    toggleGridType()
+                    return true
+                }
+
+                let photos = getSelectedPhotosForBulkAction()
+                if photos.isEmpty {
+                    return false
+                }
+
+                if chars == "a" || chars == "A" {
+                    applyLabel("Approved", to: photos)
+                    return true
+                }
+                if chars == "x" || chars == "X" {
+                    if mods.contains(.option) {
+                        if selectedLabels.contains("Rejected") {
+                            selectedLabels = []
+                        } else {
+                            selectedLabels = ["Rejected"]
+                        }
+                    } else {
+                        toggleDeleteState(for: photos)
+                    }
+                    return true
+                }
+                if let r = Int(chars), r >= 1 && r <= 5 {
+                    if mods.contains(.option) {
+                        if selectedRatings.contains(r) {
+                            selectedRatings.remove(r)
+                        } else {
+                            selectedRatings.insert(r)
+                        }
+                    } else {
+                        applyRating(r, to: photos)
+                    }
+                    return true
+                }
+                let labelMap = ["6": "Select", "7": "Second", "8": "Approved", "9": "Review", "0": "To Do"]
+                if let label = labelMap[chars] {
+                    if mods.contains(.option) {
+                        if selectedLabels.contains(label) {
+                            selectedLabels.remove(label)
+                        } else {
+                            selectedLabels.insert(label)
+                        }
+                    } else {
+                        applyLabel(label, to: photos)
+                    }
+                    return true
+                }
+                if chars == "-" {
+                    removeLabels(from: photos)
+                    return true
+                }
+                return false
         }
 
         if next != cur {
@@ -470,74 +515,6 @@ class ThumbGridViewModel: ObservableObject {
         }
         #endif
         return false
-    }
-
-    // Used by lazygridview. Deprecated
-    func handleKeyPress(_ keyPress: KeyPress,
-                        scrollTo: (UUID) -> Void,
-                        openPhotos: ([PhotoItem]) -> Void,
-                        onToggleSidebar: (() -> Void)?) -> KeyPress.Result {
-
-        if keyPress.key == KeyEquivalent("z") {
-            NotificationCenter.default.post(name: .toggleZoom, object: nil)
-            return .handled
-        }
-        guard !filteredAndSortedPhotos.isEmpty else {
-            return .ignored
-        }
-
-        let cur = filteredAndSortedPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
-        var next = cur
-
-        switch keyPress.key {
-            case .leftArrow:  next = max(0, cur - 1)
-            case .rightArrow: next = min(filteredAndSortedPhotos.count - 1, cur + 1)
-            case .upArrow:    next = max(0, cur - gridType.columnCount)
-            case .downArrow:  next = min(filteredAndSortedPhotos.count - 1, cur + gridType.columnCount)
-            case .return:
-                let photos = getSelectedPhotosForBulkAction()
-                openPhotos(selectedPhotos.count > 1 ? filteredAndSortedPhotos.filter { selectedPhotos.contains($0.id) } : photos)
-                return .handled
-            default:
-                return handleOtherKeys(keyPress, onToggleSidebar: onToggleSidebar)
-        }
-
-        if next != cur {
-            navigateToPhoto(at: next)
-            scrollTo(filteredAndSortedPhotos[next].id)
-            return .handled
-        }
-        return .ignored
-    }
-
-    private func handleOtherKeys(_ keyPress: KeyPress, onToggleSidebar: (() -> Void)?) -> KeyPress.Result {
-        let key = keyPress.characters
-        if key == "c" || key == "C" {
-            onToggleSidebar?()
-            return .handled
-        }
-        if key == "g" || key == "G" {
-            toggleGridType()
-            return .handled
-        }
-
-        let photos = getSelectedPhotosForBulkAction()
-        guard !photos.isEmpty else {
-            return .ignored
-        }
-
-        if keyPress.modifiers.contains(.command) && key == "a" { selectAll(); return .handled }
-        if keyPress.modifiers.contains(.command) && key == "z" { undoLastTrash(); return .handled }
-        if keyPress.modifiers.contains(.command) &&
-            (keyPress.key == .delete || key == "\u{7F}") { movePhotosToTrash(photos); return .handled }
-
-        if let r = Int(key), r >= 1 && r <= 5 { applyRating(r, to: photos); return .handled }
-        let labelMap = ["6": "Select", "7": "Second", "8": "Approved", "9": "Review", "0": "To Do"]
-        if let label = labelMap[key] { applyLabel(label, to: photos); return .handled }
-        if key == "-" { removeLabels(from: photos); return .handled }
-        if key == "x" || key == "X" { toggleDeleteState(for: photos); return .handled }
-        if key == "a" || key == "A" { applyLabel("Approved", to: photos); return .handled }
-        return .ignored
     }
 
     // MARK: - Persistence

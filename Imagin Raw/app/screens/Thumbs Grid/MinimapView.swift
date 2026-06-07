@@ -14,10 +14,14 @@ private final class TooltipWindow: NSPanel {
     private let label = NSTextField(labelWithString: "")
     private let bubbleView = TooltipBubbleView()
 
-    override init(contentRect: NSRect, styleMask: NSWindow.StyleMask,
-                  backing: NSWindow.BackingStoreType, defer flag: Bool) {
-        super.init(contentRect: contentRect, styleMask: [.nonactivatingPanel],
-                   backing: .buffered, defer: false)
+    override init(contentRect: NSRect,
+                  styleMask: NSWindow.StyleMask,
+                  backing: NSWindow.BackingStoreType,
+                  defer flag: Bool) {
+        super.init(contentRect: contentRect,
+                   styleMask: [.nonactivatingPanel],
+                   backing: .buffered,
+                   defer: false)
         isOpaque = false
         backgroundColor = .clear
         hasShadow = true

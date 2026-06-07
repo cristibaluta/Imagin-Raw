@@ -30,17 +30,13 @@ struct ShortcutsHelpView: View {
                 VStack(alignment: .leading) {
                     Text("1 - 5   Rating")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.primary)
                     Text("6 - 0   Labels")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.primary)
                     Text("-       Remove Label")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.primary)
                     Text(" ")
                     Text("A       Approve")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.primary)
                     Text("X       Reject")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 }
@@ -48,9 +44,17 @@ struct ShortcutsHelpView: View {
 
                 // col 2
                 VStack(alignment: .leading) {
-                    Text("Z       Zoom in/out")
+                    Text("⌥ 1 - 5 Filter by Rating")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("⌘ Del   Move to trash")
+                    Text("⌥ 6 - 0 Filter by Label")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    Text("⌥ X     Filter by Rejected")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    Text("⌘ Del   Move to Trash")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    Text("⌘ Z     Undo Move to Trash")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    Text("Z       Zoom in/out")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     Text("Space   Review mode")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))

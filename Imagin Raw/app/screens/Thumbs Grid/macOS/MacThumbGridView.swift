@@ -15,7 +15,9 @@ private final class MacKeyableCollectionView: NSCollectionView {
         true
     }
     override func keyDown(with event: NSEvent) {
-        if onKeyDown?(event) != true { super.keyDown(with: event) }
+        if onKeyDown?(event) != true {
+            super.keyDown(with: event)
+        }
     }
     // NSCollectionView handles Cmd+A via performKeyEquivalent (before keyDown),
     // which would update its internal selection model but bypass our viewModel.
@@ -134,7 +136,9 @@ struct MacThumbGridView: NSViewRepresentable {
         c.dateGroups = dateGroups
         c.sortOption = sortOption
         c.photosById = Dictionary(uniqueKeysWithValues: photos.map { ($0.path, $0) })
-        c.onKeyDown = { event in self.onKeyPress?(event) ?? false }
+        c.onKeyDown = { event in
+            self.onKeyPress?(event) ?? false
+        }
         c.thumbsManager = thumbsManager
 
         if modeChanged {

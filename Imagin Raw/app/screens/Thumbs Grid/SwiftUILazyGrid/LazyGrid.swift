@@ -36,20 +36,7 @@ struct PhotoGridView: View {
                 .focusable()
                 .focusEffectDisabled()
                 .focused($isFocused)
-                .onKeyPress { keyPress in
-                    viewModel.handleKeyPress(keyPress,
-                                             scrollTo: { photoId in
-                        Task {
-                            proxy.scrollTo(photoId, anchor: .center)
-                        }
-                    },
-                                             openPhotos: { photos in
-                        externalAppManager.openPhotos(photos)
-                    },
-                                             onToggleSidebar: {
-//                        onToggleSidebar?()
-                    })
-                }
+//                .onKeyPress { keyPress in }
                 .onAppear {
                     isFocused = true
                     viewModel.initializeSelection()
