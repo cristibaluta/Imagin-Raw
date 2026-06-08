@@ -48,7 +48,6 @@ struct ThumbGridView: View {
     let windowWidth: CGFloat
     @Binding var openSelectedPhotosCallback: (() -> Void)?
 
-    @State private var useCollectionView = true
     @State private var scrollToPhotoId: UUID? = nil
     @State private var scrollToCenteredPhotoId: UUID? = nil
     @State private var visibleSectionIndex: Int = 0
@@ -88,11 +87,13 @@ struct ThumbGridView: View {
         let _ = Self._printChanges()
         let showMinimap = !viewModel.dateGroups.isEmpty && !viewModel.isDuplicateMode
         VStack(spacing: 0) {
+            // Top line separator
             Rectangle()
                 .fill(Color.secondary.opacity(0.25))
                 .frame(height: 1)
 
             if viewModel.filteredAndSortedPhotos.isEmpty {
+                // No photos found
                 HStack(spacing: 0) {
                     EmptyStateView(viewModel: viewModel)
                         .padding(20)
@@ -101,23 +102,26 @@ struct ThumbGridView: View {
                         .frame(width: 1)
                 }
             } else {
+                // Photos
                 HStack(spacing: 0) {
+                    // Minimap
                     if showMinimap {
                         MinimapView(
                             groups: viewModel.dateGroups,
                             onScrollTo: { photoId in scrollToPhotoId = photoId },
                             visibleSectionIndex: visibleSectionIndex)
                     }
-                    if useCollectionView {
-                        collectionPhotoGridView
-                    } else {
-                        swiftUIPhotoGridView
-                    }
+
+                    // Grid
+                    collectionPhotoGridView
+
+                    // Separator to previews
                     Rectangle()
                         .fill(Color.secondary.opacity(0.25))
                         .frame(width: 1)
                 }
             }
+            // Bottom bar
             if !viewModel.photos.isEmpty {
                 Rectangle()
                     .fill(Color.secondary.opacity(0.25))

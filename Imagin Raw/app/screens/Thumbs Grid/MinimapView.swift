@@ -209,7 +209,7 @@ struct MinimapView: View {
 
     // Compact style constants
     private let circleSize: CGFloat = 8
-    private let circleSpacing: CGFloat = 6
+    private let circleSpacing: CGFloat = 2
 
     var body: some View {
         switch style {
@@ -233,7 +233,6 @@ struct MinimapView: View {
                 }
             }
             .frame(width: MinimapView.width - 10, alignment: .center)
-            .frame(maxHeight: .infinity, alignment: .top)
             .padding(.leading, 5)
         }
         .frame(width: MinimapView.width)
