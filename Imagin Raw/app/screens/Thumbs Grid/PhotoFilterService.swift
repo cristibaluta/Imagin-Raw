@@ -115,4 +115,15 @@ struct PhotoFilterService {
         }
         return result
     }
+
+    static func availableRatings(from photos: [PhotoItem]) -> [Int] {
+        var ratingSet = Set<Int>()
+        for photo in photos {
+            let rating = photo.effectiveRating
+            if rating > 0 {
+                ratingSet.insert(rating)
+            }
+        }
+        return Array(ratingSet)
+    }
 }

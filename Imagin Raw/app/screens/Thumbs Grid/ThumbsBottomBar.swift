@@ -106,7 +106,7 @@ struct ThumbsBottomBar: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.primary)
             }
-            .padding(4)
+            .padding(5)
             .buttonStyle(PlainButtonStyle())
             .popover(isPresented: $showFilterPopover) {
                 FilterPopoverView(selectedLabels: $viewModel.selectedLabels,
@@ -129,18 +129,20 @@ struct ThumbsBottomBar: View {
                 .help(label)
             }
 
-            Button(action: {
-                if viewModel.selectedRatings.isEmpty {
-                    viewModel.selectedRatings = [1, 2, 3, 4, 5]
-                } else {
-                    viewModel.selectedRatings = []
+            if viewModel.availableRatings.count > 0 {
+                Button(action: {
+                    if viewModel.selectedRatings.isEmpty {
+                        viewModel.selectedRatings = [1, 2, 3, 4, 5]
+                    } else {
+                        viewModel.selectedRatings = []
+                    }
+                }) {
+                    Image(systemName: viewModel.selectedRatings.isEmpty ? "star" : "star.fill")
+                        .font(.system(size: 12, weight: .medium))
                 }
-            }) {
-                Image(systemName: viewModel.selectedRatings.isEmpty ? "star" : "star.fill")
-                    .font(.system(size: 12, weight: .medium))
+                .buttonStyle(PlainButtonStyle())
+                .help("Filter by all ratings")
             }
-            .buttonStyle(PlainButtonStyle())
-            .help("Filter by all ratings")
 
             Spacer().frame(width: 4)
         }

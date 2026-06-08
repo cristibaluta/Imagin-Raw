@@ -101,6 +101,10 @@ class ThumbGridViewModel: ObservableObject {
         PhotoFilterService.availableLabels(from: photos)
     }
 
+    var availableRatings: [Int] {
+        PhotoFilterService.availableRatings(from: photos)
+    }
+
     var photoSortComparator: (PhotoItem, PhotoItem) -> Bool {
         PhotoFilterService.comparator(for: sortOption)
     }
