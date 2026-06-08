@@ -30,6 +30,7 @@ There is also an iOS version in the works that is supposed to greatly simplify t
 ## Bridge advantages over Imagin Raw
 - Previews have the Camera Raw editings applied to them. This is not possible to implement since it uses the ACR engine. Might be possible to do basic adjustments and crop, will look into it
 
+## Screenshots
 ![Filtered Thumbnails](screenshots/filtered-thumbs.jpeg)
 ![Thumbnail Grid](screenshots/large-thumbs.jpeg)
 ![Thumbnail Grid](screenshots/sidebar-closed-1.jpeg)
