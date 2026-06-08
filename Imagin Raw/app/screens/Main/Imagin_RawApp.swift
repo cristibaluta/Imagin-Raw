@@ -32,6 +32,12 @@ struct ImaginRawApp: App {
         }
     }
 
+    init() {
+        #if !DEBUG
+        disableTraces()
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

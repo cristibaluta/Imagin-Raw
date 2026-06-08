@@ -84,7 +84,9 @@ struct ThumbGridView: View {
     }
 
     var body: some View {
+        #if DEBUG
         let _ = Self._printChanges()
+        #endif
         let showMinimap = !viewModel.dateGroups.isEmpty && !viewModel.isDuplicateMode
         VStack(spacing: 0) {
             // Top line separator
