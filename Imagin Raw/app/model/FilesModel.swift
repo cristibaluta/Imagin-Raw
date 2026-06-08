@@ -72,6 +72,7 @@ final class FilesModel: ObservableObject {
     func addFolder(at url: URL) {
         // Check if folder already exists in allFolderBookmarks
         if allFolderBookmarks.contains(where: { $0.url.path == url.path }) {
+            RCLog("Folder already exists \(url)")
             return
         }
 

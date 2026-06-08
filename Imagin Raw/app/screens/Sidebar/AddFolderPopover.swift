@@ -47,7 +47,7 @@ struct AddFolderPopover: View {
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.primary)
 
-                    Text("External drives and network volumes")
+                    Text("External drives and SD cards")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
