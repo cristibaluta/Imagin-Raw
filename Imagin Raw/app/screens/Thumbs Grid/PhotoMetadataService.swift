@@ -167,7 +167,8 @@ class PhotoMetadataService {
                                             fileSizeBytes: cur.fileSizeBytes,
                                             width: cur.width,
                                             height: cur.height,
-                                            cameraMake: cur.cameraMake, cameraModel: cur.cameraModel)
+                                            cameraMake: cur.cameraMake,
+                                            cameraModel: cur.cameraModel)
         filesModel?.selectedPhoto = photosModel.photos[idx]
         onPhotoUpdated?()
     }
@@ -186,9 +187,13 @@ class PhotoMetadataService {
                                             hasJPG: cur.hasJPG,
                                             hasXMP: cur.hasXMP,
                                             xmp: xmpMetadata,
-                                            inCameraRating: cur.inCameraRating, isRawFile: cur.isRawFile,
-                                            fileSizeBytes: cur.fileSizeBytes, width: cur.width, height: cur.height,
-                                            cameraMake: cur.cameraMake, cameraModel: cur.cameraModel)
+                                            inCameraRating: cur.inCameraRating,
+                                            isRawFile: cur.isRawFile,
+                                            fileSizeBytes: cur.fileSizeBytes,
+                                            width: cur.width,
+                                            height: cur.height,
+                                            cameraMake: cur.cameraMake,
+                                            cameraModel: cur.cameraModel)
         filesModel?.selectedPhoto = photosModel.photos[idx]
         onPhotoUpdated?()
     }
@@ -197,10 +202,20 @@ class PhotoMetadataService {
 
     private func xmpUpdating(_ photo: PhotoItem, rating: Int?, label: String?) -> XmpMetadata {
         let e = photo.xmp
-        return XmpMetadata(label: label, rating: rating, creator: e?.creator, rights: e?.rights,
-                           createDate: e?.createDate, modifyDate: e?.modifyDate, cameraModel: e?.cameraModel,
-                           lens: e?.lens, focalLength: e?.focalLength, aperture: e?.aperture,
-                           shutterSpeed: e?.shutterSpeed, iso: e?.iso, exposureBias: e?.exposureBias)
+        return XmpMetadata(label: label,
+                           rating: rating,
+                           creator: e?.creator,
+                           rights: e?.rights,
+                           createDate: e?.createDate,
+                           modifyDate: e?.modifyDate,
+                           cameraModel: e?.cameraModel,
+                           lens: e?.lens,
+                           focalLength: e?.focalLength,
+                           aperture: e?.aperture,
+                           shutterSpeed: e?.shutterSpeed,
+                           iso: e?.iso,
+                           exposureBias: e?.exposureBias,
+                           hasEdits: e?.hasEdits ?? false)
     }
 
     private func updateXmpLabel(in xmpContent: String, newLabel: String?) -> String {

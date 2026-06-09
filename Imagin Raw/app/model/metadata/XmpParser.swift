@@ -21,6 +21,7 @@ struct XmpMetadata: Equatable, Hashable {
     let shutterSpeed: String?
     let iso: String?
     let exposureBias: String?
+    let hasEdits: Bool
 }
 
 #if os(macOS)
@@ -75,7 +76,8 @@ class XmpParser {
             aperture: attributes["exif:FNumber"],
             shutterSpeed: attributes["exif:ExposureTime"],
             iso: extractISOValue(from: xmpContent),
-            exposureBias: attributes["exif:ExposureBiasValue"]
+            exposureBias: attributes["exif:ExposureBiasValue"],
+            hasEdits: xmpContent.contains("crs:")
         )
     }
 

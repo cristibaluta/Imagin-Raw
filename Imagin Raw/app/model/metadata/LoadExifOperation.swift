@@ -70,7 +70,8 @@ final class LoadExifOperation: Operation, @unchecked Sendable {
                                   aperture: nil,
                                   shutterSpeed: nil,
                                   iso: nil,
-                                  exposureBias: nil)
+                                  exposureBias: nil,
+                                  hasEdits: false)
             }
         }
         // Capture date priority:

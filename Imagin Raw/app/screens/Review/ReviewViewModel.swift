@@ -112,7 +112,8 @@ class ReviewViewModel: ObservableObject {
                                      aperture: oldXmp?.aperture,
                                      shutterSpeed: oldXmp?.shutterSpeed,
                                      iso: oldXmp?.iso,
-                                     exposureBias: oldXmp?.exposureBias)
+                                     exposureBias: oldXmp?.exposureBias,
+                                     hasEdits: oldXmp?.hasEdits ?? false)
             return PhotoItem(id: p.id,
                              url: p.url,
                              path: p.path,
@@ -149,7 +150,8 @@ class ReviewViewModel: ObservableObject {
                                      aperture: oldXmp?.aperture,
                                      shutterSpeed: oldXmp?.shutterSpeed,
                                      iso: oldXmp?.iso,
-                                     exposureBias: oldXmp?.exposureBias)
+                                     exposureBias: oldXmp?.exposureBias,
+                                     hasEdits: oldXmp?.hasEdits ?? false)
             return PhotoItem(id: p.id,
                              url: p.url,
                              path: p.path,

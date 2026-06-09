@@ -327,7 +327,7 @@ final class MacThumbCell: NSCollectionViewItem {
         updateSelection(isSelected: isSelected)
         trashContainer.isHidden = !photo.toDelete
 
-        let showACR = photo.hasACR
+        let showACR = photo.hasACR || (photo.xmp?.hasEdits ?? false)
         let showJPG = photo.isRawFile && photo.hasJPG
         acrBadgeContainer.isHidden = !showACR
         jpgBadgeContainer.isHidden = !showJPG
