@@ -29,9 +29,10 @@ enum FilesExtensions {
         "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"
     ]
 
+    /// This are the type of images used by cameras along the raw
     static let jpg: Set<String> = ["jpg", "jpeg", "heic"]
 
-    static let other: Set<String> = ["png", "tiff", "tif", "psd", "psb"]
+    static let other: Set<String> = ["png", "webp", "tiff", "tif", "psd", "psb"]
 
     static let video: Set<String> = ["mp4", "mov", "m4v", "avi", "mkv", "hevc"]
 
