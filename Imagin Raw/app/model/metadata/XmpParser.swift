@@ -44,9 +44,9 @@ class XmpParser {
             xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
            xmp:Rating="0"
            xmp:CreatorTool=""
-           xmp:ModifyDate="2025-11-02T13:35:36+03:00"
-           xmp:CreateDate="2025-11-02T13:35:36+03:00"
-           xmp:MetadataDate="2026-02-02T00:43:19+02:00"
+           xmp:ModifyDate="2020-01-01T10:00:00+03:00"
+           xmp:CreateDate="2020-01-01T10:00:00+03:00"
+           xmp:MetadataDate="2020-01-01T10:00:00+03:00"
            xmp:Label="">
           </rdf:Description>
          </rdf:RDF>
@@ -81,11 +81,6 @@ class XmpParser {
         )
     }
 
-    /// Extract the xmp:Label value specifically
-    static func extractLabel(from xmpContent: String) -> String? {
-        return extractDescriptionAttributes(from: xmpContent)["xmp:Label"]
-    }
-
     /// Extract the xmp:Rating value specifically
     static func extractRating(from xmpContent: String) -> Int? {
         return Int(extractDescriptionAttributes(from: xmpContent)["xmp:Rating"] ?? "0")
@@ -95,6 +90,11 @@ class XmpParser {
     static func updateRating(in xmpContent: String, rating: Int) -> String {
         // Always set the rating value (0-5), don't remove the attribute
         return updateXmpAttributeXML(in: xmpContent, attribute: "xmp:Rating", value: "\(rating)")
+    }
+
+    /// Extract the xmp:Label value specifically
+    static func extractLabel(from xmpContent: String) -> String? {
+        return extractDescriptionAttributes(from: xmpContent)["xmp:Label"]
     }
 
     /// Update or set the label in XMP content
@@ -122,12 +122,9 @@ class XmpParser {
         }
 
         // Update xmp:MetadataDate with current date
-        let currentDate = Date()
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = [.withInternetDateTime, .withTimeZone, .withColonSeparatorInTimeZone]
-        dateFormatter.timeZone = TimeZone.current
-        let currentDateString = dateFormatter.string(from: currentDate)
-        content = updateXmpAttributeXML(in: content, attribute: "xmp:MetadataDate", value: currentDateString)
+        content = updateXmpAttributeXML(in: content, attribute: "xmp:CreateDate", value: nowDate)
+        content = updateXmpAttributeXML(in: content, attribute: "xmp:ModifyDate", value: nowDate)
+        content = updateXmpAttributeXML(in: content, attribute: "xmp:MetadataDate", value: nowDate)
 
         return content
     }
@@ -309,18 +306,38 @@ class XmpParser {
         }
     }
 
-    /// Helper method to update MetadataDate
-    private static func updateMetadataDate(in element: XMLElement) {
+    private static var nowDate: String {
         let currentDate = Date()
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withTimeZone, .withColonSeparatorInTimeZone]
         dateFormatter.timeZone = TimeZone.current
-        let currentDateString = dateFormatter.string(from: currentDate)
+        return dateFormatter.string(from: currentDate)
+    }
 
+    /// Helper method to update MetadataDate
+    private static func updateCreateDate(in element: XMLElement) {
+        if let _ = element.attribute(forName: "xmp:CreateDate") {
+            element.removeAttribute(forName: "xmp:CreateDate")
+        }
+        let metadataAttribute = XMLNode.attribute(withName: "xmp:CreateDate", stringValue: nowDate) as! XMLNode
+        element.addAttribute(metadataAttribute)
+    }
+
+    /// Helper method to update MetadataDate
+    private static func updateModifyDate(in element: XMLElement) {
+        if let _ = element.attribute(forName: "xmp:ModifyDate") {
+            element.removeAttribute(forName: "xmp:ModifyDate")
+        }
+        let metadataAttribute = XMLNode.attribute(withName: "xmp:ModifyDate", stringValue: nowDate) as! XMLNode
+        element.addAttribute(metadataAttribute)
+    }
+
+    /// Helper method to update MetadataDate
+    private static func updateMetadataDate(in element: XMLElement) {
         if let _ = element.attribute(forName: "xmp:MetadataDate") {
             element.removeAttribute(forName: "xmp:MetadataDate")
         }
-        let metadataAttribute = XMLNode.attribute(withName: "xmp:MetadataDate", stringValue: currentDateString) as! XMLNode
+        let metadataAttribute = XMLNode.attribute(withName: "xmp:MetadataDate", stringValue: nowDate) as! XMLNode
         element.addAttribute(metadataAttribute)
     }
 
