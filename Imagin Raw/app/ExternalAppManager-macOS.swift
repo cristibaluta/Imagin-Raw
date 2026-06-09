@@ -46,16 +46,17 @@ class ExternalAppManager: ObservableObject {
 
             // Keywords to identify photo editing applications
             let photoKeywords = [
-                "lightroom", "photoshop", "After-Effects", "Premiere-Pro",
+                "photo", "lightroom", "photoshop", "After-Effects", "Premiere-Pro",
                 "com.dxo", "captureone", "photoraw", "darktable",
                 ".luminar", "affinity", "pixelmator", "gimp", "sketch", "canva",
-                ".on1.", "topaz", "nik", "hdr", "panorama", "preview", "com.apple.Photos"
+                ".on1.", "topaz", "nik", "hdr", "panorama", "preview"
             ]
 
             // Bundle IDs to ignore from the photo apps list
             let ignoredApps = [
                 "com.apple.PreviewShell",
-                "com.apple.PreviewShellMac"
+                "com.apple.PreviewShellMac",
+                "com.apple.PhotoBooth"
             ]
 
             var apps: [PhotoApp] = []
