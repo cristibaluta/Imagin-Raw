@@ -26,49 +26,54 @@ struct ExifBarView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            HStack {
-                // Aperture
-                if let aperture = exifInfo.aperture {
-                    exifItem(label: "ƒ/\(String(format: "%.1f", aperture))")
+            if exifInfo.aperture != nil || shutterText != nil || exifInfo.iso != nil || exifInfo.focalLength != nil {
+                HStack {
+                    // Aperture
+                    if let aperture = exifInfo.aperture {
+                        exifItem(label: "ƒ/\(String(format: "%.1f", aperture))")
+                    }
+                    // Shutter
+                    if let shutter = shutterText {
+                        exifItem(label: shutter)
+                    }
+                    // ISO
+                    if let iso = exifInfo.iso {
+                        exifItem(label: "ISO \(iso)")
+                    }
+                    // Focal length
+                    if let focal = exifInfo.focalLength {
+                        divider
+                        exifItem(label: "\(String(format: "%.0f", focal))mm")
+                    }
                 }
-                // Shutter
-                if let shutter = shutterText {
-                    exifItem(label: shutter)
-                }
-                // ISO
-                if let iso = exifInfo.iso {
-                    exifItem(label: "ISO \(iso)")
-                }
-                // Focal length
-                if let focal = exifInfo.focalLength {
-                    exifItem(label: "\(String(format: "%.0f", focal))mm")
-                }
+                .padding(4)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                )
+                .padding(.horizontal, 8)
             }
-            .padding(4)
-            .overlay(
-                RoundedRectangle(cornerRadius: 3)
-                    .stroke(Color.gray.opacity(0.5), lineWidth: 1)
-            )
-            .padding(.horizontal, 8)
 
-            HStack {
-                // Camera
-                if let model = exifInfo.cameraModel {
-                    let make = exifInfo.cameraMake ?? ""
-                    exifItem(label: "\(make) \(model)".trimmingCharacters(in: .whitespaces))
+            if exifInfo.cameraModel != nil || exifInfo.lensModel != nil {
+                HStack {
+                    // Camera
+                    if let model = exifInfo.cameraModel {
+                        let make = exifInfo.cameraMake ?? ""
+                        exifItem(label: "\(make) \(model)".trimmingCharacters(in: .whitespaces))
+                    }
+                    // Lens
+                    if let lens = exifInfo.lensModel {
+                        divider
+                        exifItem(label: lens)
+                    }
                 }
-                divider
-                // Lens
-                if let lens = exifInfo.lensModel {
-                    exifItem(label: lens)
-                }
+                .padding(4)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                )
+                .padding(.horizontal, 8)
             }
-            .padding(4)
-            .overlay(
-                RoundedRectangle(cornerRadius: 3)
-                    .stroke(Color.gray.opacity(0.5), lineWidth: 1)
-            )
-            .padding(.horizontal, 8)
 
             // File size
             if let size = fileSize {
