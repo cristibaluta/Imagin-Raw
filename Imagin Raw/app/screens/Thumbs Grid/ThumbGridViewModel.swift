@@ -97,6 +97,12 @@ class ThumbGridViewModel: ObservableObject {
         searchResultsPhotos ?? photosModel?.photos ?? []
     }
 
+    var photosSize: Int64 {
+        photos.reduce(into: 0) { result, photo in
+            result += photo.fileSizeBytes ?? 0
+        }
+    }
+
     var availableLabels: [String] {
         PhotoFilterService.availableLabels(from: photos)
     }

@@ -193,7 +193,7 @@ struct ThumbsBottomBar: View {
                 Text("\(viewModel.filteredAndSortedPhotos.count) of \(viewModel.photos.count) photos")
                     .foregroundColor(.secondary)
             } else {
-                Text("\(viewModel.photos.count) photos")
+                Text("\(viewModel.photos.count) photos \(ByteCountFormatter.string(fromByteCount: viewModel.photosSize, countStyle: .file))")
                     .foregroundColor(.secondary)
             }
         }
