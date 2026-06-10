@@ -148,7 +148,7 @@ struct ContentView: View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             // Left sidebar: folders
             sidebarView
-                .navigationSplitViewColumnWidth(min: 200, ideal: 200, max: 250)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 200, max: 200)
         } content: {
             // Middle: thumbnails
             thumbGridView

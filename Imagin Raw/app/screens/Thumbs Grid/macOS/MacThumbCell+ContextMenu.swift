@@ -38,7 +38,7 @@ extension MacThumbCell {
 
         // Rate submenu
         let rateItem = NSMenuItem(title: "Rate", action: nil, keyEquivalent: "")
-        rateItem.image = NSImage(systemSymbolName: "star", accessibilityDescription: nil)
+//        rateItem.image = NSImage(systemSymbolName: "star", accessibilityDescription: nil)
         if !supportsMetadata { rateItem.isEnabled = false }
         let rateMenu = NSMenu()
         for i in 0...5 {
@@ -56,7 +56,7 @@ extension MacThumbCell {
 
         // Label submenu
         let labelItem = NSMenuItem(title: "Label", action: nil, keyEquivalent: "")
-        labelItem.image = NSImage(systemSymbolName: "tag", accessibilityDescription: nil)
+//        labelItem.image = NSImage(systemSymbolName: "tag", accessibilityDescription: nil)
         if !supportsMetadata { labelItem.isEnabled = false }
         let labelMenu = NSMenu()
         let labels: [(name: String, key: String)] = [
@@ -102,13 +102,13 @@ extension MacThumbCell {
 
         menu.addItem(.separator())
         let finder = NSMenuItem(title: "Show in Finder", action: #selector(handleShowInFinder), keyEquivalent: "")
-        finder.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
+//        finder.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
         menu.addItem(finder)
 
         // Open with submenu
         if let apps = delegate?.discoveredPhotoApps(), !apps.isEmpty {
             let openWithItem = NSMenuItem(title: "Open with", action: nil, keyEquivalent: "")
-            openWithItem.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
+//            openWithItem.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
             let openWithMenu = NSMenu()
             for app in apps {
                 let appItem = NSMenuItem(title: app.displayName, action: #selector(handleOpenWithApp(_:)), keyEquivalent: "")
@@ -122,10 +122,10 @@ extension MacThumbCell {
         }
 
         let copy = NSMenuItem(title: "Copy to...", action: #selector(handleCopyTo), keyEquivalent: "")
-        copy.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
+//        copy.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
         menu.addItem(copy)
-        let rename = NSMenuItem(title: "Rename...", action: #selector(handleRenameTo), keyEquivalent: "")
-        rename.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: nil)
+        let rename = NSMenuItem(title: "Batch Rename...", action: #selector(handleRenameTo), keyEquivalent: "")
+//        rename.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: nil)
         menu.addItem(rename)
 
         menu.addItem(.separator())

@@ -9,6 +9,7 @@ import Combine
 #if os(macOS)
 import AppKit
 
+@MainActor
 protocol FileSystemMonitorDelegate: AnyObject {
     func folderContentsDidChange(at url: URL)
     func photoMetadataDidChange(forPhotoAt url: URL)
@@ -76,7 +77,7 @@ class FileSystemMonitor {
             .debounce(for: .seconds(2), scheduler: DispatchQueue.main)
             .sink { [weak self] url in
                 Task {
-                    self?.delegate?.folderContentsDidChange(at: url)
+                    await self?.delegate?.folderContentsDidChange(at: url)
                 }
             }
             .store(in: &cancellables)
@@ -85,7 +86,7 @@ class FileSystemMonitor {
             .debounce(for: .seconds(2), scheduler: DispatchQueue.main)
             .sink { [weak self] url in
                 Task {
-                    self?.delegate?.photoMetadataDidChange(forPhotoAt: url)
+                    await self?.delegate?.photoMetadataDidChange(forPhotoAt: url)
                 }
             }
             .store(in: &cancellables)
