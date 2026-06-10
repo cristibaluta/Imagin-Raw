@@ -13,6 +13,8 @@ class ExternalAppManager: ObservableObject {
     @Published var discoveredPhotoApps: [PhotoApp] = []
     @Published var selectedApp: PhotoApp?
 
+    func openPhotos(_ photos: [PhotoItem], with app: PhotoApp) {
+    }
     func openPhotos(_ photos: [PhotoItem]) {
     }
     func saveSelectedApp(_ app: PhotoApp?) {

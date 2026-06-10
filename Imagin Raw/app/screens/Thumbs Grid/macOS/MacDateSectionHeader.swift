@@ -5,6 +5,7 @@
 //  Created by Cristian Baluta on 05/06/2026.
 //
 
+#if os(macOS)
 import AppKit
 
 final class MacDateSectionHeader: NSView, NSCollectionViewElement {
@@ -34,3 +35,4 @@ final class MacDateSectionHeader: NSView, NSCollectionViewElement {
                              height: label.frame.height)
     }
 }
+#endif

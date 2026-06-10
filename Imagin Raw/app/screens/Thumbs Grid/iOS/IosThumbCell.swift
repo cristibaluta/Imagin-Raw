@@ -5,7 +5,6 @@
 //  UICollectionViewCell equivalent of ThumbCollectionItem for iOS.
 //
 
-import Foundation
 #if os(iOS)
 import UIKit
 
@@ -27,7 +26,7 @@ final class IosThumbCell: UICollectionViewCell {
     // MARK: - State
     private(set) var currentPath: String?
     private var currentPhoto: PhotoItem?
-    private var callbacks: ThumbCellCallbacks?
+    private var delegate: ThumbCellDelegate?
     private var itemSize: CGFloat = 100
     private var isSelectMode: Bool = false
     private weak var thumbsManager: ThumbsManager!
@@ -171,8 +170,8 @@ final class IosThumbCell: UICollectionViewCell {
                    itemSize: CGFloat,
                    thumbsManager: ThumbsManager,
                    priority: ThumbnailRequest.Priority = .high,
-                   callbacks: ThumbCellCallbacks) {
-        self.callbacks = callbacks
+                   delegate: ThumbCellDelegate) {
+        self.delegate = delegate
         self.itemSize = itemSize
         self.thumbsManager = thumbsManager
         self.isSelectMode = isSelectMode
@@ -233,24 +232,32 @@ final class IosThumbCell: UICollectionViewCell {
     }
 
     @objc private func starTapped(_ sender: UIButton) {
-        guard let photo = currentPhoto else { return }
-        callbacks?.onRatingChanged(photo, sender.tag)
+        guard let currentPhoto else {
+            return
+        }
+        delegate?.onRatingChanged(photo: currentPhoto, rating: sender.tag)
     }
 
     // MARK: - Gestures
 
     @objc private func handleTap(_ g: UITapGestureRecognizer) {
-        guard let photo = currentPhoto else { return }
-        callbacks?.onTap(photo, .none)
+        guard let currentPhoto else {
+            return
+        }
+        delegate?.onTap(photo: currentPhoto, modifiers: .none)
     }
 
     @objc private func handleDoubleTap(_ g: UITapGestureRecognizer) {
-        guard let photo = currentPhoto else { return }
-        callbacks?.onDoubleClick(photo)
+        guard let currentPhoto else {
+            return
+        }
+        delegate?.onDoubleClick(photo: currentPhoto)
     }
 
     @objc private func handleLongPress(_ g: UILongPressGestureRecognizer) {
-        guard g.state == .began, let photo = currentPhoto else { return }
+        guard g.state == .began, let photo = currentPhoto else {
+            return
+        }
         showContextMenu(for: photo, sourceView: contentView)
     }
 
@@ -260,7 +267,7 @@ final class IosThumbCell: UICollectionViewCell {
         let sheet = UIAlertController(title: URL(fileURLWithPath: photo.path).lastPathComponent,
                                       message: nil, preferredStyle: .actionSheet)
         sheet.addAction(UIAlertAction(title: "Review Photos", style: .default) { [weak self] _ in
-            self?.callbacks?.onReviewSelected(photo)
+            self?.delegate?.onReviewSelected(photo: photo)
         })
         sheet.addAction(UIAlertAction(title: "Select from here", style: .default) { [weak self] _ in
             self?.onSelectFromHere?()
@@ -271,17 +278,19 @@ final class IosThumbCell: UICollectionViewCell {
             })
         }
         sheet.addAction(UIAlertAction(title: "Copy to...", style: .default) { [weak self] _ in
-            self?.callbacks?.onCopyTo(photo)
+            self?.delegate?.onCopyTo(photo: photo)
         })
         sheet.addAction(UIAlertAction(title: "Rename...", style: .default) { [weak self] _ in
-            self?.callbacks?.onRenameTo(photo)
+            self?.delegate?.onRenameTo(photo: photo)
         })
         sheet.addAction(UIAlertAction(title: "Move to Trash", style: .destructive) { [weak self] _ in
-            self?.callbacks?.onMoveToTrash(photo)
+            self?.delegate?.onMoveToTrash(photo: photo)
         })
-        if photo.toDelete, let info = callbacks?.onMoveAllMarkedToTrash(photo) {
-            sheet.addAction(UIAlertAction(title: "Move to Trash all Rejected Photos (\(info.count))",
-                                          style: .destructive) { _ in info.action() })
+        if photo.toDelete, let count = delegate?.markedForDeletionCount(), count > 0 {
+            sheet.addAction(UIAlertAction(title: "Move to Trash all Rejected Photos (\(count))",
+                                          style: .destructive) { [weak self] _ in
+                self?.delegate?.onMoveAllMarkedToTrash(photo: photo)
+            })
         }
         sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
 

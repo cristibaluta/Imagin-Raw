@@ -74,15 +74,15 @@ struct PreviewView: View {
         .onChange(of: showAFPoint) { _, newVal in
             appPrefs.set(newVal, forKey: .showAFPoint)
         }
-        .sheet(isPresented: $showEditPanel) {
-            if let preview = model.preview {
-                PerspectiveCorrectionView(image: preview) { corrected in
-                    showEditPanel = false
-                    // TODO: store corrected image for export
-                }
-                .frame(minWidth: 700, minHeight: 500)
-            }
-        }
+//        .sheet(isPresented: $showEditPanel) {
+//            if let preview = model.preview {
+//                PerspectiveCorrectionView(image: preview) { corrected in
+//                    showEditPanel = false
+//                    // TODO: store corrected image for export
+//                }
+//                .frame(minWidth: 700, minHeight: 500)
+//            }
+//        }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
             gridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
         }
@@ -258,7 +258,7 @@ struct PreviewView: View {
 }
 
 struct FocusPointOverlay: View {
-    let nsImage: NSImage
+    let nsImage: IRImage
     let focusResult: OlympusAFPoint?
 
     var body: some View {

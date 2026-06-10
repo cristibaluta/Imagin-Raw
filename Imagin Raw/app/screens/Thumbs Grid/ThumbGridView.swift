@@ -250,7 +250,6 @@ struct ThumbGridView: View {
         .onAppear {
             viewModel.initializeSelection()
         }
-        #if os(macOS)
         .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
             if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
 //                filesModel.selectedPhoto = newPhotos.first
@@ -265,7 +264,6 @@ struct ThumbGridView: View {
                 scrollToPhotoId = first.id
             }
         }
-        #endif
         .onChange(of: viewModel.isLoadingMetadata) { oldValue, newValue in
             if oldValue == true && newValue == false {
                 viewModel.clearInvalidFilters()
@@ -273,13 +271,13 @@ struct ThumbGridView: View {
         }
         #elseif os(iOS)
         IosThumbGridView(
+            delegate: self,
             photos: viewModel.filteredAndSortedPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,
             columnCount: viewModel.gridType.columnCount,
             selectedPhotos: viewModel.selectedPhotos,
             isSelectMode: isSelectMode,
-            delegate: self,
             onSelectToggle: {_ in },
             onNavigate: { photo in
 
@@ -292,7 +290,6 @@ struct ThumbGridView: View {
             dateGroups: viewModel.dateGroups,
             sortOption: viewModel.sortOption,
             scrollToPhotoId: $scrollToPhotoId,
-            scrollToCenteredPhotoId: $scrollToCenteredPhotoId,
             visibleSectionIndex: $visibleSectionIndex,
             thumbsManager: viewModel.thumbsManager,
             isLoadingMetadata: viewModel.isLoadingMetadata,
@@ -327,10 +324,6 @@ struct ThumbGridView: View {
             }
         }
         #endif
-    }
-
-    private var swiftUIPhotoGridView: some View {
-        PhotoGridView(viewModel: viewModel)
     }
 
     private func buildReviewGroupItem(group: DuplicateGroup, index: Int) -> ReviewGroupItem {

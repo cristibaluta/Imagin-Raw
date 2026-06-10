@@ -5,11 +5,9 @@
 //  UICollectionView-based photo grid for iOS — mirrors CollectionThumbGridView (macOS).
 //
 
-import SwiftUI
 #if os(iOS)
 import UIKit
-
-// MARK: - Section Header (Duplicate Groups)
+import SwiftUI
 
 final class IosDuplicateSectionHeader: UICollectionReusableView {
     static let identifier = "IosDuplicateSectionHeader"
@@ -61,8 +59,6 @@ final class IosDuplicateSectionHeader: UICollectionReusableView {
     }
 }
 
-// MARK: - Section Header (Date Groups)
-
 final class IosDateSectionHeader: UICollectionReusableView {
     static let identifier = "IosDateSectionHeader"
 
@@ -87,16 +83,14 @@ final class IosDateSectionHeader: UICollectionReusableView {
     }
 }
 
-// MARK: - SwiftUI Wrapper
-
 struct IosThumbGridView: UIViewRepresentable {
+    let delegate: ThumbCellDelegate
     let photos: [PhotoItem]
     let itemSize: CGFloat
     let cellHeight: CGFloat
     let columnCount: Int
     let selectedPhotos: Set<UUID>
     let isSelectMode: Bool
-    let callbacks: ThumbCellCallbacks
     /// Tap in select mode — toggles selection, never navigates.
     let onSelectToggle: (PhotoItem) -> Void
     /// Tap in normal mode — navigates to preview.
@@ -117,7 +111,10 @@ struct IosThumbGridView: UIViewRepresentable {
     private var isDateGrouped: Bool { sortOption != .name && !dateGroups.isEmpty }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(itemSize: itemSize, cellHeight: cellHeight, columnCount: columnCount, callbacks: callbacks)
+        Coordinator(itemSize: itemSize,
+                    cellHeight: cellHeight,
+                    columnCount: columnCount,
+                    delegate: delegate)
     }
 
     func makeUIView(context: Context) -> UIScrollView {
@@ -200,7 +197,7 @@ struct IosThumbGridView: UIViewRepresentable {
         c.columnCount     = columnCount
         c.selectedPhotos  = selectedPhotos
         c.isSelectMode    = isSelectMode
-        c.callbacks       = callbacks
+        c.delegate        = delegate
         c.duplicateResult = duplicateResult
         c.onReview        = onReview
         c.dateGroups      = dateGroups
@@ -232,8 +229,12 @@ struct IosThumbGridView: UIViewRepresentable {
                         return
                     }
                     let isSelected = selectedPhotos.contains(photo.id)
-                    cell.configure(with: photo, isSelected: isSelected, isSelectMode: isSelectMode,
-                                   itemSize: itemSize, thumbsManager: thumbsManager, callbacks: callbacks)
+                    cell.configure(with: photo,
+                                   isSelected: isSelected,
+                                   isSelectMode: isSelectMode,
+                                   itemSize: itemSize,
+                                   thumbsManager: thumbsManager,
+                                   delegate: delegate)
                 }
             } else {
                 if sizeChanged {
@@ -252,8 +253,12 @@ struct IosThumbGridView: UIViewRepresentable {
                       let photo = latestMap.values.first(where: { $0.path == path }) else { return }
                 let isSelected = selectedPhotos.contains(photo.id)
                 if oldPhotoMap[photo.id] != photo {
-                    cell.configure(with: photo, isSelected: isSelected, isSelectMode: isSelectMode,
-                                   itemSize: itemSize, thumbsManager: thumbsManager, callbacks: callbacks)
+                    cell.configure(with: photo,
+                                   isSelected: isSelected,
+                                   isSelectMode: isSelectMode,
+                                   itemSize: itemSize,
+                                   thumbsManager: thumbsManager,
+                                   delegate: delegate)
                 } else if selectionChanged {
                     cell.updateSelection(isSelected: isSelected, isSelectMode: isSelectMode)
                 }
@@ -301,8 +306,6 @@ struct IosThumbGridView: UIViewRepresentable {
         }
     }
 
-    // MARK: - Coordinator
-
     class Coordinator: NSObject, UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, UICollectionViewDataSourcePrefetching {
         var photos: [PhotoItem] = []
         var itemSize: CGFloat
@@ -316,7 +319,7 @@ struct IosThumbGridView: UIViewRepresentable {
                 }
             }
         }
-        var callbacks: ThumbCellCallbacks
+        var delegate: ThumbCellDelegate
         /// Called when a photo is tapped in select mode — toggles selection, never navigates.
         var onSelectToggle: ((PhotoItem) -> Void)?
         /// Called when a photo is tapped in normal mode — navigates to preview.
@@ -340,11 +343,11 @@ struct IosThumbGridView: UIViewRepresentable {
         private var isScrolling = false
         private var isDateGrouped: Bool { sortOption != .name && !dateGroups.isEmpty }
 
-        init(itemSize: CGFloat, cellHeight: CGFloat, columnCount: Int, callbacks: ThumbCellCallbacks) {
+        init(itemSize: CGFloat, cellHeight: CGFloat, columnCount: Int, delegate: ThumbCellDelegate) {
             self.itemSize = itemSize
             self.cellHeight = cellHeight
             self.columnCount = columnCount
-            self.callbacks = callbacks
+            self.delegate = delegate
         }
 
         private func photosForSection(_ section: Int) -> [PhotoItem] {
@@ -387,9 +390,11 @@ struct IosThumbGridView: UIViewRepresentable {
                            itemSize: itemSize,
                            thumbsManager: thumbsManager,
                            priority: priority,
-                           callbacks: callbacks)
+                           delegate: delegate)
             cell.onSelectFromHere = { [weak self] in
-                guard let self else { return }
+                guard let self else {
+                    return
+                }
                 self.selectFromIndexPath = self.collectionView?.indexPath(for: cell)
                 self.onStartSelectMode?(photo)
             }

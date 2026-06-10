@@ -265,7 +265,6 @@ final class FilesModel: ObservableObject {
     }
 }
 
-#if os(macOS)
 
 // MARK: - Security-Scoped Bookmark Management
 
@@ -346,6 +345,7 @@ func hasDirectSubfolders(at url: URL) -> Bool {
     return false
 }
 
+#if os(macOS)
 extension FilesModel {
 
     private func setupVolumeMonitoring() {

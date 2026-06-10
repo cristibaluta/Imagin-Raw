@@ -19,6 +19,7 @@
 		56470CAB2F651C9400D86EA6 /* Exceptions for "Imagin Raw" folder in "Imagin Raw" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				app/screens/Preview/PerspectiveCorrectionView.swift,
 				src/postprocessing/postprocessing_ph.cpp,
 				src/preprocessing/preprocessing_ph.cpp,
 				src/write/write_ph.cpp,

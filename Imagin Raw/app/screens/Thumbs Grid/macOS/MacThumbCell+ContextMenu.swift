@@ -5,6 +5,7 @@
 //  Created by Cristian Baluta on 05/06/2026.
 //
 
+#if os(macOS)
 import AppKit
 
 extension MacThumbCell {
@@ -227,3 +228,4 @@ extension MacThumbCell {
         delegate?.onReject(photo: p)
     }
 }
+#endif
