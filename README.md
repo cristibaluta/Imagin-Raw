@@ -1,40 +1,61 @@
-# Imagin Raw
+# Imagin RAW
 
-A lightweight, fast, and native macOS application for managing and organizing RAW photos, built as an alternative to Adobe Bridge. Built by photographers for photographers.
-There is also an iOS version in the works that is supposed to greatly simplify the browsing of your photos but also provide a better way to rate your photos. It wants also to be a tool for scouting.
+A lightweight, native macOS application for browsing, culling, and organizing RAW photo libraries - built as a faster alternative to Adobe Bridge for read/rate/organize workflows.
 
-![Main Interface](screenshots/small-thumbs.jpeg)
+An iOS companion app is in development, focused on quick photo review, rating, and field scouting.
+
+![Main Interface](screenshots/main.jpg)
+
+## Architecture
+
+- **UI**: SwiftUI (macOS 14.6+)
+- **RAW decoding**: LibRaw (C++), wrapped via Objective-C++ bridge
+- **Metadata**: EXIF parsed directly from RAW/JPEG binary structures; XMP sidecars read/written for Lightroom/Bridge compatibility
+- **File system monitoring**: FSEvents for real-time folder change detection
+- **Search**: NSMetadataQuery (Spotlight) for indexed file/folder search
+- **Concurrency**: A mix of Tasks and OperationQueue
 
 ## Features
-- **Add multiple root folders** from anywhere on your system or external drives and SD cards
-- **Real-time file system monitoring** - automatically detects new photos, deletions, and folder changes
-- **RAW format support** app uses the libraw lib, many raw files are supported
-- **Rating and labeling** compatible with Adobe Bridge
-- **Rejections** This will not delete the photos right away, it's a temporary label that you can filter for. This label is not preserver between album changes.
-- **XMP metadata sidecar** - compatible with Adobe Lightroom and Bridge (DXO on the TODO)
-- **JPG counterparts** are hidden, when you browse the photos you see only the raw versions
-- **2 grid types**
-- **Search** through files and folders. It uses the macOS Spotlight engine
-- **Copy** images from SD card to your computer and organize automatically into folders and subfolders. Alternatively a copy to a second location can be made
-- **Find duplicates** or similar pictures and decide faster which ones to keep in Review mode
-- **Add frame** If you edit in CameraRaw you can't add a frame to your pictures, but you can add one in Imagin Raw and export as png to avoid loosing quality after reencoding. This is useful to make 2x3 images fit into 3x4 format for instagram
 
-## Advantages over Bridge
-- Fast launch. The goal is to make it feel like a Finder window that you can keep open at all times
-- Lightweight: 14Mb vs 2Gb
-- Light CPU usage. In idle it takes 0%, Bridge always consumes something. When reading the metadata it uses all the available cores so you will see a short spike
-- Light memory usage. It can go up for large albums but the memory is also released
-- Native scrolling feel. Bridge jumps in rows and feels hard to control
-- External drives can be ejected while the app is open. Bridge needs to be quit before ejecting
+- **Multi-root folder browsing** - add any number of folders from local disks, external drives, or SD cards; no import step, no managed library
+- **Real-time file system monitoring** - new photos, deletions, and folder structure changes are detected and reflected immediately
+- **RAW format support** - via LibRaw, covering a broad range of camera manufacturers and formats
+- **Rating and color labeling** - written to XMP sidecars (RAW) or embedded directly without re-encoding (JPEG/HEIC), compatible with Adobe Bridge and Lightroom
+- **Rejection workflow** - a session-scoped label (not persisted across folder changes) for marking photos to delete; batch-delete via right-click
+- **JPG/RAW pair deduplication** - when a RAW+JPEG pair exists, only the RAW is shown in the browser
+- **Two grid layouts** - compact grid (more room for preview) and large grid (more room for browsing)
+- **Spotlight-backed search** - search across files and folder names using the macOS indexing engine
+- **SD card ingest** - copy photos into date-based folder structures, with optional simultaneous backup to a second destination
+- **Duplicate/similar photo detection** - Review mode for quickly resolving near-duplicate burst shots
+- **Instagram frame export** - fits 2:3 RAW images into a 3:4 canvas, exported as PNG to avoid re-encoding loss (useful for Camera Raw edits because it doesn't support framing)
 
-## Bridge advantages over Imagin Raw
-- Previews have the Camera Raw editings applied to them. This is not possible to implement since it uses the ACR engine. Might be possible to do basic adjustments and crop, will look into it
+## Comparison with Adobe Bridge
+
+### Where Imagin RAW is better
+
+| | Imagin RAW | Bridge |
+|---|---|---|
+| App size | ~9 MB | ~2 GB |
+| Idle CPU | 0% | non-zero |
+| Memory | As low as 100 MB depending on the album | Easily gets to GBs |
+| Launch time | Near-instant | Many seconds |
+| Scrolling | Native, smooth | Row-jumping |
+| External drive eject | No app restart needed | Requires quitting Bridge |
+
+### Where Bridge is ahead
+
+- **Camera Raw–processed previews** - Bridge renders thumbnails with ACR adjustments applied. Imagin RAW currently shows unprocessed previews; replicating the ACR pipeline isn't feasible, though basic exposure/crop preview adjustments may be explored.
+
+## Roadmap
+
+- DxO PhotoLab XMP compatibility
+- iOS companion app (review, rating, scouting)
+- Basic preview adjustments (exposure, crop) without full ACR parity
 
 ## Screenshots
-![Filtered Thumbnails](screenshots/filtered-thumbs.jpeg)
-![Thumbnail Grid](screenshots/large-thumbs.jpeg)
-![Thumbnail Grid](screenshots/sidebar-closed-1.jpeg)
-![Thumbnail Grid](screenshots/sidebar-closed-2.jpeg)
+![Filtered Thumbnails](screenshots/main-dark.jpg)
+![Thumbnail Grid](screenshots/large-thumbs.jpg)
+![Thumbnail Grid](screenshots/review-mode.jpg)
 
 ## Keyboard Shortcuts
 - **Arrow Keys** - Navigate between photos
@@ -63,4 +84,4 @@ There is also an iOS version in the works that is supposed to greatly simplify t
 - Buy from the Appstore if you want to support the project and receive updates automatically
 
 ## Contributions
-Small straightforward fixes are welcome. Large PRs with new features needs to be discussed first.
+Small straightforward fixes and issue reportings are welcome. Large PRs with new features needs to be discussed first.
