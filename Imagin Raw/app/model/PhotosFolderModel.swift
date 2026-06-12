@@ -60,10 +60,11 @@ final class PhotosFolderModel: ObservableObject {
 
         for file in files {
             let ext = file.pathExtension.lowercased()
+            let baseName = file.deletingPathExtension().lastPathComponent
             if FilesExtensions.all.contains(ext) {
                 if FilesExtensions.jpg.contains(ext) {
-                    if rawBaseNames.contains(file.deletingPathExtension().lastPathComponent) {
-                        jpgLookup.insert(file.lastPathComponent)
+                    if rawBaseNames.contains(baseName) {
+                        jpgLookup.insert(baseName)
                     } else {
                         images.append(file)
                     }
@@ -71,9 +72,9 @@ final class PhotosFolderModel: ObservableObject {
                     images.append(file)
                 }
             } else if ext == "xmp" {
-                xmpLookup.insert(file.deletingPathExtension().lastPathComponent)
+                xmpLookup.insert(baseName)
             } else if ext == "acr" {
-                acrLookup.insert(file.deletingPathExtension().lastPathComponent)
+                acrLookup.insert(baseName)
             }
         }
 
