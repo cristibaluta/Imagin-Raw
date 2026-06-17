@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import RCPreferences
+@preconcurrency import RCPreferences
 
 enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
 

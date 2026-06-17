@@ -4,8 +4,8 @@
 //
 //  Created by Cristian Baluta on 17.03.2026.
 //
-import Foundation
 #if os(macOS)
+import Foundation
 import AppKit
 
 private final class MacVerticallyCenteredTextFieldCell: NSTextFieldCell {
@@ -42,9 +42,8 @@ final class MacThumbCell: NSCollectionViewItem {
     private var itemSize: CGFloat = 100
     private var currentImageSize: CGSize = .zero
     private var layersConfigured = false
-    private weak var thumbsManager: ThumbsManager!
 
-    // MARK: loadView
+    // MARK: view filefcycle
 
     override func loadView() {
         let root = NSView()
@@ -136,6 +135,24 @@ final class MacThumbCell: NSCollectionViewItem {
             layersConfigured = true
         }
         layoutSubviews()
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+
+        currentPath = nil
+        currentPhoto = nil
+        currentImageSize = .zero
+        thumbView.image = nil
+        selectionBorder.layer?.borderWidth = 0
+        selectionBorder.isHidden = true
+        trashContainer.isHidden = true
+        badgeStack.isHidden = true
+        acrBadgeContainer.isHidden = true
+        jpgBadgeContainer.isHidden = true
+        starView?.removeFromSuperview()
+        starView = nil
+        view.menu = nil
     }
 
     private var cellBackgroundColor: NSColor {
@@ -288,14 +305,12 @@ final class MacThumbCell: NSCollectionViewItem {
                    theme: NSAppearance.Name?,
                    isSelected: Bool,
                    itemSize: CGFloat,
-                   thumbsManager: ThumbsManager,
                    priority: ThumbnailRequest.Priority = .high,
                    delegate: ThumbCellDelegate) {
 
         self.theme = theme ?? ((NSApp.keyWindow ?? NSApp.mainWindow)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) ?? .aqua)
         self.itemSize = itemSize
         self.delegate = delegate
-        self.thumbsManager = thumbsManager
 
         view.layer?.backgroundColor = cellBackgroundColor.cgColor
 
@@ -307,19 +322,16 @@ final class MacThumbCell: NSCollectionViewItem {
             thumbView.image = nil
             currentImageSize = .zero
 
-            if let cached = self.thumbsManager.getCachedThumbnail(for: photo) {
-                thumbView.image = cached
-                currentImageSize = cached.size
-                layoutSubviews()
-            } else {
-                let path = photo.path
-                thumbsManager.loadThumbnail(for: photo, priority: priority) { [weak self] image in
-                    guard self?.currentPath == path else {
+            Task {
+                if let image = await delegate.image(for: photo) {
+                    guard self.currentPath == currentPath else {
                         return
                     }
-                    self?.thumbView.image = image
-                    self?.currentImageSize = image?.size ?? .zero
-                    self?.layoutSubviews()
+                    thumbView.image = image
+                    currentImageSize = image.size
+                    layoutSubviews()
+                } else {
+                    print(">>>>>>>> error loading photo for \(photo.path)")
                 }
             }
         }
@@ -374,26 +386,6 @@ final class MacThumbCell: NSCollectionViewItem {
         filenameLabel.layer?.backgroundColor = PhotoLabel.nsCGColor(for: label)
         filenameLabel.textColor = PhotoLabel.nsTextColor(for: label)
     }
-
-    // MARK: Reuse
-
-    override func prepareForReuse() {
-        super.prepareForReuse()
-
-        currentPath = nil
-        currentPhoto = nil
-        currentImageSize = .zero
-        thumbView.image = nil
-        selectionBorder.layer?.borderWidth = 0
-        selectionBorder.isHidden = true
-        trashContainer.isHidden = true
-        badgeStack.isHidden = true
-        acrBadgeContainer.isHidden = true
-        jpgBadgeContainer.isHidden = true
-        starView?.removeFromSuperview()
-        starView = nil
-        view.menu = nil
-    }
 }
 
 extension MacThumbCell: NSMenuDelegate {
@@ -404,7 +396,9 @@ extension MacThumbCell: NSMenuDelegate {
 
 extension MacThumbCell {
     override func mouseEntered(with event: NSEvent) {
-        starView?.isHidden = currentPhoto.map { !($0.isRawFile || JpegMetadataWriter.isSupported(URL(fileURLWithPath: $0.path))) } ?? true
+        starView?.isHidden = currentPhoto.map {
+            !($0.isRawFile || JpegMetadataWriter.isSupported(URL(fileURLWithPath: $0.path)))
+        } ?? true
     }
 
     override func mouseExited(with event: NSEvent) {

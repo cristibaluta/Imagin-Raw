@@ -112,7 +112,7 @@ extension MacThumbCell {
 //            openWithItem.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
             let openWithMenu = NSMenu()
             for app in apps {
-                let appItem = NSMenuItem(title: app.displayName, action: #selector(handleOpenWithApp(_:)), keyEquivalent: "")
+                let appItem = NSMenuItem(title: app.name, action: #selector(handleOpenWithApp(_:)), keyEquivalent: "")
                 appItem.representedObject = app
                 appItem.image = NSWorkspace.shared.icon(forFile: app.url.path)
                 appItem.image?.size = NSSize(width: 16, height: 16)

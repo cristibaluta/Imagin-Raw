@@ -4,8 +4,8 @@
 //
 //  Created by Cristian Baluta on 17.03.2026.
 //
-import Foundation
 #if os(macOS)
+import Foundation
 import AppKit
 
 final class MacStarRatingView: NSView {

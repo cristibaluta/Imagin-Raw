@@ -53,9 +53,7 @@ enum ICloudDownloader {
         var success = false
 
         let coordinator = NSFileCoordinator(filePresenter: nil)
-        coordinator.coordinate(readingItemAt: url,
-                               options: .withoutChanges,
-                               error: &coordinatorError) { localURL in
+        coordinator.coordinate(readingItemAt: url, options: .withoutChanges, error: &coordinatorError) { localURL in
             // Inside this block the file is guaranteed to be on disk.
             success = fm.fileExists(atPath: localURL.path)
             RCLog("☁️ [ICloudDownloader] coordinator block executed — exists=\(success): \(localURL.lastPathComponent)")

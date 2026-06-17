@@ -30,7 +30,7 @@ class ThumbGridViewModel: ObservableObject {
     @Published private(set) var dateGroups: [(title: String, photos: [PhotoItem])] = []
     @Published var photosToCopy: [PhotoItem] = []
     @Published var copyDestinationURL: URL?
-    @Published var thumbsManager: ThumbsManager = ThumbsManager()
+    @Published var thumbsManager = ThumbnailsManager(thumbSize: .s256)
 
     private var duplicateScanData: DuplicateScanData? = nil
 
@@ -81,7 +81,7 @@ class ThumbGridViewModel: ObservableObject {
             self?.filterAndSortPhotos()
         }
         trashService.filesModel = filesModel
-        trashService.thumbsManager = thumbsManager
+//        trashService.thumbsManager = thumbsManager
     }
 
     private func setupFilteredPhotosObservers() {
@@ -159,16 +159,17 @@ class ThumbGridViewModel: ObservableObject {
 
         // Sort photos
         result = result.sorted(by: photoSortComparator)
-        filteredAndSortedPhotos = result
-
-        // Group photos
-        dateGroups = PhotoFilterService.buildDateGroups(from: result, sortOption: sortOption)
-
-        if let id = lastSelectedPhotoId {
-            lastSelectedIndex = filteredAndSortedPhotos.firstIndex { $0.id == id }
-            RCLog("lastSelectedIndex \(lastSelectedIndex)")
-        } else if filesModel.selectedPhoto == nil {
-            lastSelectedIndex = nil
+        Task {
+            filteredAndSortedPhotos = result
+            
+            // Group photos
+            dateGroups = PhotoFilterService.buildDateGroups(from: result, sortOption: sortOption)
+            
+            if let id = lastSelectedPhotoId {
+                lastSelectedIndex = filteredAndSortedPhotos.firstIndex { $0.id == id }
+            } else if filesModel.selectedPhoto == nil {
+                lastSelectedIndex = nil
+            }
         }
     }
 
@@ -207,24 +208,26 @@ class ThumbGridViewModel: ObservableObject {
         cancellables.removeAll()
         setupFilteredPhotosObservers()
 
-        thumbsManager.stopQueue()
-        let newThumbsManager = ThumbsManager()
-        thumbsManager = newThumbsManager
-        filesModel.currentThumbsManager = newThumbsManager
-        trashService.thumbsManager = newThumbsManager
+//        thumbsManager.stopQueue()
+//        let newThumbsManager = ThumbsManager()
+//        thumbsManager = newThumbsManager
+//        filesModel.currentThumbsManager = newThumbsManager
+//        trashService.thumbsManager = newThumbsManager
 
         let newPhotosModel = PhotosModel(folder: folder)
         photosModel = newPhotosModel
         metadataService.photosModel = newPhotosModel
         trashService.photosModel = newPhotosModel
 
-        newThumbsManager.$pendingQueueCount
-            .receive(on: DispatchQueue.main)
-            .assign(to: &$cachingQueueCount)
+//        newThumbsManager.$pendingQueueCount
+//            .receive(on: DispatchQueue.main)
+//            .assign(to: &$cachingQueueCount)
 
         newPhotosModel.objectWillChange
             .sink { [weak self] _ in
-                self?.objectWillChange.send()
+                Task {
+                    self?.objectWillChange.send()
+                }
             }
             .store(in: &cancellables)
 
@@ -574,24 +577,24 @@ class ThumbGridViewModel: ObservableObject {
             while await self.cachingQueueCount > 0 {
                 try? await Task.sleep(nanoseconds: 300_000_000)
             }
-            let data = await DuplicateFinderService.scan(
-                photos: photosToScan, thumbsManager: thumbsManager,
-                progress: { done, total in
-                    DispatchQueue.main.async {
-                        self.duplicateScanProgress = (done, total)
-                    }
-                })
-            await MainActor.run {
-                self.duplicateScanData = data
-                if let data {
-                    let result = data.recluster(threshold: self.similarityMode.distanceThreshold,
-                                                sortBy: self.photoSortComparator)
-                    self.duplicateScanResult = result
-                    RCLog("🔍 Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", data.scanDuration))s")
-                }
-                self.isFindingDuplicates = false
-                self.isDuplicateMode = true
-            }
+//            let data = await DuplicateFinderService.scan(
+//                photos: photosToScan, thumbsManager: thumbsManager,
+//                progress: { done, total in
+//                    DispatchQueue.main.async {
+//                        self.duplicateScanProgress = (done, total)
+//                    }
+//                })
+//            await MainActor.run {
+//                self.duplicateScanData = data
+//                if let data {
+//                    let result = data.recluster(threshold: self.similarityMode.distanceThreshold,
+//                                                sortBy: self.photoSortComparator)
+//                    self.duplicateScanResult = result
+//                    RCLog("🔍 Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", data.scanDuration))s")
+//                }
+//                self.isFindingDuplicates = false
+//                self.isDuplicateMode = true
+//            }
         }
     }
 

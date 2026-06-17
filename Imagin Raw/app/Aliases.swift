@@ -5,11 +5,12 @@
 //  Created by Cristian Baluta on 13.03.2026.
 //
 
+@_exported import RCLog
+
 #if os(macOS)
 
 import AppKit
 import Cocoa
-@_exported import RCLog
 
 typealias IRImage = NSImage
 typealias IRSize = NSSize
@@ -19,7 +20,6 @@ typealias IRColor = NSColor
 #elseif os(iOS)
 
 import UIKit
-@_exported import RCLog
 
 typealias IRImage = UIImage
 typealias IRSize = CGSize

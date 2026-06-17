@@ -17,7 +17,7 @@ struct PhotoItemMetadata {
 struct PhotoItem: Identifiable, Sendable {
     let id: UUID
     var url: URL
-    var path: String          // file path on disk, OR PHAsset.localIdentifier for PhotoKit items
+    var path: String           // file path on disk, OR PHAsset.localIdentifier for PhotoKit items
     let dateCreated: Date      // EXIF capture date (shutter press time)
     let dateModified: Date?    // File system last-modified date
 
@@ -58,8 +58,6 @@ struct PhotoItem: Identifiable, Sendable {
         let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
         return FilesExtensions.video.contains(ext)
     }
-
-    // MARK: - File-based init
 
     init(url: URL,
          path: String,
@@ -216,6 +214,6 @@ extension PhotoItem {
         if let asset = phAsset {
             return PhotoKitPhotoSource(asset: asset, photoPath: path)
         }
-        return DiskPhotoSource(path: path)
+        return DiskPhotoSource(url: url)
     }
 }

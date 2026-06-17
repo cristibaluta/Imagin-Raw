@@ -8,13 +8,13 @@
 import Foundation
 import Vision
 
-struct DuplicateGroup: Identifiable {
+struct DuplicateGroup: Identifiable, Sendable {
     let id = UUID()
     let photos: [PhotoItem]
     let distance: Float
 }
 
-struct DuplicateScanResult {
+struct DuplicateScanResult: Sendable {
     let groups: [DuplicateGroup]
     let totalScanned: Int
     let duration: TimeInterval
@@ -22,7 +22,7 @@ struct DuplicateScanResult {
 
 /// All pairwise distances computed in a single scan pass.
 /// Re-clustering from this is O(n²) float comparisons — no Vision re-run needed.
-struct DuplicateScanData {
+struct DuplicateScanData: Sendable {
     let photos: [PhotoItem]
     /// distances[i][j] where j > i — upper-triangle only
     let distances: [[Float]]
@@ -90,8 +90,6 @@ enum DuplicateFinderService {
     /// Loosest threshold — always scan at this so we can re-cluster without re-scanning.
     private static let scanThreshold: Float = SimilarityMode.veryLoose.distanceThreshold
 
-    // MARK: - Public API
-
     /// Runs Vision feature prints + pairwise distances once.
     /// Call `DuplicateScanData.recluster(threshold:)` to filter without re-scanning.
     static func scan(
@@ -112,7 +110,7 @@ enum DuplicateFinderService {
         // Resolve thumbnail URLs
         RCLog("🔍 Resolving thumbnail URLs...")
         let imageURLs: [Int: URL] = await withCheckedContinuation { continuation in
-            DispatchQueue.main.async {
+            Task {
                 let group = DispatchGroup()
                 var urls: [Int: URL] = [:]
                 let lock = NSLock()
@@ -126,7 +124,7 @@ enum DuplicateFinderService {
                     } else {
                         RCLog("  ⏳ Generating thumb [\(index+1)/\(total)]: \(URL(fileURLWithPath: photo.path).lastPathComponent)")
                         group.enter()
-                        thumbsManager.loadThumbnail(for: photo.path, priority: .high) { _ in
+                        thumbsManager.loadThumbnail(for: photo, priority: .high) { _ in
                             if FileManager.default.fileExists(atPath: diskURL.path) {
                                 lock.lock();
                                 urls[index] = diskURL;

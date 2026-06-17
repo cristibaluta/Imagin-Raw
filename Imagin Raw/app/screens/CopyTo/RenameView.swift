@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+@MainActor
 struct RenameView: View {
     @Environment(\.dismiss) private var dismiss
     let photosToRename: [PhotoItem]
@@ -26,8 +27,9 @@ struct RenameView: View {
     /// filtered by the current prefix) and returns the highest number found,
     /// so the new batch starts after it.
     private var sequentialStartIndex: Int {
-        guard useSequentialNumbers,
-              let firstPhoto = photosToRename.first else { return 0 }
+        guard useSequentialNumbers, let firstPhoto = photosToRename.first else {
+            return 0
+        }
         let folder = URL(fileURLWithPath: firstPhoto.path).deletingLastPathComponent()
         let files = (try? FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
@@ -51,7 +53,9 @@ struct RenameView: View {
     }
 
     private var previewName: String? {
-        guard let photo = photosToRename.first else { return nil }
+        guard let photo = photosToRename.first else {
+            return nil
+        }
         return newFilename(for: photo, index: 0, startOffset: sequentialStartIndex)
     }
 
@@ -84,11 +88,10 @@ struct RenameView: View {
         Group {
             if showProgressView {
                 let startOffset = sequentialStartIndex
-                RenameProgressView(
-                    photosToRename: photosToRename,
-                    newFilename: { newFilename(for: $0, index: $1, startOffset: startOffset) },
-                    onComplete: { dismiss() },
-                    onCancel: { dismiss() }
+                RenameProgressView(viewModel: RenameProgressViewModel(photosToRename: photosToRename,
+                                                                      newFilename: { newFilename(for: $0, index: $1, startOffset: startOffset) },
+                                                                      onComplete: { dismiss() },
+                                                                      onCancel: { dismiss() })
                 )
                 .frame(minWidth: 500, minHeight: 160)
             } else {
@@ -145,8 +148,10 @@ struct RenameView: View {
                     Spacer()
 
                     HStack(spacing: 12) {
-                        Button("Cancel") { dismiss() }
-                            .keyboardShortcut(.cancelAction)
+                        Button("Cancel") {
+                            dismiss()
+                        }
+                        .keyboardShortcut(.cancelAction)
                         Spacer()
                         Button("Rename") {
                             appPrefs.set(renameByExifDate, forKey: .copyToRenameByExifDate)
@@ -160,140 +165,6 @@ struct RenameView: View {
                 }
                 .padding(20)
                 .frame(minWidth: 500, minHeight: 300)
-            }
-        }
-    }
-}
-
-private struct RenameProgressView: View {
-    let photosToRename: [PhotoItem]
-    let newFilename: (PhotoItem, Int) -> String
-    let onComplete: () -> Void
-    let onCancel: () -> Void
-
-    @State private var progress: Double = 0
-    @State private var currentFile: String = "Preparing..."
-    @State private var renamedCount: Int = 0
-    @State private var renameError: String?
-    @State private var isCancelled = false
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("Renaming Files...")
-                .font(.headline)
-
-            ProgressView(value: progress, total: 1.0)
-                .progressViewStyle(.linear)
-
-            VStack(spacing: 4) {
-                HStack {
-                    Text("Renaming: \(currentFile)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Spacer()
-                }
-                HStack {
-                    Text("\(renamedCount) of \(photosToRename.count)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-            }
-
-            if let error = renameError {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
-                    Text(error)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-            }
-
-            HStack {
-                Spacer()
-                Button(renameError != nil ? "Close" : "Cancel") {
-                    isCancelled = true
-                    onCancel()
-                }
-                .keyboardShortcut(.cancelAction)
-            }
-        }
-        .padding(20)
-        .onAppear { performRename() }
-    }
-
-    private func performRename() {
-        let fm = FileManager.default
-
-        DispatchQueue.global(qos: .userInitiated).async {
-            for (index, photo) in photosToRename.enumerated() {
-                guard !isCancelled else { break }
-
-                let sourceURL = URL(fileURLWithPath: photo.path)
-                let newName = newFilename(photo, index)
-                let destURL = sourceURL.deletingLastPathComponent().appendingPathComponent(newName)
-
-                DispatchQueue.main.async { currentFile = sourceURL.lastPathComponent }
-
-                // Skip if name is unchanged
-                guard sourceURL.lastPathComponent != newName else {
-                    DispatchQueue.main.async {
-                        renamedCount = index + 1
-                        progress = Double(renamedCount) / Double(photosToRename.count)
-                    }
-                    continue
-                }
-
-                do {
-                    // Rename main file
-                    try fm.moveItem(at: sourceURL, to: destURL)
-
-                    // Rename associated XMP sidecar if present
-                    let xmpSource = sourceURL.deletingPathExtension().appendingPathExtension("xmp")
-                    let xmpDest = destURL.deletingPathExtension().appendingPathExtension("xmp")
-                    if fm.fileExists(atPath: xmpSource.path) {
-                        try? fm.moveItem(at: xmpSource, to: xmpDest)
-                    }
-
-                    // Rename associated ACR sidecar if present
-                    let acrSource = sourceURL.deletingPathExtension().appendingPathExtension("acr")
-                    let acrDest = destURL.deletingPathExtension().appendingPathExtension("acr")
-                    if fm.fileExists(atPath: acrSource.path) {
-                        try? fm.moveItem(at: acrSource, to: acrDest)
-                    }
-
-                    // Rename associated JPG if present
-                    if photo.hasJPG {
-                        for ext in ["jpg", "jpeg", "JPG", "JPEG"] {
-                            let jpgSource = sourceURL.deletingPathExtension().appendingPathExtension(ext)
-                            if fm.fileExists(atPath: jpgSource.path) {
-                                let jpgDest = destURL.deletingPathExtension().appendingPathExtension(ext)
-                                try? fm.moveItem(at: jpgSource, to: jpgDest)
-                                break
-                            }
-                        }
-                    }
-
-                    DispatchQueue.main.async {
-                        renamedCount = index + 1
-                        progress = Double(renamedCount) / Double(photosToRename.count)
-                    }
-                } catch {
-                    DispatchQueue.main.async {
-                        renameError = "Failed to rename \(sourceURL.lastPathComponent): \(error.localizedDescription)"
-                    }
-                    break
-                }
-            }
-
-            DispatchQueue.main.async {
-                if renameError == nil && !isCancelled {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { onComplete() }
-                }
             }
         }
     }

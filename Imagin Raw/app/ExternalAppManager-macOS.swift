@@ -7,19 +7,15 @@
 
 import Foundation
 
-struct PhotoApp: Identifiable, Hashable {
+struct PhotoApp: Identifiable, Hashable, Sendable {
     let id = UUID()
     let name: String
     let bundleIdentifier: String
     let url: URL
-
-    var displayName: String {
-        return name
-    }
 }
 
 #if os(macOS)
-class ExternalAppManager: ObservableObject {
+class ExternalAppManager: ObservableObject, @unchecked Sendable {
 
     @Published var discoveredPhotoApps: [PhotoApp] = []
     @Published var selectedApp: PhotoApp?

@@ -302,7 +302,7 @@ struct ContentView: View {
                     externalAppManager.saveSelectedApp(photoApp)
                 }) {
                     HStack {
-                        Text(photoApp.displayName)
+                        Text(photoApp.name)
                         if externalAppManager.selectedApp?.id == photoApp.id {
                             Spacer()
                             Image(systemName: "checkmark")
@@ -320,7 +320,7 @@ struct ContentView: View {
             HStack(spacing: 6) {
                 Image(systemName: "arrow.up.forward.app")
                     .font(.system(size: 12, weight: .regular))
-                Text("Open in \(externalAppManager.selectedApp?.displayName ?? "Default App")")
+                Text("Open in \(externalAppManager.selectedApp?.name ?? "Default App")")
             }
         } primaryAction: {
             openSelectedPhotosCallback?()

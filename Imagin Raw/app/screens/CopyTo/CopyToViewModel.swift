@@ -37,8 +37,6 @@ class CopyToViewModel: ObservableObject, Identifiable {
     private(set) var isCancelled: Bool = false
     private var copyTask: Task<Void, Never>?
 
-    // MARK: - Init
-
     init(photos: [PhotoItem]) {
         self.photos = photos
         renameByExifDate        = appPrefs.bool(.copyToRenameByExifDate)
@@ -52,9 +50,13 @@ class CopyToViewModel: ObservableObject, Identifiable {
         organizeJpgsInSubfolder = appPrefs.bool(.copyToOrganizeJpgsInSubfolder)
 
         if let data = UserDefaults.standard.data(forKey: AppPreference.copyToDestinationBookmark.rawValue),
-           let url = Self.urlFromBookmark(data) { destinationURL = url }
+           let url = Self.urlFromBookmark(data) {
+            destinationURL = url
+        }
         if let data = UserDefaults.standard.data(forKey: AppPreference.copyToBackupBookmark.rawValue),
-           let url = Self.urlFromBookmark(data) { backupDestinationURL = url }
+           let url = Self.urlFromBookmark(data) {
+            backupDestinationURL = url
+        }
     }
 
     // MARK: - Persistence
@@ -95,7 +97,9 @@ class CopyToViewModel: ObservableObject, Identifiable {
     // MARK: - Filename helpers
 
     private func computeSequentialStartOffset(in folder: URL?, prefix: String) -> Int {
-        guard let folder else { return 0 }
+        guard let folder else {
+            return 0
+        }
         let files = (try? FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
         )) ?? []
@@ -132,7 +136,9 @@ class CopyToViewModel: ObservableObject, Identifiable {
             fmt.dateFormat = "yyyy-MM-dd_HHmmss"
             baseName = fmt.string(from: photo.dateCreated) + "_" + baseName
         }
-        if !customPrefix.isEmpty { baseName = customPrefix + baseName }
+        if !customPrefix.isEmpty {
+            baseName = customPrefix + baseName
+        }
         return ext.isEmpty ? baseName : baseName + "." + ext
     }
 
@@ -151,11 +157,15 @@ class CopyToViewModel: ObservableObject, Identifiable {
     }
 
     /// Builds a preview path string for the first photo in `photos`.
-    func previewPath() -> String? {
-        guard let firstPhoto = photos.first, let baseURL = destinationURL else { return nil }
+    func previewPath() -> AttributedString? {
+        guard let firstPhoto = photos.first, let baseURL = destinationURL else {
+            return nil
+        }
 
         let settings = CopySettings(self)
-        let isJpg = firstPhoto.path.lowercased().hasSuffix(".jpg") || firstPhoto.path.lowercased().hasSuffix(".jpeg")
+        let isJpg = firstPhoto.path.lowercased().hasSuffix(".jpg") ||
+                    firstPhoto.path.lowercased().hasSuffix(".jpeg") ||
+                    firstPhoto.path.lowercased().hasSuffix(".heic")
         let folder = buildDestinationFolder(
             base: baseURL,
             date: firstPhoto.dateCreated,
@@ -173,15 +183,28 @@ class CopyToViewModel: ObservableObject, Identifiable {
             customPrefix: customPrefix
         )
 
-        return (folder.pathComponents + [filename]).joined(separator: " > ")
+        let str = (folder.pathComponents + [filename]).joined(separator: " > ")
             .replacingOccurrences(of: "/ > /", with: " > ")
             .replacingOccurrences(of: "//", with: "/")
+
+        var baseString = AttributedString(str)
+
+        // Find the range of the target word
+        if let range = baseString.range(of: filename) {
+            // Apply standard system selection colors
+            baseString[range].backgroundColor = .accentColor // Native accent background
+            baseString[range].foregroundColor = .white       // High-contrast text color
+        }
+
+        return baseString
     }
 
     // MARK: - Copy
 
     func startCopy() async {
-        guard let destination = destinationURL else { return }
+        guard let destination = destinationURL else {
+            return
+        }
         isCancelled = false
         copyProgress = 0
         copiedCount = 0
@@ -203,7 +226,10 @@ class CopyToViewModel: ObservableObject, Identifiable {
             }
         }
 
-        await MainActor.run { totalCount = filesToCopy.count; currentFile = "Preparing..." }
+        await MainActor.run {
+            totalCount = filesToCopy.count
+            currentFile = "Preparing..."
+        }
 
         let startOffset = useSequentialNumbers
             ? computeSequentialStartOffset(in: destination, prefix: customPrefix)
@@ -214,15 +240,21 @@ class CopyToViewModel: ObservableObject, Identifiable {
         let backupURL = backupDestinationURL
 
         await Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else { return }
+            guard let self else {
+                return
+            }
 
             var photoSequentialIndex: [String: Int] = [:]
             var nextIndex = startOffset + 1
 
             for (index, file) in filesToCopy.enumerated() {
-                if self.isCancelled { break }
+                if self.isCancelled {
+                    break
+                }
 
-                await MainActor.run { self.currentFile = file.source.lastPathComponent }
+                await MainActor.run {
+                    self.currentFile = file.source.lastPathComponent
+                }
 
                 // Resolve sequential index — RAW + JPG companions share the same number
                 var sequentialIndex: Int?
@@ -286,15 +318,22 @@ class CopyToViewModel: ObservableObject, Identifiable {
         try FileManager.default.copyItem(at: file.source, to: destFile)
     }
 
-    func cancel() { isCancelled = true }
+    func cancel() {
+        isCancelled = true
+    }
 
     // MARK: - Bookmark helpers
 
     static func urlFromBookmark(_ data: Data) -> URL? {
         #if os(macOS)
         var isStale = false
-        guard let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope,
-                                 relativeTo: nil, bookmarkDataIsStale: &isStale), !isStale else { return nil }
+        guard let url = try? URL(resolvingBookmarkData: data,
+                                 options: .withSecurityScope,
+                                 relativeTo: nil,
+                                 bookmarkDataIsStale: &isStale),
+                !isStale else {
+            return nil
+        }
         _ = url.startAccessingSecurityScopedResource()
         return url
         #else

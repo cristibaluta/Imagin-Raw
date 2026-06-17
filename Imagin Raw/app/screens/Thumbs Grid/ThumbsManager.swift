@@ -8,8 +8,6 @@ import CryptoKit
 import AVFoundation
 import Photos
 
-// MARK: - Supporting types
-
 struct CacheEntry {
     let image: IRImage
     let lastAccessed: Date
@@ -118,7 +116,7 @@ struct PriorityQueue<T: Comparable> {
     }
 }
 
-class ThumbsManager: ObservableObject {
+class ThumbsManager: ObservableObject, @unchecked Sendable {
 
     @Published private(set) var pendingQueueCount: Int = 0
 
@@ -159,6 +157,14 @@ class ThumbsManager: ObservableObject {
     }
 
     // MARK: - Public Interface
+
+    func loadThumbnail(for photo: PhotoItem) async -> IRImage? {
+        await withCheckedContinuation { continuation in
+            loadThumbnail(for: photo, priority: .medium) { image in
+                continuation.resume(returning: image)
+            }
+        }
+    }
 
     func loadThumbnail(for photo: PhotoItem,
                        priority: ThumbnailRequest.Priority = .medium,
@@ -216,54 +222,8 @@ class ThumbsManager: ObservableObject {
         processQueue(source: source)
     }
 
-    func loadThumbnail(for path: String,
-                       priority: ThumbnailRequest.Priority = .medium,
-                       completion: @escaping (IRImage?) -> Void) {
-        let source = DiskPhotoSource(path: path)
-        let key = source.cacheKey
-
-        if let cached = getCachedImage(for: key) {
-            DispatchQueue.main.async {
-                completion(cached)
-            }
-            return
-        }
-
-        queueLock.lock()
-        requestCounter += 1
-        let order = requestCounter
-        if let existing = pendingRequests[key] {
-            if priority.rawValue >= existing.priority.rawValue {
-                pendingRequests.removeValue(forKey: key)
-                rebuildQueue()
-            } else {
-                queueLock.unlock()
-                return
-            }
-        }
-        let request = ThumbnailRequest(
-            path: path,
-            cacheKey: key,
-            priority: priority,
-            requestOrder: order,
-            source: source,
-            completion: completion
-        )
-        pendingRequests[key] = request
-        priorityQueue.enqueue(request)
-        queueLock.unlock()
-
-        scheduleQueueCountUpdate()
-        processQueue(source: source)
-    }
-
-    func getCachedThumbnail(for path: String) -> IRImage? {
-        let key = DiskPhotoSource(path: path).cacheKey
-        return getCachedImage(for: key)
-    }
-
     func getCachedThumbnail(for photo: PhotoItem) -> IRImage? {
-        return getCachedImage(for: photo.makeSource().cacheKey)
+        getCachedImage(for: photo.makeSource().cacheKey)
     }
 
     func stopQueue() {
@@ -289,7 +249,8 @@ class ThumbsManager: ObservableObject {
     }
 
     func deleteCachedThumbnail(for path: String) {
-        let source = DiskPhotoSource(path: path)
+        let url = URL(fileURLWithPath: path)
+        let source = DiskPhotoSource(url: url)
         let key = source.cacheKey
         cacheLock.lock()
         memoryCache.removeValue(forKey: key)
@@ -334,11 +295,12 @@ class ThumbsManager: ObservableObject {
     }
 
     func diskCacheURL(for path: String) -> URL {
-        diskCacheURL(for: DiskPhotoSource(path: path))
+        let url = URL(fileURLWithPath: path)
+        return diskCacheURL(for: DiskPhotoSource(url: url))
     }
 
     private func diskCacheURL(for source: DiskPhotoSource) -> URL {
-        let url = URL(fileURLWithPath: source.path)
+        let url = source.url
         let dirHash = persistentHash(for: url.deletingLastPathComponent().path)
         let lastComp = url.deletingLastPathComponent().lastPathComponent
         let subdir = cacheDirectory.appendingPathComponent("\(lastComp)_\(dirHash)")
@@ -409,7 +371,7 @@ class ThumbsManager: ObservableObject {
         autoreleasepool {
             // Disk cache hit — only meaningful for file-based sources
             if let diskSource = request.source as? DiskPhotoSource,
-               let img = loadFromDisk(for: diskSource.path) {
+               let img = loadFromDisk(for: diskSource.url.absoluteString) {
                 setCachedImage(img, for: request.cacheKey)
                 DispatchQueue.main.async {
                     request.completion(img)
@@ -419,7 +381,7 @@ class ThumbsManager: ObservableObject {
 
             // For disk sources, ensure the file is local (iCloud)
             if let diskSource = request.source as? DiskPhotoSource {
-                guard ICloudDownloader.ensureDownloaded(at: URL(fileURLWithPath: diskSource.path)) else {
+                guard ICloudDownloader.ensureDownloaded(at: diskSource.url) else {
                     DispatchQueue.main.async {
                         request.completion(nil)
                     }
@@ -436,7 +398,7 @@ class ThumbsManager: ObservableObject {
                 }
                 // Only save to disk for file-based sources
                 if let diskSource = request.source as? DiskPhotoSource {
-                    self?.saveToDisk(img, forPath: diskSource.path)
+                    self?.saveToDisk(img, forPath: diskSource.url.absoluteString)
                 }
                 self?.setCachedImage(img, for: request.cacheKey)
                 DispatchQueue.main.async {
@@ -479,8 +441,12 @@ class ThumbsManager: ObservableObject {
 
     private func getCachedImage(for key: String) -> IRImage? {
         cacheLock.lock()
-        defer { cacheLock.unlock() }
-        guard let entry = memoryCache[key] else { return nil }
+        defer {
+            cacheLock.unlock()
+        }
+        guard let entry = memoryCache[key] else {
+            return nil
+        }
         cacheAccessOrder.removeAll { $0 == key }
         cacheAccessOrder.append(key)
         return entry.image
@@ -568,9 +534,13 @@ class ThumbsManager: ObservableObject {
 
     private func evictDiskCacheIfNeeded() {
         diskQueue.async { [weak self] in
-            guard let self else { return }
+            guard let self else {
+                return
+            }
             let totalSize = totalDiskCacheSize()
-            guard totalSize > diskCacheLimitBytes else { return }
+            guard totalSize > diskCacheLimitBytes else {
+                return
+            }
 
             accessLogLock.lock()
             let sorted = accessLog.sorted { $0.value < $1.value }

@@ -7,6 +7,7 @@
 #if os(macOS)
 import AppKit
 
+@MainActor
 class MacThumbGridCoordinator: NSObject {
     var photos: [PhotoItem] = []
     var itemSize: CGFloat
@@ -22,7 +23,7 @@ class MacThumbGridCoordinator: NSObject {
     weak var collectionView: NSCollectionView?
     weak var scrollView: NSScrollView?
     var onVisibleSectionChanged: ((Int) -> Void)?
-    var thumbsManager: ThumbsManager!
+    var thumbsManager: ThumbnailsManager!
     var lastClickedIndexPath: IndexPath?
 
     private var isScrolling = false
@@ -61,9 +62,10 @@ class MacThumbGridCoordinator: NSObject {
             guard section < result.groups.count else {
                 return []
             }
-            return result.groups[section].photos.map { photosById[$0.path] ?? $0 }
-        }
-        if isDateGrouped {
+            return result.groups[section].photos.map {
+                photosById[$0.path] ?? $0
+            }
+        } else if isDateGrouped {
             guard section < dateGroups.count else {
                 return []
             }
@@ -81,28 +83,32 @@ class MacThumbGridCoordinator: NSObject {
             guard let self else {
                 return
             }
-            self.isScrolling = true
+//            self.isScrolling = true
             self.reportVisibleSection()
-            self.scrollEndTimer?.invalidate()
-            self.scrollEndTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
-                guard let self else {
-                    return
-                }
-                self.isScrolling = false
-                self.boostVisibleItems()
-            }
+//            self.scrollEndTimer?.invalidate()
+//            self.scrollEndTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
+//                guard let self else {
+//                    return
+//                }
+//                self.isScrolling = false
+//                self.boostVisibleItems()
+//            }
         }
     }
 
     private func reportVisibleSection() {
-        guard let cv = collectionView, let sv = scrollView, isDateGrouped else { return }
+        guard let cv = collectionView, let sv = scrollView, isDateGrouped else {
+            return
+        }
         let topY = sv.contentView.bounds.minY
         let layout = cv.collectionViewLayout as? NSCollectionViewFlowLayout
         var activeSection = 0
         for section in 0..<dateGroups.count {
             let ip = IndexPath(item: 0, section: section)
             guard let attrs = layout?.layoutAttributesForSupplementaryView(
-                ofKind: NSCollectionView.elementKindSectionHeader, at: ip) else { continue }
+                ofKind: NSCollectionView.elementKindSectionHeader, at: ip) else {
+                continue
+            }
             if attrs.frame.minY <= topY + 1 {
                 activeSection = section
             }
@@ -115,23 +121,20 @@ class MacThumbGridCoordinator: NSObject {
             return
         }
         // Flush all stale low-priority work so .high requests get the semaphore slots
-        thumbsManager.cancelLowPriorityRequests()
+//        thumbsManager.cancelLowPriorityRequests()
 
-        for indexPath in cv.indexPathsForVisibleItems() {
-            guard let item = cv.item(at: indexPath) as? MacThumbCell,
-                  item.thumbImage == nil else {
-                continue
-            }
-            let photo = photosForSection(indexPath.section)[indexPath.item]
-            thumbsManager.loadThumbnail(for: photo, priority: .high) { [weak item] image in
-                guard let image else {
-                    return
-                }
-                DispatchQueue.main.async {
-                    item?.setThumb(image)
-                }
-            }
-        }
+//        for indexPath in cv.indexPathsForVisibleItems() {
+//            guard let item = cv.item(at: indexPath) as? MacThumbCell,
+//                  item.thumbImage == nil else {
+//                continue
+//            }
+//            let photo = photosForSection(indexPath.section)[indexPath.item]
+//            Task {
+//                if let image = await thumbsManager.getThumbnail(for: photo) {
+//                    item.setThumb(image)
+//                }
+//            }
+//        }
     }
 }
 
@@ -144,16 +147,10 @@ extension MacThumbGridCoordinator: NSCollectionViewPrefetching {
                 continue
             }
             let photo = sectionPhotos[indexPath.item]
-            guard thumbsManager.getCachedThumbnail(for: photo) == nil else {
-                continue
+            Task {
+                _ = await thumbsManager.getThumbnail(for: photo)
             }
-            thumbsManager.loadThumbnail(for: photo, priority: .low) { _ in }
         }
-    }
-
-    func collectionView(_ collectionView: NSCollectionView, cancelPrefetchingForItemsAt indexPaths: [IndexPath]) {
-        // Low-priority requests are naturally superseded when a .high request
-        // arrives for the same key, so no explicit cancellation is needed.
     }
 }
 
@@ -176,15 +173,14 @@ extension MacThumbGridCoordinator: NSCollectionViewDataSource {
     func collectionView(_ cv: NSCollectionView,
                         itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
 
-        let item = cv.makeItem(withIdentifier: MacThumbCell.identifier, for: indexPath) as! MacThumbCell
-
         let photo = photosForSection(indexPath.section)[indexPath.item]
         let priority: ThumbnailRequest.Priority = isScrolling ? .low : .high
+
+        let item = cv.makeItem(withIdentifier: MacThumbCell.identifier, for: indexPath) as! MacThumbCell
         item.configure(with: photo,
                        theme: nil,
                        isSelected: selectedPhotos.contains(photo.id),
                        itemSize: itemSize,
-                       thumbsManager: thumbsManager,
                        priority: priority,
                        delegate: delegate)
         return item

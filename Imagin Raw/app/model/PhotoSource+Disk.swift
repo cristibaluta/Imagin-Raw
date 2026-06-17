@@ -12,16 +12,59 @@ import ImageIO
 import CryptoKit
 
 struct DiskPhotoSource: PhotoSource {
-    let path: String
+    let url: URL
 
     var cacheKey: String {
-        let url = URL(fileURLWithPath: path)
         let dirHash = sha256Prefix(url.deletingLastPathComponent().path)
         return "\(dirHash)_\(url.lastPathComponent)"
     }
 
+    func loadThumbnail(targetSize: CGFloat) -> IRImage? {
+
+        // Ensure the file is local (iCloud)
+        guard ICloudDownloader.ensureDownloaded(at: url) else {
+            return nil
+        }
+
+        let ext = url.pathExtension.lowercased()
+
+        // Extract thumb from video
+        if FilesExtensions.video.contains(ext) {
+            return videoThumbnail(url: url, targetSize: targetSize)
+        }
+
+        // Extract thumb from raw
+        if FilesExtensions.raw.contains(ext) {
+            if let data = RawWrapper.shared().extractEmbeddedJPEG(url.absoluteString), let img = IRImage(data: data) {
+                return img.resized(maxSize: targetSize)
+            }
+        }
+
+        // Extract thumb from jpeg
+        // This reads the embedded thumbnail track when available (common in HEIC from iPhone)
+        // and falls back to hardware-accelerated decode at the target size.
+        let thumbOptions: [CFString: Any] = [
+            kCGImageSourceShouldCacheImmediately: false,
+            kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
+            kCGImageSourceCreateThumbnailFromImageAlways: false,
+            kCGImageSourceThumbnailMaxPixelSize: Int(targetSize * 2)
+        ]
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let thumbnail = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else {
+            return nil
+        }
+        // Apply EXIF orientation — iPhone HEIC is often stored rotated
+        var orientation: Int32 = 1
+        if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+           let o = props[kCGImagePropertyOrientation] as? Int32 {
+            orientation = o
+        }
+        let oriented = orientation != 1 ? (thumbnail.applyingOrientation(orientation) ?? thumbnail) : thumbnail
+        let img = IRImage(cgImage: oriented, size: IRSize(width: oriented.width, height: oriented.height))
+        return img
+    }
+
     func loadThumbnail(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void) {
-        let url = URL(fileURLWithPath: path)
         let ext = url.pathExtension.lowercased()
 
         if FilesExtensions.video.contains(ext) {
@@ -29,7 +72,7 @@ struct DiskPhotoSource: PhotoSource {
             return
         }
         if FilesExtensions.raw.contains(ext) {
-            guard let data = RawWrapper.shared().extractEmbeddedJPEG(path),
+            guard let data = RawWrapper.shared().extractEmbeddedJPEG(url.absoluteString),
                   let img = IRImage(data: data) else {
                 completion(nil)
                 return
@@ -65,17 +108,17 @@ struct DiskPhotoSource: PhotoSource {
 
     func loadPreview(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void) {
         let decoder = LibRawDecoder()
-        let img = decoder.extractPreview(at: path, maxSize: targetSize)
+        let img = decoder.extractPreview(at: url.absoluteString, maxSize: targetSize)
         completion(img)
     }
 
     func loadFullRes(completion: @escaping (IRImage?) -> Void) {
-        let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
+        let ext = url.pathExtension.lowercased()
         DispatchQueue.global(qos: .userInitiated).async {
             let image: IRImage?
             if FilesExtensions.raw.contains(ext) {
-                image = CoreGraphicsDecoder().decodeFullRes(at: path)
-            } else if let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
+                image = CoreGraphicsDecoder().decodeFullRes(at: url.absoluteString)
+            } else if let src = CGImageSourceCreateWithURL(url as CFURL, nil),
                       let cg = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) {
                 // Read EXIF orientation and apply it so HEIC/JPEG from iPhone
                 // display in the correct portrait/landscape orientation.
@@ -96,10 +139,9 @@ struct DiskPhotoSource: PhotoSource {
     }
 
     func loadExif() async -> ExifInfo? {
-        let url = URL(fileURLWithPath: path)
         let ext = url.pathExtension.lowercased()
         if FilesExtensions.raw.contains(ext) {
-            guard let raw = RawWrapper.shared().extractRawPhoto(path),
+            guard let raw = RawWrapper.shared().extractRawPhoto(url.absoluteString),
                   let dict = raw.exifData as? [String: Any] else {
                 return nil
             }

@@ -75,7 +75,7 @@ struct CopyOptionsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Backup Destination (Optional):").font(.body)
                 HStack {
-                    Text(viewModel.backupDestinationURL?.path ?? "No backup folder selected")
+                    Text(viewModel.backupDestinationURL?.path ?? "Select a folder to make a second copy!")
                         .font(.caption).foregroundColor(.secondary)
                         .lineLimit(1).truncationMode(.middle)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -135,21 +135,22 @@ struct CopyOptionsView: View {
                 }
 
                 Toggle(isOn: $viewModel.organizeJpgsInSubfolder) {
-                    Text("Copy JPGs to '_jpg' subfolder").font(.body)
+                    Text("Copy jpeg counterparts to '_jpg' subfolder (when raw exists)").font(.body)
                 }
             }
 
             // Preview
-            if let preview = viewModel.previewPath() {
+            if let previewPath = viewModel.previewPath() {
                 Divider()
-                HStack(spacing: 12) {
-                    Text("Preview")
-                    Text(preview)
-                        .font(.system(.caption, design: .monospaced))
-                        .lineLimit(1).truncationMode(.head)
-                        .padding(8)
-                        .background(Color(IRColor.textBackgroundColor))
-                        .cornerRadius(4)
+                HStack {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Preview:")
+                        Text(previewPath)
+                            .font(.system(.caption, design: .monospaced))
+                            .lineLimit(1)
+                            .truncationMode(.head)
+                    }
+                    Spacer()
                 }
             }
 

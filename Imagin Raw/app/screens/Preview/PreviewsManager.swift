@@ -7,10 +7,10 @@ import Foundation
 import CryptoKit
 import Photos
 
-class PreviewsManager {
+class PreviewsManager: @unchecked Sendable {
     static let shared = PreviewsManager()
 
-    var decoder: RawDecoder = LibRawDecoder()
+//    let decoder: RawDecoder = LibRawDecoder()
 
     // MARK: - Config
     private let previewSize: CGFloat = 1024
@@ -21,7 +21,7 @@ class PreviewsManager {
     // MARK: - Cache
     private var memoryCache: [String: CacheEntry] = [:]
     private var cacheAccessOrder: [String] = []
-    private let cacheQueue = DispatchQueue(label: "ro.imagin.previews.cache", attributes: .concurrent)
+    private let cacheQueue = DispatchQueue(label: "ro.imagin.previews.cache")//, attributes: .concurrent)
     private let diskQueue = DispatchQueue(label: "ro.imagin.previews.disk", qos: .userInitiated)
 
     // MARK: - Request queue — protected by queueLock
@@ -149,7 +149,7 @@ class PreviewsManager {
         autoreleasepool {
             // Disk cache hit — file-based only
             if let diskSource = request.source as? DiskPhotoSource,
-               let img = loadFromDisk(for: diskSource.path) {
+               let img = loadFromDisk(for: diskSource.url.absoluteString) {
                 setCachedImage(img, for: request.cacheKey)
                 DispatchQueue.main.async {
                     request.completion(img)
@@ -160,7 +160,7 @@ class PreviewsManager {
 
             // For disk sources, ensure iCloud file is local
             if let diskSource = request.source as? DiskPhotoSource {
-                guard ICloudDownloader.ensureDownloaded(at: URL(fileURLWithPath: diskSource.path)) else {
+                guard ICloudDownloader.ensureDownloaded(at: diskSource.url) else {
                     DispatchQueue.main.async {
                         request.completion(nil)
                     }
@@ -181,7 +181,7 @@ class PreviewsManager {
                 }
                 // Save to disk for file-based sources only
                 if let diskSource = request.source as? DiskPhotoSource {
-                    self?.saveToDisk(img, forPath: diskSource.path)
+                    self?.saveToDisk(img, forPath: diskSource.url.absoluteString)
                 }
                 self?.setCachedImage(img, for: request.cacheKey)
                 DispatchQueue.main.async {

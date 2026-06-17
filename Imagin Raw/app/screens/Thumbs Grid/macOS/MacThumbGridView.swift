@@ -4,8 +4,8 @@
 //
 //  NSCollectionView-based photo grid — full feature parity with ThumbCell.
 //
-import SwiftUI
 #if os(macOS)
+import SwiftUI
 import AppKit
 
 private final class MacKeyableCollectionView: NSCollectionView {
@@ -41,7 +41,7 @@ struct MacThumbGridView: NSViewRepresentable {
     var dateGroups: [(title: String, photos: [PhotoItem])] = []
     var sortOption: ThumbGridViewModel.SortOption = .name
     var onKeyPress: ((NSEvent) -> Bool)?
-    var thumbsManager: ThumbsManager
+    var thumbsManager: ThumbnailsManager
     var isSearchActive: Bool = false
 
     @Binding var scrollToPhotoId: UUID?
@@ -52,7 +52,9 @@ struct MacThumbGridView: NSViewRepresentable {
         MacThumbGridCoordinator(itemSize: itemSize, cellHeight: cellHeight, delegate: delegate)
     }
 
-    private var isDateGrouped: Bool { sortOption != .name && !dateGroups.isEmpty }
+    private var isDateGrouped: Bool {
+        sortOption != .name && !dateGroups.isEmpty
+    }
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
@@ -156,27 +158,28 @@ struct MacThumbGridView: NSViewRepresentable {
                                                         headerHeight: headerHeight)
             }
             cv?.reloadData()
-            return
+//            return
         } else {
-            let theme: NSAppearance.Name = (NSApp.keyWindow ?? NSApp.mainWindow)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) ??
-                .aqua
-            cv?.visibleItems().forEach { item in
-                guard let thumbItem = item as? MacThumbCell,
-                      let path = thumbItem.currentPath,
-                      let photo = latestMap.values.first(where: { $0.path == path }) else { return }
-                let isSelected = selectedPhotos.contains(photo.id)
-                if oldPhotoMap[photo.id] != photo {
-                    thumbItem.configure(with: photo,
-                                        theme: theme,
-                                        isSelected: isSelected,
-                                        itemSize: itemSize,
-                                        thumbsManager: thumbsManager,
-                                        priority: .high,
-                                        delegate: delegate)
-                } else if selectionChanged {
-                    thumbItem.updateSelection(isSelected: isSelected)
-                }
-            }
+//            let theme: NSAppearance.Name = (NSApp.keyWindow ?? NSApp.mainWindow)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) ??
+//                .aqua
+//            cv?.visibleItems().forEach { item in
+//                guard let thumbItem = item as? MacThumbCell,
+//                      let path = thumbItem.currentPath,
+//                      let photo = latestMap.values.first(where: { $0.path == path }) else {
+//                    return
+//                }
+//                let isSelected = selectedPhotos.contains(photo.id)
+//                if oldPhotoMap[photo.id] != photo {
+//                    thumbItem.configure(with: photo,
+//                                        theme: theme,
+//                                        isSelected: isSelected,
+//                                        itemSize: itemSize,
+//                                        priority: .high,
+//                                        delegate: delegate)
+//                } else if selectionChanged {
+//                    thumbItem.updateSelection(isSelected: isSelected)
+//                }
+//            }
         }
 
         if let photoId = scrollToPhotoId {

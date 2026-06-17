@@ -10,6 +10,7 @@ protocol PhotoSource {
     var cacheKey: String { get }
 
     /// Load a thumbnail image (short edge ≤ targetSize) and call completion on any thread.
+    func loadThumbnail(targetSize: CGFloat) -> IRImage?
     func loadThumbnail(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void)
 
     /// Load a preview image (short edge ≤ targetSize) and call completion on any thread.

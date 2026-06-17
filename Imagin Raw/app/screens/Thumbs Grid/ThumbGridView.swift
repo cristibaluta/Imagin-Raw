@@ -28,12 +28,13 @@ struct PhotosSheetItem: Identifiable {
 }
 
 struct GridWidthPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 450
+    static let defaultValue: CGFloat = 450
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
     }
 }
 
+@MainActor
 struct ThumbGridView: View {
     @EnvironmentObject var externalAppManager: ExternalAppManager
     @EnvironmentObject var filesModel: FilesModel
@@ -357,6 +358,9 @@ struct ThumbGridView: View {
 }
 
 extension ThumbGridView: ThumbCellDelegate {
+    func image(for photo: PhotoItem) async -> IRImage? {
+        await viewModel.thumbsManager.getThumbnail(for: photo)
+    }
     func onTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
         viewModel.handlePhotoTap(photo: photo, modifiers: modifiers)
     }

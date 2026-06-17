@@ -147,6 +147,10 @@ struct PhotoKitPhotoSource: PhotoSource {
         return "\(dirHash)_\(url.lastPathComponent)"
     }
 
+    func loadThumbnail(targetSize: CGFloat) -> IRImage? {
+        return nil
+    }
+
     func loadThumbnail(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void) {
         let size = CGSize(width: targetSize * 2, height: targetSize * 2)
         let options = PHImageRequestOptions()
