@@ -41,7 +41,7 @@ struct MacThumbGridView: NSViewRepresentable {
     var dateGroups: [(title: String, photos: [PhotoItem])] = []
     var sortOption: ThumbGridViewModel.SortOption = .name
     var onKeyPress: ((NSEvent) -> Bool)?
-    var thumbsManager: ThumbnailsManager
+    var thumbsManager: PhotoCacheManager
     var isSearchActive: Bool = false
 
     @Binding var scrollToPhotoId: UUID?
@@ -121,12 +121,12 @@ struct MacThumbGridView: NSViewRepresentable {
 
         let photosChanged    = c.photos.map(\.id) != photos.map(\.id)
         let sizeChanged      = c.itemSize != itemSize || c.cellHeight != cellHeight
-        let selectionChanged = c.selectedPhotos != selectedPhotos
+//        let selectionChanged = c.selectedPhotos != selectedPhotos
         let dupChanged       = c.duplicateResult?.groups.map(\.id) != duplicateResult?.groups.map(\.id)
         let dateGroupsChanged = c.dateGroups.map({ $0.title }) != dateGroups.map({ $0.title })
 
-        let latestMap  = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
-        let oldPhotoMap = Dictionary(uniqueKeysWithValues: c.photos.map { ($0.id, $0) })
+//        let latestMap  = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
+//        let oldPhotoMap = Dictionary(uniqueKeysWithValues: c.photos.map { ($0.id, $0) })
 
         c.photos = photos
         c.itemSize = itemSize

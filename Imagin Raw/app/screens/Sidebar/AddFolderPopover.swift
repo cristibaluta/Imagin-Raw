@@ -39,7 +39,7 @@ struct AddFolderPopover: View {
             HStack(spacing: 12) {
                 Image(systemName: "externaldrive")
                     .font(.system(size: 16))
-                    .foregroundColor(Color("PurpleColor"))
+                    .foregroundColor(Color("PurpleThemeColor"))
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -75,7 +75,7 @@ struct AddFolderPopover: View {
             HStack(spacing: 12) {
                 Image(systemName: "photo.on.rectangle.angled")
                     .font(.system(size: 16))
-                    .foregroundColor(Color("PurpleColor"))
+                    .foregroundColor(Color("PurpleThemeColor"))
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -111,7 +111,7 @@ struct AddFolderPopover: View {
             HStack(spacing: 12) {
                 Image(systemName: "folder.badge.plus")
                     .font(.system(size: 16))
-                    .foregroundColor(Color("PurpleColor"))
+                    .foregroundColor(Color("PurpleThemeColor"))
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {

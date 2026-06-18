@@ -13,7 +13,7 @@ import Photos
 final class FilesModel: ObservableObject {
     @Published var rootFolders: [FolderItem] = []
     @Published var selectedFolder: FolderItem?
-    @Published var selectedPhoto: PhotoItem?// Set from thumbs grid and show info to nav bar and preview
+//    @Published var selectedPhoto: PhotoItem?// Set from thumbs grid and show info to nav bar and preview
     @Published var folderContentDidChange: FolderItem?
     @Published var photoMetadataDidChangeURL: URL?
     @Published var sidebarSortOption: SidebarSortOption = {
@@ -36,7 +36,7 @@ final class FilesModel: ObservableObject {
     }
 
     /// The ThumbsManager for the currently loaded album. Updated by ThumbGridViewModel on folder load.
-    var currentThumbsManager: ThumbsManager?
+    var currentThumbsManager: PhotoCacheManager?
 
     // Store all folders (including unmounted ones) and track which are currently available
     private var allFolderBookmarks: [FolderBookmark] = []
@@ -205,8 +205,12 @@ final class FilesModel: ObservableObject {
         ) {
             let sortedFolders = items
                 .compactMap { item -> URL? in
-                    guard let values = try? item.resourceValues(forKeys: keys), values.isDirectory == true else { return nil }
-                    guard !item.lastPathComponent.hasSuffix(".photoslibrary") else { return nil }
+                    guard let values = try? item.resourceValues(forKeys: keys), values.isDirectory == true else {
+                        return nil
+                    }
+                    guard !item.lastPathComponent.hasSuffix(".photoslibrary") else {
+                        return nil
+                    }
                     return item
                 }
                 .sorted {
@@ -259,7 +263,9 @@ final class FilesModel: ObservableObject {
     }
 
     private func insertPhotoLibraryFolder() {
-        guard !rootFolders.contains(where: { $0.url.isPhotoLibraryRoot }) else { return }
+        guard !rootFolders.contains(where: { $0.url.isPhotoLibraryRoot }) else {
+            return
+        }
         let tree = PhotoKitSource.buildFolderTree()
         rootFolders.insert(tree, at: 0)
     }
@@ -382,7 +388,10 @@ extension FilesModel {
                         accessedURLs.insert(restoredURL)
 
                         if FileManager.default.fileExists(atPath: restoredURL.path) {
-                            let folderTree = loadFolderTree(at: restoredURL, maxDepth: 2, currentDepth: 0, bookmarkData: bookmark.bookmarkData)
+                            let folderTree = loadFolderTree(at: restoredURL,
+                                                            maxDepth: 2,
+                                                            currentDepth: 0,
+                                                            bookmarkData: bookmark.bookmarkData)
                             rootFolders.append(folderTree)
                             fileMonitor.startMonitoring(url: restoredURL)
                             RCLog("✅ Restored folder from mounted volume: \(restoredURL.path)")
@@ -515,7 +524,9 @@ extension FilesModel: FileSystemMonitorDelegate {
 
     func photoMetadataDidChange(forPhotoAt url: URL) {
         guard let selectedFolder = selectedFolder,
-              url.path.hasPrefix(selectedFolder.url.path) else { return }
+              url.path.hasPrefix(selectedFolder.url.path) else {
+            return
+        }
         photoMetadataDidChangeURL = url
     }
 

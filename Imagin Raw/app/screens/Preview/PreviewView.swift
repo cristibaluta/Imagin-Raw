@@ -18,7 +18,7 @@ struct Layout {
 
 struct PreviewView: View {
     let photo: PhotoItem
-    @StateObject private var model = PreviewViewModel()
+    @StateObject var viewModel: PreviewViewModel
     @State private var gridType: ThumbGridViewModel.GridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
     @State private var showExportPanel = false
     @State private var showEditPanel = false
@@ -29,10 +29,13 @@ struct PreviewView: View {
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
 
     private var effectiveAlignToTopLeft: Bool {
-        gridType == .large ? true : model.alignToTopLeft
+        gridType == .large ? true : viewModel.alignToTopLeft
     }
 
     var body: some View {
+        #if DEBUG
+        let _ = Self._printChanges()
+        #endif
         VStack(spacing: 0) {
             // Separator
             Rectangle()
@@ -48,18 +51,18 @@ struct PreviewView: View {
             }
         }
         .onAppear {
-            model.setPhoto(photo)
+            viewModel.setPhoto(photo)
         }
         .onChange(of: photo) { _, newPhoto in
-            model.setPhoto(newPhoto)
+            viewModel.setPhoto(newPhoto)
             showExportPanel = false
             showEditPanel = false
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleZoom)) { _ in
-            if model.fullResImage != nil {
-                model.exitZoom()
-            } else if !model.isLoadingFullRes {
-                model.loadFullResolution()
+            if viewModel.fullResImage != nil {
+                viewModel.exitZoom()
+            } else if !viewModel.isLoadingFullRes {
+                viewModel.loadFullResolution()
             }
         }
         .onChange(of: exportRatio) { _, newVal in
@@ -75,7 +78,7 @@ struct PreviewView: View {
             appPrefs.set(newVal, forKey: .showAFPoint)
         }
 //        .sheet(isPresented: $showEditPanel) {
-//            if let preview = model.preview {
+//            if let preview = viewModel.preview {
 //                PerspectiveCorrectionView(image: preview) { corrected in
 //                    showEditPanel = false
 //                    // TODO: store corrected image for export
@@ -92,11 +95,11 @@ struct PreviewView: View {
     private var photoPreviewBody: some View {
         GeometryReader { geo in
             ZStack(alignment: .center) {
-                if let fullRes = model.fullResImage {
+                if let fullRes = viewModel.fullResImage {
                     #if os(macOS)
                     ZoomPanView(image: fullRes, initialMousePosition: mousePosition)
                     #endif
-                } else if let nsImage = model.preview {
+                } else if let nsImage = viewModel.preview {
                     HStack {
                         if !effectiveAlignToTopLeft { Spacer(minLength: 0) }
                         VStack {
@@ -122,7 +125,7 @@ struct PreviewView: View {
                         }
                         Spacer(minLength: 0)
                     }
-                } else if model.isLoading {
+                } else if viewModel.isLoading {
                     ProgressView("Loading...")
                         .progressViewStyle(CircularProgressViewStyle())
                 } else {
@@ -133,8 +136,8 @@ struct PreviewView: View {
                 // Alignment button
                 VStack {
                     HStack {
-                        if !showExportPanel && model.fullResImage == nil && gridType != .large {
-                            Button(action: { model.toggleAlignment() }) {
+                        if !showExportPanel && viewModel.fullResImage == nil && gridType != .large {
+                            Button(action: { viewModel.toggleAlignment() }) {
                                 Image(systemName: effectiveAlignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
                                     .font(.title2)
                                     .foregroundColor(effectiveAlignToTopLeft ? .white.opacity(0.4) : .gray)
@@ -155,7 +158,7 @@ struct PreviewView: View {
                         HStack {
                             Spacer()
                             ExportPanelView(photo: photo,
-                                            pixelSize: exportPixelSize(for: model.preview),
+                                            pixelSize: exportPixelSize(for: viewModel.preview),
                                             isPresented: $showExportPanel,
                                             selectedRatio: $exportRatio,
                                             padding: $exportPadding,
@@ -171,7 +174,7 @@ struct PreviewView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
             .overlay {
-                if model.isLoadingFullRes {
+                if viewModel.isLoadingFullRes {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle())
                         .scaleEffect(1.5)
@@ -192,7 +195,7 @@ struct PreviewView: View {
     @ViewBuilder
     private var photoPreviewControls: some View {
         // EXIF bottom bar or vertical column
-        if let exifInfo = model.exifInfo {
+        if let exifInfo = viewModel.exifInfo {
             if gridType == .large {
                 ExifColumnView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -205,27 +208,27 @@ struct PreviewView: View {
                         .fill(Color.secondary.opacity(0.25))
                         .frame(width: 1, height: 14)
                     Button(action: {
-                        if model.fullResImage != nil {
-                            model.exitZoom()
+                        if viewModel.fullResImage != nil {
+                            viewModel.exitZoom()
                         } else {
-                            model.loadFullResolution()
+                            viewModel.loadFullResolution()
                         }
                     }) {
                         ZStack {
-                            if model.isLoadingFullRes {
+                            if viewModel.isLoadingFullRes {
                                 ProgressView().controlSize(.small).frame(width: 14, height: 14)
                             } else {
-                                Image(systemName: model.fullResImage != nil ? "minus.magnifyingglass" : "plus.magnifyingglass")
+                                Image(systemName: viewModel.fullResImage != nil ? "minus.magnifyingglass" : "plus.magnifyingglass")
                                     .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(model.fullResImage != nil ? .accentColor : .secondary)
+                                    .foregroundColor(viewModel.fullResImage != nil ? .accentColor : .secondary)
                             }
                         }
                         .frame(width: 20, height: 20)
                         .padding(.horizontal, 10)
                     }
                     .buttonStyle(PlainButtonStyle())
-                    .disabled(model.isLoadingFullRes)
-                    .help(model.fullResImage != nil ? "Exit zoom (Z)" : "Zoom to 100% (Z)")
+                    .disabled(viewModel.isLoadingFullRes)
+                    .help(viewModel.fullResImage != nil ? "Exit zoom (Z)" : "Zoom to 100% (Z)")
 
                     Rectangle()
                         .fill(Color.secondary.opacity(0.25))
@@ -248,7 +251,7 @@ struct PreviewView: View {
                     .frame(height: 1)
                 PreviewBottomBar(photo: photo,
                                  exifInfo: exifInfo,
-                                 model: model,
+                                 model: viewModel,
                                  showAFPoint: $showAFPoint,
                                  showEditPanel: $showEditPanel,
                                  showExportPanel: $showExportPanel)
@@ -294,8 +297,6 @@ struct FocusPointOverlay: View {
     }
 }
 
-// MARK: - Live Canvas Preview
-
 extension Notification.Name {
     static let toggleZoom = Notification.Name("ro.imagin.raw.toggleZoom")
 }
@@ -313,102 +314,4 @@ private func exportPixelSize(for image: IRImage?) -> CGSize {
     }
     #endif
     return image.size
-}
-
-private struct ExportCanvasPreview: View, Animatable {
-    let image: IRImage
-    var geo: GeometryProxy
-    let targetRatio: ExportAspectRatio
-    var padding: Double
-    let alignment: ExportAlignment
-
-    var animatableData: Double {
-        get { padding }
-        set { padding = newValue }
-    }
-
-    private let pixelSize: CGSize
-
-    init(image: IRImage, geo: GeometryProxy, targetRatio: ExportAspectRatio, padding: Double, alignment: ExportAlignment) {
-        self.image = image
-        self.geo = geo
-        self.targetRatio = targetRatio
-        self.padding = padding
-        self.alignment = alignment
-        #if os(macOS)
-        if let rep = image.representations.first as? NSBitmapImageRep {
-            self.pixelSize = CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
-        } else if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            self.pixelSize = CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
-        } else {
-            self.pixelSize = image.size
-        }
-        #else
-        self.pixelSize = image.size
-        #endif
-    }
-
-    private func layout(in available: CGSize) -> Layout {
-        let src = pixelSize
-        let pad = CGFloat(padding)
-        let paddedW = src.width + pad * 2
-        let paddedH = src.height + pad * 2
-
-        let canvasW: CGFloat
-        let canvasH: CGFloat
-        if let ratio = targetRatio.ratio {
-            let paddedRatio = paddedW / paddedH
-            if paddedRatio > ratio {
-                canvasW = paddedW
-                canvasH = paddedW / ratio
-            } else if paddedRatio < ratio {
-                canvasW = paddedH * ratio
-                canvasH = paddedH
-            } else {
-                canvasW = paddedW
-                canvasH = paddedH
-            }
-        } else {
-            canvasW = paddedW
-            canvasH = paddedH
-        }
-
-        let scale = min(available.width / canvasW, available.height / canvasH)
-        let dispCanvasW = canvasW * scale
-        let dispCanvasH = canvasH * scale
-        let dispImgW = src.width * scale
-        let dispImgH = src.height * scale
-
-        // Horizontal offset based on alignment
-        let extraSpace = (dispCanvasW - dispImgW) / 2
-        let imgOffX: CGFloat
-        switch alignment {
-            case .left:   imgOffX = -extraSpace + pad * scale
-            case .center: imgOffX = 0
-            case .right:  imgOffX = extraSpace - pad * scale
-        }
-        let imgOffY = 0.0
-//        RCLog("alignment: \(alignment), dispCanvas: \(dispCanvasW) \(dispCanvasH), dispImg: \(dispImgW) \(dispImgH), imgOff: \(imgOffX) \(imgOffY)")
-
-        return Layout(
-            dispCanvasW: dispCanvasW, dispCanvasH: dispCanvasH,
-            dispImgW: dispImgW, dispImgH: dispImgH,
-            imgOffX: imgOffX, imgOffY: imgOffY
-        )
-    }
-
-    var body: some View {
-        let _ = Self._printChanges()
-        let l = layout(in: geo.size)
-        ZStack {
-            Rectangle()
-                .fill(Color.black)
-            Image(nsImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(width: l.dispImgW, height: l.dispImgH)
-                .offset(x: l.imgOffX, y: l.imgOffY)
-        }
-        .frame(width: l.dispCanvasW, height: l.dispCanvasH)
-    }
 }

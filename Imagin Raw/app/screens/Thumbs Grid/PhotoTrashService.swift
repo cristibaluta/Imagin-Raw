@@ -12,7 +12,7 @@ class PhotoTrashService {
 
     weak var photosModel: PhotosModel?
     weak var filesModel: FilesModel?
-    var thumbsManager: ThumbsManager?
+    var thumbsManager: PhotoCacheManager?
 
     private var undoStack: [[(trashedURL: URL, originalURL: URL)]] = []
 
@@ -28,12 +28,14 @@ class PhotoTrashService {
             do {
                 var trashedURL: NSURL?
                 try FileManager.default.trashItem(at: url, resultingItemURL: &trashedURL)
-                if let t = trashedURL as? URL { undoEntry.append((t, url)) }
+                if let t = trashedURL as? URL {
+                    undoEntry.append((t, url))
+                }
 
-                thumbsManager?.deleteCachedThumbnail(for: photo.path)
+                thumbsManager?.deleteThumbnail(for: photo)
 
                 if FilesExtensions.raw.contains(ext) {
-                    for jpgExt in ["jpg", "jpeg", "JPG", "JPEG", "heic", "HEIC"] {
+                    for jpgExt in ["jpg", "jpeg", "heic", "JPG", "JPEG", "HEIC"] {
                         let j = dir.appendingPathComponent("\(base).\(jpgExt)")
                         if FileManager.default.fileExists(atPath: j.path) {
                             var t: NSURL?

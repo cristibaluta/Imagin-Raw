@@ -23,7 +23,7 @@ class MacThumbGridCoordinator: NSObject {
     weak var collectionView: NSCollectionView?
     weak var scrollView: NSScrollView?
     var onVisibleSectionChanged: ((Int) -> Void)?
-    var thumbsManager: ThumbnailsManager!
+    var thumbsManager: PhotoCacheManager!
     var lastClickedIndexPath: IndexPath?
 
     private var isScrolling = false
@@ -117,9 +117,9 @@ class MacThumbGridCoordinator: NSObject {
     }
 
     private func boostVisibleItems() {
-        guard let cv = collectionView else {
-            return
-        }
+//        guard let cv = collectionView else {
+//            return
+//        }
         // Flush all stale low-priority work so .high requests get the semaphore slots
 //        thumbsManager.cancelLowPriorityRequests()
 
@@ -174,14 +174,12 @@ extension MacThumbGridCoordinator: NSCollectionViewDataSource {
                         itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
 
         let photo = photosForSection(indexPath.section)[indexPath.item]
-        let priority: ThumbnailRequest.Priority = isScrolling ? .low : .high
 
         let item = cv.makeItem(withIdentifier: MacThumbCell.identifier, for: indexPath) as! MacThumbCell
         item.configure(with: photo,
                        theme: nil,
                        isSelected: selectedPhotos.contains(photo.id),
                        itemSize: itemSize,
-                       priority: priority,
                        delegate: delegate)
         return item
     }

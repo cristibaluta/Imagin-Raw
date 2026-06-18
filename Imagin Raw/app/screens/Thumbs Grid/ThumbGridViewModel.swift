@@ -5,13 +5,19 @@
 //  Created by Cristian Baluta on 06.02.2026.
 //
 
-import Foundation
 import SwiftUI
 import Combine
 
 @MainActor
 class ThumbGridViewModel: ObservableObject {
+
     @Published var selectedPhotos: Set<UUID> = []
+    @Published var selectedPhoto: PhotoItem? {
+        didSet {
+            print(">>>>>>> selectedPhoto \(id) \(selectedPhoto?.path)")
+            appState.selectedPhoto = selectedPhoto
+        }
+    }
     @Published var selectedLabels: Set<String> = []
     @Published var selectedRatings: Set<Int> = []
     @Published var sortOption: SortOption = .name
@@ -26,25 +32,28 @@ class ThumbGridViewModel: ObservableObject {
     @Published var duplicateScanProgress: (done: Int, total: Int) = (0, 0)
     @Published var duplicateScanResult: DuplicateScanResult? = nil
     @Published var similarityMode: DuplicateFinderService.SimilarityMode = .loose
-    @Published private(set) var filteredAndSortedPhotos: [PhotoItem] = []
+    @Published private(set) var filteredAndSortedPhotos: [PhotoItem] = [] {
+        didSet {
+            print(">>>>>>>>>>> filteredAndSortedPhotos count: \(filteredAndSortedPhotos.count)")
+        }
+    }
     @Published private(set) var dateGroups: [(title: String, photos: [PhotoItem])] = []
     @Published var photosToCopy: [PhotoItem] = []
     @Published var copyDestinationURL: URL?
-    @Published var thumbsManager = ThumbnailsManager(thumbSize: .s256)
 
     private var duplicateScanData: DuplicateScanData? = nil
 
     // MARK: - Dependencies
+    private let appState: AppState
     private let filesModel: FilesModel
+    let thumbsManager: PhotoCacheManager
     private(set) var photosModel: PhotosModel?
     private var searchResultsPhotos: [PhotoItem]? = nil
     private var cancellables = Set<AnyCancellable>()
 
-    // MARK: - Services
     private let metadataService = PhotoMetadataService()
     private let trashService    = PhotoTrashService()
 
-    // MARK: - Enums
     enum SortOption: String, CaseIterable {
         case name         = "Name"
         case dateCaptured = "Date Captured"
@@ -65,14 +74,17 @@ class ThumbGridViewModel: ObservableObject {
         var displayName: String { self == .small ? "Small" : "Large" }
         var iconName: String { self == .small ? "square.grid.3x3" : "square.grid.4x4.fill" }
     }
-
-    init(filesModel: FilesModel) {
+    let id = UUID()
+    init(appState: AppState, filesModel: FilesModel, thumbsManager: PhotoCacheManager) {
+        self.appState = appState
         self.filesModel = filesModel
+        self.thumbsManager = thumbsManager
         loadSortOption()
         loadGridType()
         loadSimilarityMode()
         setupFilteredPhotosObservers()
         setupServices()
+        print(">>>>>>> init ThumbGridViewModel \(id)")
     }
 
     private func setupServices() {
@@ -81,7 +93,7 @@ class ThumbGridViewModel: ObservableObject {
             self?.filterAndSortPhotos()
         }
         trashService.filesModel = filesModel
-//        trashService.thumbsManager = thumbsManager
+        trashService.thumbsManager = thumbsManager
     }
 
     private func setupFilteredPhotosObservers() {
@@ -145,7 +157,7 @@ class ThumbGridViewModel: ObservableObject {
     // MARK: - Filtering
 
     func filterAndSortPhotos() {
-        let lastSelectedPhotoId = filesModel.selectedPhoto?.id
+        let lastSelectedPhotoId = selectedPhoto?.id
         var result = photos
 
         // Filter photos
@@ -167,7 +179,7 @@ class ThumbGridViewModel: ObservableObject {
             
             if let id = lastSelectedPhotoId {
                 lastSelectedIndex = filteredAndSortedPhotos.firstIndex { $0.id == id }
-            } else if filesModel.selectedPhoto == nil {
+            } else if selectedPhoto == nil {
                 lastSelectedIndex = nil
             }
         }
@@ -208,20 +220,13 @@ class ThumbGridViewModel: ObservableObject {
         cancellables.removeAll()
         setupFilteredPhotosObservers()
 
-//        thumbsManager.stopQueue()
-//        let newThumbsManager = ThumbsManager()
-//        thumbsManager = newThumbsManager
-//        filesModel.currentThumbsManager = newThumbsManager
-//        trashService.thumbsManager = newThumbsManager
-
         let newPhotosModel = PhotosModel(folder: folder)
         photosModel = newPhotosModel
         metadataService.photosModel = newPhotosModel
         trashService.photosModel = newPhotosModel
-
-//        newThumbsManager.$pendingQueueCount
-//            .receive(on: DispatchQueue.main)
-//            .assign(to: &$cachingQueueCount)
+        selectedPhotos.removeAll()
+        lastSelectedIndex = nil
+        selectedPhoto = nil
 
         newPhotosModel.objectWillChange
             .sink { [weak self] _ in
@@ -245,9 +250,6 @@ class ThumbGridViewModel: ObservableObject {
             .store(in: &cancellables)
 
         newPhotosModel.loadPhotos()
-        selectedPhotos.removeAll()
-        lastSelectedIndex = nil
-        filesModel.selectedPhoto = nil
     }
 
     func reloadPhotos() {
@@ -283,7 +285,7 @@ class ThumbGridViewModel: ObservableObject {
                 selectedPhotos.remove(photo.id)
             } else {
                 selectedPhotos.insert(photo.id)
-                filesModel.selectedPhoto = photo
+                selectedPhoto = photo
                 lastSelectedIndex = photoIndex
             }
         } else if modifiers.contains(.shift) {
@@ -292,10 +294,10 @@ class ThumbGridViewModel: ObservableObject {
             for i in start...end where i < filteredAndSortedPhotos.count {
                 selectedPhotos.insert(filteredAndSortedPhotos[i].id)
             }
-            filesModel.selectedPhoto = photo
+            selectedPhoto = photo
         } else {
+            selectedPhoto = photo
             selectedPhotos = [photo.id]
-            filesModel.selectedPhoto = photo
             lastSelectedIndex = photoIndex
         }
     }
@@ -303,23 +305,24 @@ class ThumbGridViewModel: ObservableObject {
     func selectAll() {
         selectedPhotos = Set(filteredAndSortedPhotos.map { $0.id })
         if let first = filteredAndSortedPhotos.first {
-            filesModel.selectedPhoto = first
+            selectedPhoto = first
             lastSelectedIndex = 0
         }
     }
 
+    // TODO: is this needed? doesn't take into the account the groups
     func navigateToPhoto(at newIndex: Int) {
         guard newIndex >= 0 && newIndex < filteredAndSortedPhotos.count else {
             return
         }
         selectedPhotos = [filteredAndSortedPhotos[newIndex].id]
-        filesModel.selectedPhoto = filteredAndSortedPhotos[newIndex]
+        selectedPhoto = filteredAndSortedPhotos[newIndex]
         lastSelectedIndex = newIndex
     }
 
     func initializeSelection() {
-        if filesModel.selectedPhoto == nil, let first = filteredAndSortedPhotos.first {
-            filesModel.selectedPhoto = first
+        if selectedPhoto == nil, let first = filteredAndSortedPhotos.first {
+            selectedPhoto = first
             selectedPhotos = [first.id]
         }
     }
@@ -335,7 +338,7 @@ class ThumbGridViewModel: ObservableObject {
         if selectedPhotos.count > 1 {
             return allPhotos.filter { selectedPhotos.contains($0.id) }
         }
-        if let sel = filesModel.selectedPhoto {
+        if let sel = selectedPhoto {
             return [allPhotos.first(where: { $0.id == sel.id }) ?? sel]
         }
         return []
@@ -378,11 +381,11 @@ class ThumbGridViewModel: ObservableObject {
         if let index,  index < filteredAndSortedPhotos.count {
             let nextIndex = min(index, filteredAndSortedPhotos.count - 1)
             let nextPhoto = filteredAndSortedPhotos[nextIndex]
-            filesModel.selectedPhoto = nextPhoto
+            selectedPhoto = nextPhoto
             selectedPhotos = [nextPhoto.id]
             lastSelectedIndex = nextIndex
         } else {
-            filesModel.selectedPhoto = nil
+            selectedPhoto = nil
             lastSelectedIndex = nil
         }
     }
@@ -421,7 +424,7 @@ class ThumbGridViewModel: ObservableObject {
             return false
         }
 
-        let cur = filteredAndSortedPhotos.firstIndex { $0.id == filesModel.selectedPhoto?.id } ?? 0
+        let cur = filteredAndSortedPhotos.firstIndex { $0.id == selectedPhoto?.id } ?? 0
         var next = cur
 
         switch key {

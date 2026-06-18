@@ -8,13 +8,11 @@
 import Foundation
 import CryptoKit
 
-actor PhotoCache {
+private actor MemoryCache {
     private let cache = NSCache<NSString, NSData>()
-    private let cacheLimit: Int
 
     init(cacheLimit: Int = 0) {
-        self.cacheLimit = cacheLimit
-        self.cache.countLimit = cacheLimit
+        cache.countLimit = cacheLimit
     }
 
     func setImageData(_ data: Data, for key: String) {
@@ -26,7 +24,7 @@ actor PhotoCache {
     }
 }
 
-actor AccessLogs {
+private actor AccessLogs {
     private var accessLog: [String: Date] = [:]
     private let accessLogURL: URL
 
@@ -40,10 +38,10 @@ actor AccessLogs {
         accessLog = raw
     }
 
-    func getSnapstot() -> [String: Date] {
+    func getSnapshot() -> [String: Date] {
         accessLog
     }
-    
+
     func saveSnapshot(_ snapshot: [String: Date]) {
         guard let data = try? JSONEncoder().encode(snapshot) else {
             return
@@ -56,15 +54,21 @@ actor AccessLogs {
 enum ThumbSize: Int {
     case s256 = 256
     case s1024 = 1024
+
+    var cacheLimit: Int64 {
+        switch self {
+            case .s256: return 256 * 1024 * 1024 // 256Mb
+            case .s1024 : return 1 * 1024 * 1024 * 1024 // 1Gb
+        }
+    }
 }
 
-final class ThumbnailsManager: Sendable {
-    let memoryCache = PhotoCache()
-    let accessLogs = AccessLogs() // The access date of each folder. Older accesses are evicted first
+final class PhotoCacheManager: Sendable {
+    private let memoryCache = MemoryCache()
+    private let accessLogs = AccessLogs() // The access date of each folder. Older accesses are evicted first
 
     private let cacheDirectory: URL
     private let thumbSize: ThumbSize
-    private let diskCacheLimitBytes: Int64 = 2 * 1024 * 1024 * 1024
 
     init(thumbSize: ThumbSize) {
         self.thumbSize = thumbSize
@@ -78,8 +82,8 @@ final class ThumbnailsManager: Sendable {
     
     func getThumbnail(for photo: PhotoItem) async -> IRImage? {
         // 1. Search for the image in the memory
-        if let cachedData = await memoryCache.getImageData(for: photo.path) {
-            return IRImage(data: cachedData)
+        if let memoryData = await memoryCache.getImageData(for: photo.path) {
+            return IRImage(data: memoryData)
         }
 
         // 2. Search for the image on disk cache
@@ -107,11 +111,16 @@ final class ThumbnailsManager: Sendable {
         return IRImage(data: jpegData)
     }
 
+    func deleteThumbnail(for photo: PhotoItem) {
+        let cacheUrl = cachedPhotoUrl(for: photo.url)
+        try? FileManager.default.removeItem(at: cacheUrl)
+    }
+
     func purgeCache(for folderURL: URL) async {
-        let folderPath = folderURL.path
-        let dirHash = persistentHash(for: folderPath)
-        let subdirName = "\(folderURL.lastPathComponent)_\(dirHash)"
-        let subdirectory = cacheDirectory.appendingPathComponent(subdirName)
+//        let folderPath = folderURL.path
+//        let dirHash = persistentHash(for: folderPath)
+//        let subdirName = "\(folderURL.lastPathComponent)_\(dirHash)"
+//        let subdirectory = cacheDirectory.appendingPathComponent(subdirName)
 
 //        let prefix = "\(dirHash)_"
 //        let keysToRemove = await memoryCache.keys.filter { $0.hasPrefix(prefix) }
@@ -149,7 +158,7 @@ final class ThumbnailsManager: Sendable {
 
     private func registerCacheSubdirectory(_ subdirName: String) {
         Task {
-            var snapshot = await accessLogs.getSnapstot()
+            var snapshot = await accessLogs.getSnapshot()
             guard snapshot[subdirName] == nil else {
                 return
             }
@@ -159,12 +168,12 @@ final class ThumbnailsManager: Sendable {
     }
 
     /// Returns a cache folder of the form <album name>_<album path hash>
-    private func cachedPhotoUrl(for photoUrl: URL) -> URL {
+    func cachedPhotoUrl(for photoUrl: URL) -> URL {
         let cacheDir = cacheDir(for: photoUrl)
         return cacheDir.appendingPathComponent("\(photoUrl.lastPathComponent).jpg")
     }
 
-    private func cacheDir(for photoUrl: URL) -> URL {
+    func cacheDir(for photoUrl: URL) -> URL {
         let folderUrl = photoUrl.deletingLastPathComponent()
         let folderName = folderUrl.lastPathComponent
         let folderUrlHash = persistentHash(for: folderUrl.absoluteString)
@@ -198,11 +207,11 @@ final class ThumbnailsManager: Sendable {
 
     private func evictDiskCacheIfNeeded() async {
         let totalSize = totalDiskCacheSize()
-        guard totalSize > diskCacheLimitBytes else {
+        guard totalSize > thumbSize.cacheLimit else {
             return
         }
 
-        var snapshot = await accessLogs.getSnapstot()
+        var snapshot = await accessLogs.getSnapshot()
         let sorted = snapshot.sorted { $0.value < $1.value }
         let deleteCount = max(1, sorted.count / 3)// Delete one third of the old albums cache
         for (subdirName, _) in sorted.prefix(deleteCount) {

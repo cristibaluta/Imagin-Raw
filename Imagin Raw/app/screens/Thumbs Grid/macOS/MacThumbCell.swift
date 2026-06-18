@@ -305,7 +305,6 @@ final class MacThumbCell: NSCollectionViewItem {
                    theme: NSAppearance.Name?,
                    isSelected: Bool,
                    itemSize: CGFloat,
-                   priority: ThumbnailRequest.Priority = .high,
                    delegate: ThumbCellDelegate) {
 
         self.theme = theme ?? ((NSApp.keyWindow ?? NSApp.mainWindow)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) ?? .aqua)

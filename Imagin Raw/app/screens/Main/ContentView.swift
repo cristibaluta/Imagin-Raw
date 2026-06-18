@@ -8,21 +8,28 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var appState = AppState()
     @StateObject private var filesModel = FilesModel()
     @StateObject private var externalAppManager = ExternalAppManager()
     @StateObject private var searcher = SpotlightSearcher()
+
     @Environment(\.colorScheme) private var colorScheme
     @State private var searchText = ""
     @SceneStorage("columnVisibility") private var columnVisibilityStorage: String = "all"
     @State private var showFolderPopover = false
     @State private var isSidebarCollapsed = false
     @State private var windowWidth: CGFloat = 1200
-    @State private var openSelectedPhotosCallback: (() -> Void)?
     @State private var contentColumnWidth: CGFloat = 450
+    @State private var openSelectedPhotosCallback: (() -> Void)?
     @State private var reviewGroup: ReviewGroupItem? = nil
+
     #if os(iOS)
     @State private var feedPhotos: [PhotoItem] = []
     #endif
+
+    init() {
+
+    }
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
         Binding(
@@ -64,13 +71,16 @@ struct ContentView: View {
     }
 
     private var shareablePhoto: URL? {
-        guard let selectedPhoto = filesModel.selectedPhoto else {
+        guard let selectedPhoto = appState.selectedPhoto else {
             return nil
         }
         return URL(fileURLWithPath: selectedPhoto.path)
     }
 
     var body: some View {
+        #if DEBUG
+        let _ = Self._printChanges()
+        #endif
         GeometryReader { geo in
             ZStack {
                 // Main app content
@@ -129,7 +139,7 @@ struct ContentView: View {
 
     private var navigationSubtitle: String {
         let url: URL
-        if let photo = filesModel.selectedPhoto {
+        if let photo = appState.selectedPhoto {
             url = URL(fileURLWithPath: photo.path)
         } else if let folder = navigationDocumentURL {
             url = folder
@@ -154,6 +164,10 @@ struct ContentView: View {
             thumbGridView
                 .onPreferenceChange(GridWidthPreferenceKey.self) { width in
                     contentColumnWidth = width
+                }
+                .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
+                    print(">>>>>>>>>> filesModel.selectedFolder changed")
+//
                 }
                 .navigationSplitViewColumnWidth(min: contentColumnWidth,
                                                 ideal: contentColumnWidth,
@@ -221,26 +235,33 @@ struct ContentView: View {
             currentPhotos: $feedPhotos
         )
         #else
-        return ThumbGridView(
-            filesModel: filesModel,
-            searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
-            onOpenSelectedPhotos: { photos in openMultiplePhotosInExternalApp(photos: photos) },
-            onEnterReviewMode: { },
-            onToggleSidebar: {
-                columnVisibilityStorage = columnVisibilityStorage == "doubleColumn" ? "all" : "doubleColumn"
-            },
-            isSidebarCollapsed: isSidebarCollapsed,
-            windowWidth: windowWidth,
-            openSelectedPhotosCallback: $openSelectedPhotosCallback,
-            reviewGroup: $reviewGroup
-        )
+        Group {
+            if let selectedFolder = filesModel.selectedFolder {
+                ThumbGridView(
+                    appState: appState,
+                    filesModel: filesModel,
+                    searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
+                    onOpenSelectedPhotos: { photos in openMultiplePhotosInExternalApp(photos: photos) },
+                    onEnterReviewMode: { },
+                    onToggleSidebar: {
+                        columnVisibilityStorage = columnVisibilityStorage == "doubleColumn" ? "all" : "doubleColumn"
+                    },
+                    isSidebarCollapsed: isSidebarCollapsed,
+                    windowWidth: windowWidth,
+                    openSelectedPhotosCallback: $openSelectedPhotosCallback,
+                    reviewGroup: $reviewGroup
+                )
+            } else {
+                Text("No selected folder")
+            }
+        }
         #endif
     }
 
     private var detailView: some View {
         Group {
-            if let photo = filesModel.selectedPhoto {
-                PreviewView(photo: photo)
+            if let photo = appState.selectedPhoto {
+                PreviewView(photo: photo, viewModel: PreviewViewModel(previewsCacheManager: previewsCacheManager))
                     .id(photo.id)
             } else {
                 VStack(spacing: 0) {
@@ -260,12 +281,16 @@ struct ContentView: View {
         if reviewGroup != nil {
             // Review mode — show only a close button
             ToolbarItem(placement: .cancellationAction) {
-                Button(action: { withAnimation(.easeInOut(duration: 0.2)) { reviewGroup = nil } }) {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        reviewGroup = nil
+                    }
+                }) {
                     Label("Close Review", systemImage: "xmark")
                 }
                 .keyboardShortcut(.escape, modifiers: [])
             }
-        } else if let _ = filesModel.selectedPhoto {
+        } else if let _ = appState.selectedPhoto {
             ToolbarItemGroup(placement: .navigation) {
                 navigationToolbarItems
             }
@@ -325,7 +350,7 @@ struct ContentView: View {
         } primaryAction: {
             openSelectedPhotosCallback?()
         }
-        .disabled(filesModel.selectedPhoto == nil)
+        .disabled(appState.selectedPhoto == nil)
 
         // Sharing/Export button
         if let photoURL = shareablePhoto {

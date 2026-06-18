@@ -92,11 +92,10 @@ enum DuplicateFinderService {
 
     /// Runs Vision feature prints + pairwise distances once.
     /// Call `DuplicateScanData.recluster(threshold:)` to filter without re-scanning.
-    static func scan(
-        photos: [PhotoItem],
-        thumbsManager: ThumbsManager,
-        progress: @escaping (Int, Int) -> Void
-    ) async -> DuplicateScanData? {
+    static func scan(photos: [PhotoItem],
+                     thumbsManager: PhotoCacheManager,
+                     progress: @escaping (Int, Int) -> Void) async -> DuplicateScanData? {
+
         let total = photos.count
         RCLog("🔍 Starting duplicate scan for \(total) photos (threshold ≤ \(scanThreshold))")
 
@@ -116,7 +115,7 @@ enum DuplicateFinderService {
                 let lock = NSLock()
 
                 for (index, photo) in photos.enumerated() {
-                    let diskURL = thumbsManager.diskCacheURL(for: photo.path)
+                    let diskURL = thumbsManager.cachedPhotoUrl(for: photo.url)
                     if FileManager.default.fileExists(atPath: diskURL.path) {
                         lock.lock();
                         urls[index] = diskURL;
@@ -124,16 +123,15 @@ enum DuplicateFinderService {
                     } else {
                         RCLog("  ⏳ Generating thumb [\(index+1)/\(total)]: \(URL(fileURLWithPath: photo.path).lastPathComponent)")
                         group.enter()
-                        thumbsManager.loadThumbnail(for: photo, priority: .high) { _ in
-                            if FileManager.default.fileExists(atPath: diskURL.path) {
-                                lock.lock();
-                                urls[index] = diskURL;
-                                lock.unlock()
-                            } else {
-                                RCLog("  ⚠️ Thumb missing after generation: \(diskURL.lastPathComponent)")
-                            }
-                            group.leave()
+                        _ = await thumbsManager.getThumbnail(for: photo)
+                        if FileManager.default.fileExists(atPath: diskURL.path) {
+                            lock.lock();
+                            urls[index] = diskURL;
+                            lock.unlock()
+                        } else {
+                            RCLog("  ⚠️ Thumb missing after generation: \(diskURL.lastPathComponent)")
                         }
+                        group.leave()
                     }
                 }
                 group.notify(queue: .main) {

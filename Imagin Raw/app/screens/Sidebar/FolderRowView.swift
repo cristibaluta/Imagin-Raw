@@ -31,7 +31,7 @@ struct FolderRowView: View {
     private var folderColor: Color {
         if isRootFolder {
             // Dark purple for root folders (user-added folders)
-            return Color("PurpleColor")
+            return Color("PurpleThemeColor")
         } else if hasChildren {
             // Regular blue for subfolders with children
             return Color.blue
@@ -200,7 +200,10 @@ struct FolderRowView: View {
                     Divider()
 
                     Button(action: {
-                        if let cacheURL = filesModel.currentThumbsManager?.cacheURL(for: folder.url) {
+                        Task {
+                            guard let cacheURL = filesModel.currentThumbsManager?.cacheDir(for: folder.url) else {
+                                return
+                            }
                             NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
                         }
                     }) {
@@ -208,7 +211,9 @@ struct FolderRowView: View {
                     }
 
                     Button(role: .destructive, action: {
-                        filesModel.currentThumbsManager?.purgeCache(for: folder.url)
+                        Task {
+                            await filesModel.currentThumbsManager?.purgeCache(for: folder.url)
+                        }
                     }) {
                         Label("Purge Cache", systemImage: "trash")
                     }
@@ -260,7 +265,10 @@ struct FolderRowView: View {
                 Divider()
 
                 Button(action: {
-                    if let cacheURL = filesModel.currentThumbsManager?.cacheURL(for: folder.url) {
+                    Task {
+                        guard let cacheURL = filesModel.currentThumbsManager?.cacheDir(for: folder.url) else {
+                            return
+                        }
                         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
                     }
                 }) {
@@ -268,7 +276,9 @@ struct FolderRowView: View {
                 }
 
                 Button(role: .destructive, action: {
-                    filesModel.currentThumbsManager?.purgeCache(for: folder.url)
+                    Task {
+                        await filesModel.currentThumbsManager?.purgeCache(for: folder.url)
+                    }
                 }) {
                     Label("Purge Cache", systemImage: "trash")
                 }

@@ -169,7 +169,7 @@ class PhotoMetadataService {
                                             height: cur.height,
                                             cameraMake: cur.cameraMake,
                                             cameraModel: cur.cameraModel)
-        filesModel?.selectedPhoto = photosModel.photos[idx]
+//        filesModel?.selectedPhoto = photosModel.photos[idx]
         onPhotoUpdated?()
     }
 
@@ -194,7 +194,7 @@ class PhotoMetadataService {
                                             height: cur.height,
                                             cameraMake: cur.cameraMake,
                                             cameraModel: cur.cameraModel)
-        filesModel?.selectedPhoto = photosModel.photos[idx]
+//        filesModel?.selectedPhoto = photosModel.photos[idx]
         onPhotoUpdated?()
     }
 

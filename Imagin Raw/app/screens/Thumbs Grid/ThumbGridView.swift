@@ -37,7 +37,8 @@ struct GridWidthPreferenceKey: PreferenceKey {
 @MainActor
 struct ThumbGridView: View {
     @EnvironmentObject var externalAppManager: ExternalAppManager
-    @EnvironmentObject var filesModel: FilesModel
+    @ObservedObject var filesModel: FilesModel
+    @ObservedObject var appState: AppState
 
     @StateObject private var viewModel: ThumbGridViewModel
 
@@ -61,7 +62,8 @@ struct ThumbGridView: View {
     @State private var hasAppeared = false
     @State private var ignoringSearchResults = false
 
-    init(filesModel: FilesModel,
+    init(appState: AppState,
+         filesModel: FilesModel,
          searchPhotoResults: [PhotoItem]? = nil,
          onOpenSelectedPhotos: (([PhotoItem]) -> Void)?,
          onEnterReviewMode: (() -> Void)?,
@@ -72,16 +74,21 @@ struct ThumbGridView: View {
          reviewGroup: Binding<ReviewGroupItem?>,
          currentPhotos: Binding<[PhotoItem]> = .constant([])) {
 
-        self._viewModel = StateObject(wrappedValue: ThumbGridViewModel(filesModel: filesModel))
+        self.appState = appState
+        self.filesModel = filesModel
         self.searchPhotoResults = searchPhotoResults
+        self._openSelectedPhotosCallback = openSelectedPhotosCallback
         self.onOpenSelectedPhotos = onOpenSelectedPhotos
         self.onEnterReviewMode = onEnterReviewMode
         self.onToggleSidebar = onToggleSidebar
         self.isSidebarCollapsed = isSidebarCollapsed
         self.windowWidth = windowWidth
-        self._openSelectedPhotosCallback = openSelectedPhotosCallback
         self._reviewGroup = reviewGroup
         self._currentPhotos = currentPhotos
+
+        _viewModel = StateObject(wrappedValue: ThumbGridViewModel(appState: appState,
+                                                                  filesModel: filesModel,
+                                                                  thumbsManager: thumbnailsCacheManager))
     }
 
     var body: some View {
@@ -191,7 +198,7 @@ struct ThumbGridView: View {
             viewModel.clearSearchResults()
             viewModel.loadPhotosForFolder(folder)
             viewModel.exitDuplicateMode()
-            filesModel.selectedPhoto = nil
+            viewModel.selectedPhoto = nil
             viewModel.selectedPhotos.removeAll()
         }
         .onChange(of: filesModel.folderContentDidChange) { oldValue, newValue in
@@ -252,11 +259,11 @@ struct ThumbGridView: View {
             viewModel.initializeSelection()
         }
         .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
-            if filesModel.selectedPhoto == nil && !newPhotos.isEmpty {
-//                filesModel.selectedPhoto = newPhotos.first
-//                viewModel.selectedPhotos.removeAll()
-//                viewModel.selectedPhotos.insert(newPhotos.first!.id)
-//                viewModel.lastSelectedIndex = 0
+            if viewModel.selectedPhoto == nil && !newPhotos.isEmpty {
+                viewModel.selectedPhoto = newPhotos.first
+                viewModel.selectedPhotos.removeAll()
+                viewModel.selectedPhotos.insert(newPhotos.first!.id)
+                viewModel.lastSelectedIndex = 0
             }
         }
         .onChange(of: viewModel.filteredAndSortedPhotos) { oldPhotos, newPhotos in
@@ -365,7 +372,7 @@ extension ThumbGridView: ThumbCellDelegate {
         viewModel.handlePhotoTap(photo: photo, modifiers: modifiers)
     }
     func onDoubleClick(photo: PhotoItem) {
-        filesModel.selectedPhoto = photo
+        viewModel.selectedPhoto = photo
         if viewModel.selectedPhotos.count > 1 {
             let selectedPhotoItems = viewModel.filteredAndSortedPhotos.filter {
                 viewModel.selectedPhotos.contains($0.id)

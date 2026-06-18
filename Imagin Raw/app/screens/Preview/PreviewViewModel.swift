@@ -12,13 +12,14 @@ class PreviewViewModel: ObservableObject {
     @Published var fullResImage: IRImage? = nil
     @Published var isLoadingFullRes = false
 
+    private let previewsCacheManager: PhotoCacheManager
     private(set) var photo: PhotoItem?
     private var loadingTask: Task<Void, Never>?
     private var fullResTask: Task<Void, Never>?
 
-    private static let cacheLimit = 10
-    private static var imageCache: [String: (IRImage, ExifInfo?)] = [:]
-    private static var cacheOrder: [String] = [] // Most recent at end
+    init(previewsCacheManager: PhotoCacheManager) {
+        self.previewsCacheManager = previewsCacheManager
+    }
 
     func setPhoto(_ photo: PhotoItem) {
         if self.photo?.path != photo.path {
@@ -70,53 +71,30 @@ class PreviewViewModel: ObservableObject {
     }
 
     private func loadPreview() {
-        guard let photo = photo else { return }
-        let path = photo.path
-        let currentPhoto = photo
-
-        if let (cachedImage, cachedExif) = Self.imageCache[path] {
-            self.preview = cachedImage
-            self.exifInfo = cachedExif
-            self.isLoading = false
-            if let idx = Self.cacheOrder.firstIndex(of: path) {
-                Self.cacheOrder.remove(at: idx)
-                Self.cacheOrder.append(path)
-            }
+        guard let photo else {
             return
         }
 
-        preview = nil
         isLoading = true
+        preview = nil
         exifInfo = nil
 
-        loadingTask = Task(priority: .userInitiated) { [path, currentPhoto] in
-            let previewImage: IRImage? = await withCheckedContinuation { continuation in
-                PreviewsManager.shared.loadPreview(for: currentPhoto) { image, _ in
-                    continuation.resume(returning: image)
-                }
+        loadingTask = Task(priority: .userInitiated) { [photo] in
+
+            let previewImage: IRImage? = await previewsCacheManager.getThumbnail(for: photo)
+
+            guard !Task.isCancelled else {
+                return
             }
-
-            guard !Task.isCancelled else { return }
-
             self.preview = previewImage
             self.isLoading = false
 
-            let extractedExif = await currentPhoto.makeSource().loadExif()
+            let extractedExif = await photo.makeSource().loadExif()
 
-            guard !Task.isCancelled else { return }
-            self.exifInfo = extractedExif
-
-            if let img = previewImage {
-                Self.imageCache[path] = (img, extractedExif)
-                if let idx = Self.cacheOrder.firstIndex(of: path) {
-                    Self.cacheOrder.remove(at: idx)
-                }
-                Self.cacheOrder.append(path)
-                while Self.cacheOrder.count > Self.cacheLimit {
-                    let oldest = Self.cacheOrder.removeFirst()
-                    Self.imageCache.removeValue(forKey: oldest)
-                }
+            guard !Task.isCancelled else {
+                return
             }
+            self.exifInfo = extractedExif
         }
     }
 }

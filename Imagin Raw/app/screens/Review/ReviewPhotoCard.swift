@@ -153,15 +153,15 @@ struct ReviewPhotoCard: View {
 
     private func loadPreview() {
         isLoading = true
-        PreviewsManager.shared.loadPreview(for: photo) { image, _ in
-            DispatchQueue.main.async {
-                self.previewImage = image
-                self.isLoading = false
-                if let image, image.size.height > 0 {
-                    self.previewAspectRatio = image.size.width / image.size.height
-                }
-            }
-        }
+//        PreviewsManager.shared.loadPreview(for: photo) { image, _ in
+//            DispatchQueue.main.async {
+//                self.previewImage = image
+//                self.isLoading = false
+//                if let image, image.size.height > 0 {
+//                    self.previewAspectRatio = image.size.width / image.size.height
+//                }
+//            }
+//        }
     }
 }
 

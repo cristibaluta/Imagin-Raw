@@ -11,6 +11,10 @@ extension Notification.Name {
     static let preferencesDidReset = Notification.Name("preferencesDidReset")
 }
 
+let thumbnailsCacheManager = PhotoCacheManager(thumbSize: .s256)
+let previewsCacheManager = PhotoCacheManager(thumbSize: .s1024)
+let fullResCacheManager = PhotoCacheManager(thumbSize: .s1024)
+
 #if os(macOS)
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
