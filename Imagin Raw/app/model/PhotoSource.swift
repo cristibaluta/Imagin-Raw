@@ -11,13 +11,12 @@ protocol PhotoSource {
 
     /// Load a thumbnail image (short edge ≤ targetSize) and call completion on any thread.
     func loadThumbnail(targetSize: CGFloat) -> IRImage?
-    func loadThumbnail(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void)
 
     /// Load a preview image (short edge ≤ targetSize) and call completion on any thread.
-    func loadPreview(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void)
+    func loadPreview(targetSize: CGFloat) -> IRImage?
 
     /// Load the full-resolution image and call completion on the main thread.
-    func loadFullRes(completion: @escaping (IRImage?) -> Void)
+    func loadFullRes() -> IRImage?
 
     /// Load EXIF metadata asynchronously.
     func loadExif() async -> ExifInfo?

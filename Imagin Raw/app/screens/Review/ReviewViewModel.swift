@@ -82,15 +82,15 @@ class ReviewViewModel: ObservableObject {
                 continue
             }
             fullResLoading.insert(photo.path)
-            FullResManager.shared.loadFullRes(for: photo) { [weak self] image in
-                guard let self else {
-                    return
-                }
-                self.fullResLoading.remove(photo.path)
-                if let image {
-                    self.fullResImages[photo.path] = image
-                }
-            }
+//            FullResManager.shared.loadFullRes(for: photo) { [weak self] image in
+//                guard let self else {
+//                    return
+//                }
+//                self.fullResLoading.remove(photo.path)
+//                if let image {
+//                    self.fullResImages[photo.path] = image
+//                }
+//            }
         }
     }
 

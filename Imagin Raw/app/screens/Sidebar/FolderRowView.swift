@@ -201,10 +201,10 @@ struct FolderRowView: View {
 
                     Button(action: {
                         Task {
-                            guard let cacheURL = filesModel.currentThumbsManager?.cacheDir(for: folder.url) else {
-                                return
-                            }
-                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
+//                            guard let cacheURL = appState.thumbsManager?.cacheDir(for: folder.url) else {
+//                                return
+//                            }
+//                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
                         }
                     }) {
                         Label("Reveal Cache in Finder", systemImage: "folder.badge.questionmark")
@@ -212,7 +212,7 @@ struct FolderRowView: View {
 
                     Button(role: .destructive, action: {
                         Task {
-                            await filesModel.currentThumbsManager?.purgeCache(for: folder.url)
+//                            await filesModel.currentThumbsManager?.purgeCache(for: folder.url)
                         }
                     }) {
                         Label("Purge Cache", systemImage: "trash")
@@ -266,10 +266,10 @@ struct FolderRowView: View {
 
                 Button(action: {
                     Task {
-                        guard let cacheURL = filesModel.currentThumbsManager?.cacheDir(for: folder.url) else {
-                            return
-                        }
-                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
+//                        guard let cacheURL = filesModel.currentThumbsManager?.cacheDir(for: folder.url) else {
+//                            return
+//                        }
+//                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
                     }
                 }) {
                     Label("Reveal Cache in Finder", systemImage: "folder.badge.questionmark")
@@ -277,7 +277,7 @@ struct FolderRowView: View {
 
                 Button(role: .destructive, action: {
                     Task {
-                        await filesModel.currentThumbsManager?.purgeCache(for: folder.url)
+//                        await filesModel.currentThumbsManager?.purgeCache(for: folder.url)
                     }
                 }) {
                     Label("Purge Cache", systemImage: "trash")

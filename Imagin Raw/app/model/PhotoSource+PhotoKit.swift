@@ -151,6 +151,14 @@ struct PhotoKitPhotoSource: PhotoSource {
         return nil
     }
 
+    func loadPreview(targetSize: CGFloat) -> IRImage? {
+        return nil
+    }
+
+    func loadFullRes() -> IRImage? {
+        return nil
+    }
+
     func loadThumbnail(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void) {
         let size = CGSize(width: targetSize * 2, height: targetSize * 2)
         let options = PHImageRequestOptions()

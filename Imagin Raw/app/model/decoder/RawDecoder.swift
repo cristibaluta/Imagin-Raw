@@ -150,7 +150,9 @@ struct LibRawDecoder: RawDecoder {
             return nil
         }
         RCLog("🖼 [LibRawDecoder] extractEmbeddedJPEG \(filename)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s  bytes=\(data.count)")
-        guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil) else {
+            return nil
+        }
         let sourceCG = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary)
         var exifOrientation: Int32 = 1
         if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
@@ -176,10 +178,14 @@ struct LibRawDecoder: RawDecoder {
             data: nil, width: dstW, height: dstH,
             bitsPerComponent: 8, bytesPerRow: 0, space: cs,
             bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
-        ) else { return nil }
+        ) else {
+            return nil
+        }
         ctx.interpolationQuality = .high
         ctx.draw(oriented, in: CGRect(x: 0, y: 0, width: dstW, height: dstH))
-        guard let resized = ctx.makeImage() else { return nil }
+        guard let resized = ctx.makeImage() else {
+            return nil
+        }
         RCLog("🖼 [LibRawDecoder] resized to \(dstW)×\(dstH)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
         return IRImage(cgImage: resized, size: IRSize(width: resized.width, height: resized.height))
     }

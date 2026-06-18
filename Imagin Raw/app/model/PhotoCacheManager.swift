@@ -54,17 +54,27 @@ private actor AccessLogs {
 enum ThumbSize: Int {
     case s256 = 256
     case s1024 = 1024
+    case full = 0
 
     var cacheLimit: Int64 {
         switch self {
             case .s256: return 256 * 1024 * 1024 // 256Mb
-            case .s1024 : return 1 * 1024 * 1024 * 1024 // 1Gb
+            case .s1024: return 1 * 1024 * 1024 * 1024 // 1Gb
+            case .full: return 0
+        }
+    }
+
+    var inMemoryLimit: Int {
+        switch self {
+            case .s256: return 3000
+            case .s1024: return 100
+            case .full: return 20
         }
     }
 }
 
 final class PhotoCacheManager: Sendable {
-    private let memoryCache = MemoryCache()
+    private let memoryCache: MemoryCache
     private let accessLogs = AccessLogs() // The access date of each folder. Older accesses are evicted first
 
     private let cacheDirectory: URL
@@ -72,6 +82,7 @@ final class PhotoCacheManager: Sendable {
 
     init(thumbSize: ThumbSize) {
         self.thumbSize = thumbSize
+        memoryCache = MemoryCache(cacheLimit: thumbSize.inMemoryLimit)
         let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         cacheDirectory = cachesDir.appendingPathComponent("ro.imagin.raw/\(thumbSize.rawValue)")
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
@@ -94,14 +105,21 @@ final class PhotoCacheManager: Sendable {
         }
 
         // 3. Generate the thumbnail
-        guard let image = source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue)) else {
-            return nil
+        let image: IRImage?
+        switch thumbSize {
+            case .s256:
+                image = source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
+            case .s1024:
+                image = source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
+            case .full:
+                image = source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
         }
-        guard let jpegData = image.bitmapRepresentation() else {
+        guard let image,
+              let jpegData = image.bitmapRepresentation() else {
             return nil
         }
         // Only save to disk for file-based sources
-        if source is DiskPhotoSource {
+        if source is DiskPhotoSource, thumbSize.cacheLimit > 0 {
             saveToDisk(jpegData, for: photo.url)
         }
 
