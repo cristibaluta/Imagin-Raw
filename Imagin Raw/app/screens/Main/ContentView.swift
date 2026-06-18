@@ -9,7 +9,6 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var appState = AppState()
-    @StateObject private var filesModel = FilesModel()
     @StateObject private var externalAppManager = ExternalAppManager()
     @StateObject private var searcher = SpotlightSearcher()
 
@@ -67,7 +66,7 @@ struct ContentView: View {
     }
 
     private var navigationDocumentURL: URL? {
-        return filesModel.selectedFolder?.url
+        return appState.selectedFolder?.url
     }
 
     private var shareablePhoto: URL? {
@@ -85,11 +84,12 @@ struct ContentView: View {
             ZStack {
                 // Main app content
                 Group {
-                    // Show splash screen if no folders are added
-                    if filesModel.rootFolders.isEmpty {
+                    if appState.filesModel.rootFolders.isEmpty {
+                        // Show splash screen if no folders are added
                         SplashScreenView()
-                            .environmentObject(filesModel)
+                            .environmentObject(appState.filesModel)
                     } else {
+                        // Show 3 columns nav
                         navigationSplitView
                             .navigationTitle("Imagin Raw")
                             #if os(macOS)
@@ -99,7 +99,7 @@ struct ContentView: View {
                             .modifier(ToolbarBackgroundVisibility(isHidden: true))
                             .toolbar(reviewGroup == nil ? .visible : .hidden, for: .windowToolbar)// hides the bar including the native buttons
                             #endif
-                            .environmentObject(filesModel)
+                            .environmentObject(appState.filesModel)
                             .environmentObject(externalAppManager)
                             .toolbar {
                                 toolbarContent
@@ -164,10 +164,6 @@ struct ContentView: View {
             thumbGridView
                 .onPreferenceChange(GridWidthPreferenceKey.self) { width in
                     contentColumnWidth = width
-                }
-                .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
-                    print(">>>>>>>>>> filesModel.selectedFolder changed")
-//
                 }
                 .navigationSplitViewColumnWidth(min: contentColumnWidth,
                                                 ideal: contentColumnWidth,
@@ -235,45 +231,26 @@ struct ContentView: View {
             currentPhotos: $feedPhotos
         )
         #else
-        Group {
-            if let selectedFolder = filesModel.selectedFolder {
-                ThumbGridView(
-                    appState: appState,
-                    filesModel: filesModel,
-                    searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
-                    onOpenSelectedPhotos: { photos in openMultiplePhotosInExternalApp(photos: photos) },
-                    onEnterReviewMode: { },
-                    onToggleSidebar: {
-                        columnVisibilityStorage = columnVisibilityStorage == "doubleColumn" ? "all" : "doubleColumn"
-                    },
-                    isSidebarCollapsed: isSidebarCollapsed,
-                    windowWidth: windowWidth,
-                    openSelectedPhotosCallback: $openSelectedPhotosCallback,
-                    reviewGroup: $reviewGroup
-                )
-            } else {
-                Text("No selected folder")
-            }
-        }
+        ThumbGridView(
+            appState: appState,
+            filesModel: appState.filesModel,
+            viewModel: appState.thumbsGridViewModel,
+            searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
+            onOpenSelectedPhotos: { photos in openMultiplePhotosInExternalApp(photos: photos) },
+            onEnterReviewMode: { },
+            onToggleSidebar: {
+                columnVisibilityStorage = columnVisibilityStorage == "doubleColumn" ? "all" : "doubleColumn"
+            },
+            isSidebarCollapsed: isSidebarCollapsed,
+            windowWidth: windowWidth,
+            openSelectedPhotosCallback: $openSelectedPhotosCallback,
+            reviewGroup: $reviewGroup
+        )
         #endif
     }
 
     private var detailView: some View {
-        Group {
-            if let photo = appState.selectedPhoto {
-                PreviewView(photo: photo, viewModel: PreviewViewModel(previewsCacheManager: previewsCacheManager))
-                    .id(photo.id)
-            } else {
-                VStack(spacing: 0) {
-                    // Separator
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.25))
-                        .frame(height: 1)
-                    ShortcutsHelpView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-        }
+        PreviewView(viewModel: appState.previewViewModel)
     }
 
     @ToolbarContentBuilder
@@ -314,7 +291,7 @@ struct ContentView: View {
             .popover(isPresented: $showFolderPopover) {
                 FolderSelectionPopoverView()
                     .frame(width: 250, height: 500)
-                    .environmentObject(filesModel)
+                    .environmentObject(appState.filesModel)
             }
         }
     }

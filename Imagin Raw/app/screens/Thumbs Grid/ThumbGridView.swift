@@ -39,8 +39,7 @@ struct ThumbGridView: View {
     @EnvironmentObject var externalAppManager: ExternalAppManager
     @ObservedObject var filesModel: FilesModel
     @ObservedObject var appState: AppState
-
-    @StateObject private var viewModel: ThumbGridViewModel
+    @ObservedObject private var viewModel: ThumbGridViewModel
 
     let searchPhotoResults: [PhotoItem]?
     let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
@@ -64,6 +63,7 @@ struct ThumbGridView: View {
 
     init(appState: AppState,
          filesModel: FilesModel,
+         viewModel: ThumbGridViewModel,
          searchPhotoResults: [PhotoItem]? = nil,
          onOpenSelectedPhotos: (([PhotoItem]) -> Void)?,
          onEnterReviewMode: (() -> Void)?,
@@ -76,6 +76,7 @@ struct ThumbGridView: View {
 
         self.appState = appState
         self.filesModel = filesModel
+        self.viewModel = viewModel
         self.searchPhotoResults = searchPhotoResults
         self._openSelectedPhotosCallback = openSelectedPhotosCallback
         self.onOpenSelectedPhotos = onOpenSelectedPhotos
@@ -85,10 +86,6 @@ struct ThumbGridView: View {
         self.windowWidth = windowWidth
         self._reviewGroup = reviewGroup
         self._currentPhotos = currentPhotos
-
-        _viewModel = StateObject(wrappedValue: ThumbGridViewModel(appState: appState,
-                                                                  filesModel: filesModel,
-                                                                  thumbsManager: thumbnailsCacheManager))
     }
 
     var body: some View {
@@ -190,17 +187,17 @@ struct ThumbGridView: View {
                 }
             }
         }
-        .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
-            guard let folder = newFolder, oldFolder?.url != newFolder?.url else {
-                return
-            }
-            ignoringSearchResults = true
-            viewModel.clearSearchResults()
-            viewModel.loadPhotosForFolder(folder)
-            viewModel.exitDuplicateMode()
-            viewModel.selectedPhoto = nil
-            viewModel.selectedPhotos.removeAll()
-        }
+//        .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
+//            guard let folder = newFolder, oldFolder?.url != newFolder?.url else {
+//                return
+//            }
+//            ignoringSearchResults = true
+//            viewModel.clearSearchResults()
+//            viewModel.loadPhotosForFolder(folder)
+//            viewModel.exitDuplicateMode()
+//            viewModel.selectedPhoto = nil
+//            viewModel.selectedPhotos.removeAll()
+//        }
         .onChange(of: filesModel.folderContentDidChange) { oldValue, newValue in
             if newValue != nil {
                 viewModel.reloadPhotos()

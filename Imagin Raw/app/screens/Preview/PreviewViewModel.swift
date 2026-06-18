@@ -5,23 +5,26 @@ import RCPreferences
 
 @MainActor
 class PreviewViewModel: ObservableObject {
-    @Published var preview: IRImage?
-    @Published var isLoading = false
-    @Published var exifInfo: ExifInfo?
-    @Published var alignToTopLeft: Bool = appPrefs.bool(.alignToTopLeft)
-    @Published var fullResImage: IRImage? = nil
-    @Published var isLoadingFullRes = false
+    @Published private(set) var photo: PhotoItem?
+    @Published private(set) var image: IRImage?
+    @Published private(set) var fullResImage: IRImage?
+    @Published private(set) var isLoading = false
+    @Published private(set) var isLoadingFullRes = false
+    @Published private(set) var exifInfo: ExifInfo?
+    @Published private(set) var alignToTopLeft: Bool = appPrefs.bool(.alignToTopLeft)
 
     private let previewsCacheManager: PhotoCacheManager
-    private(set) var photo: PhotoItem?
+    private let fullResCacheManager: PhotoCacheManager
+
     private var loadingTask: Task<Void, Never>?
     private var fullResTask: Task<Void, Never>?
 
-    init(previewsCacheManager: PhotoCacheManager) {
+    init(previewsCacheManager: PhotoCacheManager, fullResCacheManager: PhotoCacheManager) {
         self.previewsCacheManager = previewsCacheManager
+        self.fullResCacheManager = fullResCacheManager
     }
 
-    func setPhoto(_ photo: PhotoItem) {
+    func loadPhoto(_ photo: PhotoItem) {
         if self.photo?.path != photo.path {
             loadingTask?.cancel()
             loadingTask = nil
@@ -31,7 +34,26 @@ class PreviewViewModel: ObservableObject {
             isLoadingFullRes = false
         }
         self.photo = photo
-        loadPreview()
+
+        isLoading = true
+        image = nil
+        exifInfo = nil
+
+        loadingTask = Task(priority: .userInitiated) { [photo] in
+            guard !Task.isCancelled else {
+                return
+            }
+
+            image = await previewsCacheManager.getThumbnail(for: photo)
+            isLoading = false
+
+            let extractedExif = await photo.makeSource().loadExif()
+
+            guard !Task.isCancelled else {
+                return
+            }
+            exifInfo = extractedExif
+        }
     }
 
     func toggleAlignment() {
@@ -47,54 +69,22 @@ class PreviewViewModel: ObservableObject {
     }
 
     func loadFullResolution() {
-        guard let photo = photo else { return }
-        guard !isLoadingFullRes && fullResImage == nil else { return }
-        let currentPhoto = photo
-
-        if let cached = FullResManager.shared.cachedImage(for: currentPhoto) {
-            self.fullResImage = cached
+        guard let photo else {
+            return
+        }
+        guard fullResImage == nil && !isLoadingFullRes else {
             return
         }
 
         isLoadingFullRes = true
 
         fullResTask = Task {
-            let image: IRImage? = await withCheckedContinuation { continuation in
-                FullResManager.shared.loadFullRes(for: currentPhoto) { img in
-                    continuation.resume(returning: img)
-                }
+            let image: IRImage? = await fullResCacheManager.getThumbnail(for: photo)
+            guard !Task.isCancelled else {
+                return
             }
-            guard !Task.isCancelled else { return }
             self.fullResImage = image
             self.isLoadingFullRes = false
-        }
-    }
-
-    private func loadPreview() {
-        guard let photo else {
-            return
-        }
-
-        isLoading = true
-        preview = nil
-        exifInfo = nil
-
-        loadingTask = Task(priority: .userInitiated) { [photo] in
-
-            let previewImage: IRImage? = await previewsCacheManager.getThumbnail(for: photo)
-
-            guard !Task.isCancelled else {
-                return
-            }
-            self.preview = previewImage
-            self.isLoading = false
-
-            let extractedExif = await photo.makeSource().loadExif()
-
-            guard !Task.isCancelled else {
-                return
-            }
-            self.exifInfo = extractedExif
         }
     }
 }

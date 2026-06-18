@@ -17,14 +17,15 @@ struct Layout {
 }
 
 struct PreviewView: View {
-    let photo: PhotoItem
-    @StateObject var viewModel: PreviewViewModel
-    @State private var gridType: ThumbGridViewModel.GridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
+
+    @ObservedObject var viewModel: PreviewViewModel
+
     @State private var showExportPanel = false
     @State private var showEditPanel = false
+    @State private var gridType: ThumbGridViewModel.GridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
     @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .r4x5
-    @State private var exportPadding: Double = appPrefs.get(.exportPadding)
     @State private var exportAlignment: ExportAlignment = ExportAlignment(rawValue: appPrefs.string(.exportAlignment)) ?? .center
+    @State private var exportPadding: Double = appPrefs.get(.exportPadding)
     @State private var showAFPoint: Bool = appPrefs.get(.showAFPoint)
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
 
@@ -43,26 +44,11 @@ struct PreviewView: View {
                 .frame(height: 1)
 
             // Content
-            if photo.isVideo {
+            if let photo = viewModel.photo, photo.isVideo {
                 VideoPreviewView(photo: photo)
             } else {
                 photoPreviewBody
-                photoPreviewControls
-            }
-        }
-        .onAppear {
-            viewModel.setPhoto(photo)
-        }
-        .onChange(of: photo) { _, newPhoto in
-            viewModel.setPhoto(newPhoto)
-            showExportPanel = false
-            showEditPanel = false
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .toggleZoom)) { _ in
-            if viewModel.fullResImage != nil {
-                viewModel.exitZoom()
-            } else if !viewModel.isLoadingFullRes {
-                viewModel.loadFullResolution()
+                bottomBar
             }
         }
         .onChange(of: exportRatio) { _, newVal in
@@ -86,6 +72,13 @@ struct PreviewView: View {
 //                .frame(minWidth: 700, minHeight: 500)
 //            }
 //        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleZoom)) { _ in
+            if viewModel.fullResImage != nil {
+                viewModel.exitZoom()
+            } else if !viewModel.isLoadingFullRes {
+                viewModel.loadFullResolution()
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
             gridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
         }
@@ -99,7 +92,7 @@ struct PreviewView: View {
                     #if os(macOS)
                     ZoomPanView(image: fullRes, initialMousePosition: mousePosition)
                     #endif
-                } else if let nsImage = viewModel.preview {
+                } else if let nsImage = viewModel.image {
                     HStack {
                         if !effectiveAlignToTopLeft { Spacer(minLength: 0) }
                         VStack {
@@ -115,8 +108,8 @@ struct PreviewView: View {
                                 Image(nsImage: nsImage)
                                     .resizable()
                                     .scaledToFit()
-                                    .overlay(showAFPoint ? FocusPointOverlay(nsImage: nsImage,
-                                                             focusResult: parseOlympusAFPoint(from: URL(fileURLWithPath: photo.path))) : nil)
+//                                    .overlay(showAFPoint ? FocusPointOverlay(nsImage: nsImage,
+//                                                             focusResult: parseOlympusAFPoint(from: URL(fileURLWithPath: photo.path))) : nil)
 //                                    .overlay(FocusPointOverlay(nsImage: nsImage,
 //                                                               focusResult: parsePanasonicAFPoint(from: URL(fileURLWithPath: photo.path))))
                             }
@@ -152,13 +145,13 @@ struct PreviewView: View {
                 }
 
                 // Export panel overlay — bottom-right
-                if showExportPanel {
+                if showExportPanel, let photo = viewModel.photo {
                     VStack {
                         Spacer()
                         HStack {
                             Spacer()
                             ExportPanelView(photo: photo,
-                                            pixelSize: exportPixelSize(for: viewModel.preview),
+                                            pixelSize: exportPixelSize(for: viewModel.image),
                                             isPresented: $showExportPanel,
                                             selectedRatio: $exportRatio,
                                             padding: $exportPadding,
@@ -193,9 +186,9 @@ struct PreviewView: View {
     }
 
     @ViewBuilder
-    private var photoPreviewControls: some View {
+    private var bottomBar: some View {
         // EXIF bottom bar or vertical column
-        if let exifInfo = viewModel.exifInfo {
+        if let photo = viewModel.photo, let exifInfo = viewModel.exifInfo {
             if gridType == .large {
                 ExifColumnView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
                     .frame(maxWidth: .infinity, alignment: .leading)

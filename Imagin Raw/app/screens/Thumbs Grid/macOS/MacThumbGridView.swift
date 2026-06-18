@@ -106,6 +106,7 @@ struct MacThumbGridView: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        print(">>>>> update MacThumbGridView")
         let c = context.coordinator
         c.onVisibleSectionChanged = { idx in
             DispatchQueue.main.async {
@@ -121,12 +122,12 @@ struct MacThumbGridView: NSViewRepresentable {
 
         let photosChanged    = c.photos.map(\.id) != photos.map(\.id)
         let sizeChanged      = c.itemSize != itemSize || c.cellHeight != cellHeight
-//        let selectionChanged = c.selectedPhotos != selectedPhotos
+        let selectionChanged = c.selectedPhotos != selectedPhotos
         let dupChanged       = c.duplicateResult?.groups.map(\.id) != duplicateResult?.groups.map(\.id)
         let dateGroupsChanged = c.dateGroups.map({ $0.title }) != dateGroups.map({ $0.title })
 
-//        let latestMap  = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
-//        let oldPhotoMap = Dictionary(uniqueKeysWithValues: c.photos.map { ($0.id, $0) })
+        let latestMap  = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
+        let oldPhotoMap = Dictionary(uniqueKeysWithValues: c.photos.map { ($0.id, $0) })
 
         c.photos = photos
         c.itemSize = itemSize
@@ -158,28 +159,26 @@ struct MacThumbGridView: NSViewRepresentable {
                                                         headerHeight: headerHeight)
             }
             cv?.reloadData()
-//            return
         } else {
-//            let theme: NSAppearance.Name = (NSApp.keyWindow ?? NSApp.mainWindow)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) ??
-//                .aqua
-//            cv?.visibleItems().forEach { item in
-//                guard let thumbItem = item as? MacThumbCell,
-//                      let path = thumbItem.currentPath,
-//                      let photo = latestMap.values.first(where: { $0.path == path }) else {
-//                    return
-//                }
-//                let isSelected = selectedPhotos.contains(photo.id)
-//                if oldPhotoMap[photo.id] != photo {
-//                    thumbItem.configure(with: photo,
-//                                        theme: theme,
-//                                        isSelected: isSelected,
-//                                        itemSize: itemSize,
-//                                        priority: .high,
-//                                        delegate: delegate)
-//                } else if selectionChanged {
-//                    thumbItem.updateSelection(isSelected: isSelected)
-//                }
-//            }
+            let theme: NSAppearance.Name = (NSApp.keyWindow ?? NSApp.mainWindow)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) ??
+                .aqua
+            cv?.visibleItems().forEach { item in
+                guard let thumbItem = item as? MacThumbCell,
+                      let path = thumbItem.currentPath,
+                      let photo = latestMap.values.first(where: { $0.path == path }) else {
+                    return
+                }
+                let isSelected = selectedPhotos.contains(photo.id)
+                if oldPhotoMap[photo.id] != photo {
+                    thumbItem.configure(with: photo,
+                                        theme: theme,
+                                        isSelected: isSelected,
+                                        itemSize: itemSize,
+                                        delegate: delegate)
+                } else if selectionChanged {
+                    thumbItem.updateSelection(isSelected: isSelected)
+                }
+            }
         }
 
         if let photoId = scrollToPhotoId {

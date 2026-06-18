@@ -15,7 +15,6 @@ class ThumbGridViewModel: ObservableObject {
     @Published var selectedPhoto: PhotoItem? {
         didSet {
             print(">>>>>>> selectedPhoto \(id) \(selectedPhoto?.path)")
-            appState.selectedPhoto = selectedPhoto
         }
     }
     @Published var selectedLabels: Set<String> = []
@@ -44,7 +43,7 @@ class ThumbGridViewModel: ObservableObject {
     private var duplicateScanData: DuplicateScanData? = nil
 
     // MARK: - Dependencies
-    private let appState: AppState
+//    private let appState: AppState
     private let filesModel: FilesModel
     let thumbsManager: PhotoCacheManager
     private(set) var photosModel: PhotosModel?
@@ -75,8 +74,7 @@ class ThumbGridViewModel: ObservableObject {
         var iconName: String { self == .small ? "square.grid.3x3" : "square.grid.4x4.fill" }
     }
     let id = UUID()
-    init(appState: AppState, filesModel: FilesModel, thumbsManager: PhotoCacheManager) {
-        self.appState = appState
+    init(filesModel: FilesModel, thumbsManager: PhotoCacheManager) {
         self.filesModel = filesModel
         self.thumbsManager = thumbsManager
         loadSortOption()
@@ -217,7 +215,7 @@ class ThumbGridViewModel: ObservableObject {
 
     func loadPhotosForFolder(_ folder: FolderItem) {
         RCLog("📂 Loading photos for folder: \(folder.url.lastPathComponent)")
-        cancellables.removeAll()
+        reset()
         setupFilteredPhotosObservers()
 
         let newPhotosModel = PhotosModel(folder: folder)
@@ -250,6 +248,14 @@ class ThumbGridViewModel: ObservableObject {
             .store(in: &cancellables)
 
         newPhotosModel.loadPhotos()
+    }
+
+    func reset() {
+        cancellables.removeAll()
+        clearSearchResults()
+        exitDuplicateMode()
+        selectedPhoto = nil
+        selectedPhotos.removeAll()
     }
 
     func reloadPhotos() {

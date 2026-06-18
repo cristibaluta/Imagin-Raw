@@ -13,7 +13,6 @@ import Photos
 final class FilesModel: ObservableObject {
     @Published var rootFolders: [FolderItem] = []
     @Published var selectedFolder: FolderItem?
-//    @Published var selectedPhoto: PhotoItem?// Set from thumbs grid and show info to nav bar and preview
     @Published var folderContentDidChange: FolderItem?
     @Published var photoMetadataDidChangeURL: URL?
     @Published var sidebarSortOption: SidebarSortOption = {
@@ -34,9 +33,6 @@ final class FilesModel: ObservableObject {
             }
         }
     }
-
-    /// The ThumbsManager for the currently loaded album. Updated by ThumbGridViewModel on folder load.
-    var currentThumbsManager: PhotoCacheManager?
 
     // Store all folders (including unmounted ones) and track which are currently available
     private var allFolderBookmarks: [FolderBookmark] = []
