@@ -421,7 +421,12 @@ class ThumbGridViewModel: ObservableObject {
         }
 
         switch key {
-            case .leftArrow, .rightArrow, .upArrow, .downArrow: return navigateTo(key)
+            case .leftArrow, .rightArrow, .upArrow, .downArrow:
+                if let nextPhoto = navigateTo(key) {
+                    scrollTo(nextPhoto.id)
+                    return true
+                }
+                return false
             case .return:
                 let photos = getSelectedPhotosForBulkAction()
                 openPhotos(selectedPhotos.count > 1 ? filteredAndSortedPhotos.filter { selectedPhotos.contains($0.id) } : photos)
@@ -517,7 +522,7 @@ class ThumbGridViewModel: ObservableObject {
         return false
     }
 
-    private func navigateTo(_ key: KeyEquivalent) -> Bool {
+    private func navigateTo(_ key: KeyEquivalent) -> PhotoItem? {
         if dateGroups.count > 0 {
             var nextIndex: IndexPath? = nil
             var item: Int? = 0
@@ -564,7 +569,7 @@ class ThumbGridViewModel: ObservableObject {
                         let flatIndex = flatIndexFor(section: section, item: item) + direction
                         nextIndex = indexPathFor(flatIndex: flatIndex)
                     default:
-                        return false
+                        return nil
                 }
             }
             if let nextIndex {
@@ -572,8 +577,7 @@ class ThumbGridViewModel: ObservableObject {
                 selectedPhotos = [nextPhoto.id]
                 selectedPhoto = nextPhoto
                 lastSelectedIndex = nil
-//                scrollTo(nextPhoto.id)
-                return true
+                return nextPhoto
             }
         } else {
             // Navigate through the filteredAndSortedPhotos
@@ -586,17 +590,15 @@ class ThumbGridViewModel: ObservableObject {
                 case .upArrow:    nextIndex = max(0, cur - gridType.columnCount)
                 case .downArrow:  nextIndex = min(filteredAndSortedPhotos.count - 1, cur + gridType.columnCount)
                 default:
-                    return false
+                    return nil
             }
             let nextPhoto = filteredAndSortedPhotos[nextIndex]
             selectedPhotos = [nextPhoto.id]
             selectedPhoto = nextPhoto
             lastSelectedIndex = nil
-//                scrollTo(nextPhoto.id)
-            return true
+            return nextPhoto
         }
-
-        return false
+        return nil
     }
 
     // Convert section+item → flat index across all sections
