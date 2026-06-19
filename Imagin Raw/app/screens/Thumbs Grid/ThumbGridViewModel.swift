@@ -560,14 +560,26 @@ class ThumbGridViewModel: ObservableObject {
                         }
                     case .upArrow:
                         let columns = 3
-                        let direction = -columns
-                        let flatIndex = flatIndexFor(section: section, item: item) + direction
-                        nextIndex = indexPathFor(flatIndex: flatIndex)
+                        let currentRow = item / columns
+                        let currentCol = item % columns
+                        if currentRow - 1 >= 0 {
+                            nextIndex = indexInSection(section: section, row: currentRow - 1, col: currentCol)
+                        } else {
+                            // move to previous section, same column, LAST row
+                            nextIndex = lastAvailable(fromSection: section - 1, col: currentCol, searchBackward: true)
+                        }
                     case .downArrow:
                         let columns = 3
-                        let direction = columns
-                        let flatIndex = flatIndexFor(section: section, item: item) + direction
-                        nextIndex = indexPathFor(flatIndex: flatIndex)
+                        let currentRow = item / columns
+                        let currentCol = item % columns
+                        let rowsInSection = (dateGroups[section].photos.count + columns - 1) / columns
+                        if currentRow + 1 < rowsInSection {
+                            // move down within section, clamp to last item in that row
+                            nextIndex = indexInSection(section: section, row: currentRow + 1, col: currentCol)
+                        } else {
+                            // move to next section, same column, first row that has it
+                            nextIndex = firstAvailable(fromSection: section + 1, col: currentCol, searchForward: true)
+                        }
                     default:
                         return nil
                 }
@@ -601,23 +613,39 @@ class ThumbGridViewModel: ObservableObject {
         return nil
     }
 
-    // Convert section+item → flat index across all sections
-    private func flatIndexFor(section: Int, item: Int) -> Int {
-        let itemsBefore = (0..<section).reduce(0) { $0 + dateGroups[$1].photos.count }
-        return itemsBefore + item
+    // Get IndexPath for a row/col in a section, clamping to last item if column doesn't exist in that row
+    func indexInSection(section: Int, row: Int, col: Int) -> IndexPath? {
+        let columns = 3
+        let count = dateGroups[section].photos.count
+        let candidate = row * columns + col
+        let item = min(candidate, count - 1)  // clamp if row is short
+        guard item >= 0 else { return nil }
+        return IndexPath(item: item, section: section)
     }
 
-    // Convert flat index → section+item
-    private func indexPathFor(flatIndex: Int) -> IndexPath? {
-        guard flatIndex >= 0 else { return nil }
-        var remaining = flatIndex
-        for (s, group) in dateGroups.enumerated() {
-            if remaining < group.photos.count {
-                return IndexPath(item: remaining, section: s)
-            }
-            remaining -= group.photos.count
+    // Search forward through sections for the first row containing `col`
+    func firstAvailable(fromSection: Int, col: Int, searchForward: Bool) -> IndexPath? {
+        guard fromSection < dateGroups.count, fromSection >= 0 else { return nil }
+        let count = dateGroups[fromSection].photos.count
+        guard count > 0 else {
+            return firstAvailable(fromSection: fromSection + 1, col: col, searchForward: true)
         }
-        return nil  // past the end
+        let item = min(col, count - 1)  // first row, same column (or last item if row is shorter)
+        return IndexPath(item: item, section: fromSection)
+    }
+
+    // Search backward through sections for the LAST row containing `col`
+    func lastAvailable(fromSection: Int, col: Int, searchBackward: Bool) -> IndexPath? {
+        guard fromSection >= 0, fromSection < dateGroups.count else { return nil }
+        let columns = 3
+        let count = dateGroups[fromSection].photos.count
+        guard count > 0 else {
+            return lastAvailable(fromSection: fromSection - 1, col: col, searchBackward: true)
+        }
+        let lastRow = (count - 1) / columns
+        let candidate = lastRow * columns + col
+        let item = min(candidate, count - 1)  // clamp to last item if last row is short
+        return IndexPath(item: item, section: fromSection)
     }
 
     // MARK: - Persistence
