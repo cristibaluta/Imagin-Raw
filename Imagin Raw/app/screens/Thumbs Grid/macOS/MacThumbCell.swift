@@ -7,6 +7,7 @@
 #if os(macOS)
 import Foundation
 import AppKit
+import SwiftUI
 
 private final class MacVerticallyCenteredTextFieldCell: NSTextFieldCell {
     override func drawingRect(forBounds rect: NSRect) -> NSRect {
@@ -38,7 +39,7 @@ final class MacThumbCell: NSCollectionViewItem {
     private(set) var currentPath: String?
     var currentPhoto: PhotoItem?
     var delegate: ThumbCellDelegate?
-    private var theme: NSAppearance.Name?
+    private var colorScheme: ColorScheme?
     private var itemSize: CGFloat = 100
     private var currentImageSize: CGSize = .zero
     private var layersConfigured = false
@@ -156,13 +157,12 @@ final class MacThumbCell: NSCollectionViewItem {
     }
 
     private var cellBackgroundColor: NSColor {
-        let isDark = theme == .darkAqua
+        let isDark = colorScheme == .dark
         return NSColor(white: isDark ? 0.15 : 0.65, alpha: 1)
     }
 
     private func configureLayers() {
-        //        print("draw bg theme \(theme)")
-        //        view.layer?.backgroundColor = cellBackgroundColor.cgColor
+        view.layer?.backgroundColor = cellBackgroundColor.cgColor
         view.layer?.cornerRadius = 6
 
         selectionBorder.layer?.borderWidth = 0
@@ -199,7 +199,9 @@ final class MacThumbCell: NSCollectionViewItem {
     }
 
     private func layoutSubviews() {
-        guard let photo = currentPhoto else { return }
+        guard let photo = currentPhoto else {
+            return
+        }
         let w = view.bounds.width
         let h = view.bounds.height
         let size = itemSize
@@ -247,7 +249,7 @@ final class MacThumbCell: NSCollectionViewItem {
             }
             let rating = currentRating(for: photo)
             starView?.rating = rating
-            starView?.theme = theme
+            starView?.colorScheme = colorScheme
             starView?.frame = CGRect(x: 0, y: labelY - starH - 2, width: w, height: starH)
             starView?.isHidden = rating == 0
         } else {
@@ -302,12 +304,12 @@ final class MacThumbCell: NSCollectionViewItem {
     }
 
     func configure(with photo: PhotoItem,
-                   theme: NSAppearance.Name?,
+                   colorScheme: ColorScheme?,
                    isSelected: Bool,
                    itemSize: CGFloat,
                    delegate: ThumbCellDelegate) {
 
-        self.theme = theme ?? ((NSApp.keyWindow ?? NSApp.mainWindow)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) ?? .aqua)
+        self.colorScheme = colorScheme
         self.itemSize = itemSize
         self.delegate = delegate
 

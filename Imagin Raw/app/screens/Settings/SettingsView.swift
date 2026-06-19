@@ -33,7 +33,7 @@ struct SettingsView: View {
                 .frame(width: 180)
                 .onChange(of: selectedTheme) { _, value in
                     appPrefs.set(value, forKey: .theme)
-                    NotificationCenter.default.post(name: .preferencesDidReset, object: nil)
+                    NotificationCenter.default.post(name: .colorSchemeDidChange, object: nil)
                 }
             }
 

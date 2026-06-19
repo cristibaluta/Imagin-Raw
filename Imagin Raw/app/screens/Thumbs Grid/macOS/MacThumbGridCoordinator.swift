@@ -6,6 +6,7 @@
 //
 #if os(macOS)
 import AppKit
+import SwiftUI
 
 @MainActor
 class MacThumbGridCoordinator: NSObject {
@@ -31,6 +32,12 @@ class MacThumbGridCoordinator: NSObject {
     private var scrollObserver: NSObjectProtocol?
     private var isDateGrouped: Bool {
         sortOption != .name && !dateGroups.isEmpty
+    }
+    var colorScheme: ColorScheme = .light {
+        didSet {
+            guard oldValue != colorScheme else { return }
+            collectionView?.reloadData()
+        }
     }
 
     init(itemSize: CGFloat, cellHeight: CGFloat, delegate: ThumbCellDelegate) {
@@ -157,7 +164,7 @@ extension MacThumbGridCoordinator: NSCollectionViewDataSource {
 
         let item = cv.makeItem(withIdentifier: MacThumbCell.identifier, for: indexPath) as! MacThumbCell
         item.configure(with: photo,
-                       theme: nil,
+                       colorScheme: colorScheme,
                        isSelected: selectedPhotos.contains(photo.id),
                        itemSize: itemSize,
                        delegate: delegate)

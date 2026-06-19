@@ -7,6 +7,7 @@
 #if os(macOS)
 import Foundation
 import AppKit
+import SwiftUI
 
 final class MacStarRatingView: NSView {
 
@@ -20,9 +21,9 @@ final class MacStarRatingView: NSView {
     var maxRating: Int = 5
     var starSize: CGFloat = 14
     var onRatingChanged: ((Int) -> Void)?
-    var theme: NSAppearance.Name? {
+    var colorScheme: ColorScheme? {
         didSet {
-            if oldValue != theme {
+            if oldValue != colorScheme {
                 needsDisplay = true
             }
         }
@@ -40,7 +41,7 @@ final class MacStarRatingView: NSView {
         let total = CGFloat(maxRating) * starSize + CGFloat(maxRating - 1) * spacing
         var x = (bounds.width - total) / 2
         let y = (bounds.height - starSize) / 2
-        let isDark = theme == .darkAqua
+        let isDark = colorScheme == .dark
 
         for i in 1...maxRating {
             let filled = i <= rating

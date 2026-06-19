@@ -11,6 +11,10 @@ extension Notification.Name {
     static let preferencesDidReset = Notification.Name("preferencesDidReset")
 }
 
+extension Notification.Name {
+    static let colorSchemeDidChange = Notification.Name("colorSchemeDidChange")
+}
+
 #if os(macOS)
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -23,6 +27,7 @@ struct ImaginRawApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var contentViewID = UUID()
     @State private var theme: String = appPrefs.string(.theme)
+//    @State private var colorScheme: ColorScheme?
 
     private var colorScheme: ColorScheme? {
         switch theme {
@@ -42,9 +47,15 @@ struct ImaginRawApp: App {
         WindowGroup {
             ContentView()
                 .preferredColorScheme(colorScheme)
-                .background(Color(NSColor(white: colorScheme == .dark ? 0.25 : 0.85, alpha: 1.0)))
+                .background(Color.adaptive(light: NSColor(white: 0.85, alpha: 1.0),
+                                           dark: NSColor(white: 0.25, alpha: 1.0),
+                                           colorScheme: colorScheme))
                 .id(contentViewID)
                 .onReceive(NotificationCenter.default.publisher(for: .preferencesDidReset)) { _ in
+                    theme = appPrefs.string(.theme)
+                    contentViewID = UUID()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .colorSchemeDidChange)) { _ in
                     theme = appPrefs.string(.theme)
                     contentViewID = UUID()
                 }

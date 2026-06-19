@@ -47,6 +47,7 @@ struct MacThumbGridView: NSViewRepresentable {
     @Binding var scrollToPhotoId: UUID?
     @Binding var scrollToCenteredPhotoId: UUID?
     @Binding var visibleSectionIndex: Int
+    @Environment(\.colorScheme) private var colorScheme: ColorScheme  // ✅ triggers updateNSView on change
 
     func makeCoordinator() -> MacThumbGridCoordinator {
         MacThumbGridCoordinator(itemSize: itemSize, cellHeight: cellHeight, delegate: delegate)
@@ -106,8 +107,9 @@ struct MacThumbGridView: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        print(">>>>> update MacThumbGridView")
+        print(">>>>> update MacThumbGridView \(colorScheme)")
         let c = context.coordinator
+        c.colorScheme = colorScheme
         c.onVisibleSectionChanged = { idx in
             DispatchQueue.main.async {
                 self.visibleSectionIndex = idx
@@ -160,8 +162,8 @@ struct MacThumbGridView: NSViewRepresentable {
             }
             cv?.reloadData()
         } else {
-            let theme: NSAppearance.Name = (NSApp.keyWindow ?? NSApp.mainWindow)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) ??
-                .aqua
+//            let theme: NSAppearance.Name = (NSApp.keyWindow ?? NSApp.mainWindow)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) ??
+//                .aqua
             cv?.visibleItems().forEach { item in
                 guard let thumbItem = item as? MacThumbCell,
                       let path = thumbItem.currentPath,
@@ -171,7 +173,7 @@ struct MacThumbGridView: NSViewRepresentable {
                 let isSelected = selectedPhotos.contains(photo.id)
                 if oldPhotoMap[photo.id] != photo {
                     thumbItem.configure(with: photo,
-                                        theme: theme,
+                                        colorScheme: colorScheme,
                                         isSelected: isSelected,
                                         itemSize: itemSize,
                                         delegate: delegate)
