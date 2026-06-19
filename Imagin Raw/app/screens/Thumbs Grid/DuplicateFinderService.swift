@@ -123,7 +123,7 @@ enum DuplicateFinderService {
                     } else {
                         RCLog("  ⏳ Generating thumb [\(index+1)/\(total)]: \(URL(fileURLWithPath: photo.path).lastPathComponent)")
                         group.enter()
-                        _ = await thumbsManager.getThumbnail(for: photo)
+                        _ = await thumbsManager.getImage(for: photo)
                         if FileManager.default.fileExists(atPath: diskURL.path) {
                             lock.lock();
                             urls[index] = diskURL;

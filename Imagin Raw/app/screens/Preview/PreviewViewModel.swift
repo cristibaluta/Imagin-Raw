@@ -25,30 +25,33 @@ class PreviewViewModel: ObservableObject {
     }
 
     func loadPhoto(_ photo: PhotoItem) {
-        if self.photo?.path != photo.path {
-            loadingTask?.cancel()
-            loadingTask = nil
-            fullResTask?.cancel()
-            fullResTask = nil
-            fullResImage = nil
-            isLoadingFullRes = false
+        guard photo.path != self.photo?.path else {
+            RCLog("Photo already loaded \(photo.path)")
+            return
         }
         self.photo = photo
+
+        loadingTask?.cancel()
+        loadingTask = nil
+        fullResTask?.cancel()
+        fullResTask = nil
+        fullResImage = nil
+        isLoadingFullRes = false
 
         isLoading = true
         image = nil
         exifInfo = nil
 
         loadingTask = Task(priority: .userInitiated) { [photo] in
+
+            let image = await previewsCacheManager.getImage(for: photo)
             guard !Task.isCancelled else {
                 return
             }
-
-            image = await previewsCacheManager.getThumbnail(for: photo)
+            self.image = image
             isLoading = false
 
             let extractedExif = await photo.makeSource().loadExif()
-
             guard !Task.isCancelled else {
                 return
             }
@@ -79,7 +82,7 @@ class PreviewViewModel: ObservableObject {
         isLoadingFullRes = true
 
         fullResTask = Task {
-            let image: IRImage? = await fullResCacheManager.getThumbnail(for: photo)
+            let image = await fullResCacheManager.getImage(for: photo)
             guard !Task.isCancelled else {
                 return
             }

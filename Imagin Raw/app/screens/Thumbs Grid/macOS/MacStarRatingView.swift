@@ -62,7 +62,11 @@ final class MacStarRatingView: NSView {
             let inner = outer + .pi / 5
             let op = CGPoint(x: cx + r * cos(outer), y: cy + r * sin(outer))
             let ip = CGPoint(x: cx + ri * cos(inner), y: cy + ri * sin(inner))
-            if i == 0 { path.move(to: op) } else { path.line(to: op) }
+            if i == 0 {
+                path.move(to: op)
+            } else {
+                path.line(to: op)
+            }
             path.line(to: ip)
         }
         path.close()

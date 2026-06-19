@@ -12,11 +12,7 @@ import Combine
 class ThumbGridViewModel: ObservableObject {
 
     @Published var selectedPhotos: Set<UUID> = []
-    @Published var selectedPhoto: PhotoItem? {
-        didSet {
-            print(">>>>>>> selectedPhoto \(id) \(selectedPhoto?.path)")
-        }
-    }
+    @Published var selectedPhoto: PhotoItem?
     @Published var selectedLabels: Set<String> = []
     @Published var selectedRatings: Set<Int> = []
     @Published var sortOption: SortOption = .name
@@ -31,19 +27,13 @@ class ThumbGridViewModel: ObservableObject {
     @Published var duplicateScanProgress: (done: Int, total: Int) = (0, 0)
     @Published var duplicateScanResult: DuplicateScanResult? = nil
     @Published var similarityMode: DuplicateFinderService.SimilarityMode = .loose
-    @Published private(set) var filteredAndSortedPhotos: [PhotoItem] = [] {
-        didSet {
-            print(">>>>>>>>>>> filteredAndSortedPhotos count: \(filteredAndSortedPhotos.count)")
-        }
-    }
+    @Published private(set) var filteredAndSortedPhotos: [PhotoItem] = []
     @Published private(set) var dateGroups: [(title: String, photos: [PhotoItem])] = []
     @Published var photosToCopy: [PhotoItem] = []
     @Published var copyDestinationURL: URL?
 
     private var duplicateScanData: DuplicateScanData? = nil
 
-    // MARK: - Dependencies
-//    private let appState: AppState
     private let filesModel: FilesModel
     let thumbsManager: PhotoCacheManager
     private(set) var photosModel: PhotosModel?
@@ -317,14 +307,14 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     // TODO: is this needed? doesn't take into the account the groups
-    func navigateToPhoto(at newIndex: Int) {
-        guard newIndex >= 0 && newIndex < filteredAndSortedPhotos.count else {
-            return
-        }
-        selectedPhotos = [filteredAndSortedPhotos[newIndex].id]
-        selectedPhoto = filteredAndSortedPhotos[newIndex]
-        lastSelectedIndex = newIndex
-    }
+//    func navigateToPhoto(at newIndex: Int) {
+//        guard newIndex >= 0 && newIndex < filteredAndSortedPhotos.count else {
+//            return
+//        }
+//        selectedPhotos = [filteredAndSortedPhotos[newIndex].id]
+//        selectedPhoto = filteredAndSortedPhotos[newIndex]
+//        lastSelectedIndex = newIndex
+//    }
 
     func initializeSelection() {
         if selectedPhoto == nil, let first = filteredAndSortedPhotos.first {
@@ -430,14 +420,8 @@ class ThumbGridViewModel: ObservableObject {
             return false
         }
 
-        let cur = filteredAndSortedPhotos.firstIndex { $0.id == selectedPhoto?.id } ?? 0
-        var next = cur
-
         switch key {
-            case .leftArrow:  next = max(0, cur - 1)
-            case .rightArrow: next = min(filteredAndSortedPhotos.count - 1, cur + 1)
-            case .upArrow:    next = max(0, cur - gridType.columnCount)
-            case .downArrow:  next = min(filteredAndSortedPhotos.count - 1, cur + gridType.columnCount)
+            case .leftArrow, .rightArrow, .upArrow, .downArrow: return navigateTo(key)
             case .return:
                 let photos = getSelectedPhotosForBulkAction()
                 openPhotos(selectedPhotos.count > 1 ? filteredAndSortedPhotos.filter { selectedPhotos.contains($0.id) } : photos)
@@ -529,14 +513,109 @@ class ThumbGridViewModel: ObservableObject {
                 }
                 return false
         }
-
-        if next != cur {
-            navigateToPhoto(at: next)
-            scrollTo(filteredAndSortedPhotos[next].id)
-            return true
-        }
         #endif
         return false
+    }
+
+    private func navigateTo(_ key: KeyEquivalent) -> Bool {
+        if dateGroups.count > 0 {
+            var nextIndex: IndexPath? = nil
+            var item: Int? = 0
+            let section: Int? = dateGroups.firstIndex {
+                let r = $0.photos.firstIndex { $0.id == selectedPhoto?.id }
+                item = r
+                return r != nil
+            }
+            if let section, let item {
+                switch key {
+                    case .leftArrow:
+                        // Find the prev  item in the current section
+                        if item - 1 >= 0 {
+                            nextIndex = IndexPath(item: item - 1, section: section)
+                        } else {
+                            // Go to prev item in the next section
+                            if section - 1 >= 0 {
+                                nextIndex = IndexPath(item: dateGroups[section-1].photos.count - 1, section: section - 1)
+                            } else {
+                                nextIndex = IndexPath(item: dateGroups[section-1].photos.count - 1, section: dateGroups.count - 1)
+                            }
+                        }
+                    case .rightArrow:
+                        // Find the next  item in the current section
+                        let photosInSection = dateGroups[section].photos
+                        if photosInSection.count > item + 1 {
+                            nextIndex = IndexPath(item: item + 1, section: section)
+                        } else {
+                            // Go to first item in the next section
+                            if section + 1 < dateGroups.count {
+                                nextIndex = IndexPath(item: 0, section: section + 1)
+                            } else {
+                                nextIndex = IndexPath(item: 0, section: 0)
+                            }
+                        }
+                    case .upArrow:
+                        let columns = 3
+                        let direction = -columns
+                        let flatIndex = flatIndexFor(section: section, item: item) + direction
+                        nextIndex = indexPathFor(flatIndex: flatIndex)
+                    case .downArrow:
+                        let columns = 3
+                        let direction = columns
+                        let flatIndex = flatIndexFor(section: section, item: item) + direction
+                        nextIndex = indexPathFor(flatIndex: flatIndex)
+                    default:
+                        return false
+                }
+            }
+            if let nextIndex {
+                let nextPhoto = dateGroups[nextIndex.section].photos[nextIndex.item]
+                selectedPhotos = [nextPhoto.id]
+                selectedPhoto = nextPhoto
+                lastSelectedIndex = nil
+//                scrollTo(nextPhoto.id)
+                return true
+            }
+        } else {
+            // Navigate through the filteredAndSortedPhotos
+            let cur = filteredAndSortedPhotos.firstIndex { $0.id == selectedPhoto?.id } ?? 0
+            var nextIndex = cur
+
+            switch key {
+                case .leftArrow:  nextIndex = max(0, cur - 1)
+                case .rightArrow: nextIndex = min(filteredAndSortedPhotos.count - 1, cur + 1)
+                case .upArrow:    nextIndex = max(0, cur - gridType.columnCount)
+                case .downArrow:  nextIndex = min(filteredAndSortedPhotos.count - 1, cur + gridType.columnCount)
+                default:
+                    return false
+            }
+            let nextPhoto = filteredAndSortedPhotos[nextIndex]
+            selectedPhotos = [nextPhoto.id]
+            selectedPhoto = nextPhoto
+            lastSelectedIndex = nil
+//                scrollTo(nextPhoto.id)
+            return true
+        }
+
+        return false
+    }
+
+    // Convert section+item → flat index across all sections
+    private func flatIndexFor(section: Int, item: Int) -> Int {
+        let itemsBefore = (0..<section).reduce(0) { $0 + dateGroups[$1].photos.count }
+        return itemsBefore + item
+    }
+
+    // Convert flat index → section+item
+    private func indexPathFor(flatIndex: Int) -> IndexPath? {
+        guard flatIndex >= 0 else { return nil }
+        var remaining = flatIndex
+        for (s, group) in dateGroups.enumerated() {
+            if remaining < group.photos.count {
+                return IndexPath(item: remaining, section: s)
+            }
+            remaining -= group.photos.count
+        }
+        return nil  // past the end
     }
 
     // MARK: - Persistence

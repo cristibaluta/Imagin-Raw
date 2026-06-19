@@ -106,7 +106,8 @@ class MacThumbGridCoordinator: NSObject {
         for section in 0..<dateGroups.count {
             let ip = IndexPath(item: 0, section: section)
             guard let attrs = layout?.layoutAttributesForSupplementaryView(
-                ofKind: NSCollectionView.elementKindSectionHeader, at: ip) else {
+                ofKind: NSCollectionView.elementKindSectionHeader,
+                at: ip) else {
                 continue
             }
             if attrs.frame.minY <= topY + 1 {
@@ -114,27 +115,6 @@ class MacThumbGridCoordinator: NSObject {
             }
         }
         onVisibleSectionChanged?(activeSection)
-    }
-
-    private func boostVisibleItems() {
-//        guard let cv = collectionView else {
-//            return
-//        }
-        // Flush all stale low-priority work so .high requests get the semaphore slots
-//        thumbsManager.cancelLowPriorityRequests()
-
-//        for indexPath in cv.indexPathsForVisibleItems() {
-//            guard let item = cv.item(at: indexPath) as? MacThumbCell,
-//                  item.thumbImage == nil else {
-//                continue
-//            }
-//            let photo = photosForSection(indexPath.section)[indexPath.item]
-//            Task {
-//                if let image = await thumbsManager.getThumbnail(for: photo) {
-//                    item.setThumb(image)
-//                }
-//            }
-//        }
     }
 }
 
@@ -148,7 +128,7 @@ extension MacThumbGridCoordinator: NSCollectionViewPrefetching {
             }
             let photo = sectionPhotos[indexPath.item]
             Task {
-                _ = await thumbsManager.getThumbnail(for: photo)
+                _ = await thumbsManager.getImage(for: photo)
             }
         }
     }
@@ -215,7 +195,8 @@ extension MacThumbGridCoordinator: NSCollectionViewDataSource {
 
 extension MacThumbGridCoordinator: NSCollectionViewDelegate {
 
-    func collectionView(_ collectionView: NSCollectionView, shouldSelectItemsAt indexPaths: Set<IndexPath>) -> Set<IndexPath> {
+    func collectionView(_ collectionView: NSCollectionView,
+                        shouldSelectItemsAt indexPaths: Set<IndexPath>) -> Set<IndexPath> {
 
         // 1. Get the current active mouse/keyboard event modifier keys
         let currentEvent = NSApp.currentEvent

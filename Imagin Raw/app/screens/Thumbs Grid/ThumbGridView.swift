@@ -187,17 +187,6 @@ struct ThumbGridView: View {
                 }
             }
         }
-//        .onChange(of: filesModel.selectedFolder) { oldFolder, newFolder in
-//            guard let folder = newFolder, oldFolder?.url != newFolder?.url else {
-//                return
-//            }
-//            ignoringSearchResults = true
-//            viewModel.clearSearchResults()
-//            viewModel.loadPhotosForFolder(folder)
-//            viewModel.exitDuplicateMode()
-//            viewModel.selectedPhoto = nil
-//            viewModel.selectedPhotos.removeAll()
-//        }
         .onChange(of: filesModel.folderContentDidChange) { oldValue, newValue in
             if newValue != nil {
                 viewModel.reloadPhotos()
@@ -363,7 +352,7 @@ struct ThumbGridView: View {
 
 extension ThumbGridView: ThumbCellDelegate {
     func image(for photo: PhotoItem) async -> IRImage? {
-        await viewModel.thumbsManager.getThumbnail(for: photo)
+        await viewModel.thumbsManager.getImage(for: photo)
     }
     func onTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
         viewModel.handlePhotoTap(photo: photo, modifiers: modifiers)

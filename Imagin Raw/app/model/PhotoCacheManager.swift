@@ -91,7 +91,7 @@ final class PhotoCacheManager: Sendable {
         }
     }
     
-    func getThumbnail(for photo: PhotoItem) async -> IRImage? {
+    func getImage(for photo: PhotoItem) async -> IRImage? {
         // 1. Search for the image in the memory
         if let memoryData = await memoryCache.getImageData(for: photo.path) {
             return IRImage(data: memoryData)

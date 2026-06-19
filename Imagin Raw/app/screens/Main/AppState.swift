@@ -34,29 +34,29 @@ class AppState: ObservableObject {
 
         // Monitor clicks
         // 1. When album changes, load the photos of that album
-        filesModel
-        .objectWillChange
-        .sink { [weak self] _ in
-            guard let self else { return }
-            Task {
-                self.selectedFolder = self.filesModel.selectedFolder
-                guard let folder = self.selectedFolder else { return }
-                self.thumbsGridViewModel.loadPhotosForFolder(folder)
+        filesModel.$selectedFolder
+            .sink { [weak self] folder in
+                guard let self, let folder else {
+                    return
+                }
+                Task {
+                    self.selectedFolder = folder
+                    self.thumbsGridViewModel.loadPhotosForFolder(folder)
+                }
             }
-        }
-        .store(in: &cancellables)
+            .store(in: &cancellables)
 
         // 2. When thumbnail is selected, display it in the preview
-        thumbsGridViewModel
-        .objectWillChange
-        .sink { [weak self] _ in
-            guard let self else { return }
-            Task {
-                self.selectedPhoto = self.thumbsGridViewModel.selectedPhoto
-                guard let photo = self.selectedPhoto else { return }
-                self.previewViewModel.loadPhoto(photo)
+        thumbsGridViewModel.$selectedPhoto
+            .sink { [weak self] photo in
+                guard let self, let photo else {
+                    return
+                }
+                Task {
+                    self.selectedPhoto = photo
+                    self.previewViewModel.loadPhoto(photo)
+                }
             }
-        }
-        .store(in: &cancellables)
+            .store(in: &cancellables)
     }
 }
