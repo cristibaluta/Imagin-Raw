@@ -8,6 +8,7 @@ import SwiftUI
 
 struct ReviewPhotoCard: View {
     let photo: PhotoItem
+    let previewsCacheManager: PhotoCacheManager
     var isZoomed: Bool = false
     var fullResImage: IRImage? = nil
     var isFullResLoading: Bool = false
@@ -143,8 +144,12 @@ struct ReviewPhotoCard: View {
                         isApproved ? PhotoLabel.color(for: "Approved").opacity(0.7) : Color.clear,
                         lineWidth: 2)
         )
-        .onAppear { loadPreview() }
-        .onChange(of: photo.path) { _, _ in loadPreview() }
+        .onAppear {
+            loadPreview()
+        }
+        .onChange(of: photo.path) { _, _ in
+            loadPreview()
+        }
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) { isHovered = hovering }
             hoveredPhotoId = hovering ? photo.id : nil
@@ -153,15 +158,14 @@ struct ReviewPhotoCard: View {
 
     private func loadPreview() {
         isLoading = true
-//        PreviewsManager.shared.loadPreview(for: photo) { image, _ in
-//            DispatchQueue.main.async {
-//                self.previewImage = image
-//                self.isLoading = false
-//                if let image, image.size.height > 0 {
-//                    self.previewAspectRatio = image.size.width / image.size.height
-//                }
-//            }
-//        }
+        Task {
+            let image = await previewsCacheManager.getImage(for: photo)
+            self.previewImage = image
+            self.isLoading = false
+            if let image, image.size.height > 0 {
+                self.previewAspectRatio = image.size.width / image.size.height
+            }
+        }
     }
 }
 

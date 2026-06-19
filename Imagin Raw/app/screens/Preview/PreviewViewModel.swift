@@ -13,7 +13,7 @@ class PreviewViewModel: ObservableObject {
     @Published private(set) var exifInfo: ExifInfo?
     @Published private(set) var alignToTopLeft: Bool = appPrefs.bool(.alignToTopLeft)
 
-    private let previewsCacheManager: PhotoCacheManager
+    let previewsCacheManager: PhotoCacheManager
     private let fullResCacheManager: PhotoCacheManager
 
     private var loadingTask: Task<Void, Never>?

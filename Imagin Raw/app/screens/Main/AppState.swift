@@ -15,6 +15,8 @@ class AppState: ObservableObject {
     @Published var selectedFolder: FolderItem?
     @Published var selectedPhoto: PhotoItem?
 
+    @Published var reviewGroup: ReviewGroupItem?// Photos to be displayed in the review screen
+
     private let thumbnailsCacheManager = PhotoCacheManager(thumbSize: .s256)
     private let previewsCacheManager = PhotoCacheManager(thumbSize: .s1024)
     private let fullResCacheManager = PhotoCacheManager(thumbSize: .s1024)
@@ -22,6 +24,7 @@ class AppState: ObservableObject {
     let filesModel: FilesModel
     let thumbsGridViewModel: ThumbGridViewModel
     let previewViewModel: PreviewViewModel
+    let reviewViewModel: ReviewViewModel
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -31,6 +34,8 @@ class AppState: ObservableObject {
                                                  thumbsManager: thumbnailsCacheManager)
         previewViewModel = PreviewViewModel(previewsCacheManager: previewsCacheManager,
                                             fullResCacheManager: fullResCacheManager)
+        reviewViewModel = ReviewViewModel(previewsCacheManager: previewsCacheManager,
+                                          fullResCacheManager: fullResCacheManager)
 
         // Monitor clicks
         // 1. When album changes, load the photos of that album

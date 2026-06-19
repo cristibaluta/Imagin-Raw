@@ -7,40 +7,39 @@ import SwiftUI
 
 @MainActor
 class ReviewViewModel: ObservableObject {
-    @Published var photos: [PhotoItem]
+    @Published var photos: [PhotoItem] = []
     @Published var isZoomed = false
     @Published var syncedMousePosition = CGPoint(x: 0.5, y: 0.5)
     @Published var fullResImages: [String: IRImage] = [:]
     @Published var fullResLoading: Set<String> = []
     @Published var hoveredPhotoId: UUID? = nil
 
-    let group: DuplicateGroup
-    let groupIndex: Int
-    let totalGroups: Int
+    let previewsManager: PhotoCacheManager
+    private let fullResManager: PhotoCacheManager
 
-    let onRatingChanged: (PhotoItem, Int) -> Void
-    let onApprove: (PhotoItem) -> Void
-    let onMarkForDeletion: (PhotoItem) -> Void
-    let onDismiss: () -> Void
-    let onNavigate: (Int) -> Void
+    var group: DuplicateGroup = DuplicateGroup(photos: [], distance: 0)
+    var groupIndex: Int = 0
+    var totalGroups: Int = 0
 
-    init(group: DuplicateGroup,
-         groupIndex: Int,
-         totalGroups: Int,
-         onRatingChanged: @escaping (PhotoItem, Int) -> Void,
-         onApprove: @escaping (PhotoItem) -> Void,
-         onMarkForDeletion: @escaping (PhotoItem) -> Void,
-         onDismiss: @escaping () -> Void,
-         onNavigate: @escaping (Int) -> Void) {
-        self.group = group
-        self.groupIndex = groupIndex
-        self.totalGroups = totalGroups
-        self.onRatingChanged = onRatingChanged
-        self.onApprove = onApprove
-        self.onMarkForDeletion = onMarkForDeletion
-        self.onDismiss = onDismiss
-        self.onNavigate = onNavigate
-        self.photos = group.photos
+    var onRatingChanged: ((PhotoItem, Int) -> Void)? = nil
+    var onApprove: ((PhotoItem) -> Void)? = nil
+    var onMarkForDeletion: ((PhotoItem) -> Void)? = nil
+    var onNavigate: ((Int) -> Void)? = nil
+
+    init(previewsCacheManager: PhotoCacheManager, fullResCacheManager: PhotoCacheManager) {
+        self.previewsManager = previewsCacheManager
+        self.fullResManager = fullResCacheManager
+    }
+
+    func setup(with reviewGroupItem: ReviewGroupItem) {
+        self.group = reviewGroupItem.group
+        self.groupIndex = 0
+        self.totalGroups = reviewGroupItem.totalGroups
+        self.onRatingChanged = reviewGroupItem.onRatingChanged
+        self.onApprove = reviewGroupItem.onApprove
+        self.onMarkForDeletion = reviewGroupItem.onMarkForDeletion
+        self.onNavigate = reviewGroupItem.onNavigate
+        self.photos = reviewGroupItem.group.photos
     }
 
     var hoveredPhoto: PhotoItem? {
@@ -82,22 +81,20 @@ class ReviewViewModel: ObservableObject {
                 continue
             }
             fullResLoading.insert(photo.path)
-//            FullResManager.shared.loadFullRes(for: photo) { [weak self] image in
-//                guard let self else {
-//                    return
-//                }
-//                self.fullResLoading.remove(photo.path)
-//                if let image {
-//                    self.fullResImages[photo.path] = image
-//                }
-//            }
+            Task {
+                let image = await fullResManager.getImage(for: photo)
+                self.fullResLoading.remove(photo.path)
+                if let image {
+                    self.fullResImages[photo.path] = image
+                }
+            }
         }
     }
 
     // MARK: - Actions
 
     func handleRating(_ rating: Int, for photo: PhotoItem) {
-        onRatingChanged(photo, rating)
+        onRatingChanged?(photo, rating)
         updateLocalPhoto(photo) { p in
             let oldXmp = p.xmp
             let newXmp = XmpMetadata(label: oldXmp?.label,
@@ -134,7 +131,7 @@ class ReviewViewModel: ObservableObject {
     }
 
     func handleApprove(for photo: PhotoItem) {
-        onApprove(photo)
+        onApprove?(photo)
         updateLocalPhoto(photo) { p in
             let oldXmp = p.xmp
             let isApproved = oldXmp?.label == "Approved"
@@ -172,7 +169,7 @@ class ReviewViewModel: ObservableObject {
     }
 
     func handleToggleDelete(for photo: PhotoItem) {
-        onMarkForDeletion(photo)
+        onMarkForDeletion?(photo)
         updateLocalPhoto(photo) { p in
             return PhotoItem(id: p.id,
                              url: p.url,
@@ -197,14 +194,14 @@ class ReviewViewModel: ObservableObject {
         guard groupIndex > 0 else {
             return
         }
-        onNavigate(groupIndex - 1)
+        onNavigate?(groupIndex - 1)
     }
 
     func navigateRight() {
         guard groupIndex < totalGroups - 1 else {
             return
         }
-        onNavigate(groupIndex + 1)
+        onNavigate?(groupIndex + 1)
     }
 
     // MARK: - Private

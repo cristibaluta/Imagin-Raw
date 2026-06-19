@@ -20,7 +20,6 @@ struct ContentView: View {
     @State private var windowWidth: CGFloat = 1200
     @State private var contentColumnWidth: CGFloat = 450
     @State private var openSelectedPhotosCallback: (() -> Void)?
-    @State private var reviewGroup: ReviewGroupItem? = nil
 
     #if os(iOS)
     @State private var feedPhotos: [PhotoItem] = []
@@ -51,7 +50,7 @@ struct ContentView: View {
     }
 
     private var reviewSubtitle: String {
-        guard let reviewGroup else {
+        guard let reviewGroup = appState.reviewGroup else {
             return ""
         }
         let pct = max(0, min(100, Int(((1.0 - Double(reviewGroup.group.distance)) * 100).rounded())))
@@ -59,7 +58,7 @@ struct ContentView: View {
     }
 
     private var reviewTitle: String {
-        guard let reviewGroup else {
+        guard let reviewGroup = appState.reviewGroup else {
             return ""
         }
         return "Group \(reviewGroup.index + 1) \u{2014} \(reviewGroup.group.photos.count) photos"
@@ -97,7 +96,7 @@ struct ContentView: View {
                             .focusable()
                             .focusEffectDisabled()
                             .modifier(ToolbarBackgroundVisibility(isHidden: true))
-                            .toolbar(reviewGroup == nil ? .visible : .hidden, for: .windowToolbar)// hides the bar including the native buttons
+                            .toolbar(appState.reviewGroup == nil ? .visible : .hidden, for: .windowToolbar)
                             #endif
                             .environmentObject(appState.filesModel)
                             .environmentObject(externalAppManager)
@@ -114,18 +113,14 @@ struct ContentView: View {
                 }
 
                 // Full-screen duplicate group review — covers entire app
-                if let rg = reviewGroup {
-                    ReviewView(group: rg.group,
-                               groupIndex: rg.index,
-                               onRatingChanged: rg.onRatingChanged,
-                               onApprove: rg.onApprove,
-                               onMarkForDeletion: rg.onMarkForDeletion,
-                               onDismiss: { reviewGroup = nil },
-                               totalGroups: rg.totalGroups,
-                               onNavigate: rg.onNavigate)
-                    .id(rg.group.id)
-                    .transition(.opacity)
-                    .zIndex(100)
+                if let rg = appState.reviewGroup {
+                    ReviewView(appState: appState, viewModel: appState.reviewViewModel)
+                        .id(rg.group.id)
+                        .transition(.opacity)
+                        .zIndex(100)
+                        .onAppear {
+                            appState.reviewViewModel.setup(with: rg)
+                        }
                 }
             }
             .onChange(of: geo.size.width) { _, w in
@@ -243,8 +238,7 @@ struct ContentView: View {
             },
             isSidebarCollapsed: isSidebarCollapsed,
             windowWidth: windowWidth,
-            openSelectedPhotosCallback: $openSelectedPhotosCallback,
-            reviewGroup: $reviewGroup
+            openSelectedPhotosCallback: $openSelectedPhotosCallback
         )
         #endif
     }
@@ -255,12 +249,12 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        if reviewGroup != nil {
+        if appState.reviewGroup != nil {
             // Review mode — show only a close button
             ToolbarItem(placement: .cancellationAction) {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        reviewGroup = nil
+                        appState.reviewGroup = nil
                     }
                 }) {
                     Label("Close Review", systemImage: "xmark")

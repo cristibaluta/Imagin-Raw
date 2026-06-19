@@ -56,7 +56,6 @@ struct ThumbGridView: View {
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
     @State private var showDuplicatesSheet: Bool = false
     @State private var isSelectMode: Bool = false
-    @Binding var reviewGroup: ReviewGroupItem?
     @Binding var currentPhotos: [PhotoItem]
     @State private var hasAppeared = false
     @State private var ignoringSearchResults = false
@@ -71,7 +70,6 @@ struct ThumbGridView: View {
          isSidebarCollapsed: Bool = false,
          windowWidth: CGFloat = 1200,
          openSelectedPhotosCallback: Binding<(() -> Void)?>,
-         reviewGroup: Binding<ReviewGroupItem?>,
          currentPhotos: Binding<[PhotoItem]> = .constant([])) {
 
         self.appState = appState
@@ -84,7 +82,6 @@ struct ThumbGridView: View {
         self.onToggleSidebar = onToggleSidebar
         self.isSidebarCollapsed = isSidebarCollapsed
         self.windowWidth = windowWidth
-        self._reviewGroup = reviewGroup
         self._currentPhotos = currentPhotos
     }
 
@@ -221,7 +218,7 @@ struct ThumbGridView: View {
             selectedPhotos: viewModel.selectedPhotos,
             duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
             onReview: { group, index in
-                reviewGroup = buildReviewGroupItem(group: group, index: index)
+                appState.reviewGroup = buildReviewGroupItem(group: group, index: index)
             },
             dateGroups: viewModel.dateGroups,
             sortOption: viewModel.sortOption,
@@ -231,7 +228,7 @@ struct ThumbGridView: View {
                     scrollTo: { photoId in scrollToCenteredPhotoId = photoId },
                     openPhotos: { photos in externalAppManager.openPhotos(photos) },
                     onToggleSidebar: { onToggleSidebar?() },
-                    onReviewSelected: { photos in reviewGroup = buildReviewGroupItemFromPhotos(photos) }
+                    onReviewSelected: { photos in appState.reviewGroup = buildReviewGroupItemFromPhotos(photos) }
                 )
             },
             thumbsManager: viewModel.thumbsManager,
@@ -331,7 +328,7 @@ struct ThumbGridView: View {
             onMarkForDeletion: { photo in viewModel.toggleDeleteState(for: [photo]) },
             onNavigate: { newIndex in
                 guard newIndex >= 0, newIndex < groups.count else { return }
-                reviewGroup = buildReviewGroupItem(group: groups[newIndex], index: newIndex)
+                appState.reviewGroup = buildReviewGroupItem(group: groups[newIndex], index: newIndex)
             }
         )
     }
@@ -407,7 +404,7 @@ extension ThumbGridView: ThumbCellDelegate {
         let photos = viewModel.selectedPhotos.contains(photo.id)
             ? viewModel.getSelectedPhotosForBulkAction()
             : [photo]
-        reviewGroup = buildReviewGroupItemFromPhotos(photos)
+        appState.reviewGroup = buildReviewGroupItemFromPhotos(photos)
     }
     func onOpenWith(photo: PhotoItem, app: PhotoApp) {
         let photos = viewModel.selectedPhotos.contains(photo.id)
