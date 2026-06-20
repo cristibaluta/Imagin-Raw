@@ -161,17 +161,15 @@ class ThumbGridViewModel: ObservableObject {
 
         // Sort photos
         result = result.sorted(by: photoSortComparator)
-        Task {
-            filteredAndSortedPhotos = result
-            
-            // Group photos
-            dateGroups = PhotoFilterService.buildDateGroups(from: result, sortOption: sortOption)
-            
-            if let id = lastSelectedPhotoId {
-                lastSelectedIndex = filteredAndSortedPhotos.firstIndex { $0.id == id }
-            } else if selectedPhoto == nil {
-                lastSelectedIndex = nil
-            }
+        filteredAndSortedPhotos = result
+
+        // Group photos
+        dateGroups = PhotoFilterService.buildDateGroups(from: result, sortOption: sortOption)
+
+        if let id = lastSelectedPhotoId {
+            lastSelectedIndex = filteredAndSortedPhotos.firstIndex { $0.id == id }
+        } else if selectedPhoto == nil {
+            lastSelectedIndex = nil
         }
     }
 
@@ -308,16 +306,6 @@ class ThumbGridViewModel: ObservableObject {
         }
     }
 
-    // TODO: is this needed? doesn't take into the account the groups
-//    func navigateToPhoto(at newIndex: Int) {
-//        guard newIndex >= 0 && newIndex < filteredAndSortedPhotos.count else {
-//            return
-//        }
-//        selectedPhotos = [filteredAndSortedPhotos[newIndex].id]
-//        selectedPhoto = filteredAndSortedPhotos[newIndex]
-//        lastSelectedIndex = newIndex
-//    }
-
     func initializeSelection() {
         if selectedPhoto == nil, let first = filteredAndSortedPhotos.first {
             selectedPhoto = first
@@ -364,7 +352,7 @@ class ThumbGridViewModel: ObservableObject {
         guard let first = photos.first else {
             return
         }
-        // 1. Get the index of the photo to delete
+        // 1. Get the index of the first photo to delete
         let index = filteredAndSortedPhotos.firstIndex { $0.id == first.id }
 
         // 2. Move selected photos to trash
@@ -372,11 +360,15 @@ class ThumbGridViewModel: ObservableObject {
             ? getSelectedPhotosForBulkAction()
             : photos
         trashService.movePhotosToTrash(photosToDelete)
+
+        // 3. Remove from models
         selectedPhotos.removeAll()
+        photosModel?.photos = (photosModel?.photos ?? []).filter { !photos.contains($0) }
+        // 4. Rebuild the model
         filterAndSortPhotos()
 
-        // 3. Find the next closest index after the photos were deleted
-        if let index,  index < filteredAndSortedPhotos.count {
+        // 5. Find the next closest index after the photos were deleted
+        if let index, index < filteredAndSortedPhotos.count {
             let nextIndex = min(index, filteredAndSortedPhotos.count - 1)
             let nextPhoto = filteredAndSortedPhotos[nextIndex]
             selectedPhoto = nextPhoto
