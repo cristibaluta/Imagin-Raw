@@ -51,6 +51,7 @@ struct DuplicatesResultSheet: View {
             Spacer()
 
             Button("Cancel") {
+                viewModel.cancelFindingDuplicates()
                 dismiss()
             }
             .keyboardShortcut(.cancelAction)

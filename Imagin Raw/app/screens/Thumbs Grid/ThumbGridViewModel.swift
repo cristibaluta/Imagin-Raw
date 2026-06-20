@@ -32,6 +32,7 @@ class ThumbGridViewModel: ObservableObject {
     @Published var photosToCopy: [PhotoItem] = []
     @Published var copyDestinationURL: URL?
 
+    private var findingDuplicatesTask: Task<Void, Never>?
     private var duplicateScanData: DuplicateScanData? = nil
 
     private let filesModel: FilesModel
@@ -689,23 +690,76 @@ class ThumbGridViewModel: ObservableObject {
         duplicateScanResult = nil
         duplicateScanData = nil
 
-        Task.detached(priority: .userInitiated) { [weak self] in
+        findingDuplicatesTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else {
                 return
             }
-            // Wait for the thumbnails to be generated
-            while await self.cachingQueueCount > 0 {
-                try? await Task.sleep(nanoseconds: 300_000_000)
+
+            // Ensure all thumbnail are downloaded
+            RCLog("🔍 Resolving thumbnail URLs...")
+            var imageURLs: [Int: URL] = [:]
+            var missingUrls: [Int: PhotoItem] = [:]
+
+            // 1. Find the photos that are not cached yet
+            for (index, photo) in photosToScan.enumerated() {
+                let diskURL = thumbsManager.cachedPhotoUrl(for: photo.url)
+                if FileManager.default.fileExists(atPath: diskURL.path) {
+                    imageURLs[index] = diskURL
+                } else {
+                    missingUrls[index] = photo
+                }
             }
-            // Find duplicates
-            let data = await DuplicateFinderService.scan(
-                photos: photosToScan,
-                thumbsManager: thumbsManager,
-                progress: { done, total in
+
+            // 2. Cache the missing photos
+            var toComplete = missingUrls.count
+            DispatchQueue.main.async {
+                self.cachingQueueCount = toComplete
+            }
+            for (index, photo) in missingUrls {
+                // Check before each iteration
+                if Task.isCancelled {
+                    RCLog("🛑 Thumbnail generation cancelled at index \(index)")
                     DispatchQueue.main.async {
-                        self.duplicateScanProgress = (done, total)
+                        self.cachingQueueCount = 0
+                        self.isFindingDuplicates = false
+                        self.isDuplicateMode = false
                     }
-                })
+                    return
+                }
+                let diskURL = thumbsManager.cachedPhotoUrl(for: photo.url)
+//                RCLog("  ⏳ Generating thumb [\(index+1)/\(total)]: \(URL(fileURLWithPath: photo.path).lastPathComponent)")
+
+                _ = await thumbsManager.getImage(for: photo)
+
+                if FileManager.default.fileExists(atPath: diskURL.path) {
+                    imageURLs[index] = diskURL
+                } else {
+                    RCLog("  ⚠️ Thumb missing after generation: \(diskURL.lastPathComponent)")
+                }
+                toComplete -= 1
+                DispatchQueue.main.async {
+                    self.cachingQueueCount = toComplete
+                }
+            }
+
+            // 3. Find duplicates
+            let data = await DuplicateFinderService.scan(photos: photosToScan,
+                                                         cachedImagesURLs: imageURLs,
+                                                         progress: { done, total in
+                                                             DispatchQueue.main.async {
+                                                                 self.duplicateScanProgress = (done, total)
+                                                             }
+                                                         },
+                                                         isCancelled: { Task.isCancelled })
+            // If data was cancelled, indexes are incomplete and we need to stop the rest of the scan
+            if Task.isCancelled {
+                RCLog("🛑 Duplicate finds were cancelled")
+                DispatchQueue.main.async {
+                    self.isFindingDuplicates = false
+                    self.isDuplicateMode = false
+                }
+                return
+            }
             await MainActor.run {
                 self.duplicateScanData = data
                 if let data {
@@ -718,6 +772,11 @@ class ThumbGridViewModel: ObservableObject {
                 self.isDuplicateMode = true
             }
         }
+    }
+
+    func cancelFindingDuplicates() {
+        findingDuplicatesTask?.cancel()
+        findingDuplicatesTask = nil
     }
 
     func setSimilarityMode(_ mode: DuplicateFinderService.SimilarityMode) {

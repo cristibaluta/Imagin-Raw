@@ -93,8 +93,9 @@ enum DuplicateFinderService {
     /// Runs Vision feature prints + pairwise distances once.
     /// Call `DuplicateScanData.recluster(threshold:)` to filter without re-scanning.
     static func scan(photos: [PhotoItem],
-                     thumbsManager: PhotoCacheManager,
-                     progress: @escaping (Int, Int) -> Void) async -> DuplicateScanData? {
+                     cachedImagesURLs: [Int: URL],
+                     progress: @escaping (Int, Int) -> Void,
+                     isCancelled: () -> Bool) async -> DuplicateScanData? {
 
         let total = photos.count
         RCLog("🔍 Starting duplicate scan for \(total) photos (threshold ≤ \(scanThreshold))")
@@ -106,63 +107,26 @@ enum DuplicateFinderService {
 
         let start = Date()
 
-        // Resolve thumbnail URLs
-        RCLog("🔍 Resolving thumbnail URLs...")
-        let imageURLs: [Int: URL] = await withCheckedContinuation { continuation in
-            Task {
-                let group = DispatchGroup()
-                var urls: [Int: URL] = [:]
-                let lock = NSLock()
+        var prints: [Int: VNFeaturePrintObservation] = [:]
+        let indices = Array(cachedImagesURLs.keys).sorted()
 
-                for (index, photo) in photos.enumerated() {
-                    let diskURL = thumbsManager.cachedPhotoUrl(for: photo.url)
-                    if FileManager.default.fileExists(atPath: diskURL.path) {
-                        lock.lock();
-                        urls[index] = diskURL;
-                        lock.unlock()
-                    } else {
-                        RCLog("  ⏳ Generating thumb [\(index+1)/\(total)]: \(URL(fileURLWithPath: photo.path).lastPathComponent)")
-                        group.enter()
-                        _ = await thumbsManager.getImage(for: photo)
-                        if FileManager.default.fileExists(atPath: diskURL.path) {
-                            lock.lock();
-                            urls[index] = diskURL;
-                            lock.unlock()
-                        } else {
-                            RCLog("  ⚠️ Thumb missing after generation: \(diskURL.lastPathComponent)")
-                        }
-                        group.leave()
-                    }
-                }
-                group.notify(queue: .main) {
-                    RCLog("🔍 Thumbnail URLs ready: \(urls.count)/\(total)")
-                    continuation.resume(returning: urls)
-                }
+        for (i, index) in indices.enumerated() {
+            if isCancelled() {
+                print("🛑 Cancelled mid-processing")
+                break
             }
-        }
-
-        // Generate feature prints serially on a background thread
-        let prints: [Int: VNFeaturePrintObservation] = await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                var results: [Int: VNFeaturePrintObservation] = [:]
-                let indices = Array(imageURLs.keys).sorted()
-
-                for (i, index) in indices.enumerated() {
-                    guard let imageURL = imageURLs[index],
-                          FileManager.default.isReadableFile(atPath: imageURL.path) else {
-                        DispatchQueue.main.async { progress(i + 1, total) }
-                        continue
-                    }
-                    if let obs = featurePrint(at: imageURL) {
-                        results[index] = obs
-                        RCLog("  ✅ [\(i+1)/\(total)] \(imageURL.lastPathComponent)")
-                    } else {
-                        RCLog("  ⚠️ [\(i+1)/\(total)] No feature print: \(imageURL.lastPathComponent)")
-                    }
-                    DispatchQueue.main.async { progress(i + 1, total) }
+            guard let imageURL = cachedImagesURLs[index],
+                  FileManager.default.isReadableFile(atPath: imageURL.path) else {
+                DispatchQueue.main.async {
+                    progress(i + 1, total)
                 }
-                RCLog("🔍 Feature prints done: \(results.count)/\(total)")
-                continuation.resume(returning: results)
+                continue
+            }
+            if let obs = featurePrint(at: imageURL) {
+                prints[index] = obs
+            }
+            DispatchQueue.main.async {
+                progress(i + 1, total)
             }
         }
 
@@ -173,6 +137,10 @@ enum DuplicateFinderService {
         var distanceMatrix: [[Float]] = Array(repeating: [], count: n)
 
         for i in 0..<n {
+            if isCancelled() {
+                print("🛑 Cancelled mid-processing")
+                break
+            }
             guard let pi = prints[sortedIndices[i]] else {
                 distanceMatrix[i] = Array(repeating: Float.greatestFiniteMagnitude, count: n - i - 1)
                 continue
