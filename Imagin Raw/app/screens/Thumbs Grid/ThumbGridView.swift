@@ -329,6 +329,7 @@ struct ThumbGridView: View {
             onNavigate: { newIndex in
                 guard newIndex >= 0, newIndex < groups.count else { return }
                 appState.reviewGroup = buildReviewGroupItem(group: groups[newIndex], index: newIndex)
+                appState.reviewViewModel.setup(with: appState.reviewGroup!)
             }
         )
     }

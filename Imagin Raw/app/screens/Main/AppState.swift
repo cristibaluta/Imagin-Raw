@@ -14,7 +14,6 @@ class AppState: ObservableObject {
     // Used to display info in the nav bar
     @Published var selectedFolder: FolderItem?
     @Published var selectedPhoto: PhotoItem?
-
     @Published var reviewGroup: ReviewGroupItem?// Photos to be displayed in the review screen
 
     private let thumbnailsCacheManager = PhotoCacheManager(thumbSize: .s256)

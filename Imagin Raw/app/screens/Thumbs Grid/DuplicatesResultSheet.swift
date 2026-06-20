@@ -50,9 +50,11 @@ struct DuplicatesResultSheet: View {
 
             Spacer()
 
-            Button("Cancel") { dismiss() }
-                .keyboardShortcut(.cancelAction)
-                .padding(.bottom)
+            Button("Cancel") {
+                dismiss()
+            }
+            .keyboardShortcut(.cancelAction)
+            .padding(.bottom)
         }
         .frame(width: 400, height: 300)
         .onChange(of: viewModel.isFindingDuplicates) { _, isRunning in

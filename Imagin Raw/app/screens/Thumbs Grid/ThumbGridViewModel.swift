@@ -55,7 +55,9 @@ class ThumbGridViewModel: ObservableObject {
         case small = "SmallGrid"
         case large = "LargeGrid"
 
-        var id: String { rawValue }
+        var id: String {
+            rawValue
+        }
 
         var columnCount: Int  { self == .small ? 3 : 5 }
         var thumbSize: CGFloat { self == .small ? 110 : 210 }
@@ -63,7 +65,7 @@ class ThumbGridViewModel: ObservableObject {
         var displayName: String { self == .small ? "Small" : "Large" }
         var iconName: String { self == .small ? "square.grid.3x3" : "square.grid.4x4.fill" }
     }
-    let id = UUID()
+
     init(filesModel: FilesModel, thumbsManager: PhotoCacheManager) {
         self.filesModel = filesModel
         self.thumbsManager = thumbsManager
@@ -72,7 +74,6 @@ class ThumbGridViewModel: ObservableObject {
         loadSimilarityMode()
         setupFilteredPhotosObservers()
         setupServices()
-        print(">>>>>>> init ThumbGridViewModel \(id)")
     }
 
     private func setupServices() {
@@ -692,27 +693,30 @@ class ThumbGridViewModel: ObservableObject {
             guard let self else {
                 return
             }
+            // Wait for the thumbnails to be generated
             while await self.cachingQueueCount > 0 {
                 try? await Task.sleep(nanoseconds: 300_000_000)
             }
-//            let data = await DuplicateFinderService.scan(
-//                photos: photosToScan, thumbsManager: thumbsManager,
-//                progress: { done, total in
-//                    DispatchQueue.main.async {
-//                        self.duplicateScanProgress = (done, total)
-//                    }
-//                })
-//            await MainActor.run {
-//                self.duplicateScanData = data
-//                if let data {
-//                    let result = data.recluster(threshold: self.similarityMode.distanceThreshold,
-//                                                sortBy: self.photoSortComparator)
-//                    self.duplicateScanResult = result
-//                    RCLog("🔍 Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", data.scanDuration))s")
-//                }
-//                self.isFindingDuplicates = false
-//                self.isDuplicateMode = true
-//            }
+            // Find duplicates
+            let data = await DuplicateFinderService.scan(
+                photos: photosToScan,
+                thumbsManager: thumbsManager,
+                progress: { done, total in
+                    DispatchQueue.main.async {
+                        self.duplicateScanProgress = (done, total)
+                    }
+                })
+            await MainActor.run {
+                self.duplicateScanData = data
+                if let data {
+                    let result = data.recluster(threshold: self.similarityMode.distanceThreshold,
+                                                sortBy: self.photoSortComparator)
+                    self.duplicateScanResult = result
+                    RCLog("🔍 Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", data.scanDuration))s")
+                }
+                self.isFindingDuplicates = false
+                self.isDuplicateMode = true
+            }
         }
     }
 

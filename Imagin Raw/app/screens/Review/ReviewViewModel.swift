@@ -33,13 +33,13 @@ class ReviewViewModel: ObservableObject {
 
     func setup(with reviewGroupItem: ReviewGroupItem) {
         self.group = reviewGroupItem.group
-        self.groupIndex = 0
+        self.photos = reviewGroupItem.group.photos
+        self.groupIndex = reviewGroupItem.index
         self.totalGroups = reviewGroupItem.totalGroups
         self.onRatingChanged = reviewGroupItem.onRatingChanged
         self.onApprove = reviewGroupItem.onApprove
         self.onMarkForDeletion = reviewGroupItem.onMarkForDeletion
         self.onNavigate = reviewGroupItem.onNavigate
-        self.photos = reviewGroupItem.group.photos
     }
 
     var hoveredPhoto: PhotoItem? {
