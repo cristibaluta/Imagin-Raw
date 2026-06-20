@@ -98,6 +98,7 @@ struct ContentView: View {
                             .modifier(ToolbarBackgroundVisibility(isHidden: true))
                             .toolbar(appState.reviewGroup == nil ? .visible : .hidden, for: .windowToolbar)
                             #endif
+                            .environmentObject(appState)
                             .environmentObject(appState.filesModel)
                             .environmentObject(externalAppManager)
                             .toolbar {

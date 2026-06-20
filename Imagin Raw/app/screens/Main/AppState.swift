@@ -16,9 +16,9 @@ class AppState: ObservableObject {
     @Published var selectedPhoto: PhotoItem?
     @Published var reviewGroup: ReviewGroupItem?// Photos to be displayed in the review screen
 
-    private let thumbnailsCacheManager = PhotoCacheManager(thumbSize: .s256)
-    private let previewsCacheManager = PhotoCacheManager(thumbSize: .s1024)
-    private let fullResCacheManager = PhotoCacheManager(thumbSize: .s1024)
+    let thumbnailsCacheManager = PhotoCacheManager(thumbSize: .s256)
+    let previewsCacheManager = PhotoCacheManager(thumbSize: .s1024)
+    let fullResCacheManager = PhotoCacheManager(thumbSize: .s1024)
 
     let filesModel: FilesModel
     let thumbsGridViewModel: ThumbGridViewModel

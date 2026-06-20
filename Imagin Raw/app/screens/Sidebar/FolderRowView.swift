@@ -9,6 +9,7 @@ import SwiftUI
 
 struct FolderRowView: View {
     @EnvironmentObject var filesModel: FilesModel
+    @EnvironmentObject var appState: AppState
     let folder: FolderItem
     @Binding var expandedFolders: Set<URL>
     @Binding var selectedFolder: FolderItem?
@@ -211,8 +212,10 @@ struct FolderRowView: View {
                     }
 
                     Button(role: .destructive, action: {
-                        Task {
-//                            await filesModel.currentThumbsManager?.purgeCache(for: folder.url)
+                        Task.detached(priority: .background) {
+                            await appState.thumbnailsCacheManager.purgeCache(folderURL: folder.url)
+                            await appState.previewsCacheManager.purgeCache(folderURL: folder.url)
+                            await appState.fullResCacheManager.purgeCache(folderURL: folder.url)
                         }
                     }) {
                         Label("Purge Cache", systemImage: "trash")
@@ -276,8 +279,10 @@ struct FolderRowView: View {
                 }
 
                 Button(role: .destructive, action: {
-                    Task {
-//                        await filesModel.currentThumbsManager?.purgeCache(for: folder.url)
+                    Task.detached(priority: .background) {
+                        await appState.thumbnailsCacheManager.purgeCache(folderURL: folder.url)
+                        await appState.previewsCacheManager.purgeCache(folderURL: folder.url)
+                        await appState.fullResCacheManager.purgeCache(folderURL: folder.url)
                     }
                 }) {
                     Label("Purge Cache", systemImage: "trash")

@@ -22,6 +22,10 @@ private actor MemoryCache {
     func getImageData(for key: String) -> Data? {
         cache.object(forKey: NSString(string: key)) as Data?
     }
+
+    func purge() {
+        cache.removeAllObjects()
+    }
 }
 
 private actor AccessLogs {
@@ -134,21 +138,17 @@ final class PhotoCacheManager: Sendable {
         try? FileManager.default.removeItem(at: cacheUrl)
     }
 
-    func purgeCache(for folderURL: URL) async {
-//        let folderPath = folderURL.path
-//        let dirHash = persistentHash(for: folderPath)
-//        let subdirName = "\(folderURL.lastPathComponent)_\(dirHash)"
-//        let subdirectory = cacheDirectory.appendingPathComponent(subdirName)
-
-//        let prefix = "\(dirHash)_"
-//        let keysToRemove = await memoryCache.keys.filter { $0.hasPrefix(prefix) }
-//        keysToRemove.forEach {
-//            await memoryCache.removeValue(forKey: $0)
-//        }
-//        try? FileManager.default.removeItem(at: subdirectory)
-//        accessLogs.removeValue(forKey: subdirName)
-//        let snapshot = accessLog
-//        saveAccessLogSnapshot(snapshot)
+    func purgeCache(folderURL: URL) async {
+        let cachedFolderUrl = cacheDir(folderUrl: folderURL)
+        let cacheSubdirName = cachedFolderUrl.lastPathComponent
+        // 1. delete the folder
+        try? FileManager.default.removeItem(at: cachedFolderUrl)
+        // 2. delete memory cache
+        await memoryCache.purge()
+        // 3. delete access logs date
+        var snapshot = await accessLogs.getSnapshot()
+        snapshot.removeValue(forKey: cacheSubdirName)
+        await accessLogs.saveSnapshot(snapshot)
     }
 
     private func loadFromDisk(for photoUrl: URL) -> Data? {
@@ -160,7 +160,7 @@ final class PhotoCacheManager: Sendable {
     }
 
     private func saveToDisk(_ jpegData: Data, for url: URL) {
-        let cacheDir = cacheDir(for: url)
+        let cacheDir = cacheDir(photoUrl: url)
         let isNew = !FileManager.default.fileExists(atPath: cacheDir.path)
         if isNew {
             guard (try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)) != nil else {
@@ -187,12 +187,16 @@ final class PhotoCacheManager: Sendable {
 
     /// Returns a cache folder of the form <album name>_<album path hash>
     func cachedPhotoUrl(for photoUrl: URL) -> URL {
-        let cacheDir = cacheDir(for: photoUrl)
+        let cacheDir = cacheDir(photoUrl: photoUrl)
         return cacheDir.appendingPathComponent("\(photoUrl.lastPathComponent).jpg")
     }
 
-    func cacheDir(for photoUrl: URL) -> URL {
+    private func cacheDir(photoUrl: URL) -> URL {
         let folderUrl = photoUrl.deletingLastPathComponent()
+        return cacheDir(folderUrl: folderUrl)
+    }
+
+    private func cacheDir(folderUrl: URL) -> URL {
         let folderName = folderUrl.lastPathComponent
         let folderUrlHash = persistentHash(for: folderUrl.absoluteString)
         let dir = cacheDirectory.appendingPathComponent("\(folderName)_\(folderUrlHash)")

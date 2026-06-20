@@ -9,6 +9,7 @@ import SwiftUI
 
 struct FoldersListView: View {
     @EnvironmentObject var filesModel: FilesModel
+    @EnvironmentObject var appState: AppState
     @State private var expandedFolders: Set<URL> = []
     let onDoubleClick: (() -> Void)?
 
