@@ -167,7 +167,7 @@ struct ContentView: View {
         }
         detail: {
             detailView
-                .navigationSplitViewColumnWidth(min: 280, ideal: 600)
+                .navigationSplitViewColumnWidth(min: 220, ideal: 600)
         }
         .modifier(HideSplitViewDividers())
         .onChange(of: windowWidth) { _, _ in

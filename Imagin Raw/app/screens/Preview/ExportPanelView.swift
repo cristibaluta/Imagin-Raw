@@ -38,7 +38,9 @@ struct ExportPanelView: View {
 
                 HStack(spacing: 6) {
                     ForEach(ExportAspectRatio.allCases) { ratio in
-                        Button(action: { selectedRatio = ratio }) {
+                        Button(action: {
+                            selectedRatio = ratio
+                        }) {
                             Text(ratio.rawValue)
                                 .font(.system(size: 12, weight: selectedRatio == ratio ? .semibold : .regular))
                                 .foregroundColor(selectedRatio == ratio ? .primary : .secondary)
@@ -47,6 +49,7 @@ struct ExportPanelView: View {
                                 .background(selectedRatio == ratio ? Color.accentColor.opacity(0.15) : Color.clear)
                         }
                         .buttonStyle(PlainButtonStyle())
+
                         if ratio != ExportAspectRatio.allCases.last {
                             Rectangle()
                                 .fill(Color.secondary.opacity(0.3))

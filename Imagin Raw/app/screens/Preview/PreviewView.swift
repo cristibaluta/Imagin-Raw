@@ -96,9 +96,13 @@ struct PreviewView: View {
                     #endif
                 } else if let nsImage = viewModel.image {
                     HStack {
-                        if !effectiveAlignToTopLeft { Spacer(minLength: 0) }
+                        if !effectiveAlignToTopLeft {
+                            Spacer(minLength: 0)
+                        }
                         VStack {
-                            if !effectiveAlignToTopLeft { Spacer(minLength: 0) }
+                            if !effectiveAlignToTopLeft {
+                                Spacer(minLength: 0)
+                            }
                             if showExportPanel {
                                 ExportCanvasPreview(image: nsImage,
                                                     geo: geo,
@@ -115,7 +119,6 @@ struct PreviewView: View {
 //                                    .overlay(FocusPointOverlay(nsImage: nsImage,
 //                                                               focusResult: parsePanasonicAFPoint(from: URL(fileURLWithPath: photo.path))))
                             }
-                            //.animation(.easeInOut(duration: 0.35), value: showExportPanel)
                             Spacer(minLength: 0)
                         }
                         Spacer(minLength: 0)
@@ -129,21 +132,14 @@ struct PreviewView: View {
                 }
 
                 // Alignment button
-                VStack {
-                    HStack {
-                        if !showExportPanel && viewModel.fullResImage == nil && gridType != .large {
-                            Button(action: { viewModel.toggleAlignment() }) {
-                                Image(systemName: effectiveAlignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
-                                    .font(.title2)
-                                    .foregroundColor(effectiveAlignToTopLeft ? .white.opacity(0.4) : .gray)
-                                    .padding()
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .help(effectiveAlignToTopLeft ? "Center image" : "Align to top-left")
+                if !showExportPanel && viewModel.fullResImage == nil && gridType != .large {
+                    VStack {
+                        HStack {
+                            alignmentButton
+                            Spacer()
                         }
                         Spacer()
                     }
-                    Spacer()
                 }
 
                 // Export panel overlay — bottom-right
@@ -158,7 +154,7 @@ struct PreviewView: View {
                                             selectedRatio: $exportRatio,
                                             padding: $exportPadding,
                                             alignment: $exportAlignment)
-                            .frame(width: 280)
+                            .frame(width: 220)
                             .padding(12)
                         }
                     }
@@ -185,6 +181,20 @@ struct PreviewView: View {
             }))
             #endif
         }
+    }
+
+    @ViewBuilder
+    private var alignmentButton: some View {
+        Button(action: {
+            viewModel.toggleAlignment()
+        }) {
+            Image(systemName: effectiveAlignToTopLeft ? "arrow.down.right.square" : "arrow.up.left.square")
+                .font(.title2)
+                .foregroundColor(effectiveAlignToTopLeft ? .white.opacity(0.4) : .gray)
+                .padding()
+        }
+        .buttonStyle(PlainButtonStyle())
+        .help(effectiveAlignToTopLeft ? "Center image" : "Align to top-left")
     }
 
     @ViewBuilder
