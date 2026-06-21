@@ -62,7 +62,9 @@ class ExternalAppManager: ObservableObject, @unchecked Sendable {
                       let path = mdItem.value(forAttribute: kMDItemPath as String) as? String,
                       let bundle = Bundle(path: path),
                       let bundleID = bundle.bundleIdentifier
-                else { continue }
+                else {
+                    continue
+                }
 
                 // Skip ignored apps
                 if ignoredApps.contains(bundleID) {
@@ -83,7 +85,7 @@ class ExternalAppManager: ObservableObject, @unchecked Sendable {
                     appNameLowercased.contains(keyword.lowercased())
                 }
 
-                RCLog(">>>>>> \(bundleID) \(isPhotoApp)")
+//                RCLog(">>>>>> \(bundleID) \(isPhotoApp)")
                 if isPhotoApp {
                     let photoApp = PhotoApp(
                         name: name,

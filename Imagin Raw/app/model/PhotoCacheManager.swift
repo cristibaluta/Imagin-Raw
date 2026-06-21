@@ -195,7 +195,7 @@ final class PhotoCacheManager: Sendable {
         return cacheDir(folderUrl: folderUrl)
     }
 
-    private func cacheDir(folderUrl: URL) -> URL {
+    func cacheDir(folderUrl: URL) -> URL {
         let folderName = folderUrl.lastPathComponent
         let folderUrlHash = persistentHash(for: folderUrl.absoluteString)
         let dir = cacheDirectory.appendingPathComponent("\(folderName)_\(folderUrlHash)")

@@ -201,12 +201,8 @@ struct FolderRowView: View {
                     Divider()
 
                     Button(action: {
-                        Task {
-//                            guard let cacheURL = appState.thumbsManager?.cacheDir(for: folder.url) else {
-//                                return
-//                            }
-//                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
-                        }
+                        let cacheURL = appState.thumbnailsCacheManager.cacheDir(folderUrl: folder.url)
+                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
                     }) {
                         Label("Reveal Cache in Finder", systemImage: "folder.badge.questionmark")
                     }
@@ -246,7 +242,9 @@ struct FolderRowView: View {
                 RCLog("👆 [Sidebar] tap leaf: \(folder.title) already=\(selectedFolder?.url == folder.url)")
                 if selectedFolder?.url == folder.url {
                     selectedFolder = nil
-                    DispatchQueue.main.async { selectedFolder = folder }
+                    DispatchQueue.main.async {
+                        selectedFolder = folder
+                    }
                 } else {
                     selectedFolder = folder
                 }
@@ -268,12 +266,8 @@ struct FolderRowView: View {
                 Divider()
 
                 Button(action: {
-                    Task {
-//                        guard let cacheURL = filesModel.currentThumbsManager?.cacheDir(for: folder.url) else {
-//                            return
-//                        }
-//                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
-                    }
+                    let cacheURL = appState.thumbnailsCacheManager.cacheDir(folderUrl: folder.url)
+                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
                 }) {
                     Label("Reveal Cache in Finder", systemImage: "folder.badge.questionmark")
                 }
