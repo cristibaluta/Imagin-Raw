@@ -114,12 +114,11 @@ final class PhotoCacheManager: Sendable {
             case .s256:
                 image = source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
             case .s1024:
-                image = source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
+                image = source.loadPreview(targetSize: CGFloat(thumbSize.rawValue))
             case .full:
-                image = source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
+                image = source.loadFullRes()
         }
-        guard let image,
-              let jpegData = image.bitmapRepresentation() else {
+        guard let image, let jpegData = image.bitmapRepresentation() else {
             return nil
         }
         // Only save to disk for file-based sources

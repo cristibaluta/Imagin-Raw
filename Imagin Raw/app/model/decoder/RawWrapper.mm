@@ -44,7 +44,9 @@
     NSData *result = nil;
 
     @try {
-        int ret = raw->open_file(path.UTF8String);
+        NSURL *url = [NSURL URLWithString:path]; // parses the file:// URL string correctly
+        NSString *filePath = url.path; // raw path: /Users/...
+        int ret = raw->open_file(filePath.UTF8String);
         if (ret != LIBRAW_SUCCESS) {
             delete raw;
             return nil;
@@ -100,9 +102,12 @@
         NSDate *t0 = [NSDate date];
         LibRaw *raw = new LibRaw();
         @try {
-            if (raw->open_file(path.UTF8String) != LIBRAW_SUCCESS) {
+            NSURL *url = [NSURL URLWithString:path]; // parses the file:// URL string correctly
+            NSString *filePath = url.path; // raw path: /Users/...
+            if (raw->open_file(filePath.UTF8String) != LIBRAW_SUCCESS) {
                 NSLog(@"[FullRes] open_file failed");
-                delete raw; return;
+                delete raw;
+                return;
             }
             NSLog(@"[FullRes] open_file: %.3fs", -[t0 timeIntervalSinceNow]);
 
@@ -115,18 +120,27 @@
 
             if (raw->unpack() != LIBRAW_SUCCESS) {
                 NSLog(@"[FullRes] unpack failed");
-                raw->recycle(); delete raw; return;
+                raw->recycle();
+                delete raw;
+                return;
             }
             NSLog(@"[FullRes] unpack: %.3fs", -[t0 timeIntervalSinceNow]);
 
             if (raw->dcraw_process() != LIBRAW_SUCCESS) {
                 NSLog(@"[FullRes] dcraw_process failed");
-                raw->recycle(); delete raw; return;
+                raw->recycle();
+                delete raw;
+                return;
             }
             NSLog(@"[FullRes] dcraw_process: %.3fs", -[t0 timeIntervalSinceNow]);
 
             libraw_processed_image_t *img = raw->dcraw_make_mem_image();
-            if (!img) { NSLog(@"[FullRes] dcraw_make_mem_image returned nil"); raw->recycle(); delete raw; return; }
+            if (!img) {
+                NSLog(@"[FullRes] dcraw_make_mem_image returned nil");
+                raw->recycle();
+                delete raw;
+                return;
+            }
             NSLog(@"[FullRes] make_mem_image: %.3fs  size=%ux%u colors=%d", -[t0 timeIntervalSinceNow], img->width, img->height, img->colors);
 
             if (img->type == LIBRAW_IMAGE_BITMAP && img->colors == 3) {
@@ -150,17 +164,16 @@
 
                     // Pass the buffer directly via planes pointer array
                     uint8_t *planes[1] = { buf };
-                    NSBitmapImageRep *rep = [[NSBitmapImageRep alloc]
-                        initWithBitmapDataPlanes:planes
-                        pixelsWide:(NSInteger)w
-                        pixelsHigh:(NSInteger)h
-                        bitsPerSample:8
-                        samplesPerPixel:3
-                        hasAlpha:NO
-                        isPlanar:NO
-                        colorSpaceName:NSDeviceRGBColorSpace
-                        bytesPerRow:(NSInteger)(w * 4)
-                        bitsPerPixel:32];
+                    NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:planes
+                                                                                    pixelsWide:(NSInteger)w
+                                                                                    pixelsHigh:(NSInteger)h
+                                                                                 bitsPerSample:8
+                                                                               samplesPerPixel:3
+                                                                                      hasAlpha:NO
+                                                                                      isPlanar:NO
+                                                                                colorSpaceName:NSDeviceRGBColorSpace
+                                                                                   bytesPerRow:(NSInteger)(w * 4)
+                                                                                  bitsPerPixel:32];
 
                     if (rep) {
                         // rep now holds a copy of buf; safe to free buf after this point
