@@ -162,7 +162,7 @@ struct ExportPanelView: View {
                         } else {
                             Image(systemName: "square.and.arrow.down")
                         }
-                        Text(isExporting ? "Exporting…" : "Save as PNG")
+                        Text(isExporting ? "Exporting…" : "Save as TIFF")
                     }
                 }
                 .buttonStyle(.borderedProminent)

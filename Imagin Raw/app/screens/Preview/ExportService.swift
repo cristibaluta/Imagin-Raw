@@ -107,14 +107,19 @@ enum ExportService {
             throw ExportError.renderFailed
         }
 
-        // Save as PNG
+        // Save as TIFF
         guard let dest = CGImageDestinationCreateWithURL(outputURL as CFURL,
-                                                         UTType.png.identifier as CFString,
+                                                         UTType.tiff.identifier as CFString,
                                                          1,
                                                          nil) else {
             throw ExportError.destinationCreationFailed
         }
-        CGImageDestinationAddImage(dest, result, nil)
+        let properties: [CFString: Any] = [
+            kCGImagePropertyTIFFDictionary: [
+                kCGImagePropertyTIFFCompression: 5 // LZW (lossless)
+            ]
+        ]
+        CGImageDestinationAddImage(dest, result, properties as CFDictionary)
         if !CGImageDestinationFinalize(dest) {
             throw ExportError.writeFailed
         }
@@ -125,7 +130,9 @@ enum ExportService {
     static func outputURL(for sourcePath: String) -> URL {
         let source = URL(fileURLWithPath: sourcePath)
         let name = source.deletingPathExtension().lastPathComponent
-        return source.deletingLastPathComponent().appendingPathComponent("\(name)_export.png")
+        return source.deletingLastPathComponent()
+            .appendingPathComponent("\(name)_export")
+            .appendingPathExtension("tiff")
     }
 
     // MARK: - Image Loading

@@ -29,7 +29,7 @@ class PreviewViewModel: ObservableObject {
             RCLog("Photo already loaded \(photo.path)")
             return
         }
-        reset()
+//        reset()
         self.photo = photo
         isLoading = true
 
