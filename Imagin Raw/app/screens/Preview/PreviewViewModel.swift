@@ -29,18 +29,9 @@ class PreviewViewModel: ObservableObject {
             RCLog("Photo already loaded \(photo.path)")
             return
         }
+        reset()
         self.photo = photo
-
-        loadingTask?.cancel()
-        loadingTask = nil
-        fullResTask?.cancel()
-        fullResTask = nil
-        fullResImage = nil
-        isLoadingFullRes = false
-
         isLoading = true
-        image = nil
-        exifInfo = nil
 
         loadingTask = Task(priority: .userInitiated) { [photo] in
 
@@ -89,5 +80,18 @@ class PreviewViewModel: ObservableObject {
             self.fullResImage = image
             self.isLoadingFullRes = false
         }
+    }
+
+    func reset() {
+        photo = nil
+        loadingTask?.cancel()
+        loadingTask = nil
+        fullResTask?.cancel()
+        fullResTask = nil
+        image = nil
+        fullResImage = nil
+        isLoading = false
+        isLoadingFullRes = false
+        exifInfo = nil
     }
 }

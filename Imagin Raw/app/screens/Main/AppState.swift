@@ -44,6 +44,7 @@ class AppState: ObservableObject {
                     return
                 }
                 Task {
+                    self.previewViewModel.reset()
                     self.selectedFolder = folder
                     self.thumbsGridViewModel.loadPhotosForFolder(folder)
                 }

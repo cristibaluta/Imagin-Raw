@@ -102,6 +102,8 @@ struct CoreGraphicsDecoder: RawDecoder {
     }
 }
 
+// MARK: - LibRaw implementation
+
 struct LibRawDecoder: RawDecoder {
 
     func decodeFullRes(at url: URL) -> IRImage? {

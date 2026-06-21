@@ -44,7 +44,9 @@ struct PreviewView: View {
                 .frame(height: 1)
 
             // Content
-            if let photo = viewModel.photo, photo.isVideo {
+            if viewModel.photo == nil {
+                ShortcutsHelpView()
+            } else if let photo = viewModel.photo, photo.isVideo {
                 VideoPreviewView(photo: photo)
             } else {
                 photoPreviewBody
