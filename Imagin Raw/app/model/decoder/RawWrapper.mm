@@ -84,11 +84,11 @@
     return result;
 }
 
-- (RawPhoto *)extractRawPhoto:(NSString *)path {
+- (RawPhoto *)extractRawPhoto:(NSURL *)url {
     __block RawPhoto *result = nil;
 
     dispatch_sync([[self class] librawQueue], ^{
-        result = [self _extractRawPhotoSynchronized:path];
+        result = [self _extractRawPhotoSynchronized:url];
     });
 
     return result;
@@ -204,13 +204,13 @@
 }
 #endif
 
-- (RawPhoto *)_extractRawPhotoSynchronized:(NSString *)path {
+- (RawPhoto *)_extractRawPhotoSynchronized:(NSURL *)url {
     LibRaw *raw = new LibRaw();
     NSData *imageData = nil;
     NSMutableDictionary *exifData = [NSMutableDictionary dictionary];
 
     @try {
-        int ret = raw->open_file(path.UTF8String);
+        int ret = raw->open_file(url.path.UTF8String);
         if (ret != LIBRAW_SUCCESS) {
             delete raw;
             return [[RawPhoto alloc] initWithImageData:nil exifData:nil];

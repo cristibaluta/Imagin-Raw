@@ -19,7 +19,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface RawWrapper : NSObject
 
 + (instancetype)shared;
-- (nullable RawPhoto *)extractRawPhoto:(NSString *)path;
+- (nullable RawPhoto *)extractRawPhoto:(NSURL *)url;
 - (nullable NSData *)extractEmbeddedJPEG:(NSString *)path;
 - (nullable NSDictionary *)extractMetadata:(NSString *)path;
 #if TARGET_OS_OSX

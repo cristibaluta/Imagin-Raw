@@ -135,7 +135,7 @@ enum ExportService {
         let ext = url.pathExtension.lowercased()
 
         if FilesExtensions.raw.contains(ext) {
-            guard let rawPhoto = RawWrapper.shared().extractRawPhoto(path),
+            guard let rawPhoto = RawWrapper.shared().extractRawPhoto(url),
                   let data = rawPhoto.imageData,
                   let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
             return CGImageSourceCreateImageAtIndex(src, 0, nil)

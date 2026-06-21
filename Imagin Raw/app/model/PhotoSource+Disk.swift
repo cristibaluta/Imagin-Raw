@@ -58,12 +58,12 @@ struct DiskPhotoSource: PhotoSource {
     func loadExif() async -> ExifInfo? {
         let ext = url.pathExtension.lowercased()
         if FilesExtensions.raw.contains(ext) {
-            // TODO: exif not succeeds
-            if let raw = RawWrapper.shared().extractRawPhoto(url.absoluteString),
+            if let raw = RawWrapper.shared().extractRawPhoto(url),
                   let dict = raw.exifData as? [String: Any] {
                 return ExifInfo.from(rawExif: dict)
             }
         }
+        // Fallback to coregraphics exif reading
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
               let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else {
             return nil
