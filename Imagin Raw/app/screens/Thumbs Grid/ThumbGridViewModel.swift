@@ -320,9 +320,10 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func getSelectedPhotosForBulkAction() -> [PhotoItem] {
-        guard let allPhotos = photosModel?.photos else {
-            return []
-        }
+//        guard let allPhotos = photosModel?.photos else {
+//            return []
+//        }
+        let allPhotos = filteredAndSortedPhotos
         if selectedPhotos.count > 1 {
             return allPhotos.filter { selectedPhotos.contains($0.id) }
         }
