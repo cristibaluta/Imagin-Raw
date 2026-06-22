@@ -26,7 +26,7 @@ struct CopyToView: View {
                 CopyOptionsView(viewModel: viewModel) {
                     viewModel.saveSettings()
                     showProgress = true
-                    Task {
+                    Task(priority: .userInitiated) {
                         await viewModel.startCopy()
                         if viewModel.copyError == nil && !viewModel.isCancelled {
                             try? await Task.sleep(nanoseconds: 500_000_000)

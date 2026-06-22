@@ -34,8 +34,9 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
     @Published var copiedCount: Int = 0
     @Published var totalCount: Int = 0
     @Published var copyError: String?
+
     private(set) var isCancelled: Bool = false
-    private var copyTask: Task<Void, Never>?
+//    private var copyTask: Task<Void, Never>?
 
     init(photos: [PhotoItem]) {
         self.photos = photos
@@ -118,18 +119,16 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
         return highest
     }
 
-    private func buildFilename(for photo: PhotoItem,
-                               sequentialIndex: Int?,
-                               useSequentialNumbers: Bool,
-                               renameByExifDate: Bool,
-                               customPrefix: String) -> String {
-        let url = URL(fileURLWithPath: photo.path)
-        let ext = url.pathExtension
+    private func buildDestinationFilename(for photo: PhotoItem,
+                                          sequentialIndex: Int?,
+                                          useSequentialNumbers: Bool,
+                                          renameByExifDate: Bool,
+                                          customPrefix: String) -> String {
         var baseName: String
         if useSequentialNumbers, let idx = sequentialIndex {
             baseName = String(format: "%04d", idx)
         } else {
-            baseName = url.deletingPathExtension().lastPathComponent
+            baseName = photo.url.deletingPathExtension().lastPathComponent
         }
         if renameByExifDate {
             let fmt = DateFormatter()
@@ -139,13 +138,13 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
         if !customPrefix.isEmpty {
             baseName = customPrefix + baseName
         }
-        return ext.isEmpty ? baseName : baseName + "." + ext
+        return baseName
     }
 
     private func buildDestinationFolder(base: URL,
                                         date: Date,
                                         cameraModel: String?,
-                                        isJpg: Bool,
+                                        isJpegCompanion: Bool,
                                         settings: CopySettings) -> URL {
         var dest = base
         let cal = Calendar.current
@@ -165,7 +164,7 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
             dest = dest.appendingPathComponent(model.replacingOccurrences(of: "/", with: "-")
                         .trimmingCharacters(in: .whitespacesAndNewlines))
         }
-        if isJpg && settings.organizeJpgsInSubfolder {
+        if isJpegCompanion && settings.organizeJpgsInSubfolder {
             dest = dest.appendingPathComponent("_jpg")
         }
         return dest
@@ -181,31 +180,29 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
         let isJpg = firstPhoto.path.lowercased().hasSuffix(".jpg") ||
                     firstPhoto.path.lowercased().hasSuffix(".jpeg") ||
                     firstPhoto.path.lowercased().hasSuffix(".heic")
-        let folder = buildDestinationFolder(
-            base: baseURL,
-            date: firstPhoto.dateCreated,
-            cameraModel: firstPhoto.cameraModel,
-            isJpg: isJpg,
-            settings: settings
-        )
+        let ext = firstPhoto.url.pathExtension
+        let destFolder = buildDestinationFolder(base: baseURL,
+                                                date: firstPhoto.dateCreated,
+                                                cameraModel: firstPhoto.cameraModel,
+                                                isJpegCompanion: isJpg,
+                                                settings: settings)
 
         let startOffset = useSequentialNumbers ? computeSequentialStartOffset(in: destinationURL, prefix: customPrefix) : 0
-        let filename = buildFilename(
-            for: firstPhoto,
-            sequentialIndex: useSequentialNumbers ? (startOffset + 1) : nil,
-            useSequentialNumbers: useSequentialNumbers,
-            renameByExifDate: renameByExifDate,
-            customPrefix: customPrefix
-        )
+        let destFilename = buildDestinationFilename(for: firstPhoto,
+                                                    sequentialIndex: useSequentialNumbers ? (startOffset + 1) : nil,
+                                                    useSequentialNumbers: useSequentialNumbers,
+                                                    renameByExifDate: renameByExifDate,
+                                                    customPrefix: customPrefix)
+        let destFilenameWithExt = destFilename + "." + ext
 
-        let str = (folder.pathComponents + [filename]).joined(separator: " > ")
+        let str = (destFolder.pathComponents + [destFilenameWithExt]).joined(separator: " > ")
             .replacingOccurrences(of: "/ > /", with: " > ")
             .replacingOccurrences(of: "//", with: "/")
 
         var baseString = AttributedString(str)
 
         // Find the range of the target word
-        if let range = baseString.range(of: filename) {
+        if let range = baseString.range(of: destFilenameWithExt) {
             // Apply standard system selection colors
             baseString[range].backgroundColor = .accentColor // Native accent background
             baseString[range].foregroundColor = .white       // High-contrast text color
@@ -217,30 +214,16 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
     // MARK: - Copy
 
     func startCopy() async {
-        guard let destination = destinationURL else {
+        guard let destinationURL else {
             return
         }
-        isCancelled = false
-        copyProgress = 0
-        copiedCount = 0
-        copyError = nil
-
-        // Build file list
-        var filesToCopy: [(source: URL, photo: PhotoItem, isJpg: Bool)] = []
-        for photo in photos {
-            let photoURL = URL(fileURLWithPath: photo.path)
-            let baseName  = photoURL.deletingPathExtension().lastPathComponent
-            let directory = photoURL.deletingLastPathComponent()
-            filesToCopy.append((source: photoURL, photo: photo, isJpg: false))
-            for ext in ["jpg", "jpeg", "JPG", "JPEG"] {
-                let jpgURL = directory.appendingPathComponent("\(baseName).\(ext)")
-                if FileManager.default.fileExists(atPath: jpgURL.path) {
-                    filesToCopy.append((source: jpgURL, photo: photo, isJpg: true))
-                    break
-                }
-            }
+        await MainActor.run {
+            copyProgress = 0
+            copiedCount = 0
+            copyError = nil
         }
-        let count = filesToCopy.count
+
+        let count = photos.count
 
         await MainActor.run {
             totalCount = count
@@ -248,92 +231,114 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
         }
 
         let startOffset = useSequentialNumbers
-            ? computeSequentialStartOffset(in: destination, prefix: customPrefix)
+            ? computeSequentialStartOffset(in: destinationURL, prefix: customPrefix)
             : 0
 
         // Capture settings for use inside the task
         let settings = CopySettings(self)
         let backupURL = backupDestinationURL
+        var photoSequentialIndex: [String: Int] = [:]
+        var nextIndex = startOffset + 1
 
-        await Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else {
-                return
+        for (index, photo) in photos.enumerated() {
+            if self.isCancelled {
+                break
             }
 
-            var photoSequentialIndex: [String: Int] = [:]
-            var nextIndex = startOffset + 1
+            await MainActor.run {
+                self.currentFile = photo.url.lastPathComponent
+            }
 
-            for (index, file) in filesToCopy.enumerated() {
-                if self.isCancelled {
-                    break
+            // Resolve sequential index — RAW + JPG companions share the same number
+            var sequentialIndex: Int?
+            if settings.useSequentialNumbers {
+                if let existing = photoSequentialIndex[photo.path] {
+                    sequentialIndex = existing
+                } else {
+                    sequentialIndex = nextIndex
+                    photoSequentialIndex[photo.path] = nextIndex
+                    nextIndex += 1
                 }
+            }
 
+            // Build filename, preserving actual extension for JPG companions
+            let destFilename = buildDestinationFilename(for: photo,
+                                                        sequentialIndex: sequentialIndex,
+                                                        useSequentialNumbers: settings.useSequentialNumbers,
+                                                        renameByExifDate: settings.renameByExifDate,
+                                                        customPrefix: settings.customPrefix)
+            do {
+                try copyPhoto(photo, to: destinationURL, destinationFilename: destFilename, settings: settings)
+                if let backupURL {
+                    try copyPhoto(photo, to: backupURL, destinationFilename: destFilename, settings: settings)
+                }
                 await MainActor.run {
-                    self.currentFile = file.source.lastPathComponent
+                    self.copiedCount = index + 1
+                    self.copyProgress = Double(self.copiedCount) / Double(self.totalCount)
                 }
-
-                // Resolve sequential index — RAW + JPG companions share the same number
-                var sequentialIndex: Int?
-                if settings.useSequentialNumbers {
-                    if let existing = photoSequentialIndex[file.photo.path] {
-                        sequentialIndex = existing
-                    } else {
-                        sequentialIndex = nextIndex
-                        photoSequentialIndex[file.photo.path] = nextIndex
-                        nextIndex += 1
-                    }
+            } catch {
+                await MainActor.run {
+                    self.copyError = "Failed to copy \(photo.url.lastPathComponent): \(error.localizedDescription)"
                 }
-
-                // Build filename, preserving actual extension for JPG companions
-                let builtName = self.buildFilename(
-                    for: file.photo,
-                    sequentialIndex: sequentialIndex,
-                    useSequentialNumbers: settings.useSequentialNumbers,
-                    renameByExifDate: settings.renameByExifDate,
-                    customPrefix: settings.customPrefix
-                )
-                let sourceExt = file.source.pathExtension
-                let builtExt  = URL(fileURLWithPath: builtName).pathExtension
-                let newFilename = (sourceExt.lowercased() != builtExt.lowercased() && !sourceExt.isEmpty)
-                    ? URL(fileURLWithPath: builtName).deletingPathExtension().lastPathComponent + "." + sourceExt
-                    : builtName
-
-                do {
-                    try self.copyFile(file, to: destination, filename: newFilename, settings: settings)
-                    if let backup = backupURL {
-                        try self.copyFile(file, to: backup, filename: newFilename, settings: settings)
-                    }
-                    await MainActor.run {
-                        self.copiedCount = index + 1
-                        self.copyProgress = Double(self.copiedCount) / Double(self.totalCount)
-                    }
-                } catch {
-                    await MainActor.run {
-                        self.copyError = "Failed to copy \(file.source.lastPathComponent): \(error.localizedDescription)"
-                    }
-                    break
-                }
+                break
             }
-        }.value
+        }
     }
 
-    private func copyFile(_ file: (source: URL, photo: PhotoItem, isJpg: Bool),
-                          to baseURL: URL,
-                          filename: String,
+    private func copyPhoto(_ photo: PhotoItem,
+                          to destBaseFolderURL: URL,
+                          destinationFilename: String,
                           settings: CopySettings) throws {
-        let dest = buildDestinationFolder(
-            base: baseURL,
-            date: file.photo.dateCreated,
-            cameraModel: file.photo.cameraModel,
-            isJpg: file.isJpg,
-            settings: settings
-        )
-        try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
-        let destFile = dest.appendingPathComponent(filename)
-        guard !FileManager.default.fileExists(atPath: destFile.path) else {
+
+        let destFolderURL = buildDestinationFolder(base: destBaseFolderURL,
+                                                   date: photo.dateCreated,
+                                                   cameraModel: photo.cameraModel,
+                                                   isJpegCompanion: false,
+                                                   settings: settings)
+        try FileManager.default.createDirectory(at: destFolderURL, withIntermediateDirectories: true)
+
+        // 1. Copy the original file
+        let sourceExt = photo.url.pathExtension
+        let destFileURL = destFolderURL.appendingPathComponent(destinationFilename).appendingPathExtension(sourceExt)
+        guard !FileManager.default.fileExists(atPath: destFileURL.path) else {
             return
         }
-        try FileManager.default.copyItem(at: file.source, to: destFile)
+        try FileManager.default.copyItem(at: photo.url, to: destFileURL)
+
+        // 2. If original file is RAW, search for all companion files and copy them
+        guard photo.isRawFile else {
+            return
+        }
+        let baseName  = photo.url.deletingPathExtension().lastPathComponent
+        let sourceDir = photo.url.deletingLastPathComponent()
+        // Copy XMP and ACR
+        for ext in ["xmp", "acr", "XMP", "ACR"] {
+            let sidecarURL = sourceDir.appendingPathComponent(baseName).appendingPathExtension(ext)
+            if FileManager.default.fileExists(atPath: sidecarURL.path) {
+                let sidecarDestURL = destFolderURL.appendingPathComponent(destinationFilename).appendingPathExtension(ext)
+                if !FileManager.default.fileExists(atPath: sidecarDestURL.path) {
+                    try FileManager.default.copyItem(at: sidecarURL, to: sidecarDestURL)
+                }
+            }
+        }
+        // If the raw has a jpeg counterpart, search for it and add it to the list as well
+        if photo.hasJPG {
+            let jpegDestFolderURL = buildDestinationFolder(base: destBaseFolderURL,
+                                                           date: photo.dateCreated,
+                                                           cameraModel: photo.cameraModel,
+                                                           isJpegCompanion: true,
+                                                           settings: settings)
+            try FileManager.default.createDirectory(at: jpegDestFolderURL, withIntermediateDirectories: true)
+
+            for ext in ["jpg", "jpeg", "heic", "JPG", "JPEG", "HEIC"] {
+                let jpegURL = sourceDir.appendingPathComponent(baseName).appendingPathExtension(ext)
+                if FileManager.default.fileExists(atPath: jpegURL.path) {
+                    let jpegDestURL = jpegDestFolderURL.appendingPathComponent(destinationFilename).appendingPathExtension(ext)
+                    try FileManager.default.copyItem(at: jpegURL, to: jpegDestURL)
+                    break
+                }
+            }
+        }
     }
 
     func cancel() {
