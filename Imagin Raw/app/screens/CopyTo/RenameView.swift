@@ -88,12 +88,12 @@ struct RenameView: View {
         Group {
             if showProgressView {
                 let startOffset = sequentialStartIndex
-                RenameProgressView(viewModel: RenameProgressViewModel(photosToRename: photosToRename,
-                                                                      newFilename: { newFilename(for: $0, index: $1, startOffset: startOffset) },
-                                                                      onComplete: { dismiss() },
-                                                                      onCancel: { dismiss() })
-                )
-                .frame(minWidth: 500, minHeight: 160)
+                let viewModel = RenameProgressViewModel(photosToRename: photosToRename,
+                                                        newFilename: { newFilename(for: $0, index: $1, startOffset: startOffset) },
+                                                        onComplete: { dismiss() },
+                                                        onCancel: { dismiss() })
+                RenameProgressView(viewModel: viewModel)
+                    .frame(minWidth: 500, minHeight: 160)
             } else {
                 VStack(spacing: 20) {
                     Text("Rename \(photosToRename.count) photo\(photosToRename.count == 1 ? "" : "s")")
@@ -119,7 +119,7 @@ struct RenameView: View {
                         // Sequential numbering
                         Toggle(isOn: $useSequentialNumbers) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Replace filename with sequential number (0001, 0002...)")
+                                Text("Replace filename with sequential numbers (0001, 0002...)")
                                     .font(.body)
                                 Text("Continues from the highest number already in the folder")
                                     .font(.caption)
@@ -132,7 +132,7 @@ struct RenameView: View {
                     if let preview = previewName {
                         Divider()
                         HStack(spacing: 12) {
-                            Text("Preview")
+                            Text("Preview:")
                             Text(preview)
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundColor(.primary)

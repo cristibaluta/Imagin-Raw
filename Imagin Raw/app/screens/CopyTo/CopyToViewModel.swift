@@ -142,17 +142,32 @@ class CopyToViewModel: ObservableObject, Identifiable {
         return ext.isEmpty ? baseName : baseName + "." + ext
     }
 
-    private func buildDestinationFolder(base: URL, date: Date, cameraModel: String?, isJpg: Bool, settings: CopySettings) -> URL {
+    private func buildDestinationFolder(base: URL,
+                                        date: Date,
+                                        cameraModel: String?,
+                                        isJpg: Bool,
+                                        settings: CopySettings) -> URL {
         var dest = base
         let cal = Calendar.current
-        if settings.organizeByYear  { dest = dest.appendingPathComponent(String(cal.component(.year, from: date))) }
-        if settings.organizeByMonth { dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.month, from: date))) }
-        if settings.organizeByDay   { dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.day, from: date))) }
-        if !settings.eventName.isEmpty { dest = dest.appendingPathComponent(settings.eventName) }
-        if settings.organizeByCameraModel, let model = cameraModel {
-            dest = dest.appendingPathComponent(model.replacingOccurrences(of: "/", with: "-").trimmingCharacters(in: .whitespacesAndNewlines))
+        if settings.organizeByYear {
+            dest = dest.appendingPathComponent(String(cal.component(.year, from: date)))
         }
-        if isJpg && settings.organizeJpgsInSubfolder { dest = dest.appendingPathComponent("_jpg") }
+        if settings.organizeByMonth {
+            dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.month, from: date)))
+        }
+        if settings.organizeByDay {
+            dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.day, from: date)))
+        }
+        if !settings.eventName.isEmpty {
+            dest = dest.appendingPathComponent(settings.eventName)
+        }
+        if settings.organizeByCameraModel, let model = cameraModel {
+            dest = dest.appendingPathComponent(model.replacingOccurrences(of: "/", with: "-")
+                        .trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        if isJpg && settings.organizeJpgsInSubfolder {
+            dest = dest.appendingPathComponent("_jpg")
+        }
         return dest
     }
 
@@ -314,7 +329,9 @@ class CopyToViewModel: ObservableObject, Identifiable {
         )
         try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
         let destFile = dest.appendingPathComponent(filename)
-        guard !FileManager.default.fileExists(atPath: destFile.path) else { return }
+        guard !FileManager.default.fileExists(atPath: destFile.path) else {
+            return
+        }
         try FileManager.default.copyItem(at: file.source, to: destFile)
     }
 
