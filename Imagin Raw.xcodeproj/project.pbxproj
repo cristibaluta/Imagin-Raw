@@ -279,7 +279,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphone*]" = "Imagin Raw/Imagin_Raw-iOS.entitlements";
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Imagin Raw/Imagin_Raw-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 5NHDC5EV44;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -326,7 +326,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphone*]" = "Imagin Raw/Imagin_Raw-iOS.entitlements";
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Imagin Raw/Imagin_Raw-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 5NHDC5EV44;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
