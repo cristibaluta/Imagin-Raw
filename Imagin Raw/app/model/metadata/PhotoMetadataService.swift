@@ -150,7 +150,9 @@ class PhotoMetadataService {
 
     private func toggleToDeleteState(for photo: PhotoItem) {
         guard let photosModel,
-              let idx = photosModel.photos.firstIndex(where: { $0.path == photo.path }) else { return }
+              let idx = photosModel.photos.firstIndex(where: { $0.path == photo.path }) else {
+            return
+        }
         let cur = photosModel.photos[idx]
         photosModel.photos[idx] = PhotoItem(id: cur.id,
                                             url: cur.url,
@@ -175,7 +177,9 @@ class PhotoMetadataService {
 
     private func updatePhotoWithXmpMetadata(photo: PhotoItem, xmpMetadata: XmpMetadata) {
         guard let photosModel,
-              let idx = photosModel.photos.firstIndex(where: { $0.path == photo.path }) else { return }
+              let idx = photosModel.photos.firstIndex(where: { $0.path == photo.path }) else {
+            return
+        }
         let cur = photosModel.photos[idx]
         photosModel.photos[idx] = PhotoItem(id: photo.id,
                                             url: photo.url,

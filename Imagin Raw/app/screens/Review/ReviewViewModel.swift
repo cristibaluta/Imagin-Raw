@@ -95,99 +95,96 @@ class ReviewViewModel: ObservableObject {
 
     func handleRating(_ rating: Int, for photo: PhotoItem) {
         onRatingChanged?(photo, rating)
-        updateLocalPhoto(photo) { p in
-            let oldXmp = p.xmp
-            let newXmp = XmpMetadata(label: oldXmp?.label,
-                                     rating: rating,
-                                     creator: oldXmp?.creator,
-                                     rights: oldXmp?.rights,
-                                     createDate: oldXmp?.createDate,
-                                     modifyDate: oldXmp?.modifyDate,
-                                     cameraModel: oldXmp?.cameraModel,
-                                     lens: oldXmp?.lens,
-                                     focalLength: oldXmp?.focalLength,
-                                     aperture: oldXmp?.aperture,
-                                     shutterSpeed: oldXmp?.shutterSpeed,
-                                     iso: oldXmp?.iso,
-                                     exposureBias: oldXmp?.exposureBias,
-                                     hasEdits: oldXmp?.hasEdits ?? false)
-            return PhotoItem(id: p.id,
-                             url: p.url,
-                             path: p.path,
-                             dateCreated: p.dateCreated,
-                             toDelete: p.toDelete,
-                             hasACR: p.hasACR,
-                             hasJPG: p.hasJPG,
-                             hasXMP: p.hasXMP,
-                             xmp: newXmp,
-                             inCameraRating: p.inCameraRating,
-                             isRawFile: p.isRawFile,
-                             fileSizeBytes: p.fileSizeBytes,
-                             width: p.width,
-                             height: p.height,
-                             cameraMake: p.cameraMake,
-                             cameraModel: p.cameraModel)
-        }
+        let oldXmp = photo.xmp
+        let newXmp = XmpMetadata(label: oldXmp?.label,
+                                 rating: rating,
+                                 creator: oldXmp?.creator,
+                                 rights: oldXmp?.rights,
+                                 createDate: oldXmp?.createDate,
+                                 modifyDate: oldXmp?.modifyDate,
+                                 cameraModel: oldXmp?.cameraModel,
+                                 lens: oldXmp?.lens,
+                                 focalLength: oldXmp?.focalLength,
+                                 aperture: oldXmp?.aperture,
+                                 shutterSpeed: oldXmp?.shutterSpeed,
+                                 iso: oldXmp?.iso,
+                                 exposureBias: oldXmp?.exposureBias,
+                                 hasEdits: oldXmp?.hasEdits ?? false)
+        let newPhoto = PhotoItem(id: photo.id,
+                                 url: photo.url,
+                                 path: photo.path,
+                                 dateCreated: photo.dateCreated,
+                                 toDelete: photo.toDelete,
+                                 hasACR: photo.hasACR,
+                                 hasJPG: photo.hasJPG,
+                                 hasXMP: photo.hasXMP,
+                                 xmp: newXmp,
+                                 inCameraRating: photo.inCameraRating,
+                                 isRawFile: photo.isRawFile,
+                                 fileSizeBytes: photo.fileSizeBytes,
+                                 width: photo.width,
+                                 height: photo.height,
+                                 cameraMake: photo.cameraMake,
+                                 cameraModel: photo.cameraModel)
+        updateLocalPhoto(newPhoto)
     }
 
     func handleApprove(for photo: PhotoItem) {
         onApprove?(photo)
-        updateLocalPhoto(photo) { p in
-            let oldXmp = p.xmp
-            let isApproved = oldXmp?.label == "Approved"
-            let newXmp = XmpMetadata(label: isApproved ? nil : "Approved",
-                                     rating: oldXmp?.rating,
-                                     creator: oldXmp?.creator,
-                                     rights: oldXmp?.rights,
-                                     createDate: oldXmp?.createDate,
-                                     modifyDate: oldXmp?.modifyDate,
-                                     cameraModel: oldXmp?.cameraModel,
-                                     lens: oldXmp?.lens,
-                                     focalLength: oldXmp?.focalLength,
-                                     aperture: oldXmp?.aperture,
-                                     shutterSpeed: oldXmp?.shutterSpeed,
-                                     iso: oldXmp?.iso,
-                                     exposureBias: oldXmp?.exposureBias,
-                                     hasEdits: oldXmp?.hasEdits ?? false)
-            return PhotoItem(id: p.id,
-                             url: p.url,
-                             path: p.path,
-                             dateCreated: p.dateCreated,
-                             toDelete: p.toDelete,
-                             hasACR: p.hasACR,
-                             hasJPG: p.hasJPG,
-                             hasXMP: p.hasXMP,
-                             xmp: newXmp,
-                             inCameraRating: p.inCameraRating,
-                             isRawFile: p.isRawFile,
-                             fileSizeBytes: p.fileSizeBytes,
-                             width: p.width,
-                             height: p.height,
-                             cameraMake: p.cameraMake,
-                             cameraModel: p.cameraModel)
-        }
+        let oldXmp = photo.xmp
+        let isApproved = oldXmp?.label == "Approved"
+        let newXmp = XmpMetadata(label: isApproved ? nil : "Approved",
+                                 rating: oldXmp?.rating,
+                                 creator: oldXmp?.creator,
+                                 rights: oldXmp?.rights,
+                                 createDate: oldXmp?.createDate,
+                                 modifyDate: oldXmp?.modifyDate,
+                                 cameraModel: oldXmp?.cameraModel,
+                                 lens: oldXmp?.lens,
+                                 focalLength: oldXmp?.focalLength,
+                                 aperture: oldXmp?.aperture,
+                                 shutterSpeed: oldXmp?.shutterSpeed,
+                                 iso: oldXmp?.iso,
+                                 exposureBias: oldXmp?.exposureBias,
+                                 hasEdits: oldXmp?.hasEdits ?? false)
+        let newPhoto = PhotoItem(id: photo.id,
+                                 url: photo.url,
+                                 path: photo.path,
+                                 dateCreated: photo.dateCreated,
+                                 toDelete: photo.toDelete,
+                                 hasACR: photo.hasACR,
+                                 hasJPG: photo.hasJPG,
+                                 hasXMP: photo.hasXMP,
+                                 xmp: newXmp,
+                                 inCameraRating: photo.inCameraRating,
+                                 isRawFile: photo.isRawFile,
+                                 fileSizeBytes: photo.fileSizeBytes,
+                                 width: photo.width,
+                                 height: photo.height,
+                                 cameraMake: photo.cameraMake,
+                                 cameraModel: photo.cameraModel)
+        updateLocalPhoto(newPhoto)
     }
 
     func handleToggleDelete(for photo: PhotoItem) {
         onMarkForDeletion?(photo)
-        updateLocalPhoto(photo) { p in
-            return PhotoItem(id: p.id,
-                             url: p.url,
-                             path: p.path,
-                             dateCreated: p.dateCreated,
-                             toDelete: !p.toDelete,
-                             hasACR: p.hasACR,
-                             hasJPG: p.hasJPG,
-                             hasXMP: p.hasXMP,
-                             xmp: p.xmp,
-                             inCameraRating: p.inCameraRating,
-                             isRawFile: p.isRawFile,
-                             fileSizeBytes: p.fileSizeBytes,
-                             width: p.width,
-                             height: p.height,
-                             cameraMake: p.cameraMake,
-                             cameraModel: p.cameraModel)
-        }
+        let newPhoto = PhotoItem(id: photo.id,
+                                 url: photo.url,
+                                 path: photo.path,
+                                 dateCreated: photo.dateCreated,
+                                 toDelete: !photo.toDelete,
+                                 hasACR: photo.hasACR,
+                                 hasJPG: photo.hasJPG,
+                                 hasXMP: photo.hasXMP,
+                                 xmp: photo.xmp,
+                                 inCameraRating: photo.inCameraRating,
+                                 isRawFile: photo.isRawFile,
+                                 fileSizeBytes: photo.fileSizeBytes,
+                                 width: photo.width,
+                                 height: photo.height,
+                                 cameraMake: photo.cameraMake,
+                                 cameraModel: photo.cameraModel)
+        updateLocalPhoto(newPhoto)
     }
 
     func navigateLeft() {
@@ -206,9 +203,11 @@ class ReviewViewModel: ObservableObject {
 
     // MARK: - Private
 
-    private func updateLocalPhoto(_ photo: PhotoItem, transform: (PhotoItem) -> PhotoItem) {
+    private func updateLocalPhoto(_ photo: PhotoItem) {
         if let idx = photos.firstIndex(where: { $0.id == photo.id }) {
-            photos[idx] = transform(photos[idx])
+            Task {
+                photos[idx] = photo
+            }
         }
     }
 }

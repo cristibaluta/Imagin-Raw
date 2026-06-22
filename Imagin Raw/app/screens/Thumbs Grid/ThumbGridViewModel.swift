@@ -255,7 +255,9 @@ class ThumbGridViewModel: ObservableObject {
 
     func reloadMetadata(forSidecar url: URL) {
         photosModel?.reloadMetadata(forSidecar: url) { [weak self] in
-            self?.filterAndSortPhotos()
+            DispatchQueue.main.async {
+                self?.filterAndSortPhotos()
+            }
         }
     }
 
