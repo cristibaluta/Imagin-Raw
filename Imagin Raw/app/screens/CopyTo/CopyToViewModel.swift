@@ -5,7 +5,7 @@
 
 import Foundation
 
-class CopyToViewModel: ObservableObject, Identifiable {
+class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
     let id = UUID()
 
     // MARK: - Photos
@@ -240,9 +240,10 @@ class CopyToViewModel: ObservableObject, Identifiable {
                 }
             }
         }
+        let count = filesToCopy.count
 
         await MainActor.run {
-            totalCount = filesToCopy.count
+            totalCount = count
             currentFile = "Preparing..."
         }
 

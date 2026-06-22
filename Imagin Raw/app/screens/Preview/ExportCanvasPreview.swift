@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct ExportCanvasPreview: View, Animatable {
+struct ExportCanvasPreview: View, @preconcurrency Animatable {
     let image: IRImage
     var geo: GeometryProxy
     let targetRatio: ExportAspectRatio

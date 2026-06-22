@@ -29,7 +29,7 @@ class MacThumbGridCoordinator: NSObject {
 
     private var isScrolling = false
     private var scrollEndTimer: Timer?
-    private var scrollObserver: NSObjectProtocol?
+    nonisolated(unsafe) private var scrollObserver: NSObjectProtocol?
     private var isDateGrouped: Bool {
         sortOption != .name && !dateGroups.isEmpty
     }
@@ -91,7 +91,9 @@ class MacThumbGridCoordinator: NSObject {
                 return
             }
 //            self.isScrolling = true
-            self.reportVisibleSection()
+            Task {
+                await self.reportVisibleSection()
+            }
 //            self.scrollEndTimer?.invalidate()
 //            self.scrollEndTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
 //                guard let self else {

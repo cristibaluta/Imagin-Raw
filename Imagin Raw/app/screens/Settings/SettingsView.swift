@@ -124,7 +124,7 @@ struct SettingsView: View {
         }
     }
 
-    private func directorySize(at url: URL) -> Int64 {
+    nonisolated private func directorySize(at url: URL) -> Int64 {
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) else {
             return 0

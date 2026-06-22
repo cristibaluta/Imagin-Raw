@@ -514,8 +514,9 @@ class ThumbGridViewModel: ObservableObject {
                 }
                 return false
         }
-        #endif
+        #else
         return false
+        #endif
     }
 
     private func navigateTo(_ key: KeyEquivalent) -> PhotoItem? {
@@ -706,8 +707,9 @@ class ThumbGridViewModel: ObservableObject {
 
             // 2. Cache the missing photos
             var toComplete = missingUrls.count
+            let tc_i = toComplete
             DispatchQueue.main.async {
-                self.cachingQueueCount = toComplete
+                self.cachingQueueCount = tc_i
             }
             for (index, photo) in missingUrls {
                 // Check before each iteration
@@ -731,8 +733,9 @@ class ThumbGridViewModel: ObservableObject {
                     RCLog("  ⚠️ Thumb missing after generation: \(diskURL.lastPathComponent)")
                 }
                 toComplete -= 1
+                let tc_o = toComplete
                 DispatchQueue.main.async {
-                    self.cachingQueueCount = toComplete
+                    self.cachingQueueCount = tc_o
                 }
             }
 

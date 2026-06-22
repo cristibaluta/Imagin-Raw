@@ -28,7 +28,9 @@ func fsEventsCallback(streamRef: ConstFSEventStreamRef,
     let monitorId = info.load(as: Int.self)
 
     // Find the monitor in our global registry
-    guard let monitor = FileSystemMonitor.getMonitor(id: monitorId) else { return }
+    guard let monitor = FileSystemMonitor.getMonitor(id: monitorId) else {
+        return
+    }
 
     // Handle the eventPaths as CFArray
     let cfArray = unsafeBitCast(eventPaths, to: CFArray.self)
@@ -48,6 +50,7 @@ func fsEventsCallback(streamRef: ConstFSEventStreamRef,
     }
 }
 
+@MainActor
 class FileSystemMonitor {
     private var eventStream: FSEventStreamRef?
     private var monitoredPaths: [String] = []
@@ -184,7 +187,9 @@ class FileSystemMonitor {
         guard isInMonitoredPath else { return false }
 
         let fileExtension = url.pathExtension.lowercased()
-        guard fileExtension == "xmp" || fileExtension == "acr" else { return false }
+        guard fileExtension == "xmp" || fileExtension == "acr" else {
+            return false
+        }
 
         let isFileCreated  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated))  != 0
         let isFileRemoved  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRemoved))  != 0

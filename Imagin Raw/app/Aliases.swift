@@ -17,6 +17,8 @@ typealias IRSize = NSSize
 typealias IRRect = NSRect
 typealias IRColor = NSColor
 
+extension NSImage: @unchecked @retroactive Sendable {}
+
 #elseif os(iOS)
 
 import UIKit

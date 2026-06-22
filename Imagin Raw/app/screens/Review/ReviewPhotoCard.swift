@@ -10,7 +10,7 @@ struct ReviewPhotoCard: View {
     let photo: PhotoItem
     let previewsCacheManager: PhotoCacheManager
     var isZoomed: Bool = false
-    var fullResImage: IRImage? = nil
+    nonisolated(unsafe) var fullResImage: IRImage? = nil
     var isFullResLoading: Bool = false
     @Binding var syncedMousePosition: CGPoint
     @Binding var hoveredPhotoId: UUID?

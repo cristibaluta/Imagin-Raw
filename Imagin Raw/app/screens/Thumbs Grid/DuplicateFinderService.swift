@@ -94,7 +94,7 @@ enum DuplicateFinderService {
     /// Call `DuplicateScanData.recluster(threshold:)` to filter without re-scanning.
     static func scan(photos: [PhotoItem],
                      cachedImagesURLs: [Int: URL],
-                     progress: @escaping (Int, Int) -> Void,
+                     progress: @Sendable @escaping (Int, Int) -> Void,
                      isCancelled: () -> Bool) async -> DuplicateScanData? {
 
         let total = photos.count
