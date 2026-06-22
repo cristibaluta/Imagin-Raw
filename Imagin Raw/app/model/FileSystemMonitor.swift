@@ -50,7 +50,6 @@ func fsEventsCallback(streamRef: ConstFSEventStreamRef,
     }
 }
 
-@MainActor
 class FileSystemMonitor {
     private var eventStream: FSEventStreamRef?
     private var monitoredPaths: [String] = []

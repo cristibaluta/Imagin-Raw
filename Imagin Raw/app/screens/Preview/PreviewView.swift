@@ -27,7 +27,6 @@ struct PreviewView: View {
     @State private var exportAlignment: ExportAlignment = ExportAlignment(rawValue: appPrefs.string(.exportAlignment)) ?? .center
     @State private var exportPadding: Double = appPrefs.get(.exportPadding)
     @State private var showAFPoint: Bool = appPrefs.get(.showAFPoint)
-    @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
 
     private var effectiveAlignToTopLeft: Bool {
         gridType == .large ? true : viewModel.alignToTopLeft
@@ -92,7 +91,7 @@ struct PreviewView: View {
             ZStack(alignment: .center) {
                 if let fullRes = viewModel.fullResImage {
                     #if os(macOS)
-                    ZoomPanView(image: fullRes, initialMousePosition: mousePosition)
+                    ZoomPanView(image: fullRes)
                     #endif
                 } else if let nsImage = viewModel.image {
                     HStack {
@@ -173,13 +172,6 @@ struct PreviewView: View {
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
-            #if os(macOS)
-            .background(MouseTrackingView(onMouseMoved: { point, viewSize in
-                let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
-                let ny = viewSize.height > 0 ? max(0, min(1, 1 - point.y / viewSize.height)) : 0.5
-                mousePosition = CGPoint(x: nx, y: ny)
-            }))
-            #endif
         }
     }
 

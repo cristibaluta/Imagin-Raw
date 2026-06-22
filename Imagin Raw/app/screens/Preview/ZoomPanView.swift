@@ -11,24 +11,24 @@ import SwiftUI
 struct ZoomPanView: View {
     let image: IRImage
     var initialMousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
-
     @State private var mousePosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
+
     private var pixelSize: CGSize {
         if let rep = image.representations.first as? NSBitmapImageRep {
             let s = CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
-//            RCLog("🔎 [zoom] pixelSize from BitmapRep: \(s.width)×\(s.height)")
             return s
         }
         if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
             let s = CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
-//            RCLog("🔎 [zoom] pixelSize from CGImage: \(s.width)×\(s.height)")
             return s
         }
-//        RCLog("🔎 [zoom] pixelSize fallback to image.size: \(image.size)")
         return image.size
     }
 
     var body: some View {
+        #if DEBUG
+        let _ = Self._printChanges()
+        #endif
         GeometryReader { geo in
             let imgW = pixelSize.width
             let imgH = pixelSize.height
@@ -49,7 +49,7 @@ struct ZoomPanView: View {
                     let nx = viewSize.width  > 0 ? max(0, min(1, point.x / viewSize.width))  : 0.5
                     let ny = viewSize.height > 0 ? max(0, min(1, 1 - point.y / viewSize.height)) : 0.5
                     mousePosition = CGPoint(x: nx, y: ny)
-                }))
+                }).equatable())
         }
         .onAppear {
             mousePosition = initialMousePosition
@@ -59,8 +59,17 @@ struct ZoomPanView: View {
 
 // MARK: - NSView mouse tracker
 
-struct MouseTrackingView: NSViewRepresentable {
-    let onMouseMoved: (CGPoint, CGSize) -> Void
+struct MouseTrackingView: NSViewRepresentable, Equatable {
+    let onMouseMoved: ((CGPoint, CGSize) -> Void)?
+
+    init(onMouseMoved: ((CGPoint, CGSize) -> Void)?) {
+        self.onMouseMoved = onMouseMoved
+    }
+
+    // Tell SwiftUI this view never needs to update
+    static func == (lhs: MouseTrackingView, rhs: MouseTrackingView) -> Bool {
+        true  // always equal → SwiftUI never recreates it
+    }
 
     func makeNSView(context: Context) -> TrackerNSView {
         let v = TrackerNSView()
@@ -71,19 +80,37 @@ struct MouseTrackingView: NSViewRepresentable {
     func updateNSView(_ nsView: TrackerNSView, context: Context) {
         nsView.onMouseMoved = onMouseMoved
     }
+
+    static func dismantleNSView(_ nsView: TrackerNSView, coordinator: ()) {
+        // Called by SwiftUI when the view is removed from the hierarchy
+        nsView.onMouseMoved = nil
+        if let area = nsView.trackingArea {
+            nsView.removeTrackingArea(area)
+        }
+        nsView.trackingArea = nil
+    }
 }
 
 class TrackerNSView: NSView {
     var onMouseMoved: ((CGPoint, CGSize) -> Void)?
-    private var trackingArea: NSTrackingArea?
+    var trackingArea: NSTrackingArea?
 
-    override var acceptsFirstResponder: Bool { false }
+    deinit {
+        trackingAreas.forEach {
+            removeTrackingArea($0)
+        }
+        trackingArea = nil
+        onMouseMoved = nil
+    }
+
+    override var acceptsFirstResponder: Bool {
+        false
+    }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
-
-        if let old = trackingArea {
-            removeTrackingArea(old)
+        trackingAreas.forEach {
+            removeTrackingArea($0)
         }
         let area = NSTrackingArea(
             rect: bounds,
