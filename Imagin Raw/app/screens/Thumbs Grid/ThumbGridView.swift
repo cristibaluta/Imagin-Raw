@@ -42,12 +42,10 @@ struct ThumbGridView: View {
     @ObservedObject private var viewModel: ThumbGridViewModel
 
     let searchPhotoResults: [PhotoItem]?
-    let onOpenSelectedPhotos: (([PhotoItem]) -> Void)?
     let onEnterReviewMode: (() -> Void)?
     let onToggleSidebar: (() -> Void)?
     let isSidebarCollapsed: Bool
     let windowWidth: CGFloat
-    @Binding var openSelectedPhotosCallback: (() -> Void)?
 
     @State private var scrollToPhotoId: UUID? = nil
     @State private var scrollToCenteredPhotoId: UUID? = nil
@@ -64,20 +62,16 @@ struct ThumbGridView: View {
          filesModel: FilesModel,
          viewModel: ThumbGridViewModel,
          searchPhotoResults: [PhotoItem]? = nil,
-         onOpenSelectedPhotos: (([PhotoItem]) -> Void)?,
          onEnterReviewMode: (() -> Void)?,
          onToggleSidebar: (() -> Void)? = nil,
          isSidebarCollapsed: Bool = false,
          windowWidth: CGFloat = 1200,
-         openSelectedPhotosCallback: Binding<(() -> Void)?>,
          currentPhotos: Binding<[PhotoItem]> = .constant([])) {
 
         self.appState = appState
         self.filesModel = filesModel
         self.viewModel = viewModel
         self.searchPhotoResults = searchPhotoResults
-        self._openSelectedPhotosCallback = openSelectedPhotosCallback
-        self.onOpenSelectedPhotos = onOpenSelectedPhotos
         self.onEnterReviewMode = onEnterReviewMode
         self.onToggleSidebar = onToggleSidebar
         self.isSidebarCollapsed = isSidebarCollapsed

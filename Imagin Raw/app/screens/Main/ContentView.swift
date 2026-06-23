@@ -19,7 +19,6 @@ struct ContentView: View {
     @State private var isSidebarCollapsed = false
     @State private var windowWidth: CGFloat = 1200
     @State private var contentColumnWidth: CGFloat = 450
-    @State private var openSelectedPhotosCallback: (() -> Void)?
 
     #if os(iOS)
     @State private var feedPhotos: [PhotoItem] = []
@@ -215,7 +214,6 @@ struct ContentView: View {
         return ThumbGridView(
             filesModel: filesModel,
             searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
-            onOpenSelectedPhotos: { photos in openMultiplePhotosInExternalApp(photos: photos) },
             onEnterReviewMode: { },
             onToggleSidebar: {
                 columnVisibilityStorage = columnVisibilityStorage == "doubleColumn" ? "all" : "doubleColumn"
@@ -232,14 +230,12 @@ struct ContentView: View {
             filesModel: appState.filesModel,
             viewModel: appState.thumbsGridViewModel,
             searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
-            onOpenSelectedPhotos: { photos in openMultiplePhotosInExternalApp(photos: photos) },
             onEnterReviewMode: { },
             onToggleSidebar: {
                 columnVisibilityStorage = columnVisibilityStorage == "doubleColumn" ? "all" : "doubleColumn"
             },
             isSidebarCollapsed: isSidebarCollapsed,
-            windowWidth: windowWidth,
-            openSelectedPhotosCallback: $openSelectedPhotosCallback
+            windowWidth: windowWidth
         )
         #endif
     }
@@ -320,7 +316,12 @@ struct ContentView: View {
                 Text("Open in \(externalAppManager.selectedApp?.name ?? "Default App")")
             }
         } primaryAction: {
-            openSelectedPhotosCallback?()
+            if appState.thumbsGridViewModel.selectedPhotos.count > 0 {
+                let selectedPhotoItems = appState.thumbsGridViewModel.filteredAndSortedPhotos.filter {
+                    appState.thumbsGridViewModel.selectedPhotos.contains($0.id)
+                }
+                externalAppManager.openPhotos(selectedPhotoItems)
+            }
         }
         .disabled(appState.selectedPhoto == nil)
 
@@ -339,9 +340,5 @@ struct ContentView: View {
             }
             .disabled(true)
         }
-    }
-
-    private func openMultiplePhotosInExternalApp(photos: [PhotoItem]) {
-        externalAppManager.openPhotos(photos)
     }
 }
