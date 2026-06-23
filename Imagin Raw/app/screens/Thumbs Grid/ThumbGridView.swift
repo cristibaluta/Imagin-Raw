@@ -146,23 +146,6 @@ struct ThumbGridView: View {
         .sheet(isPresented: $showDuplicatesSheet) {
             DuplicatesResultSheet(viewModel: viewModel)
         }
-        .onAppear {
-            // Only run once
-            guard !hasAppeared else {
-                return
-            }
-            hasAppeared = true
-
-            openSelectedPhotosCallback = { [viewModel] in
-                let selectedPhotoItems = viewModel.getSelectedPhotosForBulkAction()
-                onOpenSelectedPhotos?(selectedPhotoItems)
-            }
-            if let results = searchPhotoResults {
-                viewModel.loadSearchResults(results)
-            } else if let folder = filesModel.selectedFolder {
-                viewModel.loadPhotosForFolder(folder)
-            }
-        }
         .onChange(of: searchPhotoResults) { oldResults, newResults in
             if let results = newResults {
                 // If we were ignoring search results due to folder selection,

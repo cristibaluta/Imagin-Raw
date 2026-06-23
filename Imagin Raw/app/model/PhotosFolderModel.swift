@@ -10,13 +10,8 @@ import Combine
 
 @MainActor
 final class PhotosFolderModel: ObservableObject {
-    let photosSubject = CurrentValueSubject<[PhotoItem], Never>([])
     let isLoadingSubject = CurrentValueSubject<Bool, Never>(false)
-    private var photos: [PhotoItem] = [] {
-        didSet {
-            photosSubject.send(photos)
-        }
-    }
+    var photos: Binding<[PhotoItem]>!
     private var isLoadingMetadata: Bool = false {
         didSet {
             isLoadingSubject.send(isLoadingMetadata)
@@ -105,7 +100,7 @@ final class PhotosFolderModel: ObservableObject {
                                  fileSizeBytes: Int64(size ?? 0))
             }
 
-        photos = basicPhotos
+        photos.wrappedValue = basicPhotos
 
         loadLocalExifs()
     }
@@ -125,7 +120,7 @@ final class PhotosFolderModel: ObservableObject {
 
         var photosWithExifs: [PhotoItem] = []
 
-        for photo in photos {
+        for photo in photos.wrappedValue {
             let op = LoadExifOperation(photo: photo) { [weak self] photoWithExif in
                 self?.queueLock.withLock {
                     photosWithExifs.append(photoWithExif)
@@ -136,7 +131,7 @@ final class PhotosFolderModel: ObservableObject {
         queue.addBarrierBlock {
             DispatchQueue.main.async {
                 RCLog("loaded Exifs in \(String(format: "%.3f", Date().timeIntervalSince(startTime)))s")
-                self.photos = photosWithExifs
+                self.photos.wrappedValue = photosWithExifs
                 self.isLoadingMetadata = false
             }
         }
@@ -146,19 +141,19 @@ final class PhotosFolderModel: ObservableObject {
         let baseName = sidecarURL.deletingPathExtension().lastPathComponent
 
         // Find the matching photo by base filename (strip extension from both)
-        guard let idx = photos.firstIndex(where: {
+        guard let idx = photos.wrappedValue.firstIndex(where: {
             URL(fileURLWithPath: $0.path).deletingPathExtension().lastPathComponent == baseName
         }) else {
             RCLog("⚠️ reloadMetadata: no photo found for sidecar \(baseName)")
             return
         }
 
-        let photo = photos[idx]
+        let photo = photos.wrappedValue[idx]
 
         let op = LoadExifOperation(photo: photo, forceReloadExif: true) { [weak self] photoWithExif in
             self?.queueLock.withLock {
                 RCLog("🔄 reloadMetadata: updating photo at idx \(idx) for sidecar \(baseName)")
-                self?.photos[idx] = photoWithExif
+                self?.photos.wrappedValue[idx] = photoWithExif
                 completion()
             }
         }

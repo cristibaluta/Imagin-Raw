@@ -332,7 +332,7 @@ final class MacThumbCell: NSCollectionViewItem {
                     currentImageSize = image.size
                     layoutSubviews()
                 } else {
-                    print(">>>>>>>> error loading photo for \(photo.path)")
+                    RCLog(">>>>>>>> error loading photo for \(photo.path)")
                 }
             }
         }

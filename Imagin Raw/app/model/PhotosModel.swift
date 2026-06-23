@@ -33,7 +33,11 @@ final class PhotosModel: ObservableObject {
         folderModel = PhotosFolderModel(folder: folder)
         photokitModel = PhotosKitModel(folder: folder)
 
-        folderModel.photosSubject.assign(to: &$photos)
+        folderModel.photos = Binding(
+            get: { self.photos },
+            set: { self.photos = $0 }
+        )
+//        folderModel.photosSubject.assign(to: &$photos)
         folderModel.isLoadingSubject.assign(to: &$isLoadingMetadata)
 
         photokitModel.photosSubject.assign(to: &$photos)

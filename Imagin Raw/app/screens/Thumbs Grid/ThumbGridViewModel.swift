@@ -147,6 +147,7 @@ class ThumbGridViewModel: ObservableObject {
     // MARK: - Filtering
 
     func filterAndSortPhotos() {
+        RCLog(">>>>>>>> filterAndSortPhotos")
         let lastSelectedPhotoId = selectedPhoto?.id
         var result = photos
 
@@ -204,7 +205,7 @@ class ThumbGridViewModel: ObservableObject {
     // MARK: - Photo Loading
 
     func loadPhotosForFolder(_ folder: FolderItem) {
-        RCLog("📂 Loading photos for folder: \(folder.url.lastPathComponent)")
+        RCLog(">>>>>>> Loading photos for folder: \(folder.url.lastPathComponent)")
         reset()
         setupFilteredPhotosObservers()
 
@@ -320,9 +321,6 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func getSelectedPhotosForBulkAction() -> [PhotoItem] {
-//        guard let allPhotos = photosModel?.photos else {
-//            return []
-//        }
         let allPhotos = filteredAndSortedPhotos
         if selectedPhotos.count > 1 {
             return allPhotos.filter { selectedPhotos.contains($0.id) }
@@ -366,7 +364,9 @@ class ThumbGridViewModel: ObservableObject {
 
         // 3. Remove from models
         selectedPhotos.removeAll()
-        photosModel?.photos = (photosModel?.photos ?? []).filter { !photos.contains($0) }
+        let remainingPhotos = (photosModel?.photos ?? []).filter { !photosToDelete.contains($0) }
+        // TODO: photosmodel will also trigger a filterAndSortPhotos
+        photosModel?.photos = remainingPhotos
         // 4. Rebuild the model
         filterAndSortPhotos()
 

@@ -112,7 +112,6 @@ enum DuplicateFinderService {
 
         for (i, index) in indices.enumerated() {
             if isCancelled() {
-                print("🛑 Cancelled mid-processing")
                 break
             }
             guard let imageURL = cachedImagesURLs[index],
@@ -138,7 +137,6 @@ enum DuplicateFinderService {
 
         for i in 0..<n {
             if isCancelled() {
-                print("🛑 Cancelled mid-processing")
                 break
             }
             guard let pi = prints[sortedIndices[i]] else {

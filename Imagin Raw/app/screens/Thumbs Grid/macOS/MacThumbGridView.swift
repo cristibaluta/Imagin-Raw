@@ -107,7 +107,6 @@ struct MacThumbGridView: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        print(">>>>> update MacThumbGridView \(colorScheme)")
         let c = context.coordinator
         c.colorScheme = colorScheme
         c.onVisibleSectionChanged = { idx in
