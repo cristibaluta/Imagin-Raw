@@ -67,17 +67,15 @@ struct ReviewView: View {
                 .foregroundColor(viewModel.isZoomed ? .accentColor : .secondary)
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 8)
             .background(Color(IRColor.windowBackgroundColor))
 
             // Photo grid
             GeometryReader { geo in
                 photoGrid(in: geo)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(IRColor.underPageBackgroundColor))
+                    .background(Color(IRColor.windowBackgroundColor))
             }
         }
-        .frame(minWidth: 600, minHeight: 500)
         .focusable()
         .focusEffectDisabled()
         .focused($isFocused)
