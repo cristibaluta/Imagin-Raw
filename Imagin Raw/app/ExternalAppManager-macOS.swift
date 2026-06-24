@@ -30,14 +30,11 @@ class ExternalAppManager: ObservableObject, @unchecked Sendable {
         query.predicate = NSPredicate(
             format: "kMDItemContentTypeTree == 'com.apple.application-bundle'"
         )
-
         query.start()
 
-        NotificationCenter.default.addObserver(
-            forName: .NSMetadataQueryDidFinishGathering,
-            object: query,
-            queue: .main
-        ) { _ in
+        NotificationCenter.default.addObserver(forName: .NSMetadataQueryDidFinishGathering,
+                                               object: query,
+                                               queue: .main) { _ in
             query.stop()
 
             // Keywords to identify photo editing applications
@@ -71,13 +68,9 @@ class ExternalAppManager: ObservableObject, @unchecked Sendable {
                     continue
                 }
 
-                let name = bundle.object(
-                    forInfoDictionaryKey: "CFBundleDisplayName"
-                ) as? String
-                ?? bundle.object(
-                    forInfoDictionaryKey: "CFBundleName"
-                ) as? String
-                ?? (path as NSString).lastPathComponent
+                let name = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+                    ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+                    ?? (path as NSString).lastPathComponent
 
                 // Check if app name contains photo-related keywords
                 let appNameLowercased = bundleID.lowercased()
@@ -87,11 +80,9 @@ class ExternalAppManager: ObservableObject, @unchecked Sendable {
 
 //                RCLog(">>>>>> \(bundleID) \(isPhotoApp)")
                 if isPhotoApp {
-                    let photoApp = PhotoApp(
-                        name: name,
-                        bundleIdentifier: bundleID,
-                        url: URL(fileURLWithPath: path)
-                    )
+                    let photoApp = PhotoApp(name: name,
+                                            bundleIdentifier: bundleID,
+                                            url: URL(fileURLWithPath: path))
                     apps.append(photoApp)
                 }
             }
@@ -110,14 +101,18 @@ class ExternalAppManager: ObservableObject, @unchecked Sendable {
 
     private func loadSelectedApp() -> PhotoApp? {
         let savedBundleID = appPrefs.string(.selectedExternalApp)
-        guard !savedBundleID.isEmpty else { return nil }
+        guard !savedBundleID.isEmpty else {
+            return nil
+        }
         return discoveredPhotoApps.first { $0.bundleIdentifier == savedBundleID }
     }
 
     /// Opens photos with a specific app (without changing the default selection)
     func openPhotos(_ photos: [PhotoItem], with app: PhotoApp) {
-        let urls = photos.map { URL(fileURLWithPath: $0.path) }
-        guard !urls.isEmpty else { return }
+        let urls = photos.map { $0.url }
+        guard !urls.isEmpty else {
+            return
+        }
         let configuration = NSWorkspace.OpenConfiguration()
         NSWorkspace.shared.open(urls, withApplicationAt: app.url, configuration: configuration) { _, error in
             if error != nil {
@@ -128,33 +123,23 @@ class ExternalAppManager: ObservableObject, @unchecked Sendable {
 
     /// Opens multiple photos in an external app or the default system app
     func openPhotos(_ photos: [PhotoItem]) {
-        let urls = photos.map { URL(fileURLWithPath: $0.path) }
-
-        guard !urls.isEmpty else { return }
-
         if let app = selectedApp {
             // Use the selected PhotoApp
-            let configuration = NSWorkspace.OpenConfiguration()
-            NSWorkspace.shared.open(urls, withApplicationAt: app.url, configuration: configuration) { app, error in
-                if let _ = error {
-                    self.openPhotosWithDefaultApp(urls)
-                }
-            }
+            openPhotos(photos, with: app)
         } else {
+            let urls = photos.map { $0.url }
             openPhotosWithDefaultApp(urls)
         }
     }
 
     private func openPhotosWithDefaultApp(_ urls: [URL]) {
-        guard let firstURL = urls.first else { return }
-
+        guard let firstURL = urls.first else {
+            return
+        }
         // Find the default application for the first file
         if let defaultAppURL = NSWorkspace.shared.urlForApplication(toOpen: firstURL) {
             let configuration = NSWorkspace.OpenConfiguration()
             NSWorkspace.shared.open(urls, withApplicationAt: defaultAppURL, configuration: configuration) { (app, error) in
-                if let _ = error {
-                } else {
-                }
             }
         } else {
             // Fallback - open each URL individually

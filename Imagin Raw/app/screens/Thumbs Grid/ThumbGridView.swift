@@ -36,7 +36,6 @@ struct GridWidthPreferenceKey: PreferenceKey {
 
 @MainActor
 struct ThumbGridView: View {
-    @EnvironmentObject var externalAppManager: ExternalAppManager
     @ObservedObject var filesModel: FilesModel
     @ObservedObject var appState: AppState
     @ObservedObject private var viewModel: ThumbGridViewModel
@@ -203,7 +202,7 @@ struct ThumbGridView: View {
                 viewModel.handleKeyEvent(
                     event,
                     scrollTo: { photoId in scrollToCenteredPhotoId = photoId },
-                    openPhotos: { photos in externalAppManager.openPhotos(photos) },
+                    openPhotos: { photos in appState.externalAppManager.openPhotos(photos) },
                     onToggleSidebar: { onToggleSidebar?() },
                     onReviewSelected: { photos in appState.reviewGroup = buildReviewGroupItemFromPhotos(photos) }
                 )
@@ -338,9 +337,9 @@ extension ThumbGridView: ThumbCellDelegate {
             let selectedPhotoItems = viewModel.filteredAndSortedPhotos.filter {
                 viewModel.selectedPhotos.contains($0.id)
             }
-            externalAppManager.openPhotos(selectedPhotoItems)
+            appState.externalAppManager.openPhotos(selectedPhotoItems)
         } else {
-            externalAppManager.openPhotos([photo])
+            appState.externalAppManager.openPhotos([photo])
         }
     }
     func onRatingChanged(photo: PhotoItem, rating: Int) {
@@ -388,7 +387,7 @@ extension ThumbGridView: ThumbCellDelegate {
         let photos = viewModel.selectedPhotos.contains(photo.id)
             ? viewModel.getSelectedPhotosForBulkAction()
             : [photo]
-        externalAppManager.openPhotos(photos, with: app)
+        appState.externalAppManager.openPhotos(photos, with: app)
     }
     func selectedPhotosCount() -> Int {
         viewModel.selectedPhotos.count
@@ -397,6 +396,6 @@ extension ThumbGridView: ThumbCellDelegate {
         viewModel.getPhotosMarkedForDeletion().count
     }
     func discoveredPhotoApps() -> [PhotoApp] {
-        externalAppManager.discoveredPhotoApps
+        appState.externalAppManager.discoveredPhotoApps
     }
 }

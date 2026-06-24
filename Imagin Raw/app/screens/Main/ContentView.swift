@@ -9,7 +9,6 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var appState = AppState()
-    @StateObject private var externalAppManager = ExternalAppManager()
     @StateObject private var searcher = SpotlightSearcher()
 
     @Environment(\.colorScheme) private var colorScheme
@@ -99,7 +98,6 @@ struct ContentView: View {
                             #endif
                             .environmentObject(appState)
                             .environmentObject(appState.filesModel)
-                            .environmentObject(externalAppManager)
                             .toolbar {
                                 toolbarContent
                             }
@@ -290,37 +288,37 @@ struct ContentView: View {
     @ViewBuilder
     private var primaryActionToolbarItems: some View {
         Menu {
-            ForEach(externalAppManager.discoveredPhotoApps) { photoApp in
+            ForEach(appState.externalAppManager.discoveredPhotoApps) { photoApp in
                 Button(action: {
-                    externalAppManager.saveSelectedApp(photoApp)
+                    appState.externalAppManager.saveSelectedApp(photoApp)
                 }) {
                     HStack {
                         Text(photoApp.name)
-                        if externalAppManager.selectedApp?.id == photoApp.id {
+                        if appState.externalAppManager.selectedApp?.id == photoApp.id {
                             Spacer()
                             Image(systemName: "checkmark")
                         }
                     }
                 }
             }
-            if !externalAppManager.discoveredPhotoApps.isEmpty {
+            if !appState.externalAppManager.discoveredPhotoApps.isEmpty {
                 Divider()
             }
             Button("Default App") {
-                externalAppManager.saveSelectedApp(nil)
+                appState.externalAppManager.saveSelectedApp(nil)
             }
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "arrow.up.forward.app")
                     .font(.system(size: 12, weight: .regular))
-                Text("Open in \(externalAppManager.selectedApp?.name ?? "Default App")")
+                Text("Open in \(appState.externalAppManager.selectedApp?.name ?? "Default App")")
             }
         } primaryAction: {
             if appState.thumbsGridViewModel.selectedPhotos.count > 0 {
                 let selectedPhotoItems = appState.thumbsGridViewModel.filteredAndSortedPhotos.filter {
                     appState.thumbsGridViewModel.selectedPhotos.contains($0.id)
                 }
-                externalAppManager.openPhotos(selectedPhotoItems)
+                appState.externalAppManager.openPhotos(selectedPhotoItems)
             }
         }
         .disabled(appState.selectedPhoto == nil)
