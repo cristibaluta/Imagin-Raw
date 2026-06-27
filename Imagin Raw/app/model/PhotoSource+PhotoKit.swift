@@ -147,8 +147,12 @@ struct PhotoKitPhotoSource: PhotoSource {
         return "\(dirHash)_\(url.lastPathComponent)"
     }
 
-    func loadThumbnail(targetSize: CGFloat) -> IRImage? {
-        return nil
+    func loadThumbnail(targetSize: CGFloat) async -> IRImage? {
+        await withCheckedContinuation { continuation in
+            loadThumbnail(targetSize: targetSize) { image in
+                continuation.resume(returning: image)
+            }
+        }
     }
 
     func loadPreview(targetSize: CGFloat) -> IRImage? {
@@ -172,6 +176,11 @@ struct PhotoKitPhotoSource: PhotoSource {
             contentMode: .aspectFit,
             options: options
         ) { image, info in
+            print(">>>>>>>> returning thumbnail \(photoPath) \(info)")
+            let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+            guard !isDegraded else {
+                return
+            }
             guard let image else {
                 return
             }

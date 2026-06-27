@@ -179,7 +179,7 @@ struct ContentView: View {
         } detail: {
             NavigationStack {
                 thumbGridView
-                    .navigationDestination(item: $filesModel.selectedPhoto) { photo in
+                    .navigationDestination(item: $appState.selectedPhoto) { photo in
                         let _ = RCLog("🔀 [Nav] navigationDestination fired for: \(photo.path.prefix(40))")
                         return IOSFeedPreviewView(photos: feedPhotos.isEmpty ? [photo] : feedPhotos,
                                           initialPhoto: photo)
@@ -188,12 +188,12 @@ struct ContentView: View {
                             .navigationBarTitleDisplayMode(.inline)
                             .onDisappear {
                                 RCLog("🔀 [Nav] feed disappeared, clearing selectedPhoto")
-                                filesModel.selectedPhoto = nil
+                                appState.selectedPhoto = nil
                             }
                     }
             }
         }
-        .onChange(of: filesModel.selectedPhoto) { _, newVal in
+        .onChange(of: appState.selectedPhoto) { _, newVal in
             RCLog("📌 [ContentView] selectedPhoto changed → \(newVal?.path.prefix(40) ?? "nil")")
         }
         #endif
@@ -210,17 +210,16 @@ struct ContentView: View {
     private var thumbGridView: some View {
         #if os(iOS)
         return ThumbGridView(
-            filesModel: filesModel,
+            appState: appState,
+            filesModel: appState.filesModel,
+            viewModel: appState.thumbsGridViewModel,
             searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
             onEnterReviewMode: { },
             onToggleSidebar: {
                 columnVisibilityStorage = columnVisibilityStorage == "doubleColumn" ? "all" : "doubleColumn"
             },
             isSidebarCollapsed: isSidebarCollapsed,
-            windowWidth: windowWidth,
-            openSelectedPhotosCallback: $openSelectedPhotosCallback,
-            reviewGroup: $reviewGroup,
-            currentPhotos: $feedPhotos
+            windowWidth: windowWidth
         )
         #else
         ThumbGridView(

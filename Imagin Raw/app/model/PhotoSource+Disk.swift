@@ -36,6 +36,9 @@ struct DiskPhotoSource: PhotoSource {
         }
         return jpegThumbnail(url: url, targetSize: targetSize)
     }
+    func loadThumbnail(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void) {
+
+    }
 
     func loadPreview(targetSize: CGFloat) -> IRImage? {
         let ext = url.pathExtension.lowercased()
@@ -45,6 +48,9 @@ struct DiskPhotoSource: PhotoSource {
             return CoreGraphicsDecoder().extractPreview(at: url, maxSize: targetSize)
         }
     }
+    func loadPreview(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void) {
+
+    }
 
     func loadFullRes() -> IRImage? {
         let ext = url.pathExtension.lowercased()
@@ -53,6 +59,9 @@ struct DiskPhotoSource: PhotoSource {
         } else {
             return CoreGraphicsDecoder().decodeFullRes(at: url)
         }
+    }
+    func loadFullRes(completion: @escaping (IRImage?) -> Void) {
+
     }
 
     func loadExif() async -> ExifInfo? {

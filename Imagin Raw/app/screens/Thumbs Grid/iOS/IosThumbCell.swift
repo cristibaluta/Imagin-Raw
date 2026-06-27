@@ -7,6 +7,7 @@
 
 #if os(iOS)
 import UIKit
+import Photos
 
 final class IosThumbCell: UICollectionViewCell {
     static let identifier = "IosThumbCell"
@@ -29,7 +30,8 @@ final class IosThumbCell: UICollectionViewCell {
     private var delegate: ThumbCellDelegate?
     private var itemSize: CGFloat = 100
     private var isSelectMode: Bool = false
-    private weak var thumbsManager: ThumbsManager!
+    private weak var thumbsManager: PhotoCacheManager!
+    var requestID: PHImageRequestID?
     var onSelectFromHere: (() -> Void)?
     var onEndSelection: (() -> Void)?
 
@@ -40,7 +42,23 @@ final class IosThumbCell: UICollectionViewCell {
         setupViews()
         setupGestures()
     }
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) {
+        fatalError()
+    }
+
+    // MARK: - Reuse
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        currentPath = nil
+        currentPhoto = nil
+        thumbView.image = nil
+        selectionBorder.layer.borderWidth = 0
+        trashOverlay.isHidden = true
+        acrBadge.isHidden = true
+        jpgBadgeView.isHidden = true
+        starStack.isHidden = true
+    }
 
     private func setupViews() {
         contentView.backgroundColor = UIColor(white: 0.15, alpha: 1)
@@ -168,9 +186,10 @@ final class IosThumbCell: UICollectionViewCell {
                    isSelected: Bool,
                    isSelectMode: Bool,
                    itemSize: CGFloat,
-                   thumbsManager: ThumbsManager,
-                   priority: ThumbnailRequest.Priority = .high,
-                   delegate: ThumbCellDelegate) {
+                   thumbsManager: PhotoCacheManager,
+                   delegate: ThumbCellDelegate,
+                   asset: PHAsset?,
+                   manager: PHCachingImageManager) {
         self.delegate = delegate
         self.itemSize = itemSize
         self.thumbsManager = thumbsManager
@@ -180,19 +199,40 @@ final class IosThumbCell: UICollectionViewCell {
         currentPath = photo.path
         currentPhoto = photo
 
-        if pathChanged {
-            thumbView.image = nil
+//        if pathChanged {
+//            thumbView.image = nil
+//
+//            let path = photo.path
+//            Task {
+//                if let cached = await thumbsManager.getImage(for: photo) {
+//                    thumbView.image = cached
+//                } else {
+//                    let image = await thumbsManager.getImage(for: photo)
+//                    if currentPath == path {
+//                        thumbView.image = image
+//                    }
+//                }
+//            }
+//        }
 
-            let path = photo.path
-            if let cached = thumbsManager.getCachedThumbnail(for: photo) {
-                thumbView.image = cached
-            } else {
-                thumbsManager.loadThumbnail(for: photo, priority: priority) { [weak self] image in
-                    guard self?.currentPath == path else {
-                        return
-                    }
-                    self?.thumbView.image = image
-                }
+        // Cancel previous request if cell is being reused
+        if let id = requestID {
+            manager.cancelImageRequest(id)
+        }
+
+        guard let asset else {
+            return
+        }
+        requestID = manager.requestImage(
+            for: asset,
+            targetSize: CGSize(width: itemSize, height: itemSize),
+            contentMode: .aspectFill,
+            options: nil) { [weak self] image, info in
+
+            let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+            if !isDegraded {
+                self?.thumbView.image = image
+                self?.requestID = nil
             }
         }
 
@@ -332,22 +372,6 @@ final class IosThumbCell: UICollectionViewCell {
             r = next
         }
         return nil
-    }
-
-    // MARK: - Reuse
-
-    override func prepareForReuse() {
-        super.prepareForReuse()
-        currentPath = nil
-        currentPhoto = nil
-        thumbView.image = nil
-        selectionBorder.layer.borderWidth = 0
-        trashOverlay.isHidden = true
-        acrBadge.isHidden = true
-        jpgBadgeView.isHidden = true
-        starStack.isHidden = true
-        filenameLabel.backgroundColor = .clear
-        filenameLabel.textColor = .label
     }
 }
 #endif

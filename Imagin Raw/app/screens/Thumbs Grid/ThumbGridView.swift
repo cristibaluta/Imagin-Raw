@@ -252,7 +252,7 @@ struct ThumbGridView: View {
             onSelectRange: {_ in },
             duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
             onReview: { group, index in
-                reviewGroup = buildReviewGroupItem(group: group, index: index)
+                appState.reviewGroup = buildReviewGroupItem(group: group, index: index)
             },
             dateGroups: viewModel.dateGroups,
             sortOption: viewModel.sortOption,

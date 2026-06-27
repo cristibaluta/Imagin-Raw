@@ -24,7 +24,7 @@ final class IOSFeedCell: UICollectionViewCell {
     private let lensLabel     = UILabel()
 
     // MARK: - ViewModel  (one per cell, lives as long as the cell)
-    private let viewModel = PreviewViewModel()
+    private let viewModel: PreviewViewModel? = nil
     private var cancellables = Set<AnyCancellable>()
 
     private(set) var currentPath: String?
@@ -79,22 +79,22 @@ final class IOSFeedCell: UICollectionViewCell {
 
     // Bind once at init — no need to rebind on reuse since the VM is permanent.
     private func bindViewModel() {
-        viewModel.$preview
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] img in self?.imageView.image = img }
-            .store(in: &cancellables)
-
-        viewModel.$isLoading
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] loading in
-                loading ? self?.spinner.startAnimating() : self?.spinner.stopAnimating()
-            }
-            .store(in: &cancellables)
-
-        viewModel.$exifInfo
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] exif in self?.applyExif(exif) }
-            .store(in: &cancellables)
+//        viewModel.$preview
+//            .receive(on: DispatchQueue.main)
+//            .sink { [weak self] img in self?.imageView.image = img }
+//            .store(in: &cancellables)
+//
+//        viewModel.$isLoading
+//            .receive(on: DispatchQueue.main)
+//            .sink { [weak self] loading in
+//                loading ? self?.spinner.startAnimating() : self?.spinner.stopAnimating()
+//            }
+//            .store(in: &cancellables)
+//
+//        viewModel.$exifInfo
+//            .receive(on: DispatchQueue.main)
+//            .sink { [weak self] exif in self?.applyExif(exif) }
+//            .store(in: &cancellables)
     }
 
     // MARK: - Layout
@@ -126,7 +126,9 @@ final class IOSFeedCell: UICollectionViewCell {
 
     // MARK: - Configure
     func configure(with photo: PhotoItem) {
-        guard currentPath != photo.path else { return }
+        guard currentPath != photo.path else {
+            return
+        }
         currentPath = photo.path
 
         // Static fields — available immediately
@@ -143,7 +145,7 @@ final class IOSFeedCell: UICollectionViewCell {
         imageView.image = nil
 
         // Hand off to the VM — it loads preview + exif and publishes via Combine
-        viewModel.setPhoto(photo)
+        viewModel?.loadPhoto(photo)
     }
 
     // MARK: - EXIF

@@ -103,16 +103,18 @@ final class PhotoCacheManager: Sendable {
 
         // 2. Search for the image on disk cache
         let source = photo.makeSource()
-        if let diskData = loadFromDisk(for: photo.url) {
-            await memoryCache.setImageData(diskData, for: photo.path)
-            return IRImage(data: diskData)
+        if source is DiskPhotoSource, thumbSize.cacheLimit > 0 {
+            if let diskData = loadFromDisk(for: photo.url) {
+                await memoryCache.setImageData(diskData, for: photo.path)
+                return IRImage(data: diskData)
+            }
         }
 
         // 3. Generate the thumbnail
         let image: IRImage?
         switch thumbSize {
             case .s256:
-                image = source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
+                image = await source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
             case .s1024:
                 image = source.loadPreview(targetSize: CGFloat(thumbSize.rawValue))
             case .full:

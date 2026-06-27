@@ -25,6 +25,7 @@ extension UIColor {
 }
 #endif
 
+#if os(macOS)
 import SwiftUI
 
 extension Color {
@@ -34,3 +35,4 @@ extension Color {
         })
     }
 }
+#endif
