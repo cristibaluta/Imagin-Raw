@@ -47,7 +47,7 @@ An iOS companion app is in development, focused on a simple way to browse your l
 - **Camera Raw–processed previews** - Bridge renders thumbnails with ACR adjustments applied. Imagin RAW currently shows unprocessed previews; replicating the ACR pipeline isn't feasible, though basic exposure/crop preview adjustments may be explored.
 
 ## Roadmap
-See the open [Issues](/issues)
+See the open [Issues](https://github.com/cristibaluta/Imagin-Raw/issues)
 
 ## Screenshots
 ![Filtered Thumbnails](screenshots/main-dark.jpg)
@@ -78,7 +78,7 @@ See the open [Issues](/issues)
 
 ## Installation
 - Buy from the [AppStore](https://apps.apple.com/ro/app/imagin-raw/id6760548347?mt=12) if you want to support the project and receive updates automatically
-- Download the latest release from [Releases](/releases). Updates might not be on par with the AppStore and there's no update notification
+- Download the latest release from [Releases](https://github.com/cristibaluta/Imagin-Raw/releases). Updates might not be on par with the AppStore and there's no update notification in app
 - Compile from source code
 
 ## Contributions
