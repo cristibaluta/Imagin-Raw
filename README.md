@@ -1,15 +1,15 @@
 # Imagin RAW
 
-A lightweight, native macOS application for browsing, culling, and organizing RAW photo libraries - built as a faster alternative to Adobe Bridge for read/rate/organize workflows.
+A lightweight, native macOS application for browsing, culling, and organizing RAW photos - built as a more efficient alternative to Adobe Bridge for read/rate/organize workflows.
 
-An iOS companion app is in development, focused on quick photo review, rating, and field scouting.
+An iOS companion app is in development, focused on a simple way to browse your library, cleanup, in field backup of your shots, and scouting.
 
 ![Main Interface](screenshots/main.jpg)
 
 ## Architecture
 
-- **UI**: SwiftUI (macOS 14.6+)
-- **RAW decoding**: LibRaw (C++), wrapped via Objective-C++ bridge
+- **UI**: SwiftUI (macOS 14.6+). AppKit/UIKit for the thumbnails list where SwiftUI performance was poor
+- **RAW decoding**: LibRaw (C++), wrapped via Objective-C++ bridge. CoreImage also used for other formats and as a fallback
 - **Metadata**: EXIF parsed directly from RAW/JPEG binary structures; XMP sidecars read/written for Lightroom/Bridge compatibility
 - **File system monitoring**: FSEvents for real-time folder change detection
 - **Search**: NSMetadataQuery (Spotlight) for indexed file/folder search
@@ -47,10 +47,7 @@ An iOS companion app is in development, focused on quick photo review, rating, a
 - **Camera Raw–processed previews** - Bridge renders thumbnails with ACR adjustments applied. Imagin RAW currently shows unprocessed previews; replicating the ACR pipeline isn't feasible, though basic exposure/crop preview adjustments may be explored.
 
 ## Roadmap
-
-- DxO PhotoLab XMP compatibility
-- iOS companion app (review, rating, scouting)
-- Basic preview adjustments (exposure, crop) without full ACR parity
+See the open [Issues](/issues)
 
 ## Screenshots
 ![Filtered Thumbnails](screenshots/main-dark.jpg)
@@ -80,8 +77,9 @@ An iOS companion app is in development, focused on quick photo review, rating, a
 - Apple Silicon or Intel processor
 
 ## Installation
-- Download the latest release from Releases. Updates will be irregular and you need to check them yourself
-- Buy from the Appstore if you want to support the project and receive updates automatically
+- Buy from the [AppStore](https://apps.apple.com/ro/app/imagin-raw/id6760548347?mt=12) if you want to support the project and receive updates automatically
+- Download the latest release from [Releases](/releases). Updates might not be on par with the AppStore and there's no update notification
+- Compile from source code
 
 ## Contributions
-Small straightforward fixes and issue reportings are welcome. Large PRs with new features needs to be discussed first.
+Small straightforward fixes and issue/ideas reportings are welcome.
