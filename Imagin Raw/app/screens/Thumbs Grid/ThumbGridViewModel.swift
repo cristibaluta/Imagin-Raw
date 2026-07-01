@@ -533,14 +533,14 @@ class ThumbGridViewModel: ObservableObject {
                 switch key {
                     case .leftArrow:
                         // Find the prev  item in the current section
-                        if item - 1 >= 0 {
+                        if item > 0 {
                             nextIndex = IndexPath(item: item - 1, section: section)
                         } else {
-                            // Go to prev item in the next section
-                            if section - 1 >= 0 {
+                            // Go to prev item in the prev section
+                            if section > 0 {
                                 nextIndex = IndexPath(item: dateGroups[section-1].photos.count - 1, section: section - 1)
                             } else {
-                                nextIndex = IndexPath(item: dateGroups[section-1].photos.count - 1, section: dateGroups.count - 1)
+                                return nil
                             }
                         }
                     case .rightArrow:
