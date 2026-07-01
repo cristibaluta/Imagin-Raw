@@ -27,6 +27,8 @@ struct ExifExtendedView: View {
             .padding(.bottom, 0)
             .padding(.leading, 8)
 
+            Spacer()
+            
             HStack {
                 // File size
                 if let size = fileSize {

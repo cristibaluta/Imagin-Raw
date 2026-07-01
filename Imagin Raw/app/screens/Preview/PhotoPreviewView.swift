@@ -25,69 +25,71 @@ struct PhotoPreviewView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .center) {
-                VStack(spacing: 0) {
-                    // Photo
-                    if let fullRes = viewModel.fullResImage {
+        ZStack(alignment: .center) {
+            VStack(spacing: 0) {
+                // Photo
+                if let fullRes = viewModel.fullResImage {
 #if os(macOS)
-                        ZoomPanView(image: fullRes)
+                    ZoomPanView(image: fullRes)
 #endif
-                    } else if let nsImage = viewModel.image {
+                } else if let nsImage = viewModel.image {
+                    GeometryReader { geo in
                         alignedPhoto(nsImage: nsImage, geo: geo)
-                    } else if viewModel.isLoading {
-                        ProgressView("Loading...")
-                            .progressViewStyle(CircularProgressViewStyle())
-                    } else {
-                        Text("Failed to load image")
-                            .foregroundColor(.secondary)
                     }
+                } else if viewModel.isLoading {
+                    ProgressView("Loading...")
+                        .progressViewStyle(CircularProgressViewStyle())
+                } else {
+                    Text("Failed to load image")
+                        .foregroundColor(.secondary)
+                }
 
-                    // Exif bar
+                // Exif bar
+                if !showExportPanel {
                     bottomBar
                 }
+            }
 
-                // Alignment button
-                if !showExportPanel && viewModel.fullResImage == nil && gridType != .large {
-                    VStack {
-                        HStack {
-                            alignmentButton
-                            Spacer()
-                        }
+            // Alignment button
+            if viewModel.fullResImage == nil && gridType != .large {
+                VStack {
+                    HStack {
+                        alignmentButton
                         Spacer()
                     }
-                }
-
-                // Export panel overlay — bottom-right
-                if showExportPanel, let photo = viewModel.photo {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            ExportPanelView(photo: photo,
-                                            pixelSize: exportPixelSize(for: viewModel.image),
-                                            isPresented: $showExportPanel,
-                                            selectedRatio: $exportRatio,
-                                            padding: $exportPadding,
-                                            alignment: $exportAlignment)
-                            .frame(width: 220)
-                            .padding(12)
-                        }
-                    }
-                    .transition(.opacity)
-                    .animation(.easeInOut(duration: 0.15), value: showExportPanel)
+                    Spacer()
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
-            .overlay {
-                if viewModel.isLoadingFullRes {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(1.5)
-                        .padding(16)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+
+            // Export panel overlay — bottom-right
+            if showExportPanel, let photo = viewModel.photo {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        ExportPanelView(photo: photo,
+                                        pixelSize: exportPixelSize(for: viewModel.image),
+                                        isPresented: $showExportPanel,
+                                        selectedRatio: $exportRatio,
+                                        padding: $exportPadding,
+                                        alignment: $exportAlignment)
+                        .frame(width: 220)
+                        .padding(12)
+                    }
                 }
+                .transition(.opacity)
+                .animation(.easeInOut(duration: 0.15), value: showExportPanel)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+        .overlay {
+            if viewModel.isLoadingFullRes {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle())
+                    .scaleEffect(1.5)
+                    .padding(16)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
         }
         .onChange(of: exportRatio) { _, newVal in

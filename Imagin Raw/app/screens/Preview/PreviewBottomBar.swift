@@ -103,6 +103,6 @@ struct PreviewBottomBar: View {
                 .frame(height: 40)
             }
         }
-        .frame(height: 82)
+        .frame(height: 88)
     }
 }

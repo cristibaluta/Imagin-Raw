@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct Layout {
+private struct Layout {
     let dispCanvasW: CGFloat
     let dispCanvasH: CGFloat
     let dispImgW: CGFloat
