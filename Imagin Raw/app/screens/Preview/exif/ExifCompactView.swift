@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct ExifBarView: View {
+struct ExifCompactView: View {
     let exifInfo: ExifInfo
     var fileSize: Int64?
     var dateCreated: Date?
@@ -88,8 +88,6 @@ struct ExifBarView: View {
 
             Spacer()
         }
-        .frame(height: 40)
-//        .background(Color(IRColor.controlBackgroundColor))
     }
 
     private func exifItem(label: String) -> some View {

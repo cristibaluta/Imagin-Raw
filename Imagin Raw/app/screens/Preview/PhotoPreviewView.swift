@@ -25,15 +25,15 @@ struct PhotoPreviewView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            GeometryReader { geo in
-                ZStack(alignment: .center) {
+        GeometryReader { geo in
+            ZStack(alignment: .center) {
+                VStack(spacing: 0) {
+                    // Photo
                     if let fullRes = viewModel.fullResImage {
-                        #if os(macOS)
+#if os(macOS)
                         ZoomPanView(image: fullRes)
-                        #endif
+#endif
                     } else if let nsImage = viewModel.image {
-                        // Photo
                         alignedPhoto(nsImage: nsImage, geo: geo)
                     } else if viewModel.isLoading {
                         ProgressView("Loading...")
@@ -43,83 +43,83 @@ struct PhotoPreviewView: View {
                             .foregroundColor(.secondary)
                     }
 
-                    // Alignment button
-                    if !showExportPanel && viewModel.fullResImage == nil && gridType != .large {
-                        VStack {
-                            HStack {
-                                alignmentButton
-                                Spacer()
-                            }
+                    // Exif bar
+                    bottomBar
+                }
+
+                // Alignment button
+                if !showExportPanel && viewModel.fullResImage == nil && gridType != .large {
+                    VStack {
+                        HStack {
+                            alignmentButton
                             Spacer()
                         }
+                        Spacer()
                     }
+                }
 
-                    // Export panel overlay — bottom-right
-                    if showExportPanel, let photo = viewModel.photo {
-                        VStack {
+                // Export panel overlay — bottom-right
+                if showExportPanel, let photo = viewModel.photo {
+                    VStack {
+                        Spacer()
+                        HStack {
                             Spacer()
-                            HStack {
-                                Spacer()
-                                ExportPanelView(photo: photo,
-                                                pixelSize: exportPixelSize(for: viewModel.image),
-                                                isPresented: $showExportPanel,
-                                                selectedRatio: $exportRatio,
-                                                padding: $exportPadding,
-                                                alignment: $exportAlignment)
-                                .frame(width: 220)
-                                .padding(12)
-                            }
+                            ExportPanelView(photo: photo,
+                                            pixelSize: exportPixelSize(for: viewModel.image),
+                                            isPresented: $showExportPanel,
+                                            selectedRatio: $exportRatio,
+                                            padding: $exportPadding,
+                                            alignment: $exportAlignment)
+                            .frame(width: 220)
+                            .padding(12)
                         }
-                        .transition(.opacity)
-                        .animation(.easeInOut(duration: 0.15), value: showExportPanel)
                     }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-                .overlay {
-                    if viewModel.isLoadingFullRes {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
-                            .scaleEffect(1.5)
-                            .padding(16)
-                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                    }
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.15), value: showExportPanel)
                 }
             }
-            .onChange(of: exportRatio) { _, newVal in
-                appPrefs.set(newVal.rawValue, forKey: .exportRatio)
-            }
-            .onChange(of: exportPadding) { _, newVal in
-                appPrefs.set(newVal, forKey: .exportPadding)
-            }
-            .onChange(of: exportAlignment) { _, newVal in
-                appPrefs.set(newVal.rawValue, forKey: .exportAlignment)
-            }
-            .onChange(of: showAFPoint) { _, newVal in
-                appPrefs.set(newVal, forKey: .showAFPoint)
-            }
-            //        .sheet(isPresented: $showEditPanel) {
-            //            if let preview = viewModel.preview {
-            //                PerspectiveCorrectionView(image: preview) { corrected in
-            //                    showEditPanel = false
-            //                    // TODO: store corrected image for export
-            //                }
-            //                .frame(minWidth: 700, minHeight: 500)
-            //            }
-            //        }
-            .onReceive(NotificationCenter.default.publisher(for: .toggleZoom)) { _ in
-                if viewModel.fullResImage != nil {
-                    viewModel.exitZoom()
-                } else if !viewModel.isLoadingFullRes {
-                    viewModel.loadFullResolution()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+            .overlay {
+                if viewModel.isLoadingFullRes {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .scaleEffect(1.5)
+                        .padding(16)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
-                gridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
+        }
+        .onChange(of: exportRatio) { _, newVal in
+            appPrefs.set(newVal.rawValue, forKey: .exportRatio)
+        }
+        .onChange(of: exportPadding) { _, newVal in
+            appPrefs.set(newVal, forKey: .exportPadding)
+        }
+        .onChange(of: exportAlignment) { _, newVal in
+            appPrefs.set(newVal.rawValue, forKey: .exportAlignment)
+        }
+        .onChange(of: showAFPoint) { _, newVal in
+            appPrefs.set(newVal, forKey: .showAFPoint)
+        }
+        //        .sheet(isPresented: $showEditPanel) {
+        //            if let preview = viewModel.preview {
+        //                PerspectiveCorrectionView(image: preview) { corrected in
+        //                    showEditPanel = false
+        //                    // TODO: store corrected image for export
+        //                }
+        //                .frame(minWidth: 700, minHeight: 500)
+        //            }
+        //        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleZoom)) { _ in
+            if viewModel.fullResImage != nil {
+                viewModel.exitZoom()
+            } else if !viewModel.isLoadingFullRes {
+                viewModel.loadFullResolution()
             }
-
-            // Exif bar
-            bottomBar
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            gridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
         }
     }
 
@@ -171,7 +171,7 @@ struct PhotoPreviewView: View {
 
     @ViewBuilder
     private var bottomBar: some View {
-        // EXIF bottom bar or vertical column
+        // EXIF bottom bar
         if let photo = viewModel.photo, let exifInfo = viewModel.exifInfo {
             if gridType == .large {
                 ExifColumnView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
