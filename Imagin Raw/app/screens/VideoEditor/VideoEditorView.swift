@@ -75,6 +75,15 @@ struct VideoEditorView: View {
         }
     }
 
+    private var qualityLabel: String {
+        switch viewModel.quality {
+        case 0..<0.35: return "Low"
+        case 0.35..<0.65: return "Medium"
+        case 0.65..<0.85: return "High"
+        default: return "Max"
+        }
+    }
+
     // MARK: - Current frame
 
     @ViewBuilder
@@ -140,6 +149,22 @@ struct VideoEditorView: View {
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.primary)
                         .frame(width: 32, alignment: .leading)
+                }
+
+                Divider()
+                    .frame(height: 20)
+
+                // Quality control
+                HStack(spacing: 6) {
+                    Text("Quality")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Slider(value: $viewModel.quality, in: 0.0...1.0)
+                        .frame(width: 100)
+                    Text(qualityLabel)
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .frame(width: 36, alignment: .leading)
                 }
 
                 Divider()

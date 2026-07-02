@@ -16,6 +16,7 @@ final class VideoEditorViewModel: ObservableObject {
     @Published private(set) var images: [IRImage] = []
     @Published private(set) var isLoadingImages = false
     @Published var fps: Double = 24
+    @Published var quality: Double = 1.0  // 0.0 (lowest) → 1.0 (highest)
     @Published private(set) var isPlaying = false
     @Published private(set) var currentFrameIndex: Int = 0
     @Published private(set) var isExporting = false
@@ -94,10 +95,11 @@ final class VideoEditorViewModel: ObservableObject {
 
         let capturedImages = images
         let capturedFPS = fps
+        let capturedQuality = quality
 
         Task.detached(priority: .userInitiated) {
             do {
-                let url = try await Self.buildVideo(images: capturedImages, fps: capturedFPS, outputURL: outputURL) { progress in
+                let url = try await Self.buildVideo(images: capturedImages, fps: capturedFPS, quality: capturedQuality, outputURL: outputURL) { progress in
                     Task { @MainActor in
                         self.exportProgress = progress
                     }
@@ -120,6 +122,7 @@ final class VideoEditorViewModel: ObservableObject {
 
     private static func buildVideo(images: [IRImage],
                                    fps: Double,
+                                   quality: Double,
                                    outputURL: URL,
                                    progress: @Sendable @escaping (Double) -> Void) async throws -> URL {
 
@@ -154,6 +157,9 @@ final class VideoEditorViewModel: ObservableObject {
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: videoSize.width,
             AVVideoHeightKey: videoSize.height,
+            AVVideoCompressionPropertiesKey: [
+                AVVideoQualityKey: Float(quality),
+            ],
         ]
         let writerInput = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
         writerInput.expectsMediaDataInRealTime = false
