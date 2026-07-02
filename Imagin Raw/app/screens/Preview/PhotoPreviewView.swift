@@ -29,9 +29,9 @@ struct PhotoPreviewView: View {
             VStack(spacing: 0) {
                 // Photo
                 if let fullRes = viewModel.fullResImage {
-#if os(macOS)
+                    #if os(macOS)
                     ZoomPanView(image: fullRes)
-#endif
+                    #endif
                 } else if let nsImage = viewModel.image {
                     GeometryReader { geo in
                         alignedPhoto(nsImage: nsImage, geo: geo)
@@ -175,66 +175,16 @@ struct PhotoPreviewView: View {
     private var bottomBar: some View {
         // EXIF bottom bar
         if let photo = viewModel.photo, let exifInfo = viewModel.exifInfo {
-            if gridType == .large {
-                ExifColumnView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Rectangle()
-                    .fill(Color.secondary.opacity(0.25))
-                    .frame(height: 1)
-                HStack(spacing: 0) {
-                    Spacer()
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.25))
-                        .frame(width: 1, height: 14)
-                    Button(action: {
-                        if viewModel.fullResImage != nil {
-                            viewModel.exitZoom()
-                        } else {
-                            viewModel.loadFullResolution()
-                        }
-                    }) {
-                        ZStack {
-                            if viewModel.isLoadingFullRes {
-                                ProgressView().controlSize(.small).frame(width: 14, height: 14)
-                            } else {
-                                Image(systemName: viewModel.fullResImage != nil ? "minus.magnifyingglass" : "plus.magnifyingglass")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(viewModel.fullResImage != nil ? .accentColor : .secondary)
-                            }
-                        }
-                        .frame(width: 20, height: 20)
-                        .padding(.horizontal, 10)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .disabled(viewModel.isLoadingFullRes)
-                    .help(viewModel.fullResImage != nil ? "Exit zoom (Z)" : "Zoom to 100% (Z)")
-
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.25))
-                        .frame(width: 1, height: 14)
-
-                    Button(action: { showExportPanel.toggle() }) {
-                        Image(systemName: "rectangle.center.inset.filled")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(showExportPanel ? .accentColor : .secondary)
-                            .padding(.trailing, 12)
-                            .padding(.leading, 10)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .help("Export: add borders / change canvas")
-                }
-                .frame(height: 40)
-            } else {
-                Rectangle()
-                    .fill(Color.secondary.opacity(0.25))
-                    .frame(height: 1)
-                PreviewBottomBar(photo: photo,
-                                 exifInfo: exifInfo,
-                                 model: viewModel,
-                                 showAFPoint: $showAFPoint,
-                                 showEditPanel: $showEditPanel,
-                                 showExportPanel: $showExportPanel)
-            }
+            Rectangle()
+                .fill(Color.secondary.opacity(0.25))
+                .frame(height: 1)
+            PreviewBottomBar(photo: photo,
+                             exifInfo: exifInfo,
+                             model: viewModel,
+                             showAFPoint: $showAFPoint,
+                             showEditPanel: $showEditPanel,
+                             showExportPanel: $showExportPanel,
+                             gridType: $gridType)
         }
     }
 }

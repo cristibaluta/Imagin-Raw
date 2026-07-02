@@ -12,6 +12,7 @@ struct PreviewBottomBar: View {
     @Binding var showAFPoint: Bool
     @Binding var showEditPanel: Bool
     @Binding var showExportPanel: Bool
+    @Binding var gridType: ThumbGridViewModel.GridType
 
     private var supportsAFPoint: Bool {
         RawBrand.afPointSupported.contains(FilesExtensions.brand(forPath: photo.path))
@@ -19,11 +20,13 @@ struct PreviewBottomBar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            if model.exifIsExpanded {
-                ExifExtendedView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated, width: photo.width, height: photo.height)
+            if model.exifIsExpanded || gridType == .large {
+                ExifExtendedView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated, width: photo.width, height: photo.height, gridType: $gridType)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        model.toggleExifExpanded()
+                        if gridType != .large {
+                            model.toggleExifExpanded()
+                        }
                     }
             } else {
                 ExifCompactView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
@@ -36,7 +39,9 @@ struct PreviewBottomBar: View {
             Spacer()
 
             VStack(spacing: 0) {
-                Spacer()
+                if model.exifIsExpanded || gridType == .large {
+                    Spacer()
+                }
 
                 HStack(spacing: 0) {
                     // AF point button (only for supported RAW brands)
@@ -115,6 +120,6 @@ struct PreviewBottomBar: View {
                 .frame(height: 40)
             }
         }
-        .frame(height: model.exifIsExpanded ? 88 : 40)
+        .frame(height: gridType == .large ? 142 : (model.exifIsExpanded ? 88 : 40))
     }
 }

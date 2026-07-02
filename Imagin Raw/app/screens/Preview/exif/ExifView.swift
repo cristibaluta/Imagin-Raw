@@ -7,17 +7,17 @@
 
 import SwiftUI
 
+private let dateFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateStyle = .medium
+    f.timeStyle = .short
+    return f
+}()
+
 struct ExifCompactView: View {
     let exifInfo: ExifInfo
     var fileSize: Int64?
     var dateCreated: Date?
-
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        f.timeStyle = .short
-        return f
-    }()
 
     private var shutterText: String? {
         guard let shutter = exifInfo.shutterSpeed else { return nil }
@@ -83,7 +83,7 @@ struct ExifCompactView: View {
             // Date & time
             if let date = dateCreated {
                 divider
-                exifItem(label: Self.dateFormatter.string(from: date))
+                exifItem(label: dateFormatter.string(from: date))
             }
 
             Spacer()
@@ -113,23 +113,27 @@ struct ExifExtendedView: View {
     let dateCreated: Date?
     let width: Int?
     let height: Int?
-
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        f.timeStyle = .short
-        return f
-    }()
+    @Binding var gridType: ThumbGridViewModel.GridType
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                Exif1View(exifInfo: exifInfo)
-                Exif2View(exifInfo: exifInfo)
+            if gridType == .large {
+                VStack(alignment: .leading, spacing: 8) {
+                    Exif1View(exifInfo: exifInfo)
+                    Exif2View(exifInfo: exifInfo)
+                }
+                .padding(.top, 4)
+                .padding(.bottom, 0)
+                .padding(.leading, 8)
+            } else {
+                HStack(spacing: 8) {
+                    Exif1View(exifInfo: exifInfo)
+                    Exif2View(exifInfo: exifInfo)
+                }
+                .padding(.top, 4)
+                .padding(.bottom, 0)
+                .padding(.leading, 8)
             }
-            .padding(.top, 4)
-            .padding(.bottom, 0)
-            .padding(.leading, 8)
 
             Spacer()
 
@@ -148,10 +152,9 @@ struct ExifExtendedView: View {
                 // Date & time
                 if let date = dateCreated {
                     divider
-                    exifItem(label: Self.dateFormatter.string(from: date))
+                    exifItem(label: dateFormatter.string(from: date))
                 }
             }
-//            .frame(height: 16)
             .padding(.leading, 8)
             .padding(.bottom, 12)
         }
@@ -241,87 +244,6 @@ struct Exif2View: View {
             }
         }
         .font(.system(size: 12))
-        .padding(.horizontal, 12)
         .padding(.vertical, 4)
-    }
-}
-
-// MARK: - Vertical EXIF layout for 4/5-column grid
-
-struct ExifColumnView: View {
-    let exifInfo: ExifInfo
-    var fileSize: Int64?
-    var dateCreated: Date?
-
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        f.timeStyle = .short
-        return f
-    }()
-
-    private var shutterText: String? {
-        guard let shutter = exifInfo.shutterSpeed else { return nil }
-        return shutter < 1 ? "1/\(Int(round(1/shutter)))s" : "\(String(format: "%.1f", shutter))s"
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Aperture / Shutter / ISO grouped in rounded border
-            let hasExposure = exifInfo.aperture != nil || shutterText != nil || exifInfo.iso != nil
-            if hasExposure {
-                HStack(spacing: 6) {
-                    if let aperture = exifInfo.aperture {
-                        exifItem(label: "ƒ/\(String(format: "%.1f", aperture))")
-                    }
-                    if let shutter = shutterText {
-                        exifItem(label: shutter)
-                    }
-                    if let iso = exifInfo.iso {
-                        exifItem(label: "ISO \(iso)")
-                    }
-                }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(Color.gray.opacity(0.6), lineWidth: 1)
-                )
-            }
-
-            // Focal length
-            if let focal = exifInfo.focalLength {
-                exifItem(label: "\(String(format: "%.0f", focal))mm")
-            }
-
-            // Lens
-            if let lens = exifInfo.lensModel {
-                exifItem(label: lens)
-            }
-
-            // Camera
-            if let model = exifInfo.cameraModel {
-                let make = exifInfo.cameraMake ?? ""
-                exifItem(label: "\(make) \(model)".trimmingCharacters(in: .whitespaces))
-            }
-
-            // File size
-            if let size = fileSize {
-                exifItem(label: ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
-            }
-
-            // Date & time
-            if let date = dateCreated {
-                exifItem(label: Self.dateFormatter.string(from: date))
-            }
-        }
-        .padding(8)
-    }
-
-    private func exifItem(label: String) -> some View {
-        Text(label)
-            .font(.caption)
-            .foregroundColor(.primary)
-            .lineLimit(1)
     }
 }
