@@ -12,6 +12,7 @@ class PreviewViewModel: ObservableObject {
     @Published private(set) var isLoadingFullRes = false
     @Published private(set) var exifInfo: ExifInfo?
     @Published private(set) var alignToTopLeft: Bool = appPrefs.bool(.alignToTopLeft)
+    @Published private(set) var exifIsExpanded: Bool = appPrefs.bool(.exifExpanded)
 
     let previewsCacheManager: PhotoCacheManager
     private let fullResCacheManager: PhotoCacheManager
@@ -53,6 +54,11 @@ class PreviewViewModel: ObservableObject {
     func toggleAlignment() {
         alignToTopLeft.toggle()
         appPrefs.set(alignToTopLeft, forKey: .alignToTopLeft)
+    }
+
+    func toggleExifExpanded() {
+        exifIsExpanded.toggle()
+        appPrefs.set(exifIsExpanded, forKey: .exifExpanded)
     }
 
     func exitZoom() {

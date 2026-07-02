@@ -19,6 +19,7 @@ enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
     case exportRatio    = "ExportAspectRatio"
     case exportPadding  = "ExportPadding"
     case exportAlignment = "ExportAlignment"
+    case exifExpanded   = "ExifExpanded"
 
     // MARK: - Sidebar
     case expandedFolders = "ExpandedFolders"
@@ -54,34 +55,35 @@ enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
 
     func defaultValue() -> Any {
         switch self {
-        case .theme:                    return "system"
-        case .showAFPoint:              return false
-        case .alignToTopLeft:           return false
-        case .exportRatio:              return ExportAspectRatio.r4x5.rawValue
-        case .exportPadding:            return 0.0
-        case .exportAlignment:          return ExportAlignment.center.rawValue
-        case .expandedFolders:          return Data()
-        case .selectedFolder:           return Data()
-        case .sortOption:               return "Date Captured"
-        case .sidebarSortOption:        return "name"
-        case .gridType:                 return "SmallGrid"
-        case .similarityMode:           return 65
-        case .selectedExternalApp:      return ""
-        case .userFolderBookmarks:      return Data()
-        case .photoLibraryEnabled:      return false
-        case .copyToRenameByExifDate:   return false
-        case .copyToUseSequentialNumbers: return false
-        case .copyToCustomPrefix:       return ""
-        case .copyToOrganizeByYear:     return false
-        case .copyToOrganizeByMonth:    return false
-        case .copyToOrganizeByDay:      return false
-        case .copyToEventName:          return ""
-        case .copyToOrganizeByCameraModel: return false
-        case .copyToOrganizeJpgsInSubfolder: return false
-        case .copyToLastDestinationURL: return ""
-        case .copyToLastBackupDestinationURL: return ""
-        case .copyToDestinationBookmark: return Data()
-        case .copyToBackupBookmark:     return Data()
+            case .theme:                    return "system"
+            case .showAFPoint:              return false
+            case .alignToTopLeft:           return false
+            case .exportRatio:              return ExportAspectRatio.r4x5.rawValue
+            case .exportPadding:            return 0.0
+            case .exportAlignment:          return ExportAlignment.center.rawValue
+            case .exifExpanded:             return true
+            case .expandedFolders:          return Data()
+            case .selectedFolder:           return Data()
+            case .sortOption:               return "Date Captured"
+            case .sidebarSortOption:        return "name"
+            case .gridType:                 return "SmallGrid"
+            case .similarityMode:           return 65
+            case .selectedExternalApp:      return ""
+            case .userFolderBookmarks:      return Data()
+            case .photoLibraryEnabled:      return false
+            case .copyToRenameByExifDate:   return false
+            case .copyToUseSequentialNumbers: return false
+            case .copyToCustomPrefix:       return ""
+            case .copyToOrganizeByYear:     return false
+            case .copyToOrganizeByMonth:    return false
+            case .copyToOrganizeByDay:      return false
+            case .copyToEventName:          return ""
+            case .copyToOrganizeByCameraModel: return false
+            case .copyToOrganizeJpgsInSubfolder: return false
+            case .copyToLastDestinationURL: return ""
+            case .copyToLastBackupDestinationURL: return ""
+            case .copyToDestinationBookmark: return Data()
+            case .copyToBackupBookmark:     return Data()
         }
     }
 }

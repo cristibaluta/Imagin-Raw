@@ -8,7 +8,7 @@ import SwiftUI
 struct PreviewBottomBar: View {
     let photo: PhotoItem
     let exifInfo: ExifInfo
-    let model: PreviewViewModel
+    @ObservedObject var model: PreviewViewModel
     @Binding var showAFPoint: Bool
     @Binding var showEditPanel: Bool
     @Binding var showExportPanel: Bool
@@ -19,8 +19,20 @@ struct PreviewBottomBar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-//            ExifCompactView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
-            ExifExtendedView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
+            if model.exifIsExpanded {
+                ExifExtendedView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated, width: photo.width, height: photo.height)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        model.toggleExifExpanded()
+                    }
+            } else {
+                ExifCompactView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        model.toggleExifExpanded()
+                    }
+            }
+
             Spacer()
 
             VStack(spacing: 0) {
@@ -103,6 +115,6 @@ struct PreviewBottomBar: View {
                 .frame(height: 40)
             }
         }
-        .frame(height: 88)
+        .frame(height: model.exifIsExpanded ? 88 : 40)
     }
 }
