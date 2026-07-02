@@ -389,6 +389,15 @@ extension ThumbGridView: ThumbCellDelegate {
             : [photo]
         appState.externalAppManager.openPhotos(photos, with: app)
     }
+    func onCreateVideo(photos: [PhotoItem]) {
+        // If the tapped photo is part of the current selection, use all selected
+        let triggerPhoto = photos.first
+        let isInSelection = triggerPhoto.map { viewModel.selectedPhotos.contains($0.id) } ?? false
+        let selectedPhotoItems = isInSelection
+            ? viewModel.getSelectedPhotosForBulkAction()
+            : photos
+        appState.videoEditorPhotos = selectedPhotoItems
+    }
     func selectedPhotosCount() -> Int {
         viewModel.selectedPhotos.count
     }

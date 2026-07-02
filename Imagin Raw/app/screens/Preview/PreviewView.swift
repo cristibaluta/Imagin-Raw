@@ -10,6 +10,9 @@ import SwiftUI
 struct PreviewView: View {
 
     @ObservedObject var viewModel: PreviewViewModel
+    var videoEditorPhotos: [PhotoItem]?
+    var previewsCacheManager: PhotoCacheManager
+    var onDismissVideoEditor: (() -> Void)?
 
     var body: some View {
         #if DEBUG
@@ -22,7 +25,10 @@ struct PreviewView: View {
                 .frame(height: 1)
 
             // Content
-            if let photo = viewModel.photo {
+            if let photos = videoEditorPhotos, photos.count >= 2 {
+                VideoEditorView(photos: photos, cacheManager: previewsCacheManager, onDismiss: onDismissVideoEditor)
+                    .id(photos.map(\.id).hashValue)
+            } else if let photo = viewModel.photo {
                 if photo.isVideo {
                     VideoPreviewView(photo: photo)
                 } else {

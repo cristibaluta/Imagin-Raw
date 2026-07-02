@@ -15,6 +15,7 @@ class AppState: ObservableObject {
     @Published var selectedFolder: FolderItem?
     @Published var selectedPhoto: PhotoItem?
     @Published var reviewGroup: ReviewGroupItem?// Photos to be displayed in the review screen
+    @Published var videoEditorPhotos: [PhotoItem]? = nil
     @Published var externalAppManager = ExternalAppManager()
 
     let thumbnailsCacheManager = PhotoCacheManager(thumbSize: .s256)

@@ -129,6 +129,14 @@ extension MacThumbCell {
 //        rename.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: nil)
         menu.addItem(rename)
 
+        let videoCount = max(selectedCount, 1)
+        let createVideo = NSMenuItem(title: "Create Video\(videoCount >= 2 ? " (\(videoCount))" : "")",
+                                     action: videoCount >= 2 ? #selector(handleCreateVideo) : nil,
+                                     keyEquivalent: "")
+        createVideo.image = NSImage(systemSymbolName: "film.stack", accessibilityDescription: nil)
+        if videoCount < 2 { createVideo.isEnabled = false }
+        menu.addItem(createVideo)
+
         menu.addItem(.separator())
 
         let trash = NSMenuItem(title: "Move to Trash", action: #selector(handleMoveToTrash), keyEquivalent: String(Unicode.Scalar(NSBackspaceCharacter)!))
@@ -148,6 +156,11 @@ extension MacThumbCell {
             return
         }
         delegate?.onReviewSelected(photo: p)
+    }
+
+    @objc private func handleCreateVideo() {
+        guard let p = currentPhoto else { return }
+        delegate?.onCreateVideo(photos: [p])  // delegate resolves selection
     }
 
     @objc private func handleShowInFinder() {

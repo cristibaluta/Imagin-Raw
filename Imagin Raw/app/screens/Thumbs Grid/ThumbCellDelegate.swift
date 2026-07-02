@@ -25,4 +25,5 @@ protocol ThumbCellDelegate: Sendable {
     func selectedPhotosCount() -> Int
     func markedForDeletionCount() -> Int
     func discoveredPhotoApps() -> [PhotoApp]
+    func onCreateVideo(photos: [PhotoItem]) -> Void
 }

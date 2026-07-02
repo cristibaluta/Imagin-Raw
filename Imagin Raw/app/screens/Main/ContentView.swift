@@ -238,7 +238,12 @@ struct ContentView: View {
     }
 
     private var detailView: some View {
-        PreviewView(viewModel: appState.previewViewModel)
+        PreviewView(viewModel: appState.previewViewModel,
+                    videoEditorPhotos: appState.videoEditorPhotos,
+                    previewsCacheManager: appState.previewsCacheManager,
+                    onDismissVideoEditor: {
+                        appState.videoEditorPhotos = nil
+                    })
     }
 
     @ToolbarContentBuilder
