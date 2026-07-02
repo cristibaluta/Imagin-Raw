@@ -31,6 +31,15 @@ extension MacThumbCell {
         review.keyEquivalentModifierMask = []
         review.image = NSImage(systemSymbolName: "eye", accessibilityDescription: nil)
         menu.addItem(review)
+
+        // Create video
+        let createVideo = NSMenuItem(title: "Create Video\(reviewCount >= 2 ? " (\(reviewCount))" : "")",
+                                     action: reviewCount >= 2 ? #selector(handleCreateVideo) : nil,
+                                     keyEquivalent: "")
+        createVideo.image = NSImage(systemSymbolName: "film.stack", accessibilityDescription: nil)
+        createVideo.isEnabled = reviewCount > 1
+        menu.addItem(createVideo)
+
         menu.addItem(.separator())
 
         let isRaw = photo.isRawFile
@@ -128,14 +137,6 @@ extension MacThumbCell {
         let rename = NSMenuItem(title: "Batch Rename...", action: #selector(handleRenameTo), keyEquivalent: "")
 //        rename.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: nil)
         menu.addItem(rename)
-
-        let videoCount = max(selectedCount, 1)
-        let createVideo = NSMenuItem(title: "Create Video\(videoCount >= 2 ? " (\(videoCount))" : "")",
-                                     action: videoCount >= 2 ? #selector(handleCreateVideo) : nil,
-                                     keyEquivalent: "")
-        createVideo.image = NSImage(systemSymbolName: "film.stack", accessibilityDescription: nil)
-        if videoCount < 2 { createVideo.isEnabled = false }
-        menu.addItem(createVideo)
 
         menu.addItem(.separator())
 

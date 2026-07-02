@@ -55,7 +55,7 @@ struct VideoEditorView: View {
             isPresented: $exportSavePanel,
             document: VideoExportDocument(),
             contentType: .mpeg4Movie,
-            defaultFilename: "timelapse.mp4"
+            defaultFilename: "Timelapse.mp4"
         ) { result in
             switch result {
             case .success(let url):
@@ -129,15 +129,11 @@ struct VideoEditorView: View {
 
                 // FPS control
                 HStack(spacing: 6) {
-                    Text("FPS")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                     Slider(
                         value: $viewModel.fps,
-                        in: viewModel.minFPS...viewModel.maxFPS,
-                        step: 1
+                        in: viewModel.minFPS...viewModel.maxFPS
                     )
-                    .frame(width: 120)
+                    .frame(width: 100)
                     .onChange(of: viewModel.fps) { _, _ in
                         // Restart playback with new rate if currently playing
                         if viewModel.isPlaying {
@@ -145,10 +141,9 @@ struct VideoEditorView: View {
                             viewModel.togglePlayback()
                         }
                     }
-                    Text("\(Int(viewModel.fps))")
+                    Text("\(Int(viewModel.fps))fps")
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.primary)
-                        .frame(width: 32, alignment: .leading)
                 }
 
                 Divider()
@@ -164,7 +159,6 @@ struct VideoEditorView: View {
                     Text(qualityLabel)
                         .font(.caption)
                         .foregroundStyle(.primary)
-                        .frame(width: 36, alignment: .leading)
                 }
 
                 Divider()
@@ -210,9 +204,8 @@ struct VideoEditorView: View {
                         Label("Export Video", systemImage: "square.and.arrow.up")
                             .font(.system(size: 12))
                     }
-                    .disabled(viewModel.images.isEmpty)
                     .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                    .disabled(viewModel.images.isEmpty)
                     .help("Export as MP4")
                 }
             }
@@ -220,6 +213,7 @@ struct VideoEditorView: View {
             .padding(.vertical, 10)
             .background(.regularMaterial)
         }
+        .frame(height: 40)
     }
 }
 

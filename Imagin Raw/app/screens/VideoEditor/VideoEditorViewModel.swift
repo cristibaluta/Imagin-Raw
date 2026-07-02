@@ -15,7 +15,7 @@ final class VideoEditorViewModel: ObservableObject {
     // MARK: - Published state
     @Published private(set) var images: [IRImage] = []
     @Published private(set) var isLoadingImages = false
-    @Published var fps: Double = 24
+    @Published var fps: Double = 10
     @Published var quality: Double = 1.0  // 0.0 (lowest) → 1.0 (highest)
     @Published private(set) var isPlaying = false
     @Published private(set) var currentFrameIndex: Int = 0
@@ -31,7 +31,7 @@ final class VideoEditorViewModel: ObservableObject {
     private var playbackTimer: Timer?
 
     let minFPS: Double = 1
-    let maxFPS: Double = 120
+    let maxFPS: Double = 30
 
     init(photos: [PhotoItem], cacheManager: PhotoCacheManager) {
         self.photos = photos
