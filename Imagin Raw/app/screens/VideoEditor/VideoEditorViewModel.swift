@@ -97,19 +97,31 @@ final class VideoEditorViewModel: ObservableObject {
         let capturedFPS = fps
         let capturedQuality = quality
 
+        // Write to a temp file first, then move to the user-chosen URL.
+        // AVAssetWriter cannot write directly to a security-scoped fileExporter URL on macOS Sequoia.
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mp4")
+
         Task.detached(priority: .userInitiated) {
             do {
-                let url = try await Self.buildVideo(images: capturedImages, fps: capturedFPS, quality: capturedQuality, outputURL: outputURL) { progress in
+                try await Self.buildVideo(images: capturedImages, fps: capturedFPS, quality: capturedQuality, tempURL: tempURL) { progress in
                     Task { @MainActor in
                         self.exportProgress = progress
                     }
                 }
+                // Move temp file → final destination
+                _ = outputURL.startAccessingSecurityScopedResource()
+                defer { outputURL.stopAccessingSecurityScopedResource() }
+                try? FileManager.default.removeItem(at: outputURL)
+                try FileManager.default.moveItem(at: tempURL, to: outputURL)
                 await MainActor.run {
                     self.isExporting = false
                     self.exportProgress = 1
-                    self.exportedURL = url
+                    self.exportedURL = outputURL
                 }
             } catch {
+                try? FileManager.default.removeItem(at: tempURL)
                 await MainActor.run {
                     self.isExporting = false
                     self.exportError = error.localizedDescription
@@ -123,18 +135,14 @@ final class VideoEditorViewModel: ObservableObject {
     private static func buildVideo(images: [IRImage],
                                    fps: Double,
                                    quality: Double,
-                                   outputURL: URL,
-                                   progress: @Sendable @escaping (Double) -> Void) async throws -> URL {
+                                   tempURL: URL,
+                                   progress: @Sendable @escaping (Double) -> Void) async throws {
 
         // Pick the largest frame size from all images, capped to 1920×1920
         let maxDim: CGFloat = 1920
         var videoSize = CGSize(width: 1280, height: 720)
         for img in images {
-            #if os(macOS)
             let s = img.size
-            #else
-            let s = img.size
-            #endif
             if s.width > 0 && s.height > 0 {
                 videoSize = s
                 break
@@ -150,36 +158,47 @@ final class VideoEditorViewModel: ObservableObject {
         videoSize = CGSize(width: CGFloat(Int(videoSize.width) & ~1),
                            height: CGFloat(Int(videoSize.height) & ~1))
 
-        try? FileManager.default.removeItem(at: outputURL)
+        try? FileManager.default.removeItem(at: tempURL)
 
-        let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
+        // Map quality (0–1) to an H.264 average bitrate.
+        // 0 → ~2 Mbps, 0.5 → ~10 Mbps, 1.0 → ~40 Mbps
+        let minBitrate: Double = 2_000_000
+        let maxBitrate: Double = 40_000_000
+        let bitrate = minBitrate + (maxBitrate - minBitrate) * quality
+
+        let writer = try AVAssetWriter(outputURL: tempURL, fileType: .mp4)
         let settings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: videoSize.width,
-            AVVideoHeightKey: videoSize.height,
+            AVVideoWidthKey: NSNumber(value: Int(videoSize.width)),
+            AVVideoHeightKey: NSNumber(value: Int(videoSize.height)),
             AVVideoCompressionPropertiesKey: [
-                AVVideoQualityKey: Float(quality),
-            ],
+                AVVideoAverageBitRateKey: NSNumber(value: bitrate),
+                AVVideoMaxKeyFrameIntervalKey: NSNumber(value: Int(fps)),
+                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
+            ] as [String: Any],
         ]
         let writerInput = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
         writerInput.expectsMediaDataInRealTime = false
 
         let attributes: [String: Any] = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-            kCVPixelBufferWidthKey as String: videoSize.width,
-            kCVPixelBufferHeightKey as String: videoSize.height,
+            kCVPixelBufferWidthKey as String: Int(videoSize.width),
+            kCVPixelBufferHeightKey as String: Int(videoSize.height),
         ]
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: writerInput,
                                                           sourcePixelBufferAttributes: attributes)
         writer.add(writerInput)
-        writer.startWriting()
+
+        guard writer.startWriting() else {
+            throw writer.error ?? NSError(domain: "VideoEditor", code: -1,
+                                          userInfo: [NSLocalizedDescriptionKey: "AVAssetWriter failed to start"])
+        }
         writer.startSession(atSourceTime: .zero)
 
         let frameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
         let total = images.count
 
         for (i, image) in images.enumerated() {
-            // Wait until writerInput is ready
             while !writerInput.isReadyForMoreMediaData {
                 try? await Task.sleep(nanoseconds: 10_000_000) // 10ms
             }
@@ -192,10 +211,9 @@ final class VideoEditorViewModel: ObservableObject {
         writerInput.markAsFinished()
         await writer.finishWriting()
 
-        if let error = writer.error {
+        if writer.status == .failed, let error = writer.error {
             throw error
         }
-        return outputURL
     }
 
     private static func pixelBuffer(from image: IRImage, size: CGSize) -> CVPixelBuffer? {
