@@ -11,10 +11,14 @@ import Foundation
 class PhotoTrashService {
 
     weak var photosModel: PhotosModel?
-    weak var fileSystemModel: FileSystemModel?
-    var thumbsManager: PhotoCacheManager?
-
+    let cacheManagers: [PhotoCacheManager]
+    private(set) weak var fileSystemModel: FileSystemModel?
     private var undoStack: [[(trashedURL: URL, originalURL: URL)]] = []
+
+    init(fileSystemModel: FileSystemModel, cacheManagers: [PhotoCacheManager]) {
+        self.fileSystemModel = fileSystemModel
+        self.cacheManagers = cacheManagers
+    }
 
     func movePhotosToTrash(_ photos: [PhotoItem]) {
         var undoEntry: [(trashedURL: URL, originalURL: URL)] = []
@@ -32,7 +36,9 @@ class PhotoTrashService {
                     undoEntry.append((t, url))
                 }
 
-                thumbsManager?.deleteThumbnail(for: photo)
+                for manager in cacheManagers {
+                    manager.deleteThumbnail(for: photo)
+                }
 
                 if FilesExtensions.raw.contains(ext) {
                     for jpgExt in ["jpg", "jpeg", "heic", "JPG", "JPEG", "HEIC"] {
@@ -76,11 +82,5 @@ class PhotoTrashService {
         for item in last {
             try? FileManager.default.moveItem(at: item.trashedURL, to: item.originalURL)
         }
-    }
-}
-
-private extension Array {
-    subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
     }
 }

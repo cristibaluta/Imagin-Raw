@@ -26,13 +26,19 @@ class AppState: ObservableObject {
     let thumbsGridViewModel: ThumbGridViewModel
     let previewViewModel: PreviewViewModel
     let reviewViewModel: ReviewViewModel
+    let trashService: PhotoTrashService
 
     private var cancellables = Set<AnyCancellable>()
 
     init() {
         fileSystemModel = FileSystemModel()
+        let trashService = PhotoTrashService(fileSystemModel: fileSystemModel,
+                                             cacheManagers: [thumbnailsCacheManager, previewsCacheManager, fullResCacheManager])
+        self.trashService = trashService
+
         thumbsGridViewModel = ThumbGridViewModel(fileSystemModel: fileSystemModel,
-                                                 thumbsManager: thumbnailsCacheManager)
+                                                 thumbsManager: thumbnailsCacheManager,
+                                                 trashService: trashService)
         previewViewModel = PreviewViewModel(previewsCacheManager: previewsCacheManager,
                                             fullResCacheManager: fullResCacheManager)
         reviewViewModel = ReviewViewModel(previewsCacheManager: previewsCacheManager,
@@ -56,7 +62,13 @@ class AppState: ObservableObject {
         // 2a. Single-file update: add/remove/reload only the changed photo
         fileSystemModel.photoFileDidChangeSubject
             .sink { [weak self] url in
-                self?.thumbsGridViewModel.applyFileSystemChange(at: url)
+                guard let self else { return }
+                // External delete — evict from all cache tiers
+                if !FileManager.default.fileExists(atPath: url.path),
+                   let photo = self.thumbsGridViewModel.photosModel?.photos.first(where: { $0.url == url }) {
+                    self.trashService.cacheManagers.forEach { $0.deleteThumbnail(for: photo) }
+                }
+                self.thumbsGridViewModel.applyFileSystemChange(at: url)
             }
             .store(in: &cancellables)
 

@@ -42,7 +42,7 @@ class ThumbGridViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     private let metadataService = PhotoMetadataService()
-    private let trashService    = PhotoTrashService()
+    private let trashService: PhotoTrashService
 
     enum SortOption: String, CaseIterable {
         case name         = "Name"
@@ -67,23 +67,18 @@ class ThumbGridViewModel: ObservableObject {
         var iconName: String { self == .small ? "square.grid.3x3" : "square.grid.4x4.fill" }
     }
 
-    init(fileSystemModel: FileSystemModel, thumbsManager: PhotoCacheManager) {
+    init(fileSystemModel: FileSystemModel, thumbsManager: PhotoCacheManager, trashService: PhotoTrashService) {
         self.fileSystemModel = fileSystemModel
         self.thumbsManager = thumbsManager
+        self.trashService = trashService
         loadSortOption()
         loadGridType()
         loadSimilarityMode()
         setupFilteredPhotosObservers()
-        setupServices()
-    }
-
-    private func setupServices() {
         metadataService.fileSystemModel = fileSystemModel
         metadataService.onPhotoUpdated = { [weak self] in
             self?.filterAndSortPhotos()
         }
-        trashService.fileSystemModel = fileSystemModel
-        trashService.thumbsManager = thumbsManager
     }
 
     private func setupFilteredPhotosObservers() {
@@ -256,6 +251,15 @@ class ThumbGridViewModel: ObservableObject {
 
     func applyFileSystemChange(at url: URL) {
         RCLog("📂 Applying file system change for: \(url.lastPathComponent)")
+        if !FileManager.default.fileExists(atPath: url.path) {
+            if let photo = photosModel?.photos.first(where: { $0.url == url }) {
+                // Clear selection and preview if this photo was active
+                if selectedPhoto?.url == url {
+                    selectedPhoto = nil
+                }
+                selectedPhotos.remove(photo.id)
+            }
+        }
         photosModel?.applyFileSystemChange(at: url)
         filterAndSortPhotos()
     }
