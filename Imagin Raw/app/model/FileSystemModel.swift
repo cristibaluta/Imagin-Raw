@@ -20,8 +20,8 @@ final class FileSystemModel: ObservableObject {
     }()
 
     let folderContentDidChangeSubject = PassthroughSubject<URL, Never>()
-    /// Fires with the exact file URL that was added, removed or renamed inside the current folder.
-    let photoFileDidChangeSubject = PassthroughSubject<URL, Never>()
+    /// Fires with the batch of file URLs that were added, removed, or renamed inside the current folder.
+    let photoFileDidChangeSubject = PassthroughSubject<[URL], Never>()
 
     enum SidebarSortOption: String, CaseIterable {
         case name = "name"
@@ -500,40 +500,47 @@ extension FileSystemModel {
 
 extension FileSystemModel: FileSystemMonitorDelegate {
 
-    func folderContentsDidChange(at url: URL) {
+    func folderContentsDidChange(at urls: [URL]) {
         guard !isInCopyMode else {
             RCLog("Ignore folder contents change event in copy mode")
             return
         }
         guard !isFSEventsMuted else {
-            RCLog("Ignore folder contents change event (FSEvents muted): \(url.lastPathComponent)")
-            return
-        }
-        if url.pathComponents.contains("Photos Library.photoslibrary") {
-            RCLog("Photos Library.photoslibrary changed, ignore it")
-            return
-        }
-        // Find and refresh the affected folder in our tree
-        refreshFolderTree(for: url)
-
-        guard let selectedFolder else {
-            return
-        }
-        let isInsideSelected = selectedFolder.url == url || url.path.hasPrefix(selectedFolder.url.path)
-        guard isInsideSelected else {
+            RCLog("Ignore folder contents change event (FSEvents muted): \(urls.map(\.lastPathComponent))")
             return
         }
 
-        // Fire the individual-file subject when the changed URL is a direct file child
-        // of the selected folder (not the folder itself and not a subdirectory).
-        let isDirectFileChild = url.deletingLastPathComponent().path == selectedFolder.url.path
-        let ext = url.pathExtension.lowercased()
-        let isPhotoFile = FilesExtensions.all.contains(ext)
-        if isDirectFileChild && isPhotoFile {
-            photoFileDidChangeSubject.send(url)
-        } else {
-            // Directory-level or nested change — fall back to broad reload signal
-            folderContentDidChangeSubject.send(selectedFolder.url)
+        // Refresh the sidebar tree once, using the first URL to locate the root
+        if let first = urls.first {
+            refreshFolderTree(for: first)
+        }
+
+        guard let selectedFolder else { return }
+
+        var fileChanges: [URL] = []
+
+        for url in urls {
+            guard !url.pathComponents.contains("Photos Library.photoslibrary") else {
+                RCLog("Photos Library.photoslibrary changed, ignore it")
+                continue
+            }
+
+            let isInsideSelected = selectedFolder.url == url || url.path.hasPrefix(selectedFolder.url.path)
+            guard isInsideSelected else { continue }
+
+            let isDirectFileChild = url.deletingLastPathComponent().path == selectedFolder.url.path
+            let ext = url.pathExtension.lowercased()
+            let isPhotoFile = FilesExtensions.all.contains(ext)
+            if isDirectFileChild && isPhotoFile {
+                fileChanges.append(url)
+            } else {
+                // Directory-level or nested change — fall back to broad reload signal
+                folderContentDidChangeSubject.send(selectedFolder.url)
+            }
+        }
+
+        if !fileChanges.isEmpty {
+            photoFileDidChangeSubject.send(fileChanges)
         }
     }
 

@@ -11,7 +11,7 @@ import AppKit
 
 @MainActor
 protocol FileSystemMonitorDelegate: AnyObject {
-    func folderContentsDidChange(at url: URL)
+    func folderContentsDidChange(at urls: [URL])
     func photoMetadataDidChange(forPhotoAt url: URL)
 }
 
@@ -81,14 +81,11 @@ class FileSystemMonitor {
             .collect(.byTime(DispatchQueue.main, .milliseconds(300)))
             .sink { [weak self] urls in
                 guard let self else { return }
-                // Deduplicate within the batch but preserve each unique URL
                 let unique = urls.reduce(into: [URL]()) { acc, url in
                     if !acc.contains(url) { acc.append(url) }
                 }
-                for url in unique {
-                    Task {
-                        await self.delegate?.folderContentsDidChange(at: url)
-                    }
+                Task {
+                    await self.delegate?.folderContentsDidChange(at: unique)
                 }
             }
             .store(in: &cancellables)
@@ -134,9 +131,7 @@ class FileSystemMonitor {
     }
 
     private func startFSEventStream() {
-        guard !monitoredPaths.isEmpty else {
-            return
-        }
+        guard !monitoredPaths.isEmpty else { return }
 
         let pathsArray = monitoredPaths as CFArray
         let contextPtr = UnsafeMutablePointer<Int>.allocate(capacity: 1)
@@ -178,9 +173,7 @@ class FileSystemMonitor {
         let fileExtension = url.pathExtension.lowercased()
 
         // XMP/ACR sidecars are handled separately via isSidecarChange — never trigger a full reload
-        if fileExtension == "xmp" || fileExtension == "acr" {
-            return false
-        }
+        if fileExtension == "xmp" || fileExtension == "acr" { return false }
 
         let isFileCreated  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated))  != 0
         let isFileRemoved  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRemoved))  != 0
@@ -196,14 +189,7 @@ class FileSystemMonitor {
     func isSidecarChange(at url: URL, flags: FSEventStreamEventFlags) -> Bool {
         let pathString = url.path
         let isInMonitoredPath = monitoredPaths.contains { pathString.hasPrefix($0) }
-        guard isInMonitoredPath else {
-            return false
-        }
-
-        let fileExtension = url.pathExtension.lowercased()
-        guard fileExtension == "xmp" || fileExtension == "acr" else {
-            return false
-        }
+        guard isInMonitoredPath else { return false }
 
         let isFileCreated  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated))  != 0
         let isFileRemoved  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRemoved))  != 0

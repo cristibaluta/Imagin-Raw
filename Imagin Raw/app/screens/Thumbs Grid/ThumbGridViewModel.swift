@@ -249,19 +249,20 @@ class ThumbGridViewModel: ObservableObject {
         photosModel?.reloadPhotos()
     }
 
-    func applyFileSystemChange(at url: URL) {
-        RCLog("📂 Applying file system change for: \(url.lastPathComponent)")
-        if !FileManager.default.fileExists(atPath: url.path) {
+    func applyFileSystemChanges(at urls: [URL]) {
+        RCLog("📂 Applying file system changes for \(urls.count) file(s)")
+        for url in urls where !FileManager.default.fileExists(atPath: url.path) {
             if let photo = photosModel?.photos.first(where: { $0.url == url }) {
-                // Clear selection and preview if this photo was active
-                if selectedPhoto?.url == url {
-                    selectedPhoto = nil
-                }
+                if selectedPhoto?.url == url { selectedPhoto = nil }
                 selectedPhotos.remove(photo.id)
             }
         }
-        photosModel?.applyFileSystemChange(at: url)
+        photosModel?.applyFileSystemChanges(at: urls)
         filterAndSortPhotos()
+    }
+
+    func applyFileSystemChange(at url: URL) {
+        applyFileSystemChanges(at: [url])
     }
 
     func reloadMetadata(forSidecar url: URL) {

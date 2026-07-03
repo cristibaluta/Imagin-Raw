@@ -59,16 +59,18 @@ class AppState: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // 2a. Single-file update: add/remove/reload only the changed photo
+        // 2a. Batch file update: add/remove/reload only the changed photos
         fileSystemModel.photoFileDidChangeSubject
-            .sink { [weak self] url in
+            .sink { [weak self] urls in
                 guard let self else { return }
-                // External delete — evict from all cache tiers
-                if !FileManager.default.fileExists(atPath: url.path),
-                   let photo = self.thumbsGridViewModel.photosModel?.photos.first(where: { $0.url == url }) {
-                    self.trashService.cacheManagers.forEach { $0.deleteThumbnail(for: photo) }
+                // External deletes — evict from all cache tiers
+                let allPhotos = self.thumbsGridViewModel.photosModel?.photos ?? []
+                for url in urls where !FileManager.default.fileExists(atPath: url.path) {
+                    if let photo = allPhotos.first(where: { $0.url == url }) {
+                        self.trashService.cacheManagers.forEach { $0.deleteThumbnail(for: photo) }
+                    }
                 }
-                self.thumbsGridViewModel.applyFileSystemChange(at: url)
+                self.thumbsGridViewModel.applyFileSystemChanges(at: urls)
             }
             .store(in: &cancellables)
 
