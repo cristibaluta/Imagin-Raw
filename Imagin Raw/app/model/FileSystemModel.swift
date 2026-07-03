@@ -55,6 +55,13 @@ final class FileSystemModel: ObservableObject {
         fsEventMuteCount = max(0, fsEventMuteCount - 1)
     }
 
+    /// Unmutes after a delay long enough for any pending async FSEvents callbacks to arrive and be dropped.
+    func unmuteFSEventsAfterDelay(_ delay: TimeInterval = 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.unmuteFSEvents()
+        }
+    }
+
     var isFSEventsMuted: Bool { fsEventMuteCount > 0 }
 
     private let fileSystemMonitor = FileSystemMonitor()

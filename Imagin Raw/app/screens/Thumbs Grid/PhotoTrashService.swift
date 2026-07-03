@@ -25,8 +25,10 @@ class PhotoTrashService {
 
         // Suppress FSEvent callbacks for the entire batch so the monitor
         // doesn't fire applyFileSystemChange for every file we delete.
+        // The unmute is delayed because FSEvents delivers callbacks asynchronously
+        // (typically 100–300 ms after the file operation).
         fileSystemModel?.muteFSEvents()
-        defer { fileSystemModel?.unmuteFSEvents() }
+        defer { fileSystemModel?.unmuteFSEventsAfterDelay() }
 
         for photo in photos {
             let url = URL(fileURLWithPath: photo.path)
