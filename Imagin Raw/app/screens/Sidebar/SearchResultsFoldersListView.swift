@@ -14,7 +14,7 @@ struct SearchResultsFoldersListView: View {
     let folderResults: [FolderItem]
     let isSearching: Bool
 
-    @EnvironmentObject var filesModel: FilesModel
+    @EnvironmentObject var fileSystemModel: FileSystemModel
 
     var body: some View {
         Group {
@@ -36,7 +36,7 @@ struct SearchResultsFoldersListView: View {
                 }
                 .padding(.top, 44)
             } else {
-                List(folderResults, id: \.url, selection: $filesModel.selectedFolder) { folder in
+                List(folderResults, id: \.url, selection: $fileSystemModel.selectedFolder) { folder in
                     SearchFolderRowView(folder: folder)
                         .tag(folder)
                         .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))

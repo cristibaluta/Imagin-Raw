@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SplashScreenView: View {
-    @EnvironmentObject var filesModel: FilesModel
+    @EnvironmentObject var fileSystemModel: FileSystemModel
     @State private var showingFolderPicker = false
 
     var body: some View {
@@ -89,7 +89,7 @@ struct SplashScreenView: View {
             switch result {
             case .success(let urls):
                 if let url = urls.first {
-                    filesModel.addFolder(at: url)
+                    fileSystemModel.addFolder(at: url)
                 }
             case .failure(_):
                 break

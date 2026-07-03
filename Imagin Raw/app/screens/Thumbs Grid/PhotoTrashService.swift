@@ -11,7 +11,7 @@ import Foundation
 class PhotoTrashService {
 
     weak var photosModel: PhotosModel?
-    weak var filesModel: FilesModel?
+    weak var fileSystemModel: FileSystemModel?
     var thumbsManager: PhotoCacheManager?
 
     private var undoStack: [[(trashedURL: URL, originalURL: URL)]] = []
@@ -59,7 +59,7 @@ class PhotoTrashService {
 
                 if let idx = photosModel?.photos.firstIndex(where: { $0.id == photo.id }) {
                     photosModel?.photos.remove(at: idx)
-                    filesModel?.lastDeletedFiles.append(url)
+                    fileSystemModel?.lastDeletedFiles.append(url)
                 }
             } catch {}
         }

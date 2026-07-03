@@ -81,10 +81,10 @@ struct ContentView: View {
             ZStack {
                 // Main app content
                 Group {
-                    if appState.filesModel.rootFolders.isEmpty {
+                    if appState.fileSystemModel.rootFolders.isEmpty {
                         // Show splash screen if no folders are added
                         SplashScreenView()
-                            .environmentObject(appState.filesModel)
+                            .environmentObject(appState.fileSystemModel)
                     } else {
                         // Show 3 columns nav
                         navigationSplitView
@@ -97,7 +97,7 @@ struct ContentView: View {
                             .toolbar(appState.reviewGroup == nil ? .visible : .hidden, for: .windowToolbar)
                             #endif
                             .environmentObject(appState)
-                            .environmentObject(appState.filesModel)
+                            .environmentObject(appState.fileSystemModel)
                             .toolbar {
                                 toolbarContent
                             }
@@ -211,7 +211,7 @@ struct ContentView: View {
         #if os(iOS)
         return ThumbGridView(
             appState: appState,
-            filesModel: appState.filesModel,
+            fileSystemModel: appState.fileSystemModel,
             viewModel: appState.thumbsGridViewModel,
             searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
             onEnterReviewMode: { },
@@ -224,7 +224,6 @@ struct ContentView: View {
         #else
         ThumbGridView(
             appState: appState,
-            filesModel: appState.filesModel,
             viewModel: appState.thumbsGridViewModel,
             searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
             onEnterReviewMode: { },
@@ -284,7 +283,7 @@ struct ContentView: View {
             .popover(isPresented: $showFolderPopover) {
                 FolderSelectionPopoverView()
                     .frame(width: 250, height: 500)
-                    .environmentObject(appState.filesModel)
+                    .environmentObject(appState.fileSystemModel)
             }
         }
     }

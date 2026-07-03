@@ -125,7 +125,9 @@ class FileSystemMonitor {
     }
 
     private func startFSEventStream() {
-        guard !monitoredPaths.isEmpty else { return }
+        guard !monitoredPaths.isEmpty else {
+            return
+        }
 
         let pathsArray = monitoredPaths as CFArray
         let contextPtr = UnsafeMutablePointer<Int>.allocate(capacity: 1)
@@ -167,7 +169,9 @@ class FileSystemMonitor {
         let fileExtension = url.pathExtension.lowercased()
 
         // XMP/ACR sidecars are handled separately via isSidecarChange — never trigger a full reload
-        if fileExtension == "xmp" || fileExtension == "acr" { return false }
+        if fileExtension == "xmp" || fileExtension == "acr" {
+            return false
+        }
 
         let isFileCreated  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated))  != 0
         let isFileRemoved  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRemoved))  != 0
@@ -183,7 +187,9 @@ class FileSystemMonitor {
     func isSidecarChange(at url: URL, flags: FSEventStreamEventFlags) -> Bool {
         let pathString = url.path
         let isInMonitoredPath = monitoredPaths.contains { pathString.hasPrefix($0) }
-        guard isInMonitoredPath else { return false }
+        guard isInMonitoredPath else {
+            return false
+        }
 
         let fileExtension = url.pathExtension.lowercased()
         guard fileExtension == "xmp" || fileExtension == "acr" else {

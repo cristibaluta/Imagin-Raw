@@ -13,7 +13,7 @@ class PhotoMetadataService {
 
     // Injected by the owner; updated whenever a new PhotosModel is created.
     weak var photosModel: PhotosModel?
-    weak var filesModel: FilesModel?
+    weak var fileSystemModel: FileSystemModel?
     /// Called after any mutation so the VM can refresh filteredPhotos.
     var onPhotoUpdated: (() -> Void)?
 
@@ -171,7 +171,7 @@ class PhotoMetadataService {
                                             height: cur.height,
                                             cameraMake: cur.cameraMake,
                                             cameraModel: cur.cameraModel)
-//        filesModel?.selectedPhoto = photosModel.photos[idx]
+//        fileSystemModel?.selectedPhoto = photosModel.photos[idx]
         onPhotoUpdated?()
     }
 
@@ -198,7 +198,7 @@ class PhotoMetadataService {
                                             height: cur.height,
                                             cameraMake: cur.cameraMake,
                                             cameraModel: cur.cameraModel)
-//        filesModel?.selectedPhoto = photosModel.photos[idx]
+//        fileSystemModel?.selectedPhoto = photosModel.photos[idx]
         onPhotoUpdated?()
     }
 

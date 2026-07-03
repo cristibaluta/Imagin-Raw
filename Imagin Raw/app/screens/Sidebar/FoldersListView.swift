@@ -8,19 +8,19 @@
 import SwiftUI
 
 struct FoldersListView: View {
-    @EnvironmentObject var filesModel: FilesModel
+    @EnvironmentObject var fileSystemModel: FileSystemModel
     @EnvironmentObject var appState: AppState
     @State private var expandedFolders: Set<URL> = []
     let onDoubleClick: (() -> Void)?
 
     var body: some View {
-        List(selection: $filesModel.selectedFolder) {
+        List(selection: $fileSystemModel.selectedFolder) {
             if sourcesFolders.count > 0 {
                 Section(header: Text("Sources").font(.caption)) {
                     ForEach(Array(sourcesFolders.enumerated()), id: \.element.id) { index, rootFolder in
                         FolderRowView(folder: rootFolder,
                                       expandedFolders: $expandedFolders,
-                                      selectedFolder: $filesModel.selectedFolder,
+                                      selectedFolder: $fileSystemModel.selectedFolder,
                                       saveExpandedState: saveExpandedState,
                                       onDoubleClick: {
                                           onDoubleClick?()
@@ -36,7 +36,7 @@ struct FoldersListView: View {
                     ForEach(Array(volumesFolders.enumerated()), id: \.element.id) { index, rootFolder in
                         FolderRowView(folder: rootFolder,
                                       expandedFolders: $expandedFolders,
-                                      selectedFolder: $filesModel.selectedFolder,
+                                      selectedFolder: $fileSystemModel.selectedFolder,
                                       saveExpandedState: saveExpandedState,
                                       onDoubleClick: {
                                           onDoubleClick?()
@@ -55,17 +55,17 @@ struct FoldersListView: View {
             loadExpandedState()
             loadSelectedFolder()
         }
-        .onChange(of: filesModel.selectedFolder) { _, newValue in
+        .onChange(of: fileSystemModel.selectedFolder) { _, newValue in
             saveSelectedFolder(newValue)
         }
     }
 
     private var sourcesFolders: [FolderItem] {
-        filesModel.rootFolders.filter { !$0.url.path.hasPrefix("/Volumes") }
+        fileSystemModel.rootFolders.filter { !$0.url.path.hasPrefix("/Volumes") }
     }
 
     private var volumesFolders: [FolderItem] {
-        filesModel.rootFolders.filter { $0.url.path.hasPrefix("/Volumes") }
+        fileSystemModel.rootFolders.filter { $0.url.path.hasPrefix("/Volumes") }
     }
 
     private func loadExpandedState() {
@@ -86,9 +86,9 @@ struct FoldersListView: View {
         #if os(macOS)
         if let data = UserDefaults.standard.data(forKey: AppPreference.selectedFolder.rawValue),
            let url = try? JSONDecoder().decode(URL.self, from: data) {
-            for rootFolder in filesModel.rootFolders {
+            for rootFolder in fileSystemModel.rootFolders {
                 if let folder = findFolder(url: url, in: rootFolder) {
-                    filesModel.selectedFolder = folder
+                    fileSystemModel.selectedFolder = folder
                     return
                 }
             }
@@ -122,8 +122,8 @@ struct FoldersListView: View {
     #if os(macOS)
     private func deleteFolders(offsets: IndexSet) {
         for index in offsets {
-            let folder = filesModel.rootFolders[index]
-            filesModel.removeFolder(at: folder.url)
+            let folder = fileSystemModel.rootFolders[index]
+            fileSystemModel.removeFolder(at: folder.url)
         }
     }
     #elseif os(iOS)

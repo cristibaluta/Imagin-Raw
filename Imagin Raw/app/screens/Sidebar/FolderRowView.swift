@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct FolderRowView: View {
-    @EnvironmentObject var filesModel: FilesModel
+    @EnvironmentObject var fileSystemModel: FileSystemModel
     @EnvironmentObject var appState: AppState
     let folder: FolderItem
     @Binding var expandedFolders: Set<URL>
@@ -90,7 +90,7 @@ struct FolderRowView: View {
         // depth == 1 means children are level 2, etc.
         let childDepth = depth + 1
         let sortByDate: Bool
-        switch filesModel.sidebarSortOption {
+        switch fileSystemModel.sidebarSortOption {
         case .name:
             sortByDate = false        // all levels by name
         case .dateCreated:
@@ -146,7 +146,7 @@ struct FolderRowView: View {
                             // Trigger on-demand loading if this folder needs its children loaded
                             if needsToLoadChildren {
                                 #if os(macOS)
-                                filesModel.loadChildrenOnDemand(for: folder)
+                                fileSystemModel.loadChildrenOnDemand(for: folder)
                                 #endif
                             }
                         } else {

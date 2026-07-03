@@ -35,7 +35,7 @@ class ThumbGridViewModel: ObservableObject {
     private var findingDuplicatesTask: Task<Void, Never>?
     private var duplicateScanData: DuplicateScanData? = nil
 
-    private let filesModel: FilesModel
+    private let fileSystemModel: FileSystemModel
     let thumbsManager: PhotoCacheManager
     private(set) var photosModel: PhotosModel?
     private var searchResultsPhotos: [PhotoItem]? = nil
@@ -67,23 +67,33 @@ class ThumbGridViewModel: ObservableObject {
         var iconName: String { self == .small ? "square.grid.3x3" : "square.grid.4x4.fill" }
     }
 
-    init(filesModel: FilesModel, thumbsManager: PhotoCacheManager) {
-        self.filesModel = filesModel
+    init(fileSystemModel: FileSystemModel, thumbsManager: PhotoCacheManager) {
+        self.fileSystemModel = fileSystemModel
         self.thumbsManager = thumbsManager
         loadSortOption()
         loadGridType()
         loadSimilarityMode()
         setupFilteredPhotosObservers()
+        setupFileSystemChangesObservers()
         setupServices()
     }
 
     private func setupServices() {
-        metadataService.filesModel = filesModel
+        metadataService.fileSystemModel = fileSystemModel
         metadataService.onPhotoUpdated = { [weak self] in
             self?.filterAndSortPhotos()
         }
-        trashService.filesModel = filesModel
+        trashService.fileSystemModel = fileSystemModel
         trashService.thumbsManager = thumbsManager
+    }
+
+    private func setupFileSystemChangesObservers() {
+        fileSystemModel.folderContentDidChangeSubject
+            .sink { [weak self] url in
+                // TODO: This is too heavy, we know the files that changed, we should reload only those
+                self?.reloadPhotos()
+            }
+            .store(in: &cancellables)
     }
 
     private func setupFilteredPhotosObservers() {

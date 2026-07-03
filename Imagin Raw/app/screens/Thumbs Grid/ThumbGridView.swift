@@ -36,7 +36,6 @@ struct GridWidthPreferenceKey: PreferenceKey {
 
 @MainActor
 struct ThumbGridView: View {
-    @ObservedObject var filesModel: FilesModel
     @ObservedObject var appState: AppState
     @ObservedObject private var viewModel: ThumbGridViewModel
 
@@ -58,7 +57,6 @@ struct ThumbGridView: View {
     @State private var ignoringSearchResults = false
 
     init(appState: AppState,
-         filesModel: FilesModel,
          viewModel: ThumbGridViewModel,
          searchPhotoResults: [PhotoItem]? = nil,
          onEnterReviewMode: (() -> Void)?,
@@ -68,7 +66,6 @@ struct ThumbGridView: View {
          currentPhotos: Binding<[PhotoItem]> = .constant([])) {
 
         self.appState = appState
-        self.filesModel = filesModel
         self.viewModel = viewModel
         self.searchPhotoResults = searchPhotoResults
         self.onEnterReviewMode = onEnterReviewMode
@@ -129,7 +126,7 @@ struct ThumbGridView: View {
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth)
         .sheet(item: $copyToViewModel) { vm in
             CopyToView(viewModel: vm)
-                .environmentObject(filesModel)
+                .environmentObject(appState.fileSystemModel)
                 .interactiveDismissDisabled(false)
         }
         .sheet(item: $renameSheetPhotos) { item in
@@ -155,21 +152,21 @@ struct ThumbGridView: View {
             } else {
                 ignoringSearchResults = false
                 viewModel.clearSearchResults()
-                if let folder = filesModel.selectedFolder {
-                    viewModel.loadPhotosForFolder(folder)
-                }
+//                if let folder = fileSystemModel.selectedFolder {
+//                    viewModel.loadPhotosForFolder(folder)
+//                }
             }
         }
-        .onChange(of: filesModel.folderContentDidChange) { oldValue, newValue in
-            if newValue != nil {
-                viewModel.reloadPhotos()
-            }
-        }
-        .onChange(of: filesModel.photoMetadataDidChangeURL) { _, url in
-            if let url {
-                viewModel.reloadMetadata(forSidecar: url)
-            }
-        }
+//        .onChange(of: fileSystemModel.folderContentDidChange) { oldValue, newValue in
+//            if newValue != nil {
+//                viewModel.reloadPhotos()
+//            }
+//        }
+//        .onChange(of: fileSystemModel.photoMetadataDidChangeURL) { _, url in
+//            if let url {
+//                viewModel.reloadMetadata(forSidecar: url)
+//            }
+//        }
         .onChange(of: windowWidth) { _, newWidth in
             viewModel.windowWidth = newWidth
         }
@@ -213,7 +210,7 @@ struct ThumbGridView: View {
             scrollToCenteredPhotoId: $scrollToCenteredPhotoId,
             visibleSectionIndex: $visibleSectionIndex
         )
-        .id(filesModel.selectedFolder?.url)
+        .id(appState.selectedFolder?.id)
         .onAppear {
             viewModel.initializeSelection()
         }
@@ -281,7 +278,7 @@ struct ThumbGridView: View {
         }
         .onChange(of: viewModel.filteredAndSortedPhotos) { oldPhotos, newPhotos in
             currentPhotos = newPhotos
-            let url = filesModel.selectedFolder?.url
+            let url = fileSystemModel.selectedFolder?.url
             let isPhotoKit = url?.isPhotoLibraryRoot == true || url?.isPhotoKitAlbum == true
             // Only scroll when photos are actually added, not on metadata updates
             if isPhotoKit, newPhotos.count > oldPhotos.count, let last = newPhotos.last {

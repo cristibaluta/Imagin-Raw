@@ -8,14 +8,14 @@
 import SwiftUI
 
 struct AddFolderPopover: View {
-    @EnvironmentObject var filesModel: FilesModel
+    @EnvironmentObject var fileSystemModel: FileSystemModel
     let onAddVolumes: () -> Void
     let onAddPhotoLibrary: () -> Void
     let onAddCustomFolder: () -> Void
 
     private var volumesAlreadyAdded: Bool {
         let volumesURL = URL(fileURLWithPath: "/Volumes")
-        return filesModel.rootFolders.contains { $0.url == volumesURL }
+        return fileSystemModel.rootFolders.contains { $0.url == volumesURL }
     }
 
     var body: some View {
@@ -90,7 +90,7 @@ struct AddFolderPopover: View {
 
                 Spacer()
 
-                if filesModel.isPhotoLibraryEnabled {
+                if fileSystemModel.isPhotoLibraryEnabled {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 16))
                         .foregroundColor(.green)
@@ -102,8 +102,8 @@ struct AddFolderPopover: View {
             .cornerRadius(6)
         }
         .buttonStyle(PlainButtonStyle())
-        .disabled(filesModel.isPhotoLibraryEnabled)
-        .opacity(filesModel.isPhotoLibraryEnabled ? 0.6 : 1.0)
+        .disabled(fileSystemModel.isPhotoLibraryEnabled)
+        .opacity(fileSystemModel.isPhotoLibraryEnabled ? 0.6 : 1.0)
     }
 
     private var buttonFolder: some View {

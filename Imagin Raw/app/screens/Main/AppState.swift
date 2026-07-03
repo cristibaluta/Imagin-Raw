@@ -22,7 +22,7 @@ class AppState: ObservableObject {
     let previewsCacheManager = PhotoCacheManager(thumbSize: .s1024)
     let fullResCacheManager = PhotoCacheManager(thumbSize: .full)
 
-    let filesModel: FilesModel
+    let fileSystemModel: FileSystemModel
     let thumbsGridViewModel: ThumbGridViewModel
     let previewViewModel: PreviewViewModel
     let reviewViewModel: ReviewViewModel
@@ -30,8 +30,8 @@ class AppState: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        filesModel = FilesModel()
-        thumbsGridViewModel = ThumbGridViewModel(filesModel: filesModel,
+        fileSystemModel = FileSystemModel()
+        thumbsGridViewModel = ThumbGridViewModel(fileSystemModel: fileSystemModel,
                                                  thumbsManager: thumbnailsCacheManager)
         previewViewModel = PreviewViewModel(previewsCacheManager: previewsCacheManager,
                                             fullResCacheManager: fullResCacheManager)
@@ -40,7 +40,7 @@ class AppState: ObservableObject {
 
         // Monitor clicks
         // 1. When album changes, load the photos of that album
-        filesModel.$selectedFolder
+        fileSystemModel.$selectedFolder
             .sink { [weak self] folder in
                 guard let self, let folder else {
                     return

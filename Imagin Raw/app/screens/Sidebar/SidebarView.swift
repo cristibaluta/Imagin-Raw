@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SidebarView: View {
-    @EnvironmentObject var filesModel: FilesModel
+    @EnvironmentObject var fileSystemModel: FileSystemModel
     @State private var showingFolderPicker = false
     @State private var showingAddPopover = false
     @ObservedObject var searcher: SpotlightSearcher
@@ -50,7 +50,7 @@ struct SidebarView: View {
                         .font(.system(size: 12))
                         .onChange(of: searchText) { _, newValue in
                             if newValue.count >= 3 {
-                                searcher.search(query: newValue, in: filesModel.rootFolders)
+                                searcher.search(query: newValue, in: fileSystemModel.rootFolders)
                             } else {
                                 searcher.stopSearch()
                             }
@@ -101,7 +101,7 @@ struct SidebarView: View {
                         },
                         onAddPhotoLibrary: {
                             showingAddPopover = false
-                            filesModel.addPhotoLibrary()
+                            fileSystemModel.addPhotoLibrary()
                         },
                         onAddCustomFolder: {
                             showingAddPopover = false
@@ -111,11 +111,11 @@ struct SidebarView: View {
                 }
 
                 Button(action: {
-                    if let selectedFolder = filesModel.selectedFolder {
+                    if let selectedFolder = fileSystemModel.selectedFolder {
                         // Only remove if the selected folder is a root folder
                         if isRootFolder(selectedFolder.url) {
 //                            #if os(macOS)
-                            filesModel.removeFolder(at: selectedFolder.url)
+                            fileSystemModel.removeFolder(at: selectedFolder.url)
 //                            #endif
                         }
                     }
@@ -134,7 +134,7 @@ struct SidebarView: View {
 
                 Spacer()
 
-                Text("\(filesModel.rootFolders.count) sources")
+                Text("\(fileSystemModel.rootFolders.count) sources")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -151,7 +151,7 @@ struct SidebarView: View {
             case .success(let urls):
                 if let url = urls.first {
                     #if os(macOS)
-                    filesModel.addFolder(at: url)
+                    fileSystemModel.addFolder(at: url)
                     #endif
                 }
             case .failure(_):
@@ -161,11 +161,11 @@ struct SidebarView: View {
     }
 
     private func isRootFolder(_ url: URL) -> Bool {
-        return filesModel.rootFolders.contains { $0.url == url }
+        return fileSystemModel.rootFolders.contains { $0.url == url }
     }
 
     private func isRootFolderSelected() -> Bool {
-        guard let selectedFolder = filesModel.selectedFolder else {
+        guard let selectedFolder = fileSystemModel.selectedFolder else {
             return false
         }
         return isRootFolder(selectedFolder.url)
@@ -187,7 +187,7 @@ struct SidebarView: View {
         openPanel.begin { response in
             if response == .OK, let selectedURL = openPanel.url {
                 // User selected a folder in /Volumes - add it
-                self.filesModel.addFolder(at: selectedURL)
+                self.fileSystemModel.addFolder(at: selectedURL)
             }
         }
     }

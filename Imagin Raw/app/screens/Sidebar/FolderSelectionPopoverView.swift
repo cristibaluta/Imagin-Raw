@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct FolderSelectionPopoverView: View {
-    @EnvironmentObject var filesModel: FilesModel
+    @EnvironmentObject var fileSystemModel: FileSystemModel
     @Environment(\.dismiss) private var dismiss
     @State private var initialSelectedFolder: FolderItem?
 
@@ -16,9 +16,9 @@ struct FolderSelectionPopoverView: View {
         FoldersListView(onDoubleClick: nil)
             .onAppear {
                 // Store the initial selected folder when popover opens
-                initialSelectedFolder = filesModel.selectedFolder
+                initialSelectedFolder = fileSystemModel.selectedFolder
             }
-            .onChange(of: filesModel.selectedFolder) { oldValue, newValue in
+            .onChange(of: fileSystemModel.selectedFolder) { oldValue, newValue in
                 // Only close if the selection actually changed from the initial value
                 if let newValue = newValue, newValue.id != initialSelectedFolder?.id {
                     dismiss()

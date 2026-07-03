@@ -9,7 +9,7 @@ import SwiftUI
 
 struct SortPopoverView: View {
     @Binding var sortOption: ThumbGridViewModel.SortOption
-    @EnvironmentObject var filesModel: FilesModel
+    @EnvironmentObject var fileSystemModel: FileSystemModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -22,15 +22,15 @@ struct SortPopoverView: View {
                     .padding(.bottom, 4)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(FilesModel.SidebarSortOption.allCases, id: \.self) { option in
+                    ForEach(FileSystemModel.SidebarSortOption.allCases, id: \.self) { option in
                         Button(action: {
-                            filesModel.sidebarSortOption = option
+                            fileSystemModel.sidebarSortOption = option
                             appPrefs.set(option.rawValue, forKey: .sidebarSortOption)
                             dismiss()
                         }) {
                             HStack {
-                                Image(systemName: filesModel.sidebarSortOption == option ? "circle.fill" : "circle")
-                                    .foregroundColor(filesModel.sidebarSortOption == option ? .primary : .gray)
+                                Image(systemName: fileSystemModel.sidebarSortOption == option ? "circle.fill" : "circle")
+                                    .foregroundColor(fileSystemModel.sidebarSortOption == option ? .primary : .gray)
                                 Text(option.displayName)
                                 Spacer()
                             }
