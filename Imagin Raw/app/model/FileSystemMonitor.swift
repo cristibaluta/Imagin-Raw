@@ -74,12 +74,21 @@ class FileSystemMonitor {
         self.monitorId = FileSystemMonitor.nextId
         FileSystemMonitor.monitors[monitorId] = self
 
-        // Set up throttling - wait 2 seconds after the last event
+        // Throttle per-file events: fire immediately, then at most once per 0.3s per URL.
+        // This means moving N files in quick succession produces N separate delegate calls
+        // without any upfront delay, while still coalescing duplicate events for the same file.
         fileChangeSubject
-            .debounce(for: .seconds(2), scheduler: DispatchQueue.main)
-            .sink { [weak self] url in
-                Task {
-                    await self?.delegate?.folderContentsDidChange(at: url)
+            .collect(.byTime(DispatchQueue.main, .milliseconds(300)))
+            .sink { [weak self] urls in
+                guard let self else { return }
+                // Deduplicate within the batch but preserve each unique URL
+                let unique = urls.reduce(into: [URL]()) { acc, url in
+                    if !acc.contains(url) { acc.append(url) }
+                }
+                for url in unique {
+                    Task {
+                        await self.delegate?.folderContentsDidChange(at: url)
+                    }
                 }
             }
             .store(in: &cancellables)

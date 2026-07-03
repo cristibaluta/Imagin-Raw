@@ -30,7 +30,7 @@ final class PhotosFolderModel: ObservableObject {
         queue.cancelAllOperations()
         RCLog("🗑️ PhotosModel deallocated for: \(folder.url.lastPathComponent)")
     }
-    
+
     func loadPhotos() {
         RCLog("Load photos (basic info) for: \(folder.url.lastPathComponent)")
         let fm = FileManager.default
@@ -108,6 +108,57 @@ final class PhotosFolderModel: ObservableObject {
     func reloadPhotos() {
         queue.cancelAllOperations()
         loadPhotos()
+    }
+
+    /// Surgically adds, removes, or reloads a single photo identified by its file URL,
+    /// without re-scanning the whole folder.
+    func applyFileSystemChange(at url: URL) {
+        let exists = FileManager.default.fileExists(atPath: url.path)
+        let ext = url.pathExtension.lowercased()
+        guard FilesExtensions.all.contains(ext) else { return }
+
+        if exists {
+            if let idx = photos.wrappedValue.firstIndex(where: { $0.url == url }) {
+                // File already known — reload its metadata in place
+                let photo = photos.wrappedValue[idx]
+                let op = LoadExifOperation(photo: photo, forceReloadExif: true) { [weak self] updated in
+                    self?.queueLock.withLock {
+                        self?.photos.wrappedValue[idx] = updated
+                    }
+                }
+                queue.addOperation(op)
+            } else {
+                // New file — build a PhotoItem and append it, then load its EXIF
+                let resValues = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey])
+                let baseName = url.deletingPathExtension().lastPathComponent
+                let isRaw = FilesExtensions.raw.contains(ext)
+                let hasXMP = FileManager.default.fileExists(
+                    atPath: url.deletingPathExtension().appendingPathExtension("xmp").path)
+                let newPhoto = PhotoItem(url: url,
+                                        path: url.path,
+                                        dateCreated: resValues?.creationDate ?? Date(),
+                                        dateModified: resValues?.contentModificationDate,
+                                        hasACR: false,
+                                        hasJPG: false,
+                                        hasXMP: hasXMP,
+                                        isRawFile: isRaw,
+                                        fileSizeBytes: Int64(resValues?.fileSize ?? 0))
+                photos.wrappedValue.append(newPhoto)
+                let insertedIdx = photos.wrappedValue.count - 1
+                let op = LoadExifOperation(photo: newPhoto, forceReloadExif: true) { [weak self] updated in
+                    self?.queueLock.withLock {
+                        guard let self,
+                              insertedIdx < self.photos.wrappedValue.count,
+                              self.photos.wrappedValue[insertedIdx].id == updated.id else { return }
+                        self.photos.wrappedValue[insertedIdx] = updated
+                    }
+                }
+                queue.addOperation(op)
+            }
+        } else {
+            // File gone — remove it
+            photos.wrappedValue.removeAll { $0.url == url }
+        }
     }
 
     private func loadLocalExifs() {

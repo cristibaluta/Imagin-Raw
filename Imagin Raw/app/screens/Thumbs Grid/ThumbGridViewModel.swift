@@ -254,6 +254,12 @@ class ThumbGridViewModel: ObservableObject {
         photosModel?.reloadPhotos()
     }
 
+    func applyFileSystemChange(at url: URL) {
+        RCLog("📂 Applying file system change for: \(url.lastPathComponent)")
+        photosModel?.applyFileSystemChange(at: url)
+        filterAndSortPhotos()
+    }
+
     func reloadMetadata(forSidecar url: URL) {
         photosModel?.reloadMetadata(forSidecar: url) { [weak self] in
             DispatchQueue.main.async {
@@ -698,7 +704,7 @@ class ThumbGridViewModel: ObservableObject {
 
             // 1. Find the photos that are not cached yet
             for (index, photo) in photosToScan.enumerated() {
-                let diskURL = thumbsManager.cachedPhotoUrl(for: photo.url)
+                let diskURL = self.thumbsManager.cachedPhotoUrl(for: photo.url)
                 if FileManager.default.fileExists(atPath: diskURL.path) {
                     imageURLs[index] = diskURL
                 } else {
@@ -723,10 +729,10 @@ class ThumbGridViewModel: ObservableObject {
                     }
                     return
                 }
-                let diskURL = thumbsManager.cachedPhotoUrl(for: photo.url)
+                let diskURL = self.thumbsManager.cachedPhotoUrl(for: photo.url)
 //                RCLog("  ⏳ Generating thumb [\(index+1)/\(total)]: \(URL(fileURLWithPath: photo.path).lastPathComponent)")
 
-                _ = await thumbsManager.getImage(for: photo)
+                _ = await self.thumbsManager.getImage(for: photo)
 
                 if FileManager.default.fileExists(atPath: diskURL.path) {
                     imageURLs[index] = diskURL

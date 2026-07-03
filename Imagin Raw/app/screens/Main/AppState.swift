@@ -53,7 +53,14 @@ class AppState: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // 2. When the file system reports a change in the current folder, reload photos
+        // 2a. Single-file update: add/remove/reload only the changed photo
+        fileSystemModel.photoFileDidChangeSubject
+            .sink { [weak self] url in
+                self?.thumbsGridViewModel.applyFileSystemChange(at: url)
+            }
+            .store(in: &cancellables)
+
+        // 2b. Broad reload fallback for directory-level changes (new subfolder, rename, etc.)
         fileSystemModel.folderContentDidChangeSubject
             .sink { [weak self] _ in
                 self?.thumbsGridViewModel.reloadPhotos()

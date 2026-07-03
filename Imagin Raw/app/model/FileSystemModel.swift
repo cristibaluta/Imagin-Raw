@@ -20,6 +20,8 @@ final class FileSystemModel: ObservableObject {
     }()
 
     let folderContentDidChangeSubject = PassthroughSubject<URL, Never>()
+    /// Fires with the exact file URL that was added, removed or renamed inside the current folder.
+    let photoFileDidChangeSubject = PassthroughSubject<URL, Never>()
 
     enum SidebarSortOption: String, CaseIterable {
         case name = "name"
@@ -495,8 +497,19 @@ extension FileSystemModel: FileSystemMonitorDelegate {
         // Find and refresh the affected folder in our tree
         refreshFolderTree(for: url)
 
-        // If this is the currently selected folder or a parent of it, notify about the change
-        if let selectedFolder, selectedFolder.url == url || url.path.hasPrefix(selectedFolder.url.path) {
+        guard let selectedFolder else { return }
+        let isInsideSelected = selectedFolder.url == url || url.path.hasPrefix(selectedFolder.url.path)
+        guard isInsideSelected else { return }
+
+        // Fire the individual-file subject when the changed URL is a direct file child
+        // of the selected folder (not the folder itself and not a subdirectory).
+        let isDirectFileChild = url.deletingLastPathComponent().path == selectedFolder.url.path
+        let ext = url.pathExtension.lowercased()
+        let isPhotoFile = FilesExtensions.all.contains(ext)
+        if isDirectFileChild && isPhotoFile {
+            photoFileDidChangeSubject.send(url)
+        } else {
+            // Directory-level or nested change — fall back to broad reload signal
             folderContentDidChangeSubject.send(selectedFolder.url)
         }
     }
