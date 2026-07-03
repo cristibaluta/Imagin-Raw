@@ -73,7 +73,9 @@ final class PhotosModel: ObservableObject {
     }
 
     func applyFileSystemChange(at url: URL) {
-        guard !folder.url.isPhotoKitAlbum, !folder.url.isPhotoLibraryRoot else { return }
+        guard !folder.url.isPhotoKitAlbum, !folder.url.isPhotoLibraryRoot else {
+            return
+        }
         folderModel.applyFileSystemChange(at: url)
     }
 }

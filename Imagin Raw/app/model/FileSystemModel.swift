@@ -509,9 +509,13 @@ extension FileSystemModel: FileSystemMonitorDelegate {
         // Find and refresh the affected folder in our tree
         refreshFolderTree(for: url)
 
-        guard let selectedFolder else { return }
+        guard let selectedFolder else {
+            return
+        }
         let isInsideSelected = selectedFolder.url == url || url.path.hasPrefix(selectedFolder.url.path)
-        guard isInsideSelected else { return }
+        guard isInsideSelected else {
+            return
+        }
 
         // Fire the individual-file subject when the changed URL is a direct file child
         // of the selected folder (not the folder itself and not a subdirectory).
