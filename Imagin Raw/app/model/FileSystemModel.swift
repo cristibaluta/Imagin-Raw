@@ -42,7 +42,20 @@ final class FileSystemModel: ObservableObject {
     private var accessedURLs: Set<URL> = []
     // Flag to prevent photo loading when in copy mode
     var isInCopyMode: Bool = false
-    var lastDeletedFiles: [URL] = []
+
+    /// Mute counter — when > 0 all FSEvent delegate calls are suppressed.
+    /// Use `muteFSEvents()` / `unmuteFSEvents()` to bracket in-app file operations.
+    private var fsEventMuteCount: Int = 0
+
+    func muteFSEvents() {
+        fsEventMuteCount += 1
+    }
+
+    func unmuteFSEvents() {
+        fsEventMuteCount = max(0, fsEventMuteCount - 1)
+    }
+
+    var isFSEventsMuted: Bool { fsEventMuteCount > 0 }
 
     private let fileSystemMonitor = FileSystemMonitor()
 
@@ -485,9 +498,8 @@ extension FileSystemModel: FileSystemMonitorDelegate {
             RCLog("Ignore folder contents change event in copy mode")
             return
         }
-        if lastDeletedFiles.contains(url) {
-            RCLog("Ignore folder contents change event for deleted file: \(url)")
-            lastDeletedFiles.removeAll()
+        guard !isFSEventsMuted else {
+            RCLog("Ignore folder contents change event (FSEvents muted): \(url.lastPathComponent)")
             return
         }
         if url.pathComponents.contains("Photos Library.photoslibrary") {

@@ -23,6 +23,11 @@ class PhotoTrashService {
     func movePhotosToTrash(_ photos: [PhotoItem]) {
         var undoEntry: [(trashedURL: URL, originalURL: URL)] = []
 
+        // Suppress FSEvent callbacks for the entire batch so the monitor
+        // doesn't fire applyFileSystemChange for every file we delete.
+        fileSystemModel?.muteFSEvents()
+        defer { fileSystemModel?.unmuteFSEvents() }
+
         for photo in photos {
             let url = URL(fileURLWithPath: photo.path)
             let ext = url.pathExtension.lowercased()
@@ -65,7 +70,6 @@ class PhotoTrashService {
 
                 if let idx = photosModel?.photos.firstIndex(where: { $0.id == photo.id }) {
                     photosModel?.photos.remove(at: idx)
-                    fileSystemModel?.lastDeletedFiles.append(url)
                 }
             } catch {}
         }
