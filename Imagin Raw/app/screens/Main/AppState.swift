@@ -53,7 +53,14 @@ class AppState: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // 2. When thumbnail is selected, display it in the preview
+        // 2. When the file system reports a change in the current folder, reload photos
+        fileSystemModel.folderContentDidChangeSubject
+            .sink { [weak self] _ in
+                self?.thumbsGridViewModel.reloadPhotos()
+            }
+            .store(in: &cancellables)
+
+        // 3. When a thumbnail is selected, display it in the preview
         thumbsGridViewModel.$selectedPhoto
             .sink { [weak self] photo in
                 guard let self, let photo else {

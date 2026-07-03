@@ -74,7 +74,6 @@ class ThumbGridViewModel: ObservableObject {
         loadGridType()
         loadSimilarityMode()
         setupFilteredPhotosObservers()
-        setupFileSystemChangesObservers()
         setupServices()
     }
 
@@ -85,15 +84,6 @@ class ThumbGridViewModel: ObservableObject {
         }
         trashService.fileSystemModel = fileSystemModel
         trashService.thumbsManager = thumbsManager
-    }
-
-    private func setupFileSystemChangesObservers() {
-        fileSystemModel.folderContentDidChangeSubject
-            .sink { [weak self] url in
-                // TODO: This is too heavy, we know the files that changed, we should reload only those
-                self?.reloadPhotos()
-            }
-            .store(in: &cancellables)
     }
 
     private func setupFilteredPhotosObservers() {
