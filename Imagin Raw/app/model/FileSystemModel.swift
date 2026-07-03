@@ -56,7 +56,7 @@ final class FileSystemModel: ObservableObject {
     }
 
     /// Unmutes after a delay long enough for any pending async FSEvents callbacks to arrive and be dropped.
-    func unmuteFSEventsAfterDelay(_ delay: TimeInterval = 0.5) {
+    func unmuteFSEventsAfterDelay(_ delay: TimeInterval = 2) {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.unmuteFSEvents()
         }
