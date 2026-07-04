@@ -321,13 +321,25 @@ struct ThumbGridView: View {
     }
 }
 
+// TODO: this should stay in the viewModel
 extension ThumbGridView: ThumbCellDelegate {
-    func image(for photo: PhotoItem) async -> IRImage? {
-        await viewModel.thumbsManager.getImage(for: photo)
+
+    func image(for photo: PhotoItem, completion: @escaping (IRImage?) -> Void) -> Void {
+        viewModel.requestImage(for: photo, completion: completion)
     }
+
+    func startCachingImages(for photos: [PhotoItem]) {
+        viewModel.startCachingImages(for: photos)
+    }
+
+    func stopCachingImages(for photos: [PhotoItem]) {
+        viewModel.stopCachingImages(for: photos)
+    }
+
     func onTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
         viewModel.handlePhotoTap(photo: photo, modifiers: modifiers)
     }
+
     func onDoubleClick(photo: PhotoItem) {
         viewModel.selectedPhoto = photo
         if viewModel.selectedPhotos.count > 1 {
@@ -339,9 +351,11 @@ extension ThumbGridView: ThumbCellDelegate {
             appState.externalAppManager.openPhotos([photo])
         }
     }
+
     func onRatingChanged(photo: PhotoItem, rating: Int) {
         viewModel.applyRating(rating, to: [photo])
     }
+
     func onLabelChanged(photo: PhotoItem, label: String?) {
         if let label {
             viewModel.applyLabel(label, to: [photo])
@@ -349,43 +363,52 @@ extension ThumbGridView: ThumbCellDelegate {
             viewModel.removeLabels(from: [photo])
         }
     }
+
     func onMoveToTrash(photo: PhotoItem) {
         viewModel.movePhotosToTrash([photo])
     }
+
     func onCopyTo(photo: PhotoItem) {
         let photos = viewModel.selectedPhotos.contains(photo.id)
             ? viewModel.getSelectedPhotosForBulkAction()
             : [photo]
         copyToViewModel = CopyToViewModel(photos: photos)
     }
+
     func onRenameTo(photo: PhotoItem) {
         let photos = viewModel.selectedPhotos.contains(photo.id)
             ? viewModel.getSelectedPhotosForBulkAction()
             : [photo]
         renameSheetPhotos = PhotosSheetItem(photos: photos)
     }
+
     func onMoveAllMarkedToTrash(photo: PhotoItem) {
         let marked = viewModel.getPhotosMarkedForDeletion()
         viewModel.movePhotosToTrash(marked)
     }
+
     func onApprove(photo: PhotoItem) {
         viewModel.applyLabel("Approved", to: [photo])
     }
+
     func onReject(photo: PhotoItem) {
         viewModel.toggleDeleteState(for: [photo])
     }
+
     func onReviewSelected(photo: PhotoItem) {
         let photos = viewModel.selectedPhotos.contains(photo.id)
             ? viewModel.getSelectedPhotosForBulkAction()
             : [photo]
         appState.reviewGroup = buildReviewGroupItemFromPhotos(photos)
     }
+
     func onOpenWith(photo: PhotoItem, app: PhotoApp) {
         let photos = viewModel.selectedPhotos.contains(photo.id)
             ? viewModel.getSelectedPhotosForBulkAction()
             : [photo]
         appState.externalAppManager.openPhotos(photos, with: app)
     }
+
     func onCreateVideo(photos: [PhotoItem]) {
         // If the tapped photo is part of the current selection, use all selected
         let triggerPhoto = photos.first
@@ -395,12 +418,15 @@ extension ThumbGridView: ThumbCellDelegate {
             : photos
         appState.videoEditorPhotos = selectedPhotoItems
     }
+
     func selectedPhotosCount() -> Int {
         viewModel.selectedPhotos.count
     }
+
     func markedForDeletionCount() -> Int {
         viewModel.getPhotosMarkedForDeletion().count
     }
+
     func discoveredPhotoApps() -> [PhotoApp] {
         appState.externalAppManager.discoveredPhotoApps
     }

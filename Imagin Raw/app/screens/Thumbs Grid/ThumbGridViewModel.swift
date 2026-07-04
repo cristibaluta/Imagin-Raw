@@ -37,6 +37,7 @@ class ThumbGridViewModel: ObservableObject {
 
     private let fileSystemModel: FileSystemModel
     let thumbsManager: PhotoCacheManager
+    private let cachingManager: IRCachingImageManager
     private(set) var photosModel: PhotosModel?
     private var searchResultsPhotos: [PhotoItem]? = nil
     private var cancellables = Set<AnyCancellable>()
@@ -71,6 +72,7 @@ class ThumbGridViewModel: ObservableObject {
         self.fileSystemModel = fileSystemModel
         self.thumbsManager = thumbsManager
         self.trashService = trashService
+        self.cachingManager = IRCachingImageManager(cacheManager: thumbsManager)
         loadSortOption()
         loadGridType()
         loadSimilarityMode()
@@ -283,6 +285,19 @@ class ThumbGridViewModel: ObservableObject {
     func clearSearchResults() {
         searchResultsPhotos = nil
         filterAndSortPhotos()
+    }
+
+    func requestImage(for photo: PhotoItem, completion: @escaping (IRImage?) -> Void) {
+        cachingManager.requestImage(for: photo, completion: completion)
+    }
+
+
+    func startCachingImages(for photos: [PhotoItem]) {
+        cachingManager.startCachingImages(for: photos)
+    }
+
+    func stopCachingImages(for photos: [PhotoItem]) {
+        cachingManager.stopCachingImages(for: photos)
     }
 
     // MARK: - Selection

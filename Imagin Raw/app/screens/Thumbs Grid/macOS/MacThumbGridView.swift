@@ -143,7 +143,6 @@ struct MacThumbGridView: NSViewRepresentable {
         c.onKeyDown = { event in
             self.onKeyPress?(event) ?? false
         }
-        c.thumbsManager = thumbsManager
 
         if modeChanged {
             buildCollectionView(in: scrollView, context: context)
@@ -163,10 +162,11 @@ struct MacThumbGridView: NSViewRepresentable {
         } else {
 //            let theme: NSAppearance.Name = (NSApp.keyWindow ?? NSApp.mainWindow)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) ??
 //                .aqua
+            // TODO: Not sure how this works
             cv?.visibleItems().forEach { item in
                 guard let thumbItem = item as? MacThumbCell,
-                      let path = thumbItem.currentPath,
-                      let photo = latestMap.values.first(where: { $0.path == path }) else {
+                      let url = thumbItem.currentPhoto?.url,
+                      let photo = latestMap.values.first(where: { $0.url == url }) else {
                     return
                 }
                 let isSelected = selectedPhotos.contains(photo.id)

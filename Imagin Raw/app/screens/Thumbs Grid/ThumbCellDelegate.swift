@@ -9,7 +9,10 @@ import Foundation
 
 @MainActor
 protocol ThumbCellDelegate: Sendable {
-    func image(for photo: PhotoItem) async -> IRImage?
+    func image(for photo: PhotoItem, completion: @escaping (IRImage?) -> Void) -> Void
+    func startCachingImages(for photos: [PhotoItem]) -> Void
+    func stopCachingImages(for photos: [PhotoItem]) -> Void
+
     func onTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) -> Void
     func onDoubleClick(photo: PhotoItem) -> Void
     func onRatingChanged(photo: PhotoItem, rating: Int) -> Void

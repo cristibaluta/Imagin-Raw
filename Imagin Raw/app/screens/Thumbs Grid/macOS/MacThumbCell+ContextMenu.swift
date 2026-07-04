@@ -165,7 +165,8 @@ extension MacThumbCell {
     }
 
     @objc private func handleShowInFinder() {
-        guard let path = currentPath else {
+        // Paths with empty spaces inside should not be encoded
+        guard let path = currentPhoto?.url.path(percentEncoded: false) else {
             return
         }
         NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: "")

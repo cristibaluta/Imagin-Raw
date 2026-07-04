@@ -10,12 +10,15 @@ import AppKit
 import SwiftUI
 
 private final class MacVerticallyCenteredTextFieldCell: NSTextFieldCell {
+    
     override func drawingRect(forBounds rect: NSRect) -> NSRect {
         let superRect = super.drawingRect(forBounds: rect)
         let size = cellSize(forBounds: rect)
         let dy = (superRect.height - size.height) / 2
-        return NSRect(x: superRect.minX, y: superRect.minY + dy,
-                      width: superRect.width, height: size.height)
+        return NSRect(x: superRect.minX,
+                      y: superRect.minY + dy,
+                      width: superRect.width,
+                      height: size.height)
     }
 }
 
@@ -23,7 +26,7 @@ final class MacThumbCell: NSCollectionViewItem {
     static let identifier = NSUserInterfaceItemIdentifier("MacThumbCell")
 
     // Views
-    let thumbView           = NSImageView()
+    private let thumbView           = NSImageView()
     private let filenameLabel       = NSTextField(labelWithString: "")
     private let trashContainer      = NSView()       // shadow lives here
     private let trashOverlay        = NSImageView()  // icon inside container
@@ -36,12 +39,10 @@ final class MacThumbCell: NSCollectionViewItem {
     private var starView: MacStarRatingView?
 
     // State
-    private(set) var currentPath: String?
-    var currentPhoto: PhotoItem?
-    var delegate: ThumbCellDelegate?
+    var currentPhoto: PhotoItem? // Public to be used by context menu
+    var delegate: ThumbCellDelegate? // Public to be used by context menu
     private var colorScheme: ColorScheme?
     private var itemSize: CGFloat = 100
-    private var currentImageSize: CGSize = .zero
     private var layersConfigured = false
 
     // MARK: view filefcycle
@@ -141,9 +142,7 @@ final class MacThumbCell: NSCollectionViewItem {
     override func prepareForReuse() {
         super.prepareForReuse()
 
-        currentPath = nil
         currentPhoto = nil
-        currentImageSize = .zero
         thumbView.image = nil
         selectionBorder.layer?.borderWidth = 0
         selectionBorder.isHidden = true
@@ -293,16 +292,6 @@ final class MacThumbCell: NSCollectionViewItem {
 
     // MARK: Configure
 
-    var thumbImage: IRImage? {
-        thumbView.image
-    }
-
-    func setThumb(_ image: IRImage) {
-        thumbView.image = image
-        currentImageSize = image.size
-        view.needsLayout = true
-    }
-
     func configure(with photo: PhotoItem,
                    colorScheme: ColorScheme?,
                    isSelected: Bool,
@@ -315,27 +304,8 @@ final class MacThumbCell: NSCollectionViewItem {
 
         view.layer?.backgroundColor = cellBackgroundColor.cgColor
 
-//        let pathChanged = currentPath != photo.path
-        currentPath = photo.path
+        let photoChanged = currentPhoto?.id != photo.id
         currentPhoto = photo
-
-//        if pathChanged {
-//            thumbView.image = nil
-//            currentImageSize = .zero
-//
-//            Task {
-//                if let image = await delegate.image(for: photo) {
-//                    guard self.currentPath == currentPath else {
-//                        return
-//                    }
-//                    thumbView.image = image
-//                    currentImageSize = image.size
-//                    layoutSubviews()
-//                } else {
-//                    RCLog(">>>>>>>> error loading photo for \(photo.path)")
-//                }
-//            }
-//        }
 
         updateSelection(isSelected: isSelected)
         trashContainer.isHidden = !photo.toDelete
@@ -356,6 +326,17 @@ final class MacThumbCell: NSCollectionViewItem {
         }
         if view.bounds.width > 0 {
             layoutSubviews()
+        }
+
+        if photoChanged {
+            thumbView.image = nil
+            delegate.image(for: photo) { [weak self] image in
+                guard let self, self.currentPhoto?.id == photo.id else {
+                    return
+                }
+                self.thumbView.image = image
+                self.view.needsLayout = true
+            }
         }
     }
 
