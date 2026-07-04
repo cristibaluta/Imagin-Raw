@@ -26,6 +26,9 @@ class MacThumbGridCoordinator: NSObject {
     var onVisibleSectionChanged: ((Int) -> Void)?
     var thumbsManager: PhotoCacheManager!
     var lastClickedIndexPath: IndexPath?
+    lazy private var cachingManager: IRCachingImageManager = {
+        IRCachingImageManager(cacheManager: thumbsManager)
+    }()
 
     private var isScrolling = false
     private var scrollEndTimer: Timer?
@@ -130,16 +133,13 @@ class MacThumbGridCoordinator: NSObject {
 extension MacThumbGridCoordinator: NSCollectionViewPrefetching {
 
     func collectionView(_ collectionView: NSCollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
-        for indexPath in indexPaths {
-            let sectionPhotos = photosForSection(indexPath.section)
-            guard indexPath.item < sectionPhotos.count else {
-                continue
-            }
-            let photo = sectionPhotos[indexPath.item]
-            Task {
-                _ = await thumbsManager.getImage(for: photo)
-            }
-        }
+        let items = indexPaths.map { photos[$0.item] }
+        cachingManager.startCachingImages(for: items)
+    }
+
+    func collectionView(_ collectionView: NSCollectionView, cancelPrefetchingForItemsAt indexPaths: [IndexPath]) {
+        let items = indexPaths.map { photos[$0.item] }
+        cachingManager.stopCachingImages(for: items)
     }
 }
 
@@ -170,6 +170,14 @@ extension MacThumbGridCoordinator: NSCollectionViewDataSource {
                        isSelected: selectedPhotos.contains(photo.id),
                        itemSize: itemSize,
                        delegate: delegate)
+
+        cachingManager.requestImage(for: photo) { [weak item] image in
+            guard let item, item.currentPhoto?.id == photo.id else {
+                return
+            }
+            item.thumbView.image = image
+        }
+
         return item
     }
 

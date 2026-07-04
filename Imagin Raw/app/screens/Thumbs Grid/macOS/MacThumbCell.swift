@@ -23,7 +23,7 @@ final class MacThumbCell: NSCollectionViewItem {
     static let identifier = NSUserInterfaceItemIdentifier("MacThumbCell")
 
     // Views
-    private let thumbView           = NSImageView()
+    let thumbView           = NSImageView()
     private let filenameLabel       = NSTextField(labelWithString: "")
     private let trashContainer      = NSView()       // shadow lives here
     private let trashOverlay        = NSImageView()  // icon inside container
@@ -315,27 +315,27 @@ final class MacThumbCell: NSCollectionViewItem {
 
         view.layer?.backgroundColor = cellBackgroundColor.cgColor
 
-        let pathChanged = currentPath != photo.path
+//        let pathChanged = currentPath != photo.path
         currentPath = photo.path
         currentPhoto = photo
 
-        if pathChanged {
-            thumbView.image = nil
-            currentImageSize = .zero
-
-            Task {
-                if let image = await delegate.image(for: photo) {
-                    guard self.currentPath == currentPath else {
-                        return
-                    }
-                    thumbView.image = image
-                    currentImageSize = image.size
-                    layoutSubviews()
-                } else {
-                    RCLog(">>>>>>>> error loading photo for \(photo.path)")
-                }
-            }
-        }
+//        if pathChanged {
+//            thumbView.image = nil
+//            currentImageSize = .zero
+//
+//            Task {
+//                if let image = await delegate.image(for: photo) {
+//                    guard self.currentPath == currentPath else {
+//                        return
+//                    }
+//                    thumbView.image = image
+//                    currentImageSize = image.size
+//                    layoutSubviews()
+//                } else {
+//                    RCLog(">>>>>>>> error loading photo for \(photo.path)")
+//                }
+//            }
+//        }
 
         updateSelection(isSelected: isSelected)
         trashContainer.isHidden = !photo.toDelete
