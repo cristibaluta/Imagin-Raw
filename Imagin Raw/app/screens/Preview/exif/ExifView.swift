@@ -20,8 +20,12 @@ struct ExifCompactView: View {
     var dateCreated: Date?
 
     private var shutterText: String? {
-        guard let shutter = exifInfo.shutterSpeed else { return nil }
-        return shutter < 1 ? "1/\(Int(round(1/shutter)))s" : "\(String(format: "%.1f", shutter))s"
+        guard let shutter = exifInfo.shutterSpeed else {
+            return nil
+        }
+        return shutter < 1
+            ? "1/\(Int(round(1/shutter)))s"
+            : "\(String(format: "%.1f", shutter))s"
     }
 
     var body: some View {
@@ -227,18 +231,19 @@ struct Exif2View: View {
                 Text("\(make) \(model)")
             }
             HStack {
+                // Lens
                 if let lens = exifInfo.lensModel {
                     Text(lens)
                 }
                 // Focal Length
                 if let focal = exifInfo.focalLength {
                     Text("\(String(format: "%.0f", focal))mm")
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .overlay(
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(.primary.opacity(0.4))
+                                .fill(.primary.opacity(0.2))
                         )
                 }
             }
