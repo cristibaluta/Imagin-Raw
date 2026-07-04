@@ -20,6 +20,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				app/screens/Preview/PerspectiveCorrectionView.swift,
+				"Imagin-Raw-Info.plist",
 				src/postprocessing/postprocessing_ph.cpp,
 				src/preprocessing/preprocessing_ph.cpp,
 				src/write/write_ph.cpp,
@@ -285,6 +286,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "\"$(PROJECT_DIR)/Imagin Raw/libraw\"";
+				INFOPLIST_FILE = "Imagin-Raw-Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Imagin Raw needs access to save photos to your Photos library.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Imagin Raw needs access to your Photos library to browse and view your photos.";
@@ -332,6 +334,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "\"$(PROJECT_DIR)/Imagin Raw/libraw\"";
+				INFOPLIST_FILE = "Imagin-Raw-Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Imagin Raw needs access to save photos to your Photos library.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Imagin Raw needs access to your Photos library to browse and view your photos.";

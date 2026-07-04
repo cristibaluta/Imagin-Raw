@@ -94,4 +94,14 @@ class AppState: ObservableObject {
             }
             .store(in: &cancellables)
     }
+
+    func handleOpenUrl(_ url: URL) {
+        for folder in fileSystemModel.rootFolders {
+            if folder.url == url.deletingLastPathComponent() {
+                fileSystemModel.selectedFolder =  folder
+                break
+            }
+        }
+    }
+
 }

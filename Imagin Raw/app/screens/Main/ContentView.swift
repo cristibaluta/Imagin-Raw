@@ -127,6 +127,12 @@ struct ContentView: View {
             .onAppear {
                 windowWidth = geo.size.width
             }
+            .onReceive(NotificationCenter.default.publisher(for: .didOpenPhotos)) { note in
+                guard let urls = note.object as? [URL], let url = urls.first else {
+                    return
+                }
+                appState.handleOpenUrl(url)
+            }
         } // GeometryReader
     }
 

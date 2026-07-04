@@ -15,9 +15,24 @@ extension Notification.Name {
     static let colorSchemeDidChange = Notification.Name("colorSchemeDidChange")
 }
 
+extension Notification.Name {
+    static let didOpenPhotos = Notification.Name("didOpenPhotos")
+}
+
 #if os(macOS)
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return true
+    }
+    func application(_ application: NSApplication, open urls: [URL]) {
+        // Called with ALL dropped/opened files in one batch — use this
+        // instead of onOpenURL when you need them together (e.g. to
+        // populate a PhotoItem array as one collection view).
+        RCLog("Trying to open URLs: \(urls)")
+        NotificationCenter.default.post(name: .didOpenPhotos, object: urls)
+    }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        // Dock icon click with no windows open — let AppKit show the existing one.
         return true
     }
 }
@@ -59,9 +74,13 @@ struct ImaginRawApp: App {
                     theme = appPrefs.string(.theme)
                     contentViewID = UUID()
                 }
+//                .onOpenURL { url in
+//                    RCLog("Trying to open URL: \(url)")
+//                }
         }
         .windowToolbarStyle(.unified)
         .defaultSize(width: 1200, height: 800)
+//        .handlesExternalEvents(matching: ["*"])
 
         Settings {
             SettingsView()
