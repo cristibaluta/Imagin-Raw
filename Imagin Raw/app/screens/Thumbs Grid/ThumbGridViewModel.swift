@@ -371,6 +371,11 @@ class ThumbGridViewModel: ObservableObject {
         metadataService.removeLabels(from: photos)
     }
 
+    func removeLabelsAndRatings(from photos: [PhotoItem]) {
+        metadataService.removeLabels(from: photos)
+        metadataService.applyRating(0, to: photos)
+    }
+
     func toggleDeleteState(for photos: [PhotoItem]) {
         metadataService.toggleDeleteState(for: photos)
     }
@@ -536,7 +541,7 @@ class ThumbGridViewModel: ObservableObject {
                     return true
                 }
                 if chars == "-" {
-                    removeLabels(from: photos)
+                    removeLabelsAndRatings(from: photos)
                     return true
                 }
                 return false

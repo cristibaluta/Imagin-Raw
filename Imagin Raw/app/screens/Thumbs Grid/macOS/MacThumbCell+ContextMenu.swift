@@ -33,7 +33,7 @@ extension MacThumbCell {
         menu.addItem(review)
 
         // Create video
-        let createVideo = NSMenuItem(title: "Create Video\(reviewCount >= 2 ? " (\(reviewCount))" : "")",
+        let createVideo = NSMenuItem(title: "Create Video...\(reviewCount >= 2 ? " (\(reviewCount))" : "")",
                                      action: reviewCount >= 2 ? #selector(handleCreateVideo) : nil,
                                      keyEquivalent: "")
         createVideo.image = NSImage(systemSymbolName: "film.stack", accessibilityDescription: nil)
@@ -48,12 +48,13 @@ extension MacThumbCell {
 
         // Rate submenu
         let rateItem = NSMenuItem(title: "Rate", action: nil, keyEquivalent: "")
-//        rateItem.image = NSImage(systemSymbolName: "star", accessibilityDescription: nil)
-        if !supportsMetadata { rateItem.isEnabled = false }
+        if !supportsMetadata {
+            rateItem.isEnabled = false
+        }
         let rateMenu = NSMenu()
         for i in 0...5 {
             let title = i == 0 ? "No Rating" : String(repeating: "★", count: i)
-            let item = NSMenuItem(title: title, action: #selector(handleSetRating(_:)), keyEquivalent: i > 0 ? "\(i)" : "")
+            let item = NSMenuItem(title: title, action: #selector(handleSetRating(_:)), keyEquivalent: i > 0 ? "\(i)" : "-")
             item.keyEquivalentModifierMask = []
             item.tag = i
             if currentRating(for: photo) == i {
@@ -66,8 +67,9 @@ extension MacThumbCell {
 
         // Label submenu
         let labelItem = NSMenuItem(title: "Label", action: nil, keyEquivalent: "")
-//        labelItem.image = NSImage(systemSymbolName: "tag", accessibilityDescription: nil)
-        if !supportsMetadata { labelItem.isEnabled = false }
+        if !supportsMetadata {
+            labelItem.isEnabled = false
+        }
         let labelMenu = NSMenu()
         let labels: [(name: String, key: String)] = [
             ("Select", "6"), ("Second", "7"), ("Approved", "8"), ("Review", "9"), ("To Do", "0")
@@ -112,13 +114,11 @@ extension MacThumbCell {
 
         menu.addItem(.separator())
         let finder = NSMenuItem(title: "Show in Finder", action: #selector(handleShowInFinder), keyEquivalent: "")
-//        finder.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
         menu.addItem(finder)
 
         // Open with submenu
         if let apps = delegate?.discoveredPhotoApps(), !apps.isEmpty {
             let openWithItem = NSMenuItem(title: "Open with", action: nil, keyEquivalent: "")
-//            openWithItem.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
             let openWithMenu = NSMenu()
             for app in apps {
                 let appItem = NSMenuItem(title: app.name, action: #selector(handleOpenWithApp(_:)), keyEquivalent: "")
@@ -132,10 +132,8 @@ extension MacThumbCell {
         }
 
         let copy = NSMenuItem(title: "Copy to...", action: #selector(handleCopyTo), keyEquivalent: "")
-//        copy.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
         menu.addItem(copy)
         let rename = NSMenuItem(title: "Batch Rename...", action: #selector(handleRenameTo), keyEquivalent: "")
-//        rename.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: nil)
         menu.addItem(rename)
 
         menu.addItem(.separator())
