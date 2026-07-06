@@ -35,6 +35,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Dock icon click with no windows open — let AppKit show the existing one.
         return true
     }
+    func application(_ app: NSApplication, willEncodeRestorableState coder: NSCoder) {
+        // no-op — nothing to preserve
+    }
+    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+        return false
+    }
+}
+
+struct ImaginRawSession: Identifiable, Codable, Hashable {
+    let id: UUID
+    var rootURL: URL
 }
 
 @main
@@ -59,8 +70,8 @@ struct ImaginRawApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        WindowGroup(for: ImaginRawSession.ID.self) { $sessionID in
+            ContentView(sessionID: sessionID)
                 .preferredColorScheme(colorScheme)
                 .background(Color.adaptive(light: NSColor(white: 0.85, alpha: 1.0),
                                            dark: NSColor(white: 0.25, alpha: 1.0),
@@ -74,13 +85,9 @@ struct ImaginRawApp: App {
                     theme = appPrefs.string(.theme)
                     contentViewID = UUID()
                 }
-//                .onOpenURL { url in
-//                    RCLog("Trying to open URL: \(url)")
-//                }
         }
         .windowToolbarStyle(.unified)
         .defaultSize(width: 1200, height: 800)
-//        .handlesExternalEvents(matching: ["*"])
 
         Settings {
             SettingsView()

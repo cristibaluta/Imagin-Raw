@@ -168,7 +168,9 @@ class FileSystemMonitor {
     func isRelevantChange(at url: URL, flags: FSEventStreamEventFlags) -> Bool {
         let pathString = url.path
         let isInMonitoredPath = monitoredPaths.contains { pathString.hasPrefix($0) }
-        guard isInMonitoredPath else { return false }
+        guard isInMonitoredPath else {
+            return false
+        }
 
         let fileExtension = url.pathExtension.lowercased()
 
@@ -189,7 +191,9 @@ class FileSystemMonitor {
     func isSidecarChange(at url: URL, flags: FSEventStreamEventFlags) -> Bool {
         let pathString = url.path
         let isInMonitoredPath = monitoredPaths.contains { pathString.hasPrefix($0) }
-        guard isInMonitoredPath else { return false }
+        guard isInMonitoredPath else {
+            return false
+        }
 
         let isFileCreated  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated))  != 0
         let isFileRemoved  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRemoved))  != 0

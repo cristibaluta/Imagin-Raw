@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct ContentView: View {
+
+    let sessionID: ImaginRawSession.ID?
+
     @StateObject private var appState = AppState()
     @StateObject private var searcher = SpotlightSearcher()
 
@@ -23,8 +26,8 @@ struct ContentView: View {
     @State private var feedPhotos: [PhotoItem] = []
     #endif
 
-    init() {
-
+    init(sessionID: ImaginRawSession.ID?) {
+        self.sessionID = sessionID
     }
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {

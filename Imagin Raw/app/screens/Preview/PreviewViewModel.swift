@@ -34,8 +34,11 @@ class PreviewViewModel: ObservableObject {
         self.photo = photo
         isLoading = true
 
+        loadingTask?.cancel()
         loadingTask = Task(priority: .userInitiated) { [photo] in
-
+            guard !Task.isCancelled else {
+                return
+            }
             let image = await previewsCacheManager.getImage(for: photo)
             guard !Task.isCancelled else {
                 return

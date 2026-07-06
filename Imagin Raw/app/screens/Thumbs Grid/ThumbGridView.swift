@@ -152,21 +152,16 @@ struct ThumbGridView: View {
             } else {
                 ignoringSearchResults = false
                 viewModel.clearSearchResults()
-//                if let folder = fileSystemModel.selectedFolder {
-//                    viewModel.loadPhotosForFolder(folder)
-//                }
+                if let folder = appState.fileSystemModel.selectedFolder {
+                    viewModel.loadPhotosForFolder(folder)
+                }
             }
         }
-//        .onChange(of: fileSystemModel.folderContentDidChange) { oldValue, newValue in
-//            if newValue != nil {
-//                viewModel.reloadPhotos()
-//            }
-//        }
-//        .onChange(of: fileSystemModel.photoMetadataDidChangeURL) { _, url in
-//            if let url {
-//                viewModel.reloadMetadata(forSidecar: url)
-//            }
-//        }
+        .onChange(of: appState.fileSystemModel.photoMetadataDidChangeURL) { _, url in
+            if let url {
+                viewModel.reloadMetadata(forSidecar: url)
+            }
+        }
         .onChange(of: windowWidth) { _, newWidth in
             viewModel.windowWidth = newWidth
         }
