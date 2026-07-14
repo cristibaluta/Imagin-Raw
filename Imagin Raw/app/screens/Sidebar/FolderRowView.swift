@@ -24,8 +24,6 @@ struct FolderRowView: View {
     }
 
     private var hasChildren: Bool {
-        // A folder is expandable if it has a children array (even if empty)
-        // nil means no children, [] means expandable but unloaded, [...] means loaded
         return folder.children != nil
     }
 
@@ -42,9 +40,7 @@ struct FolderRowView: View {
         }
     }
 
-    // Determine the appropriate icon for this folder
     private var folderIcon: String {
-        // Check if this is a root folder in /Volumes (external drive)
         if isRootFolder && isVolume {
             return "externaldrive.fill"
         }
@@ -58,7 +54,6 @@ struct FolderRowView: View {
             return "externaldrive.fill"
         }
 
-        // Otherwise use regular folder icon
         return "folder.fill"
     }
 
@@ -75,7 +70,9 @@ struct FolderRowView: View {
     // Get the volume path (first component after /Volumes/)
     private var volumePath: String? {
         let path = folder.url.path
-        guard path.hasPrefix("/Volumes/") else { return nil }
+        guard path.hasPrefix("/Volumes/") else {
+            return nil
+        }
 
         // Extract volume name: /Volumes/MyDrive/... -> /Volumes/MyDrive
         let components = path.components(separatedBy: "/")
@@ -118,11 +115,9 @@ struct FolderRowView: View {
 
         let volumeURL = URL(fileURLWithPath: volumePath)
 
-        // Try to unmount the volume
         do {
             try NSWorkspace.shared.unmountAndEjectDevice(at: volumeURL)
         } catch {
-            // Show alert to user
             DispatchQueue.main.async {
                 let alert = NSAlert()
                 alert.messageText = "Failed to Eject"
@@ -167,132 +162,84 @@ struct FolderRowView: View {
                     )
                 }
             } label: {
-                Label {
-                    Text(folder.title)
-                } icon: {
-                    Image(systemName: folder.url.isPhotoLibraryRoot ? "photo.on.rectangle.angled" : folderIcon)
-                        .foregroundStyle(folderColor)
-                }
-                .tag(folder)
-                .onTapGesture {
-                    #if os(iOS)
-                    RCLog("👆 [Sidebar] tap folder: \(folder.title) already=\(selectedFolder?.url == folder.url)")
-                    if selectedFolder?.url == folder.url {
-                        selectedFolder = nil
-                        DispatchQueue.main.async { selectedFolder = folder }
-                    } else {
-                        selectedFolder = folder
-                    }
-                    #else
-                    selectedFolder = folder
-                    #endif
-                }
-                .onDoubleClick {
-                    onDoubleClick()
-                }
-                #if os(macOS)
-                .contextMenu {
-                    Button(action: {
-                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
-                    }) {
-                        Label("Show in Finder", systemImage: "folder")
-                    }
-
-                    Divider()
-
-                    Button(action: {
-                        let cacheURL = appState.thumbnailsCacheManager.cacheDir(folderUrl: folder.url)
-                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
-                    }) {
-                        Label("Reveal Cache in Finder", systemImage: "folder.badge.questionmark")
-                    }
-
-                    Button(role: .destructive, action: {
-                        Task.detached(priority: .background) {
-                            await appState.thumbnailsCacheManager.purgeCache(folderURL: folder.url)
-                            await appState.previewsCacheManager.purgeCache(folderURL: folder.url)
-                            await appState.fullResCacheManager.purgeCache(folderURL: folder.url)
-                        }
-                    }) {
-                        Label("Purge Cache", systemImage: "trash")
-                    }
-
-                    // Only show eject option for root folders in /Volumes
-                    if isVolume {
-                        Divider()
-                        Button(action: {
-                            ejectVolume()
-                        }) {
-                            Label("Eject", systemImage: "eject")
-                        }
-                    }
-                }
-                #endif
+                buildFolderLabel
             }
         } else {
-            Label {
-                Text(folder.title)
-            } icon: {
-                Image(systemName: folder.url.isPhotoKitAlbum ? "photo.stack" : "folder.fill")
-                    .foregroundStyle(folderColor)
-            }
-            .tag(folder)
-            .onTapGesture {
-                #if os(iOS)
-                RCLog("👆 [Sidebar] tap leaf: \(folder.title) already=\(selectedFolder?.url == folder.url)")
-                if selectedFolder?.url == folder.url {
-                    selectedFolder = nil
-                    DispatchQueue.main.async {
-                        selectedFolder = folder
-                    }
-                } else {
+            buildFolderLabel
+        }
+    }
+
+    private var buildFolderLabel: some View {
+        Label {
+            Text(folder.title)
+        } icon: {
+            Image(systemName: folder.url.isPhotoKitAlbum ? "photo.stack" : "folder.fill")
+                .foregroundStyle(folderColor)
+        }
+        .tag(folder)
+        .onTapGesture {
+            #if os(iOS)
+            RCLog("👆 [Sidebar] tap leaf: \(folder.title) already=\(selectedFolder?.url == folder.url)")
+            if selectedFolder?.url == folder.url {
+                selectedFolder = nil
+                DispatchQueue.main.async {
                     selectedFolder = folder
                 }
-                #else
+            } else {
                 selectedFolder = folder
-                #endif
             }
-            .onDoubleClick {
-                onDoubleClick()
-            }
-            #if os(macOS)
-            .contextMenu {
-                Button(action: {
-                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
-                }) {
-                    Label("Reveal in Finder", systemImage: "folder")
-                }
-
-                Divider()
-
-                Button(action: {
-                    let cacheURL = appState.thumbnailsCacheManager.cacheDir(folderUrl: folder.url)
-                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
-                }) {
-                    Label("Reveal Cache in Finder", systemImage: "folder.badge.questionmark")
-                }
-
-                Button(role: .destructive, action: {
-                    Task.detached(priority: .background) {
-                        await appState.thumbnailsCacheManager.purgeCache(folderURL: folder.url)
-                        await appState.previewsCacheManager.purgeCache(folderURL: folder.url)
-                        await appState.fullResCacheManager.purgeCache(folderURL: folder.url)
-                    }
-                }) {
-                    Label("Purge Cache", systemImage: "trash")
-                }
-
-                // Only show eject option for root folders in /Volumes
-                if isRootFolder && isVolume {
-                    Divider()
-                    Button(action: {
-                        ejectVolume()
-                    }) {
-                        Label("Eject", systemImage: "eject")
-                    }
-                }
-            }
+            #else
+            appState.includeSubfolders = false
+            selectedFolder = folder
             #endif
         }
+        .onDoubleClick {
+            onDoubleClick()
+        }
+        #if os(macOS)
+        .contextMenu {
+            Button(action: {
+                appState.includeSubfolders = true
+                selectedFolder = folder
+            }) {
+                Label("Open Folder + Subfolders", systemImage: "")
+            }
+
+            Divider()
+
+            Button(action: {
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
+            }) {
+                Label("Show in Finder", systemImage: "")
+            }
+
+            Button(action: {
+                let cacheURL = appState.thumbnailsCacheManager.cacheDir(folderUrl: folder.url)
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
+            }) {
+                Label("Show Cache in Finder", systemImage: "")
+            }
+
+            Button(role: .destructive, action: {
+                Task.detached(priority: .background) {
+                    await appState.thumbnailsCacheManager.purgeCache(folderURL: folder.url)
+                    await appState.previewsCacheManager.purgeCache(folderURL: folder.url)
+                    await appState.fullResCacheManager.purgeCache(folderURL: folder.url)
+                }
+            }) {
+                Label("Purge Cache", systemImage: "trash")
+            }
+
+            // Only show eject option for root folders in /Volumes
+            if isRootFolder && isVolume {
+                Divider()
+                Button(action: {
+                    ejectVolume()
+                }) {
+                    Label("Eject", systemImage: "eject")
+                }
+            }
+        }
+        #endif
     }
 }

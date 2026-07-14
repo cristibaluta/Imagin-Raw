@@ -201,12 +201,12 @@ class ThumbGridViewModel: ObservableObject {
 
     // MARK: - Photo Loading
 
-    func loadPhotosForFolder(_ folder: FolderItem) {
+    func loadPhotosForFolder(_ folder: FolderItem, includeSubfolders: Bool) {
         RCLog(">>>>>>> Loading photos for folder: \(folder.url.lastPathComponent)")
         reset()
         setupFilteredPhotosObservers()
 
-        let newPhotosModel = PhotosModel(folder: folder)
+        let newPhotosModel = PhotosModel(folder: folder, includeSubfolders: includeSubfolders)
         photosModel = newPhotosModel
         metadataService.photosModel = newPhotosModel
         trashService.photosModel = newPhotosModel

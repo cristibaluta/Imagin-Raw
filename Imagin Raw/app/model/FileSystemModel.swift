@@ -515,7 +515,9 @@ extension FileSystemModel: FileSystemMonitorDelegate {
             refreshFolderTree(for: first)
         }
 
-        guard let selectedFolder else { return }
+        guard let selectedFolder else {
+            return
+        }
 
         var fileChanges: [URL] = []
 
@@ -526,7 +528,9 @@ extension FileSystemModel: FileSystemMonitorDelegate {
             }
 
             let isInsideSelected = selectedFolder.url == url || url.path.hasPrefix(selectedFolder.url.path)
-            guard isInsideSelected else { continue }
+            guard isInsideSelected else {
+                continue
+            }
 
             let isDirectFileChild = url.deletingLastPathComponent().path == selectedFolder.url.path
             let ext = url.pathExtension.lowercased()
@@ -545,7 +549,7 @@ extension FileSystemModel: FileSystemMonitorDelegate {
     }
 
     func photoMetadataDidChange(forPhotoAt url: URL) {
-        guard let selectedFolder = selectedFolder, url.path.hasPrefix(selectedFolder.url.path) else {
+        guard let selectedFolder, url.path.hasPrefix(selectedFolder.url.path) else {
             return
         }
         photoMetadataDidChangeURL = url

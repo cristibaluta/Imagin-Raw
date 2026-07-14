@@ -27,10 +27,10 @@ final class PhotosModel: ObservableObject {
     private let folderModel: PhotosFolderModel
     private let photokitModel: PhotosKitModel
 
-    init(folder: FolderItem) {
+    init(folder: FolderItem, includeSubfolders: Bool) {
         self.folder = folder
 
-        folderModel = PhotosFolderModel(folder: folder)
+        folderModel = PhotosFolderModel(folder: folder, includeSubfolders: includeSubfolders)
         photokitModel = PhotosKitModel(folder: folder)
 
         folderModel.photos = Binding(

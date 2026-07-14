@@ -21,9 +21,11 @@ final class PhotosFolderModel: ObservableObject {
     private let folder: FolderItem
     private let queue = OperationQueue()
     private let queueLock = NSLock()
+    private let includeSubfolders: Bool
 
-    init(folder: FolderItem) {
+    init(folder: FolderItem, includeSubfolders: Bool) {
         self.folder = folder
+        self.includeSubfolders = includeSubfolders
     }
 
     deinit {
@@ -35,41 +37,60 @@ final class PhotosFolderModel: ObservableObject {
         RCLog("Load photos (basic info) for: \(folder.url.lastPathComponent)")
         let fm = FileManager.default
 
-        let files = (try? fm.contentsOfDirectory(
-            at: folder.url,
-            includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey],
-            options: [.skipsHiddenFiles]
-        )) ?? []
+        // Collect the folders to scan: the main folder, plus first-level
+        // subfolders when includeSubfolders is true.
+        var foldersToScan: [URL] = [folder.url]
 
-        // Analyze the files and split by category
+        if includeSubfolders {
+            let subfolders = (try? fm.contentsOfDirectory(
+                at: folder.url,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            )) ?? []
+
+            let subDirectories = subfolders.filter { url in
+                (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
+            }
+            foldersToScan.append(contentsOf: subDirectories)
+        }
+
+        // Analyze the files and split by category, across all scanned folders.
         var images: [URL] = []
         var acrLookup: Set<String> = Set()
         var jpgLookup: Set<String> = Set()
         var xmpLookup: Set<String> = Set()
 
-        let rawBaseNames = Set(
-            files
-                .filter { FilesExtensions.raw.contains($0.pathExtension.lowercased()) }
-                .map { $0.deletingPathExtension().lastPathComponent }
-        )
+        for folderURL in foldersToScan {
+            let files = (try? fm.contentsOfDirectory(
+                at: folderURL,
+                includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey],
+                options: [.skipsHiddenFiles]
+            )) ?? []
 
-        for file in files {
-            let ext = file.pathExtension.lowercased()
-            let baseName = file.deletingPathExtension().lastPathComponent
-            if FilesExtensions.all.contains(ext) {
-                if FilesExtensions.jpg.contains(ext) {
-                    if rawBaseNames.contains(baseName) {
-                        jpgLookup.insert(baseName)
+            let rawBaseNames = Set(
+                files
+                    .filter { FilesExtensions.raw.contains($0.pathExtension.lowercased()) }
+                    .map { $0.deletingPathExtension().lastPathComponent }
+            )
+
+            for file in files {
+                let ext = file.pathExtension.lowercased()
+                let baseName = file.deletingPathExtension().lastPathComponent
+                if FilesExtensions.all.contains(ext) {
+                    if FilesExtensions.jpg.contains(ext) {
+                        if rawBaseNames.contains(baseName) {
+                            jpgLookup.insert(baseName)
+                        } else {
+                            images.append(file)
+                        }
                     } else {
                         images.append(file)
                     }
-                } else {
-                    images.append(file)
+                } else if ext == "xmp" {
+                    xmpLookup.insert(baseName)
+                } else if ext == "acr" {
+                    acrLookup.insert(baseName)
                 }
-            } else if ext == "xmp" {
-                xmpLookup.insert(baseName)
-            } else if ext == "acr" {
-                acrLookup.insert(baseName)
             }
         }
 
@@ -115,7 +136,9 @@ final class PhotosFolderModel: ObservableObject {
     func applyFileSystemChanges(at urls: [URL]) {
         for url in urls {
             let ext = url.pathExtension.lowercased()
-            guard FilesExtensions.all.contains(ext) else { continue }
+            guard FilesExtensions.all.contains(ext) else {
+                continue
+            }
 
             let exists = FileManager.default.fileExists(atPath: url.path)
             if exists {

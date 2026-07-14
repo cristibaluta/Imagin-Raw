@@ -13,6 +13,7 @@ class AppState: ObservableObject {
 
     // Used to display info in the nav bar
     @Published var selectedFolder: FolderItem?
+    @Published var includeSubfolders: Bool = false
     @Published var selectedPhoto: PhotoItem?
     @Published var reviewGroup: ReviewGroupItem?// Photos to be displayed in the review screen
     @Published var videoEditorPhotos: [PhotoItem]? = nil
@@ -54,7 +55,9 @@ class AppState: ObservableObject {
                 Task {
                     self.previewViewModel.reset()
                     self.selectedFolder = folder
-                    self.thumbsGridViewModel.loadPhotosForFolder(folder)
+                    self.thumbsGridViewModel.loadPhotosForFolder(folder, includeSubfolders: self.includeSubfolders)
+                    // Reset the subfolder state for the next single clicks
+                    self.includeSubfolders = false
                 }
             }
             .store(in: &cancellables)
@@ -62,7 +65,9 @@ class AppState: ObservableObject {
         // 2a. Batch file update: add/remove/reload only the changed photos
         fileSystemModel.photoFileDidChangeSubject
             .sink { [weak self] urls in
-                guard let self else { return }
+                guard let self else {
+                    return
+                }
                 // External deletes — evict from all cache tiers
                 let allPhotos = self.thumbsGridViewModel.photosModel?.photos ?? []
                 for url in urls where !FileManager.default.fileExists(atPath: url.path) {

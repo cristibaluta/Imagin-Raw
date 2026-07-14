@@ -15,7 +15,9 @@ struct FolderItem: Identifiable, Hashable {
     var bookmarkData: Data? = nil // Security-scoped bookmark data for sandboxed access
     var displayName: String? = nil  // custom label for virtual / PhotoKit nodes
 
-    var title: String { displayName ?? url.lastPathComponent }
+    var title: String {
+        displayName ?? url.lastPathComponent
+    }
 
     init(url: URL, children: [FolderItem]? = nil, bookmarkData: Data? = nil, displayName: String? = nil) {
         self.url = url

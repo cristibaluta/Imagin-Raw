@@ -153,7 +153,7 @@ struct ThumbGridView: View {
                 ignoringSearchResults = false
                 viewModel.clearSearchResults()
                 if let folder = appState.fileSystemModel.selectedFolder {
-                    viewModel.loadPhotosForFolder(folder)
+                    viewModel.loadPhotosForFolder(folder, includeSubfolders: false)
                 }
             }
         }
