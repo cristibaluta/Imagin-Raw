@@ -11,8 +11,11 @@ struct PreviewView: View {
 
     @ObservedObject var viewModel: PreviewViewModel
     var videoEditorPhotos: [PhotoItem]?
+    var pdfEditorPhotos: [PhotoItem]?
+    var albumName: String = ""
     var previewsCacheManager: PhotoCacheManager
     var onDismissVideoEditor: (() -> Void)?
+    var onDismissPDFEditor: (() -> Void)?
 
     var body: some View {
         #if DEBUG
@@ -27,6 +30,9 @@ struct PreviewView: View {
             // Content
             if let photos = videoEditorPhotos, photos.count >= 2 {
                 VideoEditorView(photos: photos, cacheManager: previewsCacheManager, onDismiss: onDismissVideoEditor)
+                    .id(photos.map(\.id).hashValue)
+            } else if let photos = pdfEditorPhotos, photos.count >= 1 {
+                PDFEditorView(photos: photos, albumName: albumName, cacheManager: previewsCacheManager, onDismiss: onDismissPDFEditor)
                     .id(photos.map(\.id).hashValue)
             } else if let photo = viewModel.photo {
                 if photo.isVideo {

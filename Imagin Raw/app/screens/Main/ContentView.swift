@@ -267,9 +267,14 @@ struct ContentView: View {
     private var detailView: some View {
         PreviewView(viewModel: appState.previewViewModel,
                     videoEditorPhotos: appState.videoEditorPhotos,
+                    pdfEditorPhotos: appState.pdfEditorPhotos,
+                    albumName: appState.selectedFolder?.title ?? "Album",
                     previewsCacheManager: appState.previewsCacheManager,
                     onDismissVideoEditor: {
                         appState.videoEditorPhotos = nil
+                    },
+                    onDismissPDFEditor: {
+                        appState.pdfEditorPhotos = nil
                     })
     }
 

@@ -414,6 +414,15 @@ extension ThumbGridView: ThumbCellDelegate {
         appState.videoEditorPhotos = selectedPhotoItems
     }
 
+    func onCreatePDF(photos: [PhotoItem]) {
+        let triggerPhoto = photos.first
+        let isInSelection = triggerPhoto.map { viewModel.selectedPhotos.contains($0.id) } ?? false
+        let selectedPhotoItems = isInSelection
+            ? viewModel.getSelectedPhotosForBulkAction()
+            : photos
+        appState.pdfEditorPhotos = selectedPhotoItems
+    }
+
     func selectedPhotosCount() -> Int {
         viewModel.selectedPhotos.count
     }

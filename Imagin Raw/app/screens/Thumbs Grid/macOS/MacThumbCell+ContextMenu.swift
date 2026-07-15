@@ -40,6 +40,14 @@ extension MacThumbCell {
         createVideo.isEnabled = reviewCount > 1
         menu.addItem(createVideo)
 
+        // Create PDF
+        let createPDF = NSMenuItem(title: "Create PDF...\(reviewCount >= 2 ? " (\(reviewCount))" : "")",
+                                   action: reviewCount >= 2 ? #selector(handleCreatePDF) : nil,
+                                   keyEquivalent: "")
+        createPDF.image = NSImage(systemSymbolName: "doc.richtext", accessibilityDescription: nil)
+        createPDF.isEnabled = reviewCount > 1
+        menu.addItem(createPDF)
+
         menu.addItem(.separator())
 
         let isRaw = photo.isRawFile
@@ -160,6 +168,11 @@ extension MacThumbCell {
     @objc private func handleCreateVideo() {
         guard let p = currentPhoto else { return }
         delegate?.onCreateVideo(photos: [p])  // delegate resolves selection
+    }
+
+    @objc private func handleCreatePDF() {
+        guard let p = currentPhoto else { return }
+        delegate?.onCreatePDF(photos: [p])  // delegate resolves selection
     }
 
     @objc private func handleShowInFinder() {
