@@ -100,16 +100,36 @@ struct DiskPhotoSource: PhotoSource {
     }
 
     private func jpegThumbnail(url: URL, targetSize: CGFloat) -> IRImage? {
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            RCLog("Failed to create CGImageSource for \(url.lastPathComponent)")
+            return nil
+        }
+
         let thumbOptions: [CFString: Any] = [
             kCGImageSourceShouldCacheImmediately: false,
             kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
             kCGImageSourceCreateThumbnailFromImageAlways: false,
             kCGImageSourceThumbnailMaxPixelSize: Int(targetSize * 2)
         ]
-        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let thumbnail = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else {
+
+        var thumbnail: CGImage?
+        thumbnail = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary)
+
+        if thumbnail == nil {
+            // Fallback for images that do not embed a thumbnail
+            let thumbOptions: [CFString: Any] = [
+                kCGImageSourceShouldCacheImmediately: false,
+                kCGImageSourceCreateThumbnailFromImageIfAbsent: false,
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceThumbnailMaxPixelSize: Int(targetSize * 2)
+            ]
+            thumbnail = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary)
+        }
+
+        guard let thumbnail else {
             return nil
         }
+
         // Apply EXIF orientation — iPhone HEIC is often stored rotated
         var orientation: Int32 = 1
         if let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
