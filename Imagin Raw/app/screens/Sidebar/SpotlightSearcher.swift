@@ -81,7 +81,6 @@ class SpotlightSearcher: ObservableObject {
     nonisolated private func handleResults(_ q: NSMetadataQuery) {
         q.disableUpdates()
 
-        let supportedExtensions = FilesExtensions.all
         var folderItems: [FolderItem] = []
         var photos: [PhotoItem] = []
 
@@ -93,7 +92,8 @@ class SpotlightSearcher: ObservableObject {
             let contentType = item.value(forAttribute: kMDItemContentType as String) as? String ?? ""
             if contentType == "public.folder" {
                 folderItems.append(FolderItem(url: url, children: nil))
-            } else if supportedExtensions.contains(url.pathExtension.lowercased()) {
+            }
+            else if FilesExtensions.isImageFile(url) || FilesExtensions.isMovieFile(url) {
                 let date = (item.value(forAttribute: kMDItemFSCreationDate as String) as? Date) ?? Date()
                 photos.append(PhotoItem(url: url,
                                         path: path,

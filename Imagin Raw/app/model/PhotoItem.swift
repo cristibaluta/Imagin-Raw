@@ -55,8 +55,7 @@ struct PhotoItem: Identifiable, Sendable {
 		if let asset = phAsset {
             return asset.mediaType == .video
         }
-        let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
-        return FilesExtensions.video.contains(ext)
+        return FilesExtensions.isMovieFile(url)
     }
 
     init(url: URL,
@@ -74,6 +73,7 @@ struct PhotoItem: Identifiable, Sendable {
          height: Int? = nil,
          cameraMake: String? = nil,
          cameraModel: String? = nil) {
+
         self.id = UUID()
         self.url = url
         self.path = path
@@ -111,6 +111,7 @@ struct PhotoItem: Identifiable, Sendable {
          height: Int? = nil,
          cameraMake: String? = nil,
          cameraModel: String? = nil) {
+        
         self.id = id
         self.url = url
         self.path = path

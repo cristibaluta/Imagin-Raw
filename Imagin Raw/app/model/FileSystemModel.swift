@@ -533,9 +533,8 @@ extension FileSystemModel: FileSystemMonitorDelegate {
             }
 
             let isDirectFileChild = url.deletingLastPathComponent().path == selectedFolder.url.path
-            let ext = url.pathExtension.lowercased()
-            let isPhotoFile = FilesExtensions.all.contains(ext)
-            if isDirectFileChild && isPhotoFile {
+            let isMediaFile = FilesExtensions.isImageFile(url) || FilesExtensions.isMovieFile(url)
+            if isDirectFileChild && isMediaFile {
                 fileChanges.append(url)
             } else {
                 // Directory-level or nested change — fall back to broad reload signal

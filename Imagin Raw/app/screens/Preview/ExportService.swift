@@ -139,15 +139,18 @@ enum ExportService {
 
     private static func loadCGImage(from path: String) -> CGImage? {
         let url = URL(fileURLWithPath: path)
-        let ext = url.pathExtension.lowercased()
 
-        if FilesExtensions.raw.contains(ext) {
+        if FilesExtensions.isRawImageFile(url) {
             guard let rawPhoto = RawWrapper.shared().extractRawPhoto(url),
                   let data = rawPhoto.imageData,
-                  let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+                  let src = CGImageSourceCreateWithData(data as CFData, nil) else {
+                return nil
+            }
             return CGImageSourceCreateImageAtIndex(src, 0, nil)
         } else {
-            guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+            guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+                return nil
+            }
             return CGImageSourceCreateImageAtIndex(src, 0, nil)
         }
     }

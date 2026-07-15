@@ -175,17 +175,19 @@ class FileSystemMonitor {
         let fileExtension = url.pathExtension.lowercased()
 
         // XMP/ACR sidecars are handled separately via isSidecarChange — never trigger a full reload
-        if fileExtension == "xmp" || fileExtension == "acr" { return false }
+        if fileExtension == "xmp" || fileExtension == "acr" {
+            return false
+        }
 
         let isFileCreated  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemCreated))  != 0
         let isFileRemoved  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRemoved))  != 0
         let isFileRenamed  = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemRenamed))  != 0
 
-        let isPhotoFile = FilesExtensions.all.contains(fileExtension)
+        let isMediaFile = FilesExtensions.isImageFile(url) || FilesExtensions.isMovieFile(url)
         let isDirectoryEvent = (flags & FSEventStreamEventFlags(kFSEventStreamEventFlagItemIsDir)) != 0
         let isDirectoryChange = isDirectoryEvent && (isFileCreated || isFileRemoved || isFileRenamed)
 
-        return (isPhotoFile && (isFileCreated || isFileRemoved || isFileRenamed)) || isDirectoryChange
+        return (isMediaFile && (isFileCreated || isFileRemoved || isFileRenamed)) || isDirectoryChange
     }
 
     func isSidecarChange(at url: URL, flags: FSEventStreamEventFlags) -> Bool {

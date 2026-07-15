@@ -69,15 +69,15 @@ final class PhotosFolderModel: ObservableObject {
 
             let rawBaseNames = Set(
                 files
-                    .filter { FilesExtensions.raw.contains($0.pathExtension.lowercased()) }
+                    .filter { FilesExtensions.isRawImageFile($0) }
                     .map { $0.deletingPathExtension().lastPathComponent }
             )
 
             for file in files {
                 let ext = file.pathExtension.lowercased()
                 let baseName = file.deletingPathExtension().lastPathComponent
-                if FilesExtensions.all.contains(ext) {
-                    if FilesExtensions.jpg.contains(ext) {
+                if FilesExtensions.isImageFile(file) || FilesExtensions.isMovieFile(file) {
+                    if FilesExtensions.isRawCounterpartFile(file) {
                         if rawBaseNames.contains(baseName) {
                             jpgLookup.insert(baseName)
                         } else {
@@ -99,12 +99,13 @@ final class PhotosFolderModel: ObservableObject {
             .sorted(by: { $0.path < $1.path })
             .map { imageFile in
                 let baseName = imageFile.deletingPathExtension().lastPathComponent
-                let fileExtension = imageFile.pathExtension.lowercased()
-                let resValues = try? imageFile.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey])
+                let resValues = try? imageFile.resourceValues(forKeys: [.creationDateKey,
+                                                                        .contentModificationDateKey,
+                                                                        .fileSizeKey])
                 let creationDate = resValues?.creationDate ?? Date()
                 let modifiedDate = resValues?.contentModificationDate
                 let size = resValues?.fileSize as? Int
-                let isRaw = FilesExtensions.raw.contains(fileExtension)
+                let isRaw = FilesExtensions.isRawImageFile(imageFile)
 
                 let hasACR = acrLookup.contains(baseName)
                 let hasJPG = jpgLookup.contains(baseName)
@@ -135,8 +136,7 @@ final class PhotosFolderModel: ObservableObject {
     /// without re-scanning the whole folder. filterAndSortPhotos() is called once by the caller after this returns.
     func applyFileSystemChanges(at urls: [URL]) {
         for url in urls {
-            let ext = url.pathExtension.lowercased()
-            guard FilesExtensions.all.contains(ext) else {
+            guard FilesExtensions.isImageFile(url) || FilesExtensions.isMovieFile(url) else {
                 continue
             }
 
@@ -154,7 +154,7 @@ final class PhotosFolderModel: ObservableObject {
                 } else {
                     // New file — build a PhotoItem and append it, then load its EXIF
                     let resValues = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey])
-                    let isRaw = FilesExtensions.raw.contains(ext)
+                    let isRaw = FilesExtensions.isRawImageFile(url)
                     let hasXMP = FileManager.default.fileExists(
                         atPath: url.deletingPathExtension().appendingPathExtension("xmp").path)
                     let newPhoto = PhotoItem(url: url,
@@ -172,7 +172,9 @@ final class PhotosFolderModel: ObservableObject {
                         self?.queueLock.withLock {
                             guard let self,
                                   insertedIdx < self.photos.wrappedValue.count,
-                                  self.photos.wrappedValue[insertedIdx].id == updated.id else { return }
+                                  self.photos.wrappedValue[insertedIdx].id == updated.id else {
+                                return
+                            }
                             self.photos.wrappedValue[insertedIdx] = updated
                         }
                     }

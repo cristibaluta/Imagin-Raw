@@ -25,48 +25,45 @@ struct DiskPhotoSource: PhotoSource {
         guard ICloudDownloader.ensureDownloaded(at: url) else {
             return nil
         }
-
-        let ext = url.pathExtension.lowercased()
-
-        if FilesExtensions.video.contains(ext) {
+        if FilesExtensions.isMovieFile(url) {
             return videoThumbnail(url: url, targetSize: targetSize)
         }
-        if FilesExtensions.raw.contains(ext), let thubnail = rawThumbnail(url: url, targetSize: targetSize) {
+        if FilesExtensions.isRawImageFile(url), let thubnail = rawThumbnail(url: url, targetSize: targetSize) {
             return thubnail
         }
         return jpegThumbnail(url: url, targetSize: targetSize)
     }
+
     func loadThumbnail(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void) {
 
     }
 
     func loadPreview(targetSize: CGFloat) -> IRImage? {
-        let ext = url.pathExtension.lowercased()
-        if FilesExtensions.raw.contains(ext) {
+        if FilesExtensions.isRawImageFile(url) {
             return LibRawDecoder().extractPreview(at: url, maxSize: targetSize)
         } else {
             return CoreGraphicsDecoder().extractPreview(at: url, maxSize: targetSize)
         }
     }
+
     func loadPreview(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void) {
 
     }
 
     func loadFullRes() -> IRImage? {
-        let ext = url.pathExtension.lowercased()
-        if FilesExtensions.raw.contains(ext) {
+        if FilesExtensions.isRawImageFile(url) {
             return LibRawDecoder().decodeFullRes(at: url)
         } else {
             return CoreGraphicsDecoder().decodeFullRes(at: url)
         }
     }
+
     func loadFullRes(completion: @escaping (IRImage?) -> Void) {
 
     }
 
     func loadExif() async -> ExifInfo? {
-        let ext = url.pathExtension.lowercased()
-        if FilesExtensions.raw.contains(ext) {
+        if FilesExtensions.isRawImageFile(url) {
             if let raw = RawWrapper.shared().extractRawPhoto(url),
                   let dict = raw.exifData as? [String: Any] {
                 return ExifInfo.from(rawExif: dict)

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UniformTypeIdentifiers
 
 enum RawBrand {
     case olympus
@@ -22,42 +23,26 @@ enum RawBrand {
 }
 
 enum FilesExtensions {
-    static let raw: Set<String> = [
-        "arw", "orf", "rw2", "cr2", "cr3", "crw", "nef", "nrw",
-        "srf", "sr2", "raw", "raf", "pef", "ptx", "dng", "3fr",
-        "fff", "iiq", "mef", "mos", "x3f", "srw", "dcr", "kdc",
-        "k25", "kc2", "mrw", "erf", "bay", "ndd", "sti", "rwl", "r3d"
-    ]
-
-    /// This are the type of images used by cameras along the raw
-    static let jpg: Set<String> = ["jpg", "jpeg", "heic"]
-
-    static let other: Set<String> = ["png", "webp", "tiff", "tif", "psd", "psb"]
-
-    static let video: Set<String> = ["mp4", "mov", "m4v", "avi", "mkv", "hevc"]
-
-    /// All supported extensions (RAW + JPG + other + video)
-    static let all: Set<String> = raw.union(jpg).union(other).union(video)
 
     /// Determine the camera brand from a file extension
     static func brand(for extension: String) -> RawBrand {
         switch `extension`.lowercased() {
-        case "orf":
-            return .olympus
-        case "rw2":
-            return .panasonic
-        case "cr2", "cr3", "crw":
-            return .canon
-        case "nef", "nrw":
-            return .nikon
-        case "arw", "srf", "sr2":
-            return .sony
-        case "raf":
-            return .fuji
-        case "pef", "ptx":
-            return .pentax
-        default:
-            return .other
+            case "orf":
+                return .olympus
+            case "rw2":
+                return .panasonic
+            case "cr2", "cr3", "crw":
+                return .canon
+            case "nef", "nrw":
+                return .nikon
+            case "arw", "srf", "sr2":
+                return .sony
+            case "raf":
+                return .fuji
+            case "pef", "ptx":
+                return .pentax
+            default:
+                return .other
         }
     }
 
@@ -66,4 +51,42 @@ enum FilesExtensions {
         let ext = (path as NSString).pathExtension
         return brand(for: ext)
     }
+
+    static func isImageFile(_ url: URL) -> Bool {
+        guard let type = UTType(filenameExtension: url.pathExtension.lowercased()) else {
+            return false
+        }
+        return type.conforms(to: .image)
+    }
+
+    static func isRawImageFile(_ url: URL) -> Bool {
+        guard let type = UTType(filenameExtension: url.pathExtension.lowercased()) else {
+            return false
+        }
+        return type.conforms(to: .rawImage) // Apple's built-in RAW image UTType (macOS 10.15+/iOS 13+)
+    }
+
+    static func isRawCounterpartFile(_ url: URL) -> Bool {
+        guard let type = UTType(filenameExtension: url.pathExtension.lowercased()) else {
+            return false
+        }
+        return type.conforms(to: .jpeg) || type.conforms(to: .heic) || type.conforms(to: .heif)
+    }
+
+    static func isMovieFile(_ url: URL) -> Bool {
+        guard let type = UTType(filenameExtension: url.pathExtension.lowercased()) else {
+            return false
+        }
+        return type.conforms(to: .movie)
+    }
+
+    // Use this to detect image files by looking at the content, but this is more costly so it could be done for photos with no extension
+    static func isImageFileByContent(_ url: URL) -> Bool {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            return false
+        }
+        let type = CGImageSourceGetType(source) as String?
+        return type != nil
+    }
+
 }

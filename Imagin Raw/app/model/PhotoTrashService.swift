@@ -32,7 +32,6 @@ class PhotoTrashService {
 
         for photo in photos {
             let url = URL(fileURLWithPath: photo.path)
-            let ext = url.pathExtension.lowercased()
             let base = url.deletingPathExtension().lastPathComponent
             let dir = url.deletingLastPathComponent()
 
@@ -47,14 +46,14 @@ class PhotoTrashService {
                     manager.deleteThumbnail(for: photo)
                 }
 
-                if FilesExtensions.raw.contains(ext) {
+                if FilesExtensions.isRawImageFile(url) {
                     for jpgExt in ["jpg", "jpeg", "heic", "JPG", "JPEG", "HEIC"] {
-                        let j = dir.appendingPathComponent("\(base).\(jpgExt)")
-                        if FileManager.default.fileExists(atPath: j.path) {
+                        let jpgUrl = dir.appendingPathComponent("\(base).\(jpgExt)")
+                        if FileManager.default.fileExists(atPath: jpgUrl.path) {
                             var t: NSURL?
-                            try? FileManager.default.trashItem(at: j, resultingItemURL: &t)
+                            try? FileManager.default.trashItem(at: jpgUrl, resultingItemURL: &t)
                             if let t = t as? URL {
-                                undoEntry.append((t, j))
+                                undoEntry.append((t, jpgUrl))
                             }
                         }
                     }
