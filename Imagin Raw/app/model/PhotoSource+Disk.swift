@@ -31,6 +31,9 @@ struct DiskPhotoSource: PhotoSource {
         if FilesExtensions.isRawImageFile(url), let thubnail = rawThumbnail(url: url, targetSize: targetSize) {
             return thubnail
         }
+        if FilesExtensions.isSvgFile(url) {
+            return svgThumbnail(url: url, maxSize: targetSize)
+        }
         return jpegThumbnail(url: url, targetSize: targetSize)
     }
 
@@ -41,6 +44,8 @@ struct DiskPhotoSource: PhotoSource {
     func loadPreview(targetSize: CGFloat) -> IRImage? {
         if FilesExtensions.isRawImageFile(url) {
             return LibRawDecoder().extractPreview(at: url, maxSize: targetSize)
+        } else if FilesExtensions.isSvgFile(url) {
+            return svgThumbnail(url: url, maxSize: targetSize)
         } else {
             return CoreGraphicsDecoder().extractPreview(at: url, maxSize: targetSize)
         }
@@ -141,6 +146,32 @@ struct DiskPhotoSource: PhotoSource {
             : thumbnail
         let img = IRImage(cgImage: oriented, size: IRSize(width: oriented.width, height: oriented.height))
         return img
+    }
+
+    private func svgThumbnail(url: URL, maxSize: CGFloat) -> IRImage? {
+        guard let image = NSImage(contentsOf: url) else {
+            return nil
+        }
+
+        // NSImage loaded from SVG reports its intrinsic/viewBox size;
+        // rasterize it into a bitmap at the target resolution.
+        let aspectRatio = image.size.width / image.size.height
+        let targetSize: NSSize
+        if aspectRatio > 1 {
+            targetSize = NSSize(width: maxSize, height: maxSize / aspectRatio)
+        } else {
+            targetSize = NSSize(width: maxSize * aspectRatio, height: maxSize)
+        }
+
+        let rasterized = NSImage(size: targetSize)
+        rasterized.lockFocus()
+        image.draw(in: NSRect(origin: .zero, size: targetSize),
+                   from: NSRect(origin: .zero, size: image.size),
+                   operation: .copy,
+                   fraction: 1.0)
+        rasterized.unlockFocus()
+
+        return rasterized
     }
 
     private func sha256Prefix(_ string: String) -> String {

@@ -80,6 +80,13 @@ enum FilesExtensions {
         return type.conforms(to: .movie)
     }
 
+    static func isSvgFile(_ url: URL) -> Bool {
+        guard let type = UTType(filenameExtension: url.pathExtension.lowercased()) else {
+            return false
+        }
+        return type.conforms(to: .svg)
+    }
+
     // Use this to detect image files by looking at the content, but this is more costly so it could be done for photos with no extension
     static func isImageFileByContent(_ url: URL) -> Bool {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
