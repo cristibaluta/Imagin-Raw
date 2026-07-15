@@ -25,10 +25,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
     func application(_ application: NSApplication, open urls: [URL]) {
-        // Called with ALL dropped/opened files in one batch — use this
-        // instead of onOpenURL when you need them together (e.g. to
-        // populate a PhotoItem array as one collection view).
-        RCLog("Trying to open URLs: \(urls)")
+        // Called with ALL dropped/opened files in one batch.
+        RCLog("🍎 [AppDelegate.open] urls: \(urls.map(\.lastPathComponent))")
+        // Store for windows that haven't appeared yet, then also notify existing windows.
+        if let url = urls.first {
+            RCLog("🍎 [AppDelegate.open] storing pendingOpenURL: \(url.lastPathComponent)")
+            AppState.pendingOpenURL = url
+        }
         NotificationCenter.default.post(name: .didOpenPhotos, object: urls)
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {

@@ -167,6 +167,26 @@ final class FileSystemModel: ObservableObject {
         }
     }
 
+    /// Finds a FolderItem anywhere in the root tree by URL.
+    /// If the exact node isn't loaded yet, returns a freshly constructed FolderItem for that URL
+    /// provided it falls under one of the known root folders.
+    func findOrBuildFolder(for url: URL) -> FolderItem? {
+        // 1. Search the already-loaded tree
+        func search(_ folders: [FolderItem]) -> FolderItem? {
+            for folder in folders {
+                if folder.url == url { return folder }
+                if let hit = search(folder.children ?? []) { return hit }
+            }
+            return nil
+        }
+        if let found = search(rootFolders) { return found }
+
+        // 2. If not in the tree, verify it falls under a known root and build on the fly
+        let isUnderRoot = rootFolders.contains { url.path.hasPrefix($0.url.path + "/") }
+        guard isUnderRoot, FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return FolderItem(url: url)
+    }
+
     func loadChildrenOnDemand(for folder: FolderItem) {
         updateFolderChildren(folder: folder, in: &rootFolders)
     }

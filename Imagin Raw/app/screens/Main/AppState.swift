@@ -100,13 +100,28 @@ class AppState: ObservableObject {
             .store(in: &cancellables)
     }
 
+    /// Pending URL to open — set before the window is ready, consumed in handleOpenUrl.
+    static var pendingOpenURL: URL? = nil
+
     func handleOpenUrl(_ url: URL) {
-        for folder in fileSystemModel.rootFolders {
-            if folder.url == url.deletingLastPathComponent() {
-                fileSystemModel.selectedFolder =  folder
-                break
-            }
+        var isDir: ObjCBool = false
+        let isDirectory = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
+        let folderURL = isDirectory ? url : url.deletingLastPathComponent()
+        let fileURL = isDirectory ? nil : url
+
+        RCLog("🔗 [handleOpenUrl] received: \(url.lastPathComponent) | isDirectory: \(isDirectory) | folderURL: \(folderURL.path) | rootFolders count: \(fileSystemModel.rootFolders.count)")
+
+        guard let folder = fileSystemModel.findOrBuildFolder(for: folderURL) else {
+            RCLog("🔗 [handleOpenUrl] ❌ folderURL not under any known root: \(folderURL.path)")
+            return
         }
+
+        if let fileURL {
+            RCLog("🔗 [handleOpenUrl] ✅ folder found: \(folder.url.lastPathComponent) — setting pendingSelectURL: \(fileURL.lastPathComponent)")
+            thumbsGridViewModel.pendingSelectURL = fileURL
+        }
+        RCLog("🔗 [handleOpenUrl] 📂 setting selectedFolder: \(folder.url.path)")
+        fileSystemModel.selectedFolder = folder
     }
 
 }

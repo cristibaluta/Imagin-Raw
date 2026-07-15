@@ -35,6 +35,11 @@ class ThumbGridViewModel: ObservableObject {
     private var findingDuplicatesTask: Task<Void, Never>?
     private var duplicateScanData: DuplicateScanData? = nil
 
+    /// Set before loading a folder to auto-select a specific photo once it appears in the grid.
+    var pendingSelectURL: URL? = nil {
+        didSet { RCLog("🎯 [ThumbGridViewModel] pendingSelectURL set to: \(pendingSelectURL?.lastPathComponent ?? "nil")") }
+    }
+
     private let fileSystemModel: FileSystemModel
     let thumbsManager: PhotoCacheManager
     private let cachingManager: IRCachingImageManager
@@ -169,6 +174,20 @@ class ThumbGridViewModel: ObservableObject {
         } else if selectedPhoto == nil {
             lastSelectedIndex = nil
         }
+
+        // Auto-select a specific photo requested via drag-and-drop / open-with
+        if let url = pendingSelectURL {
+            RCLog("🎯 [filterAndSortPhotos] pendingSelectURL: \(url.lastPathComponent) | photos count: \(filteredAndSortedPhotos.count)")
+            if let photo = filteredAndSortedPhotos.first(where: { $0.url == url }) {
+                RCLog("🎯 [filterAndSortPhotos] ✅ found pending photo, selecting: \(photo.url.lastPathComponent)")
+                pendingSelectURL = nil
+                selectedPhoto = photo
+                selectedPhotos = [photo.id]
+                lastSelectedIndex = filteredAndSortedPhotos.firstIndex { $0.id == photo.id }
+            } else {
+                RCLog("🎯 [filterAndSortPhotos] ⏳ pending photo not in grid yet, waiting...")
+            }
+        }
     }
 
     func clearInvalidFilters() {
@@ -202,8 +221,11 @@ class ThumbGridViewModel: ObservableObject {
     // MARK: - Photo Loading
 
     func loadPhotosForFolder(_ folder: FolderItem, includeSubfolders: Bool) {
-        RCLog(">>>>>>> Loading photos for folder: \(folder.url.lastPathComponent)")
+        RCLog(">>>>>>> Loading photos for folder: \(folder.url.lastPathComponent) | pendingSelectURL before reset: \(pendingSelectURL?.lastPathComponent ?? "nil")")
+        let savedPendingURL = pendingSelectURL
         reset()
+        pendingSelectURL = savedPendingURL
+        RCLog(">>>>>>> pendingSelectURL after reset: \(pendingSelectURL?.lastPathComponent ?? "nil")")
         setupFilteredPhotosObservers()
 
         let newPhotosModel = PhotosModel(folder: folder, includeSubfolders: includeSubfolders)

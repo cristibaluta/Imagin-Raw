@@ -129,11 +129,21 @@ struct ContentView: View {
             }
             .onAppear {
                 windowWidth = geo.size.width
+                RCLog("🪟 [ContentView.onAppear] rootFolders count: \(appState.fileSystemModel.rootFolders.count) | pendingOpenURL: \(AppState.pendingOpenURL?.lastPathComponent ?? "nil")")
+                // Consume any URL that arrived before this window was ready
+                if let url = AppState.pendingOpenURL {
+                    AppState.pendingOpenURL = nil
+                    RCLog("🪟 [ContentView.onAppear] consuming pendingOpenURL: \(url.lastPathComponent)")
+                    appState.handleOpenUrl(url)
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .didOpenPhotos)) { note in
                 guard let urls = note.object as? [URL], let url = urls.first else {
                     return
                 }
+                RCLog("🪟 [ContentView.didOpenPhotos] url: \(url.lastPathComponent) | rootFolders count: \(appState.fileSystemModel.rootFolders.count)")
+                // Clear the static pending URL since we're handling it now
+                AppState.pendingOpenURL = nil
                 appState.handleOpenUrl(url)
             }
         } // GeometryReader
