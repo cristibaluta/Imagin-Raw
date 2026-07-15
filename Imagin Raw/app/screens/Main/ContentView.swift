@@ -17,6 +17,7 @@ struct ContentView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var searchText = ""
     @SceneStorage("columnVisibility") private var columnVisibilityStorage: String = "all"
+    @SceneStorage("selectedFolderPath") private var selectedFolderPath: String = ""
     @State private var showFolderPopover = false
     @State private var isSidebarCollapsed = false
     @State private var windowWidth: CGFloat = 1200
@@ -127,14 +128,22 @@ struct ContentView: View {
             .onChange(of: geo.size.width) { _, w in
                 windowWidth = w
             }
+            .onChange(of: appState.selectedFolder) { _, folder in
+                // Persist the selected folder path per-window via SceneStorage
+                selectedFolderPath = folder?.url.path ?? ""
+            }
             .onAppear {
                 windowWidth = geo.size.width
-                RCLog("🪟 [ContentView.onAppear] rootFolders count: \(appState.fileSystemModel.rootFolders.count) | pendingOpenURL: \(AppState.pendingOpenURL?.lastPathComponent ?? "nil")")
-                // Consume any URL that arrived before this window was ready
+                RCLog("🪟 [ContentView.onAppear] rootFolders count: \(appState.fileSystemModel.rootFolders.count) | pendingOpenURL: \(AppState.pendingOpenURL?.lastPathComponent ?? "nil") | selectedFolderPath: \(selectedFolderPath)")
+                // Priority 1: a file was dropped/opened — always wins
                 if let url = AppState.pendingOpenURL {
                     AppState.pendingOpenURL = nil
                     RCLog("🪟 [ContentView.onAppear] consuming pendingOpenURL: \(url.lastPathComponent)")
                     appState.handleOpenUrl(url)
+                } else if !selectedFolderPath.isEmpty {
+                    // Priority 2: restore the last folder this window had open
+                    RCLog("🪟 [ContentView.onAppear] restoring selectedFolderPath: \(selectedFolderPath)")
+                    appState.handleOpenUrl(URL(fileURLWithPath: selectedFolderPath))
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .didOpenPhotos)) { note in

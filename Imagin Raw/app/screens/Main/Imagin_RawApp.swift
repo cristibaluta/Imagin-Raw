@@ -19,6 +19,10 @@ extension Notification.Name {
     static let didOpenPhotos = Notification.Name("didOpenPhotos")
 }
 
+extension Notification.Name {
+    static let openNewWindow = Notification.Name("openNewWindow")
+}
+
 #if os(macOS)
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -35,7 +39,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.post(name: .didOpenPhotos, object: urls)
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        // Dock icon click with no windows open — let AppKit show the existing one.
+        if !hasVisibleWindows {
+            NotificationCenter.default.post(name: .openNewWindow, object: nil)
+        }
         return true
     }
     func application(_ app: NSApplication, willEncodeRestorableState coder: NSCoder) {
@@ -44,6 +50,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return false
     }
+
+    // This is called by NSResponder.newWindowForTab(_:) going up the responder chain.
+    // AppKit calls it when the user uses Cmd+T or the tab bar + button.
+    @objc func newWindowForTab(_ sender: Any?) {
+        // Ask SwiftUI to open a new window, then immediately reparent it as a tab.
+        // We capture the current key window first so we can add the tab to it.
+        guard let currentWindow = NSApp.keyWindow else { return }
+        openNewWindowHandler?()
+        DispatchQueue.main.async {
+            // The newest visible non-current window is the one SwiftUI just created.
+            if let newWindow = NSApp.windows.first(where: { $0 !== currentWindow && !$0.isMiniaturized && $0.isVisible && $0.contentViewController != nil }) {
+                currentWindow.addTabbedWindow(newWindow, ordered: .above)
+                newWindow.makeKeyAndOrderFront(nil)
+            }
+        }
+    }
+
+    /// Set by ImaginRawApp to trigger openWindow without going through NotificationCenter.
+    var openNewWindowHandler: (() -> Void)?
 }
 
 struct ImaginRawSession: Identifiable, Codable, Hashable {
@@ -56,7 +81,7 @@ struct ImaginRawApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var contentViewID = UUID()
     @State private var theme: String = appPrefs.string(.theme)
-//    @State private var colorScheme: ColorScheme?
+    @Environment(\.openWindow) private var openWindow
 
     private var colorScheme: ColorScheme? {
         switch theme {
@@ -88,9 +113,28 @@ struct ImaginRawApp: App {
                     theme = appPrefs.string(.theme)
                     contentViewID = UUID()
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .openNewWindow)) { _ in
+                    openWindow(value: UUID())
+                }
+                .onAppear {
+                    // Give AppDelegate a direct handle to openWindow so newWindowForTab
+                    // can call it without going through NotificationCenter (which would
+                    // fire on every open ContentView and create multiple windows).
+                    appDelegate.openNewWindowHandler = {
+                        openWindow(value: UUID())
+                    }
+                }
         }
         .windowToolbarStyle(.unified)
         .defaultSize(width: 1200, height: 800)
+//        .commands {
+//            CommandGroup(after: .newItem) {
+//                Button("New Tab") {
+//                    NSApp.sendAction(#selector(NSResponder.newWindowForTab(_:)), to: nil, from: nil)
+//                }
+//                .keyboardShortcut("t", modifiers: .command)
+//            }
+//        }
 
         Settings {
             SettingsView()
