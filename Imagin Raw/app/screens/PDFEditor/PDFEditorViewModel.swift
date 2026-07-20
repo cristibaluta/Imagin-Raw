@@ -87,7 +87,7 @@ final class PDFEditorViewModel: ObservableObject {
 
         while imageIndex < images.count {
             // startTopY is where the first row of images begins (top-left space)
-            let startTopY: CGFloat = margin + (pageIndex == 0 ? titleHeight + spacing : margin)
+            let startTopY: CGFloat = margin*2 + (pageIndex == 0 ? titleHeight + spacing : margin)
             let availHeight = pageHeight - startTopY - margin
             let rowsPerPage = max(1, Int(availHeight / rowHeight))
             let cellsOnPage = rowsPerPage * cols
@@ -100,7 +100,7 @@ final class PDFEditorViewModel: ObservableObject {
                 photoNames:      photos[photoRange].map {
                                      URL(fileURLWithPath: $0.path).deletingPathExtension().lastPathComponent
                                  },
-                photoIDs:        photos[photoRange].map { $0.id.uuidString },
+                photoIDs:        photos[photoRange].map { $0.url.deletingPathExtension().lastPathComponent },
                 pageSize:        CGSize(width: pageWidth, height: pageHeight),
                 pageNr:          pageIndex + 1,
                 margin:          margin,
@@ -139,7 +139,7 @@ final class PDFEditorViewModel: ObservableObject {
                     let cb = PDFAnnotation(bounds: cbRect, forType: .widget, withProperties: nil)
                     cb.widgetFieldType    = .button
                     cb.widgetControlType  = .checkBoxControl
-                    cb.fieldName          = "cb_\(photoID)"
+                    cb.fieldName          = photoID
                     cb.buttonWidgetState  = .offState
                     cb.font               = NSFont.systemFont(ofSize: 9)
                     cb.color              = NSColor(white: 0.3, alpha: 1)
@@ -281,7 +281,7 @@ private struct PDFPageRenderer {
             ]
 
             if showNumbers, i < photoNames.count {
-                let str = NSAttributedString(string: "#\(startingIndex+i+1)", attributes: attrs)
+                let str = NSAttributedString(string: "#\(startingIndex+i+1) • \(photoNames[i])", attributes: attrs)
                 let line = CTLineCreateWithAttributedString(str)
                 ctx.saveGState()
                 ctx.textMatrix = .identity
@@ -289,20 +289,6 @@ private struct PDFPageRenderer {
                 CTLineDraw(line, ctx)
                 ctx.restoreGState()
             }
-
-            if showFileName, i < photoNames.count {
-                let str       = NSAttributedString(string: photoNames[i], attributes: attrs)
-                let line      = CTLineCreateWithAttributedString(str)
-                let lineWidth = CTLineGetImageBounds(line, ctx).width
-                let totalContent = lineWidth //+ (showCheckbox ? checkboxSize + 4 : 0)
-                let lx = x + (cellWidth - totalContent) / 2
-                ctx.saveGState()
-                ctx.textMatrix = .identity
-                ctx.textPosition = CGPoint(x: lx, y: labelBaseline)
-                CTLineDraw(line, ctx)
-                ctx.restoreGState()
-            }
-
         }
 
         if true {

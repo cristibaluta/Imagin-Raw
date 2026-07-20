@@ -118,15 +118,15 @@ struct PDFEditorView: View {
 
             Divider().frame(height: 20)
 
-            // Show file name
-            Toggle(isOn: $viewModel.showFileName) {
-                Text("Names")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .toggleStyle(.checkbox)
-
-            Divider().frame(height: 20)
+//            // Show file name
+//            Toggle(isOn: $viewModel.showFileName) {
+//                Text("Names")
+//                    .font(.caption)
+//                    .foregroundStyle(.secondary)
+//            }
+//            .toggleStyle(.checkbox)
+//
+//            Divider().frame(height: 20)
 
             // Show checkbox
             Toggle(isOn: $viewModel.showCheckbox) {
