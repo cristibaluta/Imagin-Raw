@@ -36,6 +36,7 @@ struct PDFEditorView: View {
         }
         .onAppear { viewModel.loadImages() }
         .onChange(of: viewModel.columns)      { _, _ in viewModel.rebuildPDF() }
+        .onChange(of: viewModel.showNumbers)  { _, _ in viewModel.rebuildPDF() }
         .onChange(of: viewModel.showFileName) { _, _ in viewModel.rebuildPDF() }
         .onChange(of: viewModel.showCheckbox) { _, _ in viewModel.rebuildPDF() }
         .fileExporter(
@@ -108,8 +109,18 @@ struct PDFEditorView: View {
             Divider().frame(height: 20)
 
             // Show file name
+            Toggle(isOn: $viewModel.showNumbers) {
+                Text("Numbers")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .toggleStyle(.checkbox)
+
+            Divider().frame(height: 20)
+
+            // Show file name
             Toggle(isOn: $viewModel.showFileName) {
-                Text("Show name")
+                Text("Names")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -119,7 +130,7 @@ struct PDFEditorView: View {
 
             // Show checkbox
             Toggle(isOn: $viewModel.showCheckbox) {
-                Text("Show checkbox")
+                Text("Annotations")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

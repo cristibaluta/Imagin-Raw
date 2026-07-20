@@ -14,6 +14,7 @@ final class PDFEditorViewModel: ObservableObject {
     @Published private(set) var images: [IRImage] = []
     @Published private(set) var isLoadingImages = false
     @Published var columns: Int = 3
+    @Published var showNumbers: Bool = true
     @Published var showFileName: Bool = true
     @Published var showCheckbox: Bool = true
     @Published private(set) var pdfDocument: PDFDocument? = nil
@@ -43,7 +44,9 @@ final class PDFEditorViewModel: ObservableObject {
     // MARK: - Image loading
 
     func loadImages() {
-        guard images.isEmpty else { return }
+        guard images.isEmpty else {
+            return
+        }
         isLoadingImages = true
         Task {
             var loaded: [IRImage] = []
@@ -61,7 +64,9 @@ final class PDFEditorViewModel: ObservableObject {
     // MARK: - PDF generation
 
     func rebuildPDF() {
-        guard !images.isEmpty else { return }
+        guard !images.isEmpty else {
+            return
+        }
         pdfDocument = buildPDF()
     }
 
@@ -71,11 +76,11 @@ final class PDFEditorViewModel: ObservableObject {
 
         let availableWidth  = pageWidth  - margin * 2 - spacing * CGFloat(cols - 1)
         let cellWidth       = availableWidth / CGFloat(cols)
-        let cellImageHeight = cellWidth * 0.75
+        let cellHeight      = cellWidth
         let checkboxSize:   CGFloat = 12
         // Label row is shared by text + checkbox — only one row below the image
-        let labelRowHeight: CGFloat = (showFileName || showCheckbox) ? labelHeight + 8 : 0
-        let rowHeight = cellImageHeight + labelRowHeight + spacing
+        let labelRowHeight: CGFloat = (showNumbers || showFileName || showCheckbox) ? labelHeight + 8 : 0
+        let rowHeight = cellHeight + labelRowHeight + spacing
 
         var imageIndex = 0
         var pageIndex  = 0
@@ -97,13 +102,16 @@ final class PDFEditorViewModel: ObservableObject {
                                  },
                 photoIDs:        photos[photoRange].map { $0.id.uuidString },
                 pageSize:        CGSize(width: pageWidth, height: pageHeight),
+                pageNr:          pageIndex + 1,
                 margin:          margin,
                 spacing:         spacing,
+                startingIndex:   imageIndex,
                 cols:            cols,
                 cellWidth:       cellWidth,
-                cellImageHeight: cellImageHeight,
+                cellHeight:      cellHeight,
                 labelHeight:     labelHeight,
                 checkboxSize:    checkboxSize,
+                showNumbers:     showNumbers,
                 showFileName:    showFileName,
                 showCheckbox:    showCheckbox,
                 title:           pageIndex == 0 ? albumName : nil,
@@ -119,19 +127,12 @@ final class PDFEditorViewModel: ObservableObject {
                     let row          = i / cols
                     let x            = margin + CGFloat(col) * (cellWidth + spacing)
                     let cellTopY     = startTopY + CGFloat(row) * rowHeight
-                    let labelRowTopY = cellTopY + cellImageHeight + 4
+                    let labelRowTopY = cellTopY + cellHeight + 4
                     let labelRowMidY = labelRowTopY + labelHeight / 2
 
                     // Checkbox is right-aligned within the cell, vertically centred on the label row
                     // If there's a label, it sits to the left; if not, checkbox is left-aligned
-                    let cbX: CGFloat
-                    if showFileName {
-                        // Measure label width to place checkbox just after it
-                        // Use a fixed right-edge position for simplicity and consistent alignment
-                        cbX = x + cellWidth - checkboxSize
-                    } else {
-                        cbX = x
-                    }
+                    let cbX: CGFloat = x + cellWidth - checkboxSize
                     let cbPDFY = pageHeight - (labelRowMidY + checkboxSize / 2)
                     let cbRect = CGRect(x: cbX, y: cbPDFY, width: checkboxSize, height: checkboxSize)
 
@@ -193,13 +194,16 @@ private struct PDFPageRenderer {
     let photoNames:     [String]
     let photoIDs:       [String]
     let pageSize:       CGSize
+    let pageNr:         Int
     let margin:         CGFloat
     let spacing:        CGFloat
+    let startingIndex:  Int
     let cols:           Int
     let cellWidth:      CGFloat
-    let cellImageHeight: CGFloat
+    let cellHeight:     CGFloat
     let labelHeight:    CGFloat
     let checkboxSize:   CGFloat
+    let showNumbers:    Bool
     let showFileName:   Bool
     let showCheckbox:   Bool
     let title:          String?
@@ -209,7 +213,10 @@ private struct PDFPageRenderer {
     func draw(in ctx: CGContext) {
         let w = pageSize.width
         let h = pageSize.height
-        func pdfY(_ topY: CGFloat) -> CGFloat { h - topY }
+
+        func pdfY(_ topY: CGFloat) -> CGFloat {
+            h - topY
+        }
 
         // Background
         ctx.setFillColor(NSColor.white.cgColor)
@@ -232,8 +239,8 @@ private struct PDFPageRenderer {
             ctx.restoreGState()
         }
 
-        let rowHeight = cellImageHeight
-            + ((showFileName || showCheckbox) ? labelHeight + 8 : 0)
+        let rowHeight = cellHeight
+            + ((showNumbers || showFileName || showCheckbox) ? labelHeight + 8 : 0)
             + spacing
 
         for (i, img) in images.enumerated() {
@@ -244,47 +251,72 @@ private struct PDFPageRenderer {
 
             // ── Image ────────────────────────────────────────────────────────
             let cellPDFRect = CGRect(x: x,
-                                     y: pdfY(cellTopY + cellImageHeight),
+                                     y: pdfY(cellTopY + cellHeight),
                                      width: cellWidth,
-                                     height: cellImageHeight)
+                                     height: cellHeight)
             ctx.setFillColor(NSColor(white: 0.92, alpha: 1).cgColor)
             ctx.fill(cellPDFRect)
 
             if let cgImg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) {
                 let imgW  = CGFloat(cgImg.width)
                 let imgH  = CGFloat(cgImg.height)
-                let scale = min(cellWidth / imgW, cellImageHeight / imgH)
+                let scale = min(cellWidth / imgW, cellHeight / imgH)
                 let dw = imgW * scale, dh = imgH * scale
                 let dx = cellPDFRect.minX + (cellWidth      - dw) / 2
-                let dy = cellPDFRect.minY + (cellImageHeight - dh) / 2
+                let dy = cellPDFRect.minY + (cellHeight - dh) / 2
                 ctx.draw(cgImg, in: CGRect(x: dx, y: dy, width: dw, height: dh))
             }
 
             // ── Label row (label + checkbox on the same line) ────────────────
             // The label row sits just below the image.
             // labelRowTopY is the top of the row in top-left space.
-            let labelRowTopY = cellTopY + cellImageHeight + 4
+            let labelRowTopY = cellTopY + cellHeight + 4
             // Vertical centre of the label row
             let labelRowMidY = labelRowTopY + labelHeight / 2
+            let labelBaseline = pdfY(labelRowMidY + 4)   // +4 ≈ half cap-height
+
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 9),
+                .foregroundColor: NSColor.darkGray
+            ]
+
+            if showNumbers, i < photoNames.count {
+                let str = NSAttributedString(string: "#\(startingIndex+i+1)", attributes: attrs)
+                let line = CTLineCreateWithAttributedString(str)
+                ctx.saveGState()
+                ctx.textMatrix = .identity
+                ctx.textPosition = CGPoint(x: x, y: labelBaseline)
+                CTLineDraw(line, ctx)
+                ctx.restoreGState()
+            }
 
             if showFileName, i < photoNames.count {
-                let attrs: [NSAttributedString.Key: Any] = [
-                    .font: NSFont.systemFont(ofSize: 9),
-                    .foregroundColor: NSColor.darkGray
-                ]
                 let str       = NSAttributedString(string: photoNames[i], attributes: attrs)
                 let line      = CTLineCreateWithAttributedString(str)
                 let lineWidth = CTLineGetImageBounds(line, ctx).width
-                // Centre label+checkbox as a unit; checkbox sits to the right
-                let totalContent = lineWidth + (showCheckbox ? checkboxSize + 4 : 0)
+                let totalContent = lineWidth //+ (showCheckbox ? checkboxSize + 4 : 0)
                 let lx = x + (cellWidth - totalContent) / 2
-                let labelBaseline = pdfY(labelRowMidY + 4)   // +4 ≈ half cap-height
                 ctx.saveGState()
                 ctx.textMatrix = .identity
                 ctx.textPosition = CGPoint(x: lx, y: labelBaseline)
                 CTLineDraw(line, ctx)
                 ctx.restoreGState()
             }
+
+        }
+
+        if true {
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 9),
+                .foregroundColor: NSColor.darkGray
+            ]
+            let str = NSAttributedString(string: "Page \(pageNr)", attributes: attrs)
+            let line = CTLineCreateWithAttributedString(str)
+            ctx.saveGState()
+            ctx.textMatrix = .identity
+            ctx.textPosition = CGPoint(x: margin, y: margin)
+            CTLineDraw(line, ctx)
+            ctx.restoreGState()
         }
     }
 }

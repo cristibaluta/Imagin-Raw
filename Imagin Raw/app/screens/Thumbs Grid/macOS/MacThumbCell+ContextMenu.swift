@@ -33,7 +33,7 @@ extension MacThumbCell {
         menu.addItem(review)
 
         // Create video
-        let createVideo = NSMenuItem(title: "Create Video...\(reviewCount >= 2 ? " (\(reviewCount))" : "")",
+        let createVideo = NSMenuItem(title: "Create Video...",
                                      action: reviewCount >= 2 ? #selector(handleCreateVideo) : nil,
                                      keyEquivalent: "")
         createVideo.image = NSImage(systemSymbolName: "film.stack", accessibilityDescription: nil)
@@ -41,7 +41,7 @@ extension MacThumbCell {
         menu.addItem(createVideo)
 
         // Create PDF
-        let createPDF = NSMenuItem(title: "Create PDF...\(reviewCount >= 2 ? " (\(reviewCount))" : "")",
+        let createPDF = NSMenuItem(title: "Create PDF...",
                                    action: reviewCount >= 2 ? #selector(handleCreatePDF) : nil,
                                    keyEquivalent: "")
         createPDF.image = NSImage(systemSymbolName: "doc.richtext", accessibilityDescription: nil)
