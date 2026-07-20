@@ -15,6 +15,7 @@ class ThumbGridViewModel: ObservableObject {
     @Published var selectedPhoto: PhotoItem?
     @Published var selectedLabels: Set<String> = []
     @Published var selectedRatings: Set<Int> = []
+    @Published var selectedNames: Set<String> = []
     @Published var sortOption: SortOption = .name
     @Published var gridType: GridType = .small
     @Published var windowWidth: CGFloat = 1200
@@ -89,7 +90,18 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     private func setupFilteredPhotosObservers() {
-        Publishers.CombineLatest4($selectedLabels, $selectedRatings, $sortOption, $isLoadingMetadata)
+        let filterChanges = Publishers.CombineLatest4(
+            $selectedLabels,
+            $selectedRatings,
+            $selectedNames,
+            $sortOption
+        )
+        .map { _ in () }
+
+        let loadingChanges = $isLoadingMetadata
+            .map { _ in () }
+
+        Publishers.Merge(filterChanges, loadingChanges)
             .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.filterAndSortPhotos()
@@ -155,7 +167,7 @@ class ThumbGridViewModel: ObservableObject {
 
         // Filter photos
         if !isLoadingMetadata {
-            result = PhotoFilterService.apply(labels: selectedLabels, ratings: selectedRatings, to: result)
+            result = PhotoFilterService.apply(labels: selectedLabels, ratings: selectedRatings, names: selectedNames, to: result)
         }
 
         if !photos.isEmpty && result.isEmpty {

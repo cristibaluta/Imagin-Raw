@@ -12,8 +12,13 @@ struct PhotoFilterService {
 
     // MARK: - Filter
 
-    static func apply(labels: Set<String>, ratings: Set<Int>, to photos: [PhotoItem]) -> [PhotoItem] {
+    static func apply(labels: Set<String>, ratings: Set<Int>, names: Set<String>, to photos: [PhotoItem]) -> [PhotoItem] {
         return photos.filter { photo in
+            // Name has priority
+            let photoName = photo.url.deletingPathExtension().lastPathComponent
+            if names.contains(photoName) {
+                return true
+            }
             let label = photo.xmp?.label ?? ""
             let rating = photo.xmp?.rating.flatMap { $0 > 0 ? $0 : nil } ?? photo.inCameraRating ?? 0
             return labels.contains(label) ||

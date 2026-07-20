@@ -111,6 +111,7 @@ struct ThumbsBottomBar: View {
             .popover(isPresented: $showFilterPopover) {
                 FilterPopoverView(selectedLabels: $viewModel.selectedLabels,
                                   selectedRatings: $viewModel.selectedRatings,
+                                  selectedNames: $viewModel.selectedNames,
                                   photos: viewModel.photos)
             }
 

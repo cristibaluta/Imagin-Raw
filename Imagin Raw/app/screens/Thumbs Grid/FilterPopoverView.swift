@@ -10,6 +10,8 @@ import SwiftUI
 struct FilterPopoverView: View {
     @Binding var selectedLabels: Set<String>
     @Binding var selectedRatings: Set<Int>
+    @Binding var selectedNames: Set<String>
+    @State private var importingPdf = false
     let photos: [PhotoItem]
 
     // All available labels in the requested order
@@ -114,6 +116,45 @@ struct FilterPopoverView: View {
                         }
                     }
                     .toggleStyle(RatingCheckboxToggleStyle())
+                }
+
+                Spacer()
+
+                if selectedNames.count > 0 {
+                    Button("Clear Proof PDF") {
+                        selectedNames.removeAll()
+                    }
+                } else {
+                    Button("Import Proof PDF") {
+                        importingPdf = true
+                    }
+                    .fileImporter(
+                        isPresented: $importingPdf,
+                        allowedContentTypes: [.pdf],
+                        allowsMultipleSelection: false
+                    ) { result in
+                        switch result {
+                            case .success(let urls):
+
+                                guard let url = urls.first else {
+                                    return
+                                }
+                                guard url.startAccessingSecurityScopedResource() else {
+                                    return
+                                }
+                                defer {
+                                    url.stopAccessingSecurityScopedResource()
+                                }
+
+                                do {
+                                    let ids = try ProofPDFImporter.selectedIDs(from: url)
+                                    selectedNames = Set(ids)
+                                } catch {
+                                }
+                            case .failure(let error):
+                                break
+                        }
+                    }
                 }
             }
         }
