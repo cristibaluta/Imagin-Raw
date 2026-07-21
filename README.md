@@ -1,14 +1,14 @@
 # Imagin RAW
 
-A lightweight, native macOS application for browsing, culling, and organizing RAW photos - built as a more efficient alternative to Adobe Bridge for read/rate/organize workflows.
+A lightweight, native macOS application for browsing, culling, and organizing RAW photos - built as a more efficient alternative to Adobe Bridge.
 
-An iOS companion app is in development, focused on a simple way to browse your library, cleanup, in field backup of your shots, and scouting.
+An iOS version as an alternative to the cluttered Photos app is in development. This one wants to be also a scouting app.
 
 ![Main Interface](screenshots/main.jpg)
 
 ## Architecture
 
-- **UI**: SwiftUI (macOS 14.6+). AppKit/UIKit for the thumbnails list where SwiftUI performance was poor
+- **UI**: SwiftUI (macOS 14.6+, I might try to support even lower if people need it). AppKit/UIKit for the thumbnails list where SwiftUI performance was poor
 - **RAW decoding**: LibRaw (C++), wrapped via Objective-C++ bridge. CoreImage also used for other formats and as a fallback
 - **Metadata**: EXIF parsed directly from RAW/JPEG binary structures; XMP sidecars read/written for Lightroom/Bridge compatibility
 - **File system monitoring**: FSEvents for real-time folder change detection
@@ -23,13 +23,15 @@ An iOS companion app is in development, focused on a simple way to browse your l
 - **Rating and color labeling** - written to XMP sidecars (RAW) or embedded directly without re-encoding (JPEG/HEIC), compatible with Adobe Bridge and Lightroom
 - **Rejection workflow** - a session-scoped label (not persisted across folder changes) for marking photos to delete; batch-delete via right-click
 - **JPG/RAW pair deduplication** - when a RAW+JPEG pair exists, only the RAW is shown in the browser
-- **Two grid layouts** - compact grid (more room for preview) and large grid (more room for browsing)
+- **Two grid layouts** - compact grid (more room for preview) and large grid (more room for thumbnails)
 - **Spotlight-backed search** - search across files and folder names using the macOS indexing engine
 - **SD card ingest** - copy photos into date-based folder structures, with optional simultaneous backup to a second destination
 - **Duplicate/similar photo detection** - Review mode for quickly resolving near-duplicate burst shots
-- **Instagram frame export** - fits 2:3 RAW images into a 3:4 canvas, exported as PNG to avoid re-encoding loss (useful for Camera Raw edits because it doesn't support framing)
+- **Instagram frame export** - fits 2:3 RAW images into a 3:4 canvas, exported as TIFF to avoid re-encoding loss (useful for Camera Raw edits because it doesn't support framing)
+- **Export video** - select photos from the same sequence and export a cool video
+- **Offline client proofing** - export PDF -> client ticks some annotation checkboxes to mark his favourites -> import the PDF back to filter for the selected photos
 
-## Comparison with Adobe Bridge
+## Comparison with Adobe Bridge (2022 version)
 
 ### Where Imagin RAW is better
 
@@ -39,12 +41,12 @@ An iOS companion app is in development, focused on a simple way to browse your l
 | Idle CPU | 0% | non-zero |
 | Memory | As low as 100 MB depending on the album | Easily gets to GBs |
 | Launch time | Near-instant | Many seconds |
-| Scrolling | Native, smooth | Row-jumping |
+| Scrolling | Native, smooth | Row-by-row |
 | External drive eject | No app restart needed | Requires quitting Bridge |
 
 ### Where Bridge is ahead
 
-- **Camera Raw–processed previews** - Bridge renders thumbnails with ACR adjustments applied. Imagin RAW currently shows unprocessed previews; replicating the ACR pipeline isn't feasible, though basic exposure/crop preview adjustments may be explored.
+- **Camera Raw–processed previews** - Bridge renders thumbnails with ACR adjustments applied. Imagin RAW currently shows embeded jpegs; replicating the ACR pipeline isn't feasible, though basic exposure/crop preview adjustments may be explored.
 
 ## Roadmap
 See the open [Issues](https://github.com/cristibaluta/Imagin-Raw/issues)
@@ -70,6 +72,7 @@ See the open [Issues](https://github.com/cristibaluta/Imagin-Raw/issues)
 - **OPT X** - Filter by Rejected
 - **C** - Toggle Sidebar
 - **G** - Toggle Grid Type
+- **Z** - Toggle Zoom
 - **Return** - Open selected photo(s) in external editor
 
 ## System Requirements
@@ -78,8 +81,8 @@ See the open [Issues](https://github.com/cristibaluta/Imagin-Raw/issues)
 
 ## Installation
 - Buy from the [AppStore](https://apps.apple.com/ro/app/imagin-raw/id6760548347?mt=12) if you want to support the project and receive updates automatically
-- Download the latest release from [Releases](https://github.com/cristibaluta/Imagin-Raw/releases). Updates might not be on par with the AppStore and there's no update notification in app
-- Compile from source code
+- Download the latest release from [Releases](https://github.com/cristibaluta/Imagin-Raw/releases). Updates might not be on par with the AppStore and there's no update notification in the app
+- Compile from source code, there should be no surprises
 
 ## Contributions
 Small straightforward fixes and issue/ideas reportings are welcome.
