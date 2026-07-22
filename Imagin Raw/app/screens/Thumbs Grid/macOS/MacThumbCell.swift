@@ -22,7 +22,9 @@ private final class MacVerticallyCenteredTextFieldCell: NSTextFieldCell {
     }
 }
 
+@MainActor
 final class MacThumbCell: NSCollectionViewItem {
+
     static let identifier = NSUserInterfaceItemIdentifier("MacThumbCell")
 
     // Views
@@ -331,11 +333,13 @@ final class MacThumbCell: NSCollectionViewItem {
         if photoChanged {
             thumbView.image = nil
             delegate.image(for: photo) { [weak self] image in
-                guard let self, self.currentPhoto?.id == photo.id else {
-                    return
+                Task { @MainActor in
+                    guard let self, self.currentPhoto?.id == photo.id else {
+                        return
+                    }
+                    self.thumbView.image = image
+                    self.view.needsLayout = true
                 }
-                self.thumbView.image = image
-                self.view.needsLayout = true
             }
         }
     }

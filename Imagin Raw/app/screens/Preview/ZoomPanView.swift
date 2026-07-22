@@ -15,12 +15,10 @@ struct ZoomPanView: View {
 
     private var pixelSize: CGSize {
         if let rep = image.representations.first as? NSBitmapImageRep {
-            let s = CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
-            return s
+            return CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
         }
         if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            let s = CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
-            return s
+            return CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
         }
         return image.size
     }
@@ -60,14 +58,14 @@ struct ZoomPanView: View {
 // MARK: - NSView mouse tracker
 
 struct MouseTrackingView: NSViewRepresentable, Equatable {
-    let onMouseMoved: ((CGPoint, CGSize) -> Void)?
+    let onMouseMoved: (@MainActor (CGPoint, CGSize) -> Void)?
 
-    init(onMouseMoved: ((CGPoint, CGSize) -> Void)?) {
+    init(onMouseMoved: (@MainActor (CGPoint, CGSize) -> Void)?) {
         self.onMouseMoved = onMouseMoved
     }
 
     // Tell SwiftUI this view never needs to update
-    static func == (lhs: MouseTrackingView, rhs: MouseTrackingView) -> Bool {
+    nonisolated static func == (lhs: MouseTrackingView, rhs: MouseTrackingView) -> Bool {
         true  // always equal → SwiftUI never recreates it
     }
 
@@ -91,15 +89,17 @@ struct MouseTrackingView: NSViewRepresentable, Equatable {
     }
 }
 
+@MainActor
 class TrackerNSView: NSView {
-    var onMouseMoved: ((CGPoint, CGSize) -> Void)?
+    var onMouseMoved: (@MainActor (CGPoint, CGSize) -> Void)?
     var trackingArea: NSTrackingArea?
 
     deinit {
-        trackingAreas.forEach {
-            removeTrackingArea($0)
-        }
-        trackingArea = nil
+        // TODO: AppKit should do an automatic cleanup on dealloc, but verify that it's true
+//        trackingAreas.forEach {
+//            removeTrackingArea($0)
+//        }
+//        trackingArea = nil
         onMouseMoved = nil
     }
 

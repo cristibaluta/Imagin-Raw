@@ -9,7 +9,7 @@ import Foundation
 
 @MainActor
 protocol ThumbCellDelegate: Sendable {
-    func image(for photo: PhotoItem, completion: @escaping (IRImage?) -> Void) -> Void
+    func image(for photo: PhotoItem, completion: @escaping @Sendable (IRImage?) -> Void) -> Void
     func startCachingImages(for photos: [PhotoItem]) -> Void
     func stopCachingImages(for photos: [PhotoItem]) -> Void
 

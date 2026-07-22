@@ -10,7 +10,7 @@ import Foundation
 /// Uses NSMetadataQuery (Spotlight) to search for folders and image files by name.
 /// Results are scoped to the root folders the user has added to the sidebar.
 @MainActor
-class SpotlightSearcher: ObservableObject {
+class SpotlightSearcher: ObservableObject, @unchecked Sendable {
 
     @Published var results: [FolderItem] = []
     @Published var photoResults: [PhotoItem] = []
@@ -26,7 +26,9 @@ class SpotlightSearcher: ObservableObject {
 
     deinit {
         query?.stop()
-        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers.forEach {
+            NotificationCenter.default.removeObserver($0)
+        }
     }
 
     func search(query searchText: String, in rootFolders: [FolderItem]) {

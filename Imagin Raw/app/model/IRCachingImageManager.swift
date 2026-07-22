@@ -22,7 +22,7 @@ final class IRCachingImageManager: @unchecked Sendable {
     /// Requests the image for a photo, calling `completion` on the main thread.
     /// Mirrors PHImageManager.requestImage(for:...completion:).
     @discardableResult
-    func requestImage(for photo: PhotoItem, completion: @escaping (IRImage?) -> Void) -> UUID {
+    func requestImage(for photo: PhotoItem, completion: @escaping @Sendable (IRImage?) -> Void) -> UUID {
         let id = photo.id
         let cacheManager = self.cacheManager
 

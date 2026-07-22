@@ -23,12 +23,25 @@ struct ExportCanvasPreview: View, Animatable {
     var padding: Double
     let alignment: ExportAlignment
 
-    var animatableData: Double {
+    nonisolated var animatableData: Double {
         get { padding }
         set { padding = newValue }
     }
 
     private let pixelSize: CGSize
+
+    private static func extractPixelSize(from image: IRImage) -> CGSize {
+        #if os(macOS)
+        if let rep = image.representations.first as? NSBitmapImageRep {
+            return CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
+        } else if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            return CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
+        }
+        return image.size
+        #else
+        return image.size
+        #endif
+    }
 
     init(image: IRImage, geo: GeometryProxy, targetRatio: ExportAspectRatio, padding: Double, alignment: ExportAlignment) {
         self.image = image
@@ -36,17 +49,7 @@ struct ExportCanvasPreview: View, Animatable {
         self.targetRatio = targetRatio
         self.padding = padding
         self.alignment = alignment
-        #if os(macOS)
-        if let rep = image.representations.first as? NSBitmapImageRep {
-            self.pixelSize = CGSize(width: CGFloat(rep.pixelsWide), height: CGFloat(rep.pixelsHigh))
-        } else if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            self.pixelSize = CGSize(width: CGFloat(cg.width), height: CGFloat(cg.height))
-        } else {
-            self.pixelSize = image.size
-        }
-        #else
-        self.pixelSize = image.size
-        #endif
+        self.pixelSize = ExportCanvasPreview.extractPixelSize(from: image)
     }
 
     private func layout(in available: CGSize) -> Layout {
@@ -89,17 +92,16 @@ struct ExportCanvasPreview: View, Animatable {
             case .right:  imgOffX = extraSpace - pad * scale
         }
         let imgOffY = 0.0
-//        RCLog("alignment: \(alignment), dispCanvas: \(dispCanvasW) \(dispCanvasH), dispImg: \(dispImgW) \(dispImgH), imgOff: \(imgOffX) \(imgOffY)")
 
-        return Layout(
-            dispCanvasW: dispCanvasW, dispCanvasH: dispCanvasH,
-            dispImgW: dispImgW, dispImgH: dispImgH,
-            imgOffX: imgOffX, imgOffY: imgOffY
-        )
+        return Layout(dispCanvasW: dispCanvasW, dispCanvasH: dispCanvasH,
+                      dispImgW: dispImgW, dispImgH: dispImgH,
+                      imgOffX: imgOffX, imgOffY: imgOffY)
     }
 
     var body: some View {
+        #if DEBUG
         let _ = Self._printChanges()
+        #endif
         let l = layout(in: geo.size)
         ZStack {
             Rectangle()

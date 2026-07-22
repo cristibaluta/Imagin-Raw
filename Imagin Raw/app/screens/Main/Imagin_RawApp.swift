@@ -30,10 +30,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     func application(_ application: NSApplication, open urls: [URL]) {
         // Called with ALL dropped/opened files in one batch.
-        RCLog("🍎 [AppDelegate.open] urls: \(urls.map(\.lastPathComponent))")
+        RCLog("Open urls: \(urls.map(\.lastPathComponent))")
         // Store for windows that haven't appeared yet, then also notify existing windows.
         if let url = urls.first {
-            RCLog("🍎 [AppDelegate.open] storing pendingOpenURL: \(url.lastPathComponent)")
             AppState.pendingOpenURL = url
         }
         NotificationCenter.default.post(name: .didOpenPhotos, object: urls)
@@ -51,19 +50,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
+    // TODO: I don't think this is working
     // This is called by NSResponder.newWindowForTab(_:) going up the responder chain.
     // AppKit calls it when the user uses Cmd+T or the tab bar + button.
-    @objc func newWindowForTab(_ sender: Any?) {
+    @MainActor @objc func newWindowForTab(_ sender: Any?) {
         // Ask SwiftUI to open a new window, then immediately reparent it as a tab.
         // We capture the current key window first so we can add the tab to it.
-        guard let currentWindow = NSApp.keyWindow else { return }
+        guard let currentWindow = NSApp.keyWindow else {
+            return
+        }
         openNewWindowHandler?()
-        DispatchQueue.main.async {
-            // The newest visible non-current window is the one SwiftUI just created.
-            if let newWindow = NSApp.windows.first(where: { $0 !== currentWindow && !$0.isMiniaturized && $0.isVisible && $0.contentViewController != nil }) {
-                currentWindow.addTabbedWindow(newWindow, ordered: .above)
-                newWindow.makeKeyAndOrderFront(nil)
-            }
+        // The newest visible non-current window is the one SwiftUI just created.
+        if let newWindow = NSApp.windows.first(where: { $0 !== currentWindow && !$0.isMiniaturized && $0.isVisible && $0.contentViewController != nil }) {
+            currentWindow.addTabbedWindow(newWindow, ordered: .above)
+            newWindow.makeKeyAndOrderFront(nil)
         }
     }
 

@@ -319,7 +319,7 @@ struct ThumbGridView: View {
 // TODO: this should stay in the viewModel
 extension ThumbGridView: ThumbCellDelegate {
 
-    func image(for photo: PhotoItem, completion: @escaping (IRImage?) -> Void) -> Void {
+    func image(for photo: PhotoItem, completion: @escaping @Sendable (IRImage?) -> Void) -> Void {
         viewModel.requestImage(for: photo, completion: completion)
     }
 

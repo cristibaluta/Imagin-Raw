@@ -321,10 +321,9 @@ class ThumbGridViewModel: ObservableObject {
         filterAndSortPhotos()
     }
 
-    func requestImage(for photo: PhotoItem, completion: @escaping (IRImage?) -> Void) {
+    func requestImage(for photo: PhotoItem, completion: @escaping @Sendable (IRImage?) -> Void) {
         cachingManager.requestImage(for: photo, completion: completion)
     }
-
 
     func startCachingImages(for photos: [PhotoItem]) {
         cachingManager.startCachingImages(for: photos)

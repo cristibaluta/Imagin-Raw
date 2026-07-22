@@ -10,7 +10,7 @@ import Combine
 import AppKit
 
 @MainActor
-protocol FileSystemMonitorDelegate: AnyObject {
+protocol FileSystemMonitorDelegate: AnyObject, Sendable {
     func folderContentsDidChange(at urls: [URL])
     func photoMetadataDidChange(forPhotoAt url: URL)
 }
@@ -56,12 +56,34 @@ class FileSystemMonitor {
     weak var delegate: FileSystemMonitorDelegate?
 
     // Static registry — closure callback cannot capture context, so lookups go through statics
-    private static var nextId = 0
-    private static var monitors: [Int: FileSystemMonitor] = [:]
+    private static let registryLock = NSLock()
+    nonisolated(unsafe) private static var nextId = 0
+    nonisolated(unsafe) private static var monitors: [Int: FileSystemMonitor] = [:]
     private var monitorId: Int
 
     static func getMonitor(id: Int) -> FileSystemMonitor? {
-        return monitors[id]
+        registryLock.withLock {
+            monitors[id]
+        }
+    }
+
+    private static func register(_ monitor: FileSystemMonitor, id: Int) {
+        registryLock.withLock {
+            monitors[id] = monitor
+        }
+    }
+
+    private static func unregister(id: Int) {
+        registryLock.withLock {
+            _ = monitors.removeValue(forKey: id)
+        }
+    }
+
+    private static func generateId() -> Int {
+        registryLock.withLock {
+            nextId += 1
+            return nextId
+        }
     }
 
     // Combine subjects for throttling
@@ -70,9 +92,8 @@ class FileSystemMonitor {
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        FileSystemMonitor.nextId += 1
-        self.monitorId = FileSystemMonitor.nextId
-        FileSystemMonitor.monitors[monitorId] = self
+        self.monitorId = FileSystemMonitor.generateId()
+        FileSystemMonitor.register(self, id: monitorId)
 
         // Throttle per-file events: fire immediately, then at most once per 0.3s per URL.
         // This means moving N files in quick succession produces N separate delegate calls
@@ -80,12 +101,12 @@ class FileSystemMonitor {
         fileChangeSubject
             .collect(.byTime(DispatchQueue.main, .milliseconds(300)))
             .sink { [weak self] urls in
-                guard let self else { return }
                 let unique = urls.reduce(into: [URL]()) { acc, url in
                     if !acc.contains(url) { acc.append(url) }
                 }
-                Task {
-                    await self.delegate?.folderContentsDidChange(at: unique)
+                let delegate = self?.delegate
+                Task { @MainActor in
+                    delegate?.folderContentsDidChange(at: unique)
                 }
             }
             .store(in: &cancellables)
@@ -93,8 +114,9 @@ class FileSystemMonitor {
         sidecarChangeSubject
             .debounce(for: .seconds(2), scheduler: DispatchQueue.main)
             .sink { [weak self] url in
-                Task {
-                    await self?.delegate?.photoMetadataDidChange(forPhotoAt: url)
+                let delegate = self?.delegate
+                Task { @MainActor in
+                    delegate?.photoMetadataDidChange(forPhotoAt: url)
                 }
             }
             .store(in: &cancellables)
