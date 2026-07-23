@@ -202,18 +202,18 @@ final class PhotosFolderModel: ObservableObject {
         var photosWithExifs: [PhotoItem] = []
 
         for photo in photos.wrappedValue {
-            let op = LoadExifOperation(photo: photo) { [weak self] photoWithExif in
-                self?.queueLock.withLock {
+            let op = LoadExifOperation(photo: photo) { photoWithExif in
+                Task {
                     photosWithExifs.append(photoWithExif)
                 }
             }
             queue.addOperation(op)
         }
         queue.addBarrierBlock {
-            DispatchQueue.main.async {
-                RCLog("loaded Exifs in \(String(format: "%.3f", Date().timeIntervalSince(startTime)))s")
-                self.photos.wrappedValue = photosWithExifs
+            Task { @MainActor in
+                RCLog("loaded Exifs \(photosWithExifs.count) from \(self.photos.wrappedValue.count) in \(String(format: "%.3f", Date().timeIntervalSince(startTime)))s")
                 self.isLoadingMetadata = false
+                self.photos.wrappedValue = photosWithExifs
             }
         }
     }
