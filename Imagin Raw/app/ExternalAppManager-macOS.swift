@@ -78,7 +78,6 @@ class ExternalAppManager: ObservableObject, @unchecked Sendable {
                     appNameLowercased.contains(keyword.lowercased())
                 }
 
-//                RCLog(">>>>>> \(bundleID) \(isPhotoApp)")
                 if isPhotoApp {
                     let photoApp = PhotoApp(name: name,
                                             bundleIdentifier: bundleID,

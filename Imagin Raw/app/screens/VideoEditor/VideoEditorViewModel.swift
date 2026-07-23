@@ -209,7 +209,11 @@ final class VideoEditorViewModel: ObservableObject {
         }
 
         writerInput.markAsFinished()
-        await writer.finishWriting()
+        await withCheckedContinuation { continuation in
+            writer.finishWriting {
+                continuation.resume()
+            }
+        }
 
         if writer.status == .failed, let error = writer.error {
             throw error
@@ -227,10 +231,14 @@ final class VideoEditorViewModel: ObservableObject {
                                          kCVPixelFormatType_32BGRA,
                                          attrs as CFDictionary,
                                          &pixelBuffer)
-        guard status == kCVReturnSuccess, let buffer = pixelBuffer else { return nil }
+        guard status == kCVReturnSuccess, let buffer = pixelBuffer else {
+            return nil
+        }
 
         CVPixelBufferLockBaseAddress(buffer, [])
-        defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+        defer {
+            CVPixelBufferUnlockBaseAddress(buffer, [])
+        }
 
         guard let ctx = CGContext(data: CVPixelBufferGetBaseAddress(buffer),
                                    width: Int(size.width),

@@ -40,7 +40,7 @@ enum PhotoKitSource {
     // MARK: Authorisation
 
     /// Requests authorisation if needed and calls back on the main queue.
-    static func requestAuthorisation(completion: @escaping (Bool) -> Void) {
+    static func requestAuthorisation(completion: @escaping @Sendable (Bool) -> Void) {
         let current = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         switch current {
         case .authorized, .limited:
@@ -163,7 +163,7 @@ struct PhotoKitPhotoSource: PhotoSource {
         return nil
     }
 
-    func loadThumbnail(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void) {
+    func loadThumbnail(targetSize: CGFloat, completion: @escaping @Sendable (IRImage?) -> Void) {
         let size = CGSize(width: targetSize * 2, height: targetSize * 2)
         let options = PHImageRequestOptions()
         options.isNetworkAccessAllowed = true
@@ -176,7 +176,6 @@ struct PhotoKitPhotoSource: PhotoSource {
             contentMode: .aspectFit,
             options: options
         ) { image, info in
-            print(">>>>>>>> returning thumbnail \(photoPath) \(info)")
             let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
             guard !isDegraded else {
                 return
@@ -188,7 +187,7 @@ struct PhotoKitPhotoSource: PhotoSource {
         }
     }
 
-    func loadPreview(targetSize: CGFloat, completion: @escaping (IRImage?) -> Void) {
+    func loadPreview(targetSize: CGFloat, completion: @escaping @Sendable (IRImage?) -> Void) {
         let size = CGSize(width: targetSize * 2, height: targetSize * 2)
         let options = PHImageRequestOptions()
         options.isNetworkAccessAllowed = true
@@ -212,7 +211,7 @@ struct PhotoKitPhotoSource: PhotoSource {
         }
     }
 
-    func loadFullRes(completion: @escaping (IRImage?) -> Void) {
+    func loadFullRes(completion: @escaping @Sendable (IRImage?) -> Void) {
         let options = PHImageRequestOptions()
         options.isNetworkAccessAllowed = true
         options.isSynchronous = false

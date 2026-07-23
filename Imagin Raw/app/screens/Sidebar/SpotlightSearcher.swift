@@ -25,10 +25,6 @@ class SpotlightSearcher: ObservableObject, @unchecked Sendable {
     }()
 
     deinit {
-        query?.stop()
-        observers.forEach {
-            NotificationCenter.default.removeObserver($0)
-        }
     }
 
     func search(query searchText: String, in rootFolders: [FolderItem]) {

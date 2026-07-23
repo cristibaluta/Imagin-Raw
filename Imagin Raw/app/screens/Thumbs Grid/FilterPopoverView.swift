@@ -151,7 +151,7 @@ struct FilterPopoverView: View {
                                     selectedNames = Set(ids)
                                 } catch {
                                 }
-                            case .failure(let error):
+                            case .failure(_):
                                 break
                         }
                     }

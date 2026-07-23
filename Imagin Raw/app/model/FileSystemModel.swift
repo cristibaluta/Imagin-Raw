@@ -77,16 +77,17 @@ final class FileSystemModel: ObservableObject {
         }
     }
 
-    deinit {
-        fileSystemMonitor.stopAllMonitoring()
-
-        // Stop volume monitoring
-        NotificationCenter.default.removeObserver(self)
-
-        for url in accessedURLs {
-            url.stopAccessingSecurityScopedResource()
-        }
-    }
+    // TODO: Replace with something else?
+//    deinit {
+//        fileSystemMonitor.stopAllMonitoring()
+//
+//        // Stop volume monitoring
+//        NotificationCenter.default.removeObserver(self)
+//
+//        for url in accessedURLs {
+//            url.stopAccessingSecurityScopedResource()
+//        }
+//    }
 
     func addFolder(at url: URL) {
         if allFolderBookmarks.contains(where: { $0.url.path == url.path }) {
@@ -272,7 +273,9 @@ final class FileSystemModel: ObservableObject {
                 return
             }
             appPrefs.set(true, forKey: .photoLibraryEnabled)
-            self.insertPhotoLibraryFolder()
+            Task { @MainActor in
+                self.insertPhotoLibraryFolder()
+            }
         }
     }
 
