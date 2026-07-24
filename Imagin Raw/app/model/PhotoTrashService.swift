@@ -28,7 +28,9 @@ class PhotoTrashService {
         // The unmute is delayed because FSEvents delivers callbacks asynchronously
         // (typically 100–300 ms after the file operation).
         fileSystemModel?.muteFSEvents()
-        defer { fileSystemModel?.unmuteFSEventsAfterDelay() }
+        defer {
+            fileSystemModel?.unmuteFSEventsAfterDelay()
+        }
 
         for photo in photos {
             let url = URL(fileURLWithPath: photo.path)

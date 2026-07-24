@@ -756,7 +756,7 @@ class ThumbGridViewModel: ObservableObject {
             }
 
             // Ensure all thumbnail are downloaded
-            RCLog("🔍 Resolving thumbnail URLs...")
+            RCLog("Resolving thumbnail URLs...")
             var imageURLs: [Int: URL] = [:]
             var missingUrls: [Int: PhotoItem] = [:]
 
@@ -779,7 +779,7 @@ class ThumbGridViewModel: ObservableObject {
             for (index, photo) in missingUrls {
                 // Check before each iteration
                 if Task.isCancelled {
-                    RCLog("🛑 Thumbnail generation cancelled at index \(index)")
+                    RCLog("Thumbnail generation cancelled at index \(index)")
                     DispatchQueue.main.async {
                         self.cachingQueueCount = 0
                         self.isFindingDuplicates = false
@@ -788,14 +788,12 @@ class ThumbGridViewModel: ObservableObject {
                     return
                 }
                 let diskURL = self.thumbsManager.cachedPhotoUrl(for: photo.url)
-//                RCLog("  ⏳ Generating thumb [\(index+1)/\(total)]: \(URL(fileURLWithPath: photo.path).lastPathComponent)")
-
                 _ = await self.thumbsManager.getImage(for: photo)
 
                 if FileManager.default.fileExists(atPath: diskURL.path) {
                     imageURLs[index] = diskURL
                 } else {
-                    RCLog("  ⚠️ Thumb missing after generation: \(diskURL.lastPathComponent)")
+                    RCLog("Thumb missing after generation: \(diskURL.lastPathComponent)")
                 }
                 toComplete -= 1
                 let tc_o = toComplete
@@ -815,7 +813,7 @@ class ThumbGridViewModel: ObservableObject {
                                                          isCancelled: { Task.isCancelled })
             // If data was cancelled, indexes are incomplete and we need to stop the rest of the scan
             if Task.isCancelled {
-                RCLog("🛑 Duplicate finds were cancelled")
+                RCLog("Duplicate finds were cancelled")
                 DispatchQueue.main.async {
                     self.isFindingDuplicates = false
                     self.isDuplicateMode = false
@@ -828,7 +826,7 @@ class ThumbGridViewModel: ObservableObject {
                     let result = data.recluster(threshold: self.similarityMode.distanceThreshold,
                                                 sortBy: self.photoSortComparator)
                     self.duplicateScanResult = result
-                    RCLog("🔍 Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", data.scanDuration))s")
+                    RCLog("Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", data.scanDuration))s")
                 }
                 self.isFindingDuplicates = false
                 self.isDuplicateMode = true

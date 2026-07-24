@@ -34,10 +34,16 @@ enum JpegMetadataWriter {
             let pathStr = path as String
             let value = CGImageMetadataTagCopyValue(tag)
             if pathStr.hasSuffix(":Rating") || pathStr == "Rating" {
-                if let v = value as? String { result.rating = Int(v) }
-                else if let v = value as? NSNumber { result.rating = v.intValue }
+                if let v = value as? String {
+                    result.rating = Int(v)
+                }
+                else if let v = value as? NSNumber {
+                    result.rating = v.intValue
+                }
             } else if pathStr.hasSuffix(":Label") || pathStr == "Label" {
-                if let v = value as? String, !v.isEmpty { result.label = v }
+                if let v = value as? String, !v.isEmpty {
+                    result.label = v
+                }
             }
             return true
         }
@@ -171,10 +177,7 @@ enum JpegMetadataWriter {
         }
     }
 
-    /// File extensions that support embedded metadata writing via ImageIO.
-    static let supportedExtensions: Set<String> = ["jpg", "jpeg", "png", "tiff", "tif", "heic", "psd"]
-
     static func isSupported(_ url: URL) -> Bool {
-        supportedExtensions.contains(url.pathExtension.lowercased())
+        FilesExtensions.supportedExtensions.contains(url.pathExtension.lowercased())
     }
 }
