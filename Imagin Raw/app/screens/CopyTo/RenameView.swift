@@ -74,7 +74,7 @@ struct RenameView: View {
         if renameByExifDate {
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd_HHmmss"
-            baseName = dateFormatter.string(from: photo.dateCreated) + "_" + baseName
+            baseName = dateFormatter.string(from: photo.dateCaptured ?? Date()) + "_" + baseName
         }
 
         if !customPrefix.isEmpty {

@@ -34,8 +34,12 @@ final class PhotosModel: ObservableObject {
         photokitModel = PhotosKitModel(folder: folder)
 
         folderModel.photos = Binding(
-            get: { self.photos },
-            set: { self.photos = $0 }
+            get: {
+                self.photos
+            },
+            set: {
+                self.photos = $0
+            }
         )
 //        folderModel.photosSubject.assign(to: &$photos)
         folderModel.isLoadingSubject.assign(to: &$isLoadingMetadata)
@@ -48,7 +52,9 @@ final class PhotosModel: ObservableObject {
         if folder.url.isPhotoKitAlbum || folder.url.isPhotoLibraryRoot {
             photokitModel.loadPhotos()
         } else {
+            let d0 = Date()
             folderModel.loadPhotos()
+            RCLog("Folder loaded in \(Date().timeIntervalSince(d0)) seconds")
         }
     }
 
@@ -73,7 +79,9 @@ final class PhotosModel: ObservableObject {
     }
 
     func applyFileSystemChanges(at urls: [URL]) {
-        guard !folder.url.isPhotoKitAlbum, !folder.url.isPhotoLibraryRoot else { return }
+        guard !folder.url.isPhotoKitAlbum, !folder.url.isPhotoLibraryRoot else {
+            return
+        }
         folderModel.applyFileSystemChanges(at: urls)
     }
 

@@ -85,17 +85,18 @@ class SpotlightSearcher: ObservableObject, @unchecked Sendable {
         for result in q.results {
             #if os(macOS)
             guard let item = result as? NSMetadataItem,
-                  let path = item.value(forAttribute: kMDItemPath as String) as? String else { continue }
+                  let path = item.value(forAttribute: kMDItemPath as String) as? String else {
+                continue
+            }
             let url = URL(fileURLWithPath: path)
             let contentType = item.value(forAttribute: kMDItemContentType as String) as? String ?? ""
             if contentType == "public.folder" {
                 folderItems.append(FolderItem(url: url, children: nil))
             }
             else if FilesExtensions.isImageFile(url) || FilesExtensions.isMovieFile(url) {
-                let date = (item.value(forAttribute: kMDItemFSCreationDate as String) as? Date) ?? Date()
+//                let date = (item.value(forAttribute: kMDItemFSCreationDate as String) as? Date) ?? Date()
                 photos.append(PhotoItem(url: url,
                                         path: path,
-                                        dateCreated: date,
                                         hasACR: false,
                                         hasJPG: false,
                                         hasXMP: false,

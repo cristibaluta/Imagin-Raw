@@ -133,7 +133,7 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
         if renameByExifDate {
             let fmt = DateFormatter()
             fmt.dateFormat = "yyyy-MM-dd_HHmmss"
-            baseName = fmt.string(from: photo.dateCreated) + "_" + baseName
+            baseName = fmt.string(from: photo.dateCaptured ?? Date()) + "_" + baseName
         }
         if !customPrefix.isEmpty {
             baseName = customPrefix + baseName
@@ -182,7 +182,7 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
                     firstPhoto.path.lowercased().hasSuffix(".heic")
         let ext = firstPhoto.url.pathExtension
         let destFolder = buildDestinationFolder(base: baseURL,
-                                                date: firstPhoto.dateCreated,
+                                                date: firstPhoto.dateCaptured ?? Date(),
                                                 cameraModel: firstPhoto.cameraModel,
                                                 isJpegCompanion: isJpg,
                                                 settings: settings)
@@ -291,7 +291,7 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
                           settings: CopySettings) throws {
 
         let destFolderURL = buildDestinationFolder(base: destBaseFolderURL,
-                                                   date: photo.dateCreated,
+                                                   date: photo.dateCaptured ?? Date(),
                                                    cameraModel: photo.cameraModel,
                                                    isJpegCompanion: false,
                                                    settings: settings)
@@ -324,7 +324,7 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
         // If the raw has a jpeg counterpart, search for it and add it to the list as well
         if photo.hasJPG {
             let jpegDestFolderURL = buildDestinationFolder(base: destBaseFolderURL,
-                                                           date: photo.dateCreated,
+                                                           date: photo.dateCaptured ?? Date(),
                                                            cameraModel: photo.cameraModel,
                                                            isJpegCompanion: true,
                                                            settings: settings)

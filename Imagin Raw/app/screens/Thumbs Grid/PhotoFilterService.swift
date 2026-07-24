@@ -32,26 +32,35 @@ struct PhotoFilterService {
 
     static func comparator(for option: ThumbGridViewModel.SortOption) -> (PhotoItem, PhotoItem) -> Bool {
         switch option {
-        case .name:
-                return { URL(fileURLWithPath: $0.path)
-                        .lastPathComponent
-                        .localizedStandardCompare(URL(fileURLWithPath: $1.path).lastPathComponent) == .orderedAscending
+            case .name:
+                return { $0.url.lastPathComponent.localizedStandardCompare($1.url.lastPathComponent) == .orderedAscending }
+            case .dateCaptured:
+                return {
+                    if let d0 = $0.dateCaptured, let d1 = $1.dateCaptured {
+                        return d0 < d1
+                    } else {
+                        return $0.path < $1.path
+                    }
                 }
-        case .dateCaptured:
-            return { $0.dateCreated < $1.dateCreated }
-        case .dateModified:
-            return { ($0.dateModified ?? $0.dateCreated) < ($1.dateModified ?? $1.dateCreated) }
-        case .fileType:
-            return { a, b in
-                let e1 = URL(fileURLWithPath: a.path).pathExtension.lowercased()
-                let e2 = URL(fileURLWithPath: b.path).pathExtension.lowercased()
-                return e1 != e2 ? e1 < e2 : a.dateCreated < b.dateCreated
-            }
-        case .rating:
-            return { a, b in
-                let r1 = a.effectiveRating, r2 = b.effectiveRating
-                return r1 != r2 ? r1 > r2 : a.dateCreated < b.dateCreated
-            }
+            case .dateModified:
+                return {
+                    if let d0 = $0.dateModified ?? $0.dateCaptured, let d1 = $1.dateModified ?? $1.dateCaptured {
+                        return d0 < d1
+                    } else {
+                        return $0.path < $1.path
+                    }
+                }
+            case .fileType:
+                return {
+                    let e1 = $0.url.pathExtension.lowercased()
+                    let e2 = $1.url.pathExtension.lowercased()
+                    return e1 != e2 ? e1 < e2 : $0.path < $1.path
+                }
+            case .rating:
+                return {
+                    let r1 = $0.effectiveRating, r2 = $1.effectiveRating
+                    return r1 != r2 ? r1 > r2 : $0.path < $1.path
+                }
         }
     }
 
@@ -61,8 +70,8 @@ struct PhotoFilterService {
                                 sortOption: ThumbGridViewModel.SortOption) -> [(title: String, photos: [PhotoItem])] {
         switch sortOption {
             case .name:         return []
-            case .dateCaptured: return groupByKey(photos) { $0.dateCreated.EEEEMMMdyyyy }
-            case .dateModified: return groupByKey(photos) { ($0.dateModified ?? $0.dateCreated).EEEEMMMdyyyy }
+            case .dateCaptured: return groupByKey(photos) { ($0.dateCaptured ?? Date()).EEEEMMMdyyyy }
+            case .dateModified: return groupByKey(photos) { ($0.dateModified ?? $0.dateCaptured ?? Date()).EEEEMMMdyyyy }
             case .fileType:     return groupByKey(photos) { URL(fileURLWithPath: $0.path).pathExtension.uppercased() }
             case .rating:
                 return groupByKey(photos) { photo in

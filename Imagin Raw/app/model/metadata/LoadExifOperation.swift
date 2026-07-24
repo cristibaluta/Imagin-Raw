@@ -78,34 +78,32 @@ final class LoadExifOperation: Operation, @unchecked Sendable {
         // 1. EXIF DateTimeOriginal from ImageIO/LibRaw (actual shutter press time)
         // 2. XMP CreateDate from sidecar (set by camera or Lightroom)
         // 3. Keep existing date (file system creation date, last resort)
-        let captureDate: Date
+        let captureDate: Date?
         if let exifDate {
             captureDate = exifDate
         } else if let xmpDateStr = xmp?.createDate, let parsed = parseXmpDate(xmpDateStr) {
             captureDate = parsed
         } else {
-            captureDate = photo.dateCreated
+            captureDate = photo.dateCaptured
         }
 
-        return PhotoItem(
-            id: photo.id,
-            url: photo.url,
-            path: photo.path,
-            dateCreated: captureDate,
-            dateModified: photo.dateModified,
-            toDelete: photo.toDelete,
-            hasACR: photo.hasACR,
-            hasJPG: photo.hasJPG,
-            hasXMP: xmp != nil,
-            xmp: xmp,
-            inCameraRating: inCameraRating,
-            isRawFile: photo.isRawFile,
-            fileSizeBytes: photo.fileSizeBytes,
-            width: width,
-            height: height,
-            cameraMake: cameraMake,
-            cameraModel: cameraModel
-        )
+        return PhotoItem(id: photo.id,
+                         url: photo.url,
+                         path: photo.path,
+                         dateCaptured: captureDate,
+                         dateModified: photo.dateModified,
+                         toDelete: photo.toDelete,
+                         hasACR: photo.hasACR,
+                         hasJPG: photo.hasJPG,
+                         hasXMP: xmp != nil,
+                         xmp: xmp,
+                         inCameraRating: inCameraRating,
+                         isRawFile: photo.isRawFile,
+                         fileSizeBytes: photo.fileSizeBytes,
+                         width: width,
+                         height: height,
+                         cameraMake: cameraMake,
+                         cameraModel: cameraModel)
     }
 
     /// Parse an XMP/ISO 8601 date string into a Date.

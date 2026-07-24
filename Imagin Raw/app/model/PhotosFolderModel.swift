@@ -99,10 +99,10 @@ final class PhotosFolderModel: ObservableObject {
             .sorted(by: { $0.path < $1.path })
             .map { imageFile in
                 let baseName = imageFile.deletingPathExtension().lastPathComponent
-                let resValues = try? imageFile.resourceValues(forKeys: [.creationDateKey,
-                                                                        .contentModificationDateKey,
+                let resValues = try? imageFile.resourceValues(forKeys: [.contentModificationDateKey,
                                                                         .fileSizeKey])
-                let creationDate = resValues?.creationDate ?? Date()
+                // dateCreated is not reliable
+//                let dateCaptured = resValues?.contentModificationDate
                 let modifiedDate = resValues?.contentModificationDate
                 let size = resValues?.fileSize as? Int
                 let isRaw = FilesExtensions.isRawImageFile(imageFile)
@@ -113,7 +113,6 @@ final class PhotosFolderModel: ObservableObject {
 
                 return PhotoItem(url: imageFile,
                                  path: imageFile.path,
-                                 dateCreated: creationDate,
                                  dateModified: modifiedDate,
                                  hasACR: hasACR,
                                  hasJPG: hasJPG,
@@ -153,13 +152,12 @@ final class PhotosFolderModel: ObservableObject {
                     queue.addOperation(op)
                 } else {
                     // New file — build a PhotoItem and append it, then load its EXIF
-                    let resValues = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey])
+                    let resValues = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
                     let isRaw = FilesExtensions.isRawImageFile(url)
                     let hasXMP = FileManager.default.fileExists(
                         atPath: url.deletingPathExtension().appendingPathExtension("xmp").path)
                     let newPhoto = PhotoItem(url: url,
                                             path: url.path,
-                                            dateCreated: resValues?.creationDate ?? Date(),
                                             dateModified: resValues?.contentModificationDate,
                                             hasACR: false,
                                             hasJPG: false,

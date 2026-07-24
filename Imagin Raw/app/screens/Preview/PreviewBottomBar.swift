@@ -21,7 +21,12 @@ struct PreviewBottomBar: View {
     var body: some View {
         HStack(spacing: 0) {
             if model.exifIsExpanded || gridType == .large {
-                ExifExtendedView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated, width: photo.width, height: photo.height, gridType: $gridType)
+                ExifExtendedView(exifInfo: exifInfo,
+                                 fileSize: photo.fileSizeBytes,
+                                 dateCreated: photo.dateModified ?? Date(),// TODO
+                                 width: photo.width,
+                                 height: photo.height,
+                                 gridType: $gridType)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         if gridType != .large {
@@ -29,7 +34,9 @@ struct PreviewBottomBar: View {
                         }
                     }
             } else {
-                ExifCompactView(exifInfo: exifInfo, fileSize: photo.fileSizeBytes, dateCreated: photo.dateCreated)
+                ExifCompactView(exifInfo: exifInfo,
+                                fileSize: photo.fileSizeBytes,
+                                dateCreated: photo.dateModified ?? Date())
                     .contentShape(Rectangle())
                     .onTapGesture {
                         model.toggleExifExpanded()

@@ -18,8 +18,8 @@ struct PhotoItem: Identifiable, Sendable {
     let id: UUID
     var url: URL
     var path: String           // file path on disk, OR PHAsset.localIdentifier for PhotoKit items
-    let dateCreated: Date      // EXIF capture date (shutter press time)
-    let dateModified: Date?    // File system last-modified date
+    let dateCaptured: Date?
+    let dateModified: Date?
 
     let hasACR: Bool
     let hasJPG: Bool
@@ -60,7 +60,7 @@ struct PhotoItem: Identifiable, Sendable {
 
     init(url: URL,
          path: String,
-         dateCreated: Date,
+         dateCaptured: Date? = nil,
          dateModified: Date? = nil,
          hasACR: Bool = false,
          hasJPG: Bool = false,
@@ -77,12 +77,12 @@ struct PhotoItem: Identifiable, Sendable {
         self.id = UUID()
         self.url = url
         self.path = path
-        self.xmp = xmp
-        self.dateCreated = dateCreated
+        self.dateCaptured = dateCaptured
         self.dateModified = dateModified
         self.hasACR = hasACR
         self.hasJPG = hasJPG
         self.hasXMP = hasXMP
+        self.xmp = xmp
         self.inCameraRating = inCameraRating
         self.isRawFile = isRawFile
         self.fileSizeBytes = fileSizeBytes
@@ -97,7 +97,7 @@ struct PhotoItem: Identifiable, Sendable {
     init(id: UUID,
          url: URL,
          path: String,
-         dateCreated: Date,
+         dateCaptured: Date? = nil,
          dateModified: Date? = nil,
          toDelete: Bool,
          hasACR: Bool = false,
@@ -116,7 +116,7 @@ struct PhotoItem: Identifiable, Sendable {
         self.url = url
         self.path = path
         self.xmp = xmp
-        self.dateCreated = dateCreated
+        self.dateCaptured = dateCaptured
         self.dateModified = dateModified
         self.toDelete = toDelete
         self.hasACR = hasACR
@@ -137,9 +137,9 @@ struct PhotoItem: Identifiable, Sendable {
         self.id = UUID()
         if #available(iOS 26.0, macOS 26.0, *) {
             let dateAdded = asset.value(forKey: "addedDate") as? Date
-            self.dateCreated = dateAdded ?? asset.creationDate ?? Date()//asset.addedDate
+            self.dateCaptured = dateAdded ?? asset.creationDate// TODO: Use asset.addedDate when compiling from Xcode26
         } else {
-            self.dateCreated = asset.creationDate ?? Date()
+            self.dateCaptured = asset.creationDate
         }
         self.dateModified = asset.modificationDate
         self.hasACR = false
@@ -188,7 +188,6 @@ extension PhotoItem: Hashable {
         lhs.id == rhs.id &&
         lhs.path == rhs.path &&
         lhs.xmp == rhs.xmp &&
-        lhs.dateCreated == rhs.dateCreated &&
         lhs.dateModified == rhs.dateModified &&
         lhs.hasACR == rhs.hasACR &&
         lhs.hasJPG == rhs.hasJPG &&
