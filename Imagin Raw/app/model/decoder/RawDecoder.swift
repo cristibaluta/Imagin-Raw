@@ -85,18 +85,19 @@ struct CoreGraphicsDecoder: RawDecoder {
         guard let oriented = cg.applyingOrientation(exifOrientation) else {
             return nil
         }
-        RCLog("🖼 [CoreGraphicsDecoder] oriented \(oriented.width)×\(oriented.height) orientation=\(exifOrientation)  +\(String(format:"%.3f",-t0.timeIntervalSinceNow))s")
         return IRImage(cgImage: oriented, size: IRSize(width: oriented.width, height: oriented.height))
     }
 
     /// Normalize any CGImage to sRGB + noneSkipLast (no alpha).
     private func normalizeToSRGB(_ cg: CGImage) -> CGImage {
         let cs = CGColorSpaceCreateDeviceRGB()
-        guard let ctx = CGContext(
-            data: nil, width: cg.width, height: cg.height,
-            bitsPerComponent: 8, bytesPerRow: 0, space: cs,
-            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
-        ) else { return cg }
+        guard let ctx = CGContext(data: nil,
+                                  width: cg.width,
+                                  height: cg.height,
+                                  bitsPerComponent: 8,
+                                  bytesPerRow: 0,
+                                  space: cs,
+                                  bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return cg }
         ctx.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
         return ctx.makeImage() ?? cg
     }

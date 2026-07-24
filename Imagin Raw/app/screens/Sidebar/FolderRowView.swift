@@ -16,6 +16,7 @@ struct FolderRowView: View {
     let saveExpandedState: () -> Void
     let onDoubleClick: () -> Void
     let isRootFolder: Bool
+    let isVolumeFolder: Bool
     /// Depth of this folder: 0 = root, 1 = first level inside root, 2+ = deeper
     let depth: Int
 
@@ -41,30 +42,22 @@ struct FolderRowView: View {
     }
 
     private var folderIcon: String {
-        if isRootFolder && isVolume {
+        if folder.url.isPhotoKitAlbum {
+            return "photo.stack"
+        }
+        if isEjectable {
             return "externaldrive.fill"
         }
-
-        // Check if this is a first-level folder inside /Volumes (the actual external drive)
-        let path = folder.url.path
-        let components = path.components(separatedBy: "/").filter { !$0.isEmpty }
-
-        // If path is like /Volumes/DriveName, it's the drive itself
-        if components.count == 2 && components[0] == "Volumes" {
-            return "externaldrive.fill"
-        }
-
         return "folder.fill"
+    }
+
+    private var isEjectable: Bool {
+        isVolumeFolder && depth == 1
     }
 
     private var needsToLoadChildren: Bool {
         // Check if this folder has an empty children array (placeholder for expandable but unloaded)
         return folder.children?.isEmpty == true
-    }
-
-    // Check if this folder is in /Volumes (external drive, network share, etc.)
-    private var isVolume: Bool {
-        return folder.url.path.hasPrefix("/Volumes/")
     }
 
     // Get the volume path (first component after /Volumes/)
@@ -107,6 +100,7 @@ struct FolderRowView: View {
         }
     }
 
+    // TODO: This should not be in the view
     #if os(macOS)
     private func ejectVolume() {
         guard let volumePath else {
@@ -158,6 +152,7 @@ struct FolderRowView: View {
                                   saveExpandedState: saveExpandedState,
                                   onDoubleClick: onDoubleClick,
                                   isRootFolder: false,
+                                  isVolumeFolder: isVolumeFolder,
                                   depth: depth + 1
                     )
                 }
@@ -170,11 +165,25 @@ struct FolderRowView: View {
     }
 
     private var buildFolderLabel: some View {
-        Label {
-            Text(folder.title)
-        } icon: {
-            Image(systemName: folder.url.isPhotoKitAlbum ? "photo.stack" : "folder.fill")
-                .foregroundStyle(folderColor)
+        HStack {
+            Label {
+                Text(folder.title)
+            } icon: {
+                Image(systemName: folderIcon)
+                    .foregroundStyle(folderColor)
+            }
+
+            if isEjectable {
+                Spacer()
+
+                Button {
+                    ejectVolume()
+                } label: {
+                    Image(systemName: "eject")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .tag(folder)
         .onTapGesture {
@@ -231,7 +240,7 @@ struct FolderRowView: View {
             }
 
             // Only show eject option for root folders in /Volumes
-            if isRootFolder && isVolume {
+            if isEjectable {
                 Divider()
                 Button(action: {
                     ejectVolume()

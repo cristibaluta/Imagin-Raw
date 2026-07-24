@@ -26,6 +26,7 @@ struct FoldersListView: View {
                                           onDoubleClick?()
                                       },
                                       isRootFolder: true,
+                                      isVolumeFolder: false,
                                       depth: 0)
                     }
                     .onDelete(perform: deleteFolders)
@@ -42,6 +43,7 @@ struct FoldersListView: View {
                                           onDoubleClick?()
                                       },
                                       isRootFolder: true,
+                                      isVolumeFolder: true,
                                       depth: 0)
                     }
                     .onDelete(perform: deleteFolders)
