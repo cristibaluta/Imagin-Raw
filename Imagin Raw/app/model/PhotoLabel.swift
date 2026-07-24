@@ -10,45 +10,47 @@ import SwiftUI
 import AppKit
 #endif
 
-/// Centralised label colour definitions.
-/// All other files should call these instead of hardcoding colours.
-enum PhotoLabel {
+enum PhotoLabel: String, CaseIterable {
 
-    // MARK: - SwiftUI colours (used in SwiftUI views and FilterPopoverView)
+    case noLabel = "No Label"
+    case select = "Select"
+    case second = "Second"
+    case approved = "Approved"
+    case review = "Review"
+    case todo = "To Do"
+    case rejected = "Rejected"
 
-    static func color(for label: String) -> Color {
-        switch label {
-        case "Select":   return .red
-        case "Second":   return .yellow
-        case "Approved": return Color(red: 133/255, green: 199/255, blue: 102/255)
-        case "Review":   return .blue
-        case "To Do":    return .purple
-        case "Rejected": return .orange
-        default:         return .secondary
+    var color: Color {
+        switch self {
+            case .select:   return .red
+            case .second:   return .yellow
+            case .approved: return Color(red: 133/255, green: 199/255, blue: 102/255)
+            case .review:   return .blue
+            case .todo:     return .purple
+            case .rejected: return .orange
+            default:        return .secondary
         }
     }
 
-    static func textColor(for label: String) -> Color {
-        switch label {
-        case "Second", "Approved": return .black
-        case "Select", "Review", "To Do", "Rejected": return .white
-        default: return .primary
+    var textColor: Color {
+        switch self {
+            case .second, .approved:                 return .black
+            case .select, .review, .todo, .rejected: return .white
+            default:                                 return .primary
         }
     }
-
-    // MARK: - AppKit colours (used in NSView-based cells)
 
 #if os(macOS)
-    static func nsColor(for label: String) -> NSColor {
-        NSColor(color(for: label))
+    var nsColor: NSColor {
+        NSColor(self.color)
     }
 
-    static func nsCGColor(for label: String) -> CGColor {
-        nsColor(for: label).cgColor
+    var nsCGColor: CGColor {
+        nsColor.cgColor
     }
 
-    static func nsTextColor(for label: String) -> NSColor {
-        NSColor(textColor(for: label))
+    var nsTextColor: NSColor {
+        NSColor(textColor)
     }
 #endif
 

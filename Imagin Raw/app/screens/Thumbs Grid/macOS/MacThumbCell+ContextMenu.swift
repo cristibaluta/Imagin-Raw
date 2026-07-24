@@ -79,26 +79,34 @@ extension MacThumbCell {
             labelItem.isEnabled = false
         }
         let labelMenu = NSMenu()
-        let labels: [(name: String, key: String)] = [
-            ("Select", "6"), ("Second", "7"), ("Approved", "8"), ("Review", "9"), ("To Do", "0")
+        let labels: [(name: PhotoLabel, key: String)] = [
+            (PhotoLabel.select, "6"),
+            (PhotoLabel.second, "7"),
+            (PhotoLabel.approved, "8"),
+            (PhotoLabel.review, "9"),
+            (PhotoLabel.todo, "0")
         ]
-        let currentLabel = photo.xmp?.label ?? ""
-        for (name, key) in labels {
-            let item = NSMenuItem(title: name, action: #selector(handleSetLabel(_:)), keyEquivalent: key)
+        let xmpLabel = PhotoLabel(rawValue: photo.xmp?.label ?? "") ?? .noLabel
+        for (label, key) in labels {
+            let item = NSMenuItem(title: label.rawValue, action: #selector(handleSetLabel(_:)), keyEquivalent: key)
             item.keyEquivalentModifierMask = []
-            item.representedObject = name
-            if currentLabel == name { item.state = .on }
+            item.representedObject = label
+            if xmpLabel == label {
+                item.state = .on
+            }
             let colorDot = NSImage(size: NSSize(width: 10, height: 10), flipped: false) { rect in
-                NSColor(PhotoLabel.color(for: name)).setFill()
+                label.nsColor.setFill()
                 NSBezierPath(ovalIn: rect).fill()
                 return true
             }
             item.image = colorDot
             labelMenu.addItem(item)
         }
-        let removeItem = NSMenuItem(title: "No Label", action: #selector(handleRemoveLabel), keyEquivalent: "-")
+        let removeItem = NSMenuItem(title: PhotoLabel.noLabel.rawValue, action: #selector(handleRemoveLabel), keyEquivalent: "-")
         removeItem.keyEquivalentModifierMask = []
-        if currentLabel.isEmpty { removeItem.state = .on }
+        if xmpLabel == .noLabel {
+            removeItem.state = .on
+        }
         labelMenu.addItem(.separator())
         labelMenu.addItem(removeItem)
         labelItem.submenu = labelMenu
@@ -159,20 +167,24 @@ extension MacThumbCell {
     }
 
     @objc private func handleReview() {
-        guard let p = currentPhoto else {
+        guard let currentPhoto else {
             return
         }
-        delegate?.onReviewSelected(photo: p)
+        delegate?.onReviewSelected(photo: currentPhoto)
     }
 
     @objc private func handleCreateVideo() {
-        guard let p = currentPhoto else { return }
-        delegate?.onCreateVideo(photos: [p])  // delegate resolves selection
+        guard let currentPhoto else {
+            return
+        }
+        delegate?.onCreateVideo(photos: [currentPhoto])
     }
 
     @objc private func handleCreatePDF() {
-        guard let p = currentPhoto else { return }
-        delegate?.onCreatePDF(photos: [p])  // delegate resolves selection
+        guard let currentPhoto else {
+            return
+        }
+        delegate?.onCreatePDF(photos: [currentPhoto])
     }
 
     @objc private func handleShowInFinder() {
@@ -227,7 +239,7 @@ extension MacThumbCell {
     }
 
     @objc private func handleSetLabel(_ sender: NSMenuItem) {
-        guard let p = currentPhoto, let label = sender.representedObject as? String else {
+        guard let p = currentPhoto, let label = sender.representedObject as? PhotoLabel else {
             return
         }
         delegate?.onLabelChanged(photo: p, label: label)

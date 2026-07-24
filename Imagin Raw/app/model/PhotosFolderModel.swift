@@ -20,7 +20,6 @@ final class PhotosFolderModel: ObservableObject {
 
     private let folder: FolderItem
     private let queue = OperationQueue()
-    private let queueLock = NSLock()
     private let includeSubfolders: Bool
 
     init(folder: FolderItem, includeSubfolders: Bool) {
@@ -145,7 +144,7 @@ final class PhotosFolderModel: ObservableObject {
                     // File already known — reload its metadata in place
                     let photo = photos.wrappedValue[idx]
                     let op = LoadExifOperation(photo: photo, forceReloadExif: true) { [weak self] updated in
-                        self?.queueLock.withLock {
+                        Task { @MainActor in
                             self?.photos.wrappedValue[idx] = updated
                         }
                     }
@@ -167,7 +166,7 @@ final class PhotosFolderModel: ObservableObject {
                     photos.wrappedValue.append(newPhoto)
                     let insertedIdx = photos.wrappedValue.count - 1
                     let op = LoadExifOperation(photo: newPhoto, forceReloadExif: true) { [weak self] updated in
-                        self?.queueLock.withLock {
+                        Task { @MainActor in
                             guard let self,
                                   insertedIdx < self.photos.wrappedValue.count,
                                   self.photos.wrappedValue[insertedIdx].id == updated.id else {
@@ -230,7 +229,7 @@ final class PhotosFolderModel: ObservableObject {
         let photo = photos.wrappedValue[idx]
 
         let op = LoadExifOperation(photo: photo, forceReloadExif: true) { [weak self] photoWithExif in
-            self?.queueLock.withLock {
+            Task { @MainActor in
                 RCLog("🔄 reloadMetadata: updating photo at idx \(idx) for sidecar \(baseName)")
                 self?.photos.wrappedValue[idx] = photoWithExif
                 completion()

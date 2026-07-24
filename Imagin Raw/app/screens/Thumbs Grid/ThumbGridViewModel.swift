@@ -13,7 +13,7 @@ class ThumbGridViewModel: ObservableObject {
 
     @Published var selectedPhotos: Set<UUID> = []
     @Published var selectedPhoto: PhotoItem?
-    @Published var selectedLabels: Set<String> = []
+    @Published var selectedLabels: Set<PhotoLabel> = []
     @Published var selectedRatings: Set<Int> = []
     @Published var selectedNames: Set<String> = []
     @Published var sortOption: SortOption = .name
@@ -119,7 +119,7 @@ class ThumbGridViewModel: ObservableObject {
         }
     }
 
-    var availableLabels: [String] {
+    var availableLabels: [PhotoLabel] {
         PhotoFilterService.availableLabels(from: photos)
     }
 
@@ -189,15 +189,15 @@ class ThumbGridViewModel: ObservableObject {
 
         // Auto-select a specific photo requested via drag-and-drop / open-with
         if let url = pendingSelectURL {
-            RCLog("🎯 [filterAndSortPhotos] pendingSelectURL: \(url.lastPathComponent) | photos count: \(filteredAndSortedPhotos.count)")
+            RCLog("pendingSelectURL: \(url.lastPathComponent) | photos count: \(filteredAndSortedPhotos.count)")
             if let photo = filteredAndSortedPhotos.first(where: { $0.url == url }) {
-                RCLog("🎯 [filterAndSortPhotos] ✅ found pending photo, selecting: \(photo.url.lastPathComponent)")
+                RCLog("found pending photo, selecting: \(photo.url.lastPathComponent)")
                 pendingSelectURL = nil
                 selectedPhoto = photo
                 selectedPhotos = [photo.id]
                 lastSelectedIndex = filteredAndSortedPhotos.firstIndex { $0.id == photo.id }
             } else {
-                RCLog("🎯 [filterAndSortPhotos] ⏳ pending photo not in grid yet, waiting...")
+                RCLog("pending photo not in grid yet, waiting...")
             }
         }
     }
@@ -206,23 +206,22 @@ class ThumbGridViewModel: ObservableObject {
         let before = (selectedLabels, selectedRatings)
         selectedLabels = selectedLabels.filter { label in
             photos.contains { photo in
-                if label == "Rejected" {
+                if label == .rejected {
                     return photo.toDelete
                 }
-                let pl = photo.xmp?.label ?? ""
-                if label == "No Label" {
-                    return pl.isEmpty && !photo.toDelete
+                let xmpLabel = photo.xmp?.label ?? ""
+                if label == .noLabel {
+                    return xmpLabel.isEmpty && !photo.toDelete
                 }
-                return pl == label && !photo.toDelete
+                return xmpLabel == label.rawValue && !photo.toDelete
             }
         }
         selectedRatings = selectedRatings.filter { rating in
             photos.contains { $0.effectiveRating == rating }
         }
-        RCLog("🔍 clearInvalidFilters: labels \(before.0)→\(selectedLabels) ratings \(before.1)→\(selectedRatings)")
     }
 
-    func toggleLabelFilter(_ label: String) {
+    func toggleLabelFilter(_ label: PhotoLabel) {
         if selectedLabels.contains(label) {
             selectedLabels.remove(label)
         } else {
@@ -281,12 +280,11 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func reloadPhotos() {
-        RCLog("🔄 Reloading photos")
         photosModel?.reloadPhotos()
     }
 
     func applyFileSystemChanges(at urls: [URL]) {
-        RCLog("📂 Applying file system changes for \(urls.count) file(s)")
+        RCLog("Applying file system changes for \(urls.count) file(s)")
         for url in urls where !FileManager.default.fileExists(atPath: url.path) {
             if let photo = photosModel?.photos.first(where: { $0.url == url }) {
                 if selectedPhoto?.url == url { selectedPhoto = nil }
@@ -396,8 +394,8 @@ class ThumbGridViewModel: ObservableObject {
         metadataService.applyRating(rating, to: photos)
     }
 
-    func applyLabel(_ label: String, to photos: [PhotoItem]) {
-        metadataService.applyLabel(label, to: photos)
+    func applyLabel(_ label: PhotoLabel, to photos: [PhotoItem]) {
+        metadataService.applyLabel(label.rawValue, to: photos)
     }
 
     func removeLabels(from photos: [PhotoItem]) {
@@ -533,16 +531,12 @@ class ThumbGridViewModel: ObservableObject {
                 }
 
                 if chars == "a" || chars == "A" {
-                    applyLabel("Approved", to: photos)
+                    applyLabel(.approved, to: photos)
                     return true
                 }
                 if chars == "x" || chars == "X" {
                     if mods.contains(.option) {
-                        if selectedLabels.contains("Rejected") {
-                            selectedLabels = []
-                        } else {
-                            selectedLabels = ["Rejected"]
-                        }
+                        selectedLabels = selectedLabels.contains(.rejected) ? [] : [.rejected]
                     } else {
                         toggleDeleteState(for: photos)
                     }
@@ -560,7 +554,11 @@ class ThumbGridViewModel: ObservableObject {
                     }
                     return true
                 }
-                let labelMap = ["6": "Select", "7": "Second", "8": "Approved", "9": "Review", "0": "To Do"]
+                let labelMap = ["6": PhotoLabel.select,
+                                "7": PhotoLabel.second,
+                                "8": PhotoLabel.approved,
+                                "9": PhotoLabel.review,
+                                "0": PhotoLabel.todo]
                 if let label = labelMap[chars] {
                     if mods.contains(.option) {
                         if selectedLabels.contains(label) {

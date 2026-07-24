@@ -116,18 +116,20 @@ struct ThumbsBottomBar: View {
             }
 
             ForEach(viewModel.availableLabels, id: \.self) { label in
-                Button(action: { viewModel.toggleLabelFilter(label) }) {
-                    let iconName = if label == "Rejected" {
+                Button(action: {
+                    viewModel.toggleLabelFilter(label)
+                }) {
+                    let iconName = if label == .rejected {
                         viewModel.selectedLabels.contains(label) ? "x.square.fill" : "x.square"
                     } else {
                         viewModel.selectedLabels.contains(label) ? "checkmark.square.fill" : "square.fill"
                     }
                     Image(systemName: iconName)
-                        .foregroundColor(PhotoLabel.color(for: label))
+                        .foregroundColor(label.color)
                         .font(.system(size: 14, weight: .medium))
                 }
                 .buttonStyle(PlainButtonStyle())
-                .help(label)
+                .help(label.rawValue)
             }
 
             if viewModel.availableRatings.count > 0 {

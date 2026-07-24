@@ -16,7 +16,7 @@ protocol ThumbCellDelegate: Sendable {
     func onTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) -> Void
     func onDoubleClick(photo: PhotoItem) -> Void
     func onRatingChanged(photo: PhotoItem, rating: Int) -> Void
-    func onLabelChanged(photo: PhotoItem, label: String?) -> Void
+    func onLabelChanged(photo: PhotoItem, label: PhotoLabel?) -> Void
     func onMoveToTrash(photo: PhotoItem) -> Void
     func onCopyTo(photo: PhotoItem) -> Void
     func onRenameTo(photo: PhotoItem) -> Void

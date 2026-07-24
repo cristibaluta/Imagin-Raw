@@ -8,36 +8,38 @@
 import SwiftUI
 
 struct FilterPopoverView: View {
-    @Binding var selectedLabels: Set<String>
+    @Binding var selectedLabels: Set<PhotoLabel>
     @Binding var selectedRatings: Set<Int>
     @Binding var selectedNames: Set<String>
     @State private var importingPdf = false
     let photos: [PhotoItem]
 
-    // All available labels in the requested order
-    private let availableLabels = ["No Label", "Select", "Second", "Approved", "Review", "To Do", "Rejected"]
+    private let availableLabels = PhotoLabel.allCases
+    private let availableRatings = 1...5
 
-    // Calculate count for each label
-    private func getCountForLabel(_ label: String) -> Int {
-        if label == "No Label" {
+    /// Calculate count for each label
+    private func numberOfPhotos(with label: PhotoLabel) -> Int {
+        if label == .noLabel {
             return photos.filter { photo in
                 let photoLabel = photo.xmp?.label ?? ""
                 return photoLabel.isEmpty && !photo.toDelete
             }.count
-        } else if label == "Rejected" {
+        }
+        else if label == .rejected {
             return photos.filter { photo in
                 return photo.toDelete
             }.count
-        } else {
+        }
+        else {
             return photos.filter { photo in
                 let photoLabel = photo.xmp?.label ?? ""
-                return photoLabel == label && !photo.toDelete
+                return photoLabel == label.rawValue && !photo.toDelete
             }.count
         }
     }
 
-    // Calculate count for each rating
-    private func getCountForRating(_ rating: Int) -> Int {
+    /// Calculate count for each rating
+    private func numberOfPhotos(with rating: Int) -> Int {
         return photos.filter { photo in
             // Get the effective rating (XMP or in-camera fallback)
             let effectiveRating: Int
@@ -59,9 +61,11 @@ struct FilterPopoverView: View {
                     .padding(.bottom, 4)
 
                 ForEach(availableLabels, id: \.self) { label in
-                    let count = getCountForLabel(label)
+                    let count = numberOfPhotos(with: label)
                     Toggle(isOn: Binding(
-                        get: { selectedLabels.contains(label) },
+                        get: {
+                            selectedLabels.contains(label)
+                        },
                         set: { isSelected in
                             if isSelected {
                                 selectedLabels.insert(label)
@@ -71,14 +75,14 @@ struct FilterPopoverView: View {
                         }
                     )) {
                         HStack {
-                            Text(label)
+                            Text(label.rawValue)
                             if count > 0 {
                                 Text("(\(count))")
                                     .foregroundColor(.secondary)
                             }
                         }
                     }
-                    .toggleStyle(CheckboxToggleStyle(label: label))
+                    .toggleStyle(CheckboxToggleStyle(label: label.rawValue))
                 }
             }
 
@@ -90,10 +94,12 @@ struct FilterPopoverView: View {
                     .font(.headline)
                     .padding(.bottom, 4)
 
-                ForEach(1...5, id: \.self) { rating in
-                    let count = getCountForRating(rating)
+                ForEach(availableRatings, id: \.self) { rating in
+                    let count = numberOfPhotos(with: rating)
                     Toggle(isOn: Binding(
-                        get: { selectedRatings.contains(rating) },
+                        get: {
+                            selectedRatings.contains(rating)
+                        },
                         set: { isSelected in
                             if isSelected {
                                 selectedRatings.insert(rating)
@@ -104,7 +110,7 @@ struct FilterPopoverView: View {
                     )) {
                         HStack(spacing: 4) {
                             // Show stars
-                            ForEach(1...5, id: \.self) { star in
+                            ForEach(availableRatings, id: \.self) { star in
                                 Image(systemName: star <= rating ? "star.fill" : "star")
                                     .foregroundColor(star <= rating ? .primary : .gray)
                                     .font(.system(size: 10))
@@ -168,7 +174,7 @@ struct CheckboxToggleStyle: ToggleStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         HStack {
-            let labelColor = PhotoLabel.color(for: label)
+            let labelColor = PhotoLabel(rawValue: label)?.color
 
             Image(systemName: configuration.isOn ? "checkmark.square.fill" : "square.fill")
                 .foregroundColor(labelColor)

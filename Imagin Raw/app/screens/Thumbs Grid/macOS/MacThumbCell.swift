@@ -364,13 +364,13 @@ final class MacThumbCell: NSCollectionViewItem {
             filenameLabel.textColor = .black
             return
         }
-        guard let label = photo.xmp?.label, !label.isEmpty else {
+        guard let label = PhotoLabel(rawValue: photo.xmp?.label ?? "") else {
             filenameLabel.layer?.backgroundColor = NSColor.clear.cgColor
             filenameLabel.textColor = .labelColor
             return
         }
-        filenameLabel.layer?.backgroundColor = PhotoLabel.nsCGColor(for: label)
-        filenameLabel.textColor = PhotoLabel.nsTextColor(for: label)
+        filenameLabel.layer?.backgroundColor = label.nsCGColor
+        filenameLabel.textColor = label.nsTextColor
     }
 }
 

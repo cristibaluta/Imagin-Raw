@@ -291,11 +291,19 @@ struct ThumbGridView: View {
             group: group,
             index: index,
             totalGroups: groups.count,
-            onRatingChanged: { photo, rating in viewModel.applyRating(rating, to: [photo]) },
-            onApprove: { photo in viewModel.applyLabel("Approved", to: [photo]) },
-            onMarkForDeletion: { photo in viewModel.toggleDeleteState(for: [photo]) },
+            onRatingChanged: { photo, rating in
+                viewModel.applyRating(rating, to: [photo])
+            },
+            onApprove: { photo in
+                viewModel.applyLabel(.approved, to: [photo])
+            },
+            onMarkForDeletion: { photo in
+                viewModel.toggleDeleteState(for: [photo])
+            },
             onNavigate: { newIndex in
-                guard newIndex >= 0, newIndex < groups.count else { return }
+                guard newIndex >= 0, newIndex < groups.count else {
+                    return
+                }
                 appState.reviewGroup = buildReviewGroupItem(group: groups[newIndex], index: newIndex)
                 appState.reviewViewModel.setup(with: appState.reviewGroup!)
             }
@@ -308,9 +316,15 @@ struct ThumbGridView: View {
             group: group,
             index: 0,
             totalGroups: 1,
-            onRatingChanged: { photo, rating in viewModel.applyRating(rating, to: [photo]) },
-            onApprove: { photo in viewModel.applyLabel("Approved", to: [photo]) },
-            onMarkForDeletion: { photo in viewModel.toggleDeleteState(for: [photo]) },
+            onRatingChanged: { photo, rating in
+                viewModel.applyRating(rating, to: [photo])
+            },
+            onApprove: { photo in
+                viewModel.applyLabel(.approved, to: [photo])
+            },
+            onMarkForDeletion: { photo in
+                viewModel.toggleDeleteState(for: [photo])
+            },
             onNavigate: { _ in }
         )
     }
@@ -351,7 +365,7 @@ extension ThumbGridView: ThumbCellDelegate {
         viewModel.applyRating(rating, to: [photo])
     }
 
-    func onLabelChanged(photo: PhotoItem, label: String?) {
+    func onLabelChanged(photo: PhotoItem, label: PhotoLabel?) {
         if let label {
             viewModel.applyLabel(label, to: [photo])
         } else {
@@ -383,7 +397,7 @@ extension ThumbGridView: ThumbCellDelegate {
     }
 
     func onApprove(photo: PhotoItem) {
-        viewModel.applyLabel("Approved", to: [photo])
+        viewModel.applyLabel(.approved, to: [photo])
     }
 
     func onReject(photo: PhotoItem) {

@@ -12,19 +12,20 @@ struct PhotoFilterService {
 
     // MARK: - Filter
 
-    static func apply(labels: Set<String>, ratings: Set<Int>, names: Set<String>, to photos: [PhotoItem]) -> [PhotoItem] {
+    static func apply(labels: Set<PhotoLabel>, ratings: Set<Int>, names: Set<String>, to photos: [PhotoItem]) -> [PhotoItem] {
         return photos.filter { photo in
             // Name has priority
             let photoName = photo.url.deletingPathExtension().lastPathComponent
             if names.contains(photoName) {
                 return true
             }
-            let label = photo.xmp?.label ?? ""
+            let label = PhotoLabel(rawValue: photo.xmp?.label ?? "") ?? .noLabel
             let rating = photo.xmp?.rating.flatMap { $0 > 0 ? $0 : nil } ?? photo.inCameraRating ?? 0
+
             return labels.contains(label) ||
                     ratings.contains(rating) ||
-                    (labels.contains("Rejected") && photo.toDelete) ||
-                    (labels.contains("No Label") && label.isEmpty && !photo.toDelete)
+                    (labels.contains(.rejected) && photo.toDelete) ||
+                    (labels.contains(.noLabel) && label == .noLabel && !photo.toDelete)
         }
     }
 
@@ -106,26 +107,27 @@ struct PhotoFilterService {
 
     // MARK: - Available labels
 
-    static func availableLabels(from photos: [PhotoItem]) -> [String] {
-        var labelSet = Set<String>()
+    static func availableLabels(from photos: [PhotoItem]) -> [PhotoLabel] {
+        var labelSet = Set<PhotoLabel>()
         var hasToDelete = false
         for photo in photos {
             if photo.toDelete {
                 hasToDelete = true
             }
-            if let label = photo.xmp?.label, !label.isEmpty {
+            if let label = PhotoLabel(rawValue: photo.xmp?.label ?? "") {
                 labelSet.insert(label)
             }
         }
-        var result: [String] = []
+        var result: [PhotoLabel] = []
         if !labelSet.isEmpty {
-            result.append("No Label")
+            result.append(.noLabel)
         }
-        for label in ["Select", "Second", "Approved", "Review", "To Do"] where labelSet.contains(label) {
+        let labels: [PhotoLabel] = [.select, .second, .approved, .review, .todo]
+        for label in labels where labelSet.contains(label) {
             result.append(label)
         }
         if hasToDelete {
-            result.append("Rejected")
+            result.append(.rejected)
         }
         return result
     }
