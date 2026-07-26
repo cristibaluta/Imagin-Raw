@@ -47,7 +47,7 @@ class AppState: ObservableObject {
                                           fullResCacheManager: fullResCacheManager)
 
         // Monitor clicks
-        // 1. When album changes, load the photos of that album
+        // 1a. When album changes in the sidebar, load the thumbnails of that album
         fileSystemModel.$selectedFolder
             .sink { [weak self] folder in
                 guard let self, let folder else {
@@ -60,6 +60,13 @@ class AppState: ObservableObject {
                     // Reset the subfolder state for the next single clicks
                     self.includeSubfolders = false
                 }
+            }
+            .store(in: &cancellables)
+
+        // 1b. When root folders are added or removed from the sidebar
+        fileSystemModel.$rootFolders
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
             }
             .store(in: &cancellables)
 
@@ -110,7 +117,7 @@ class AppState: ObservableObject {
         let folderURL = isDirectory ? url : url.deletingLastPathComponent()
         let fileURL = isDirectory ? nil : url
 
-        RCLog("🔗 [handleOpenUrl] received: \(url.lastPathComponent) | isDirectory: \(isDirectory) | folderURL: \(folderURL.path) | rootFolders count: \(fileSystemModel.rootFolders.count)")
+        RCLog("received: \(url.lastPathComponent) | isDirectory: \(isDirectory) | folderURL: \(folderURL.path)")
 
         guard let folder = fileSystemModel.findOrBuildFolder(for: folderURL) else {
             RCLog("🔗 [handleOpenUrl] ❌ folderURL not under any known root: \(folderURL.path)")
@@ -118,10 +125,9 @@ class AppState: ObservableObject {
         }
 
         if let fileURL {
-            RCLog("🔗 [handleOpenUrl] ✅ folder found: \(folder.url.lastPathComponent) — setting pendingSelectURL: \(fileURL.lastPathComponent)")
             thumbsGridViewModel.pendingSelectURL = fileURL
         }
-        RCLog("🔗 [handleOpenUrl] 📂 setting selectedFolder: \(folder.url.path)")
+        RCLog("setting selectedFolder: \(folder.url.path)")
         fileSystemModel.selectedFolder = folder
     }
 

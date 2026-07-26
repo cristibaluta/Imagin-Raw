@@ -14,7 +14,7 @@ struct FoldersListView: View {
     let onDoubleClick: (() -> Void)?
 
     var body: some View {
-        List(selection: $fileSystemModel.selectedFolder) {
+        List {
             if sourcesFolders.count > 0 {
                 Section(header: Text("Sources").font(.caption)) {
                     ForEach(Array(sourcesFolders.enumerated()), id: \.element.id) { index, rootFolder in
@@ -22,6 +22,10 @@ struct FoldersListView: View {
                                       expandedFolders: $expandedFolders,
                                       selectedFolder: $fileSystemModel.selectedFolder,
                                       saveExpandedState: saveExpandedState,
+                                      onClick: { folder in
+                                          appState.includeSubfolders = false
+                                          fileSystemModel.selectedFolder = folder
+                                      },
                                       onDoubleClick: {
                                           onDoubleClick?()
                                       },
@@ -39,6 +43,9 @@ struct FoldersListView: View {
                                       expandedFolders: $expandedFolders,
                                       selectedFolder: $fileSystemModel.selectedFolder,
                                       saveExpandedState: saveExpandedState,
+                                      onClick: { folder in
+                                          fileSystemModel.selectedFolder = folder
+                                      },
                                       onDoubleClick: {
                                           onDoubleClick?()
                                       },
@@ -117,7 +124,6 @@ struct FoldersListView: View {
                 }
             }
         }
-
         return nil
     }
 

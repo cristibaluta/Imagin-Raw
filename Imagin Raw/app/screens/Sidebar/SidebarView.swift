@@ -92,7 +92,7 @@ struct SidebarView: View {
                 .buttonStyle(PlainButtonStyle())
                 .frame(width: 24, height: 32)
                 .contentShape(Rectangle())
-                .help("Add source")
+                .help("Add source of photos")
                 .popover(isPresented: $showingAddPopover) {
                     AddFolderPopover(
                         onAddVolumes: {
@@ -142,26 +142,24 @@ struct SidebarView: View {
             .padding(.vertical, 4)
         }
         .background(Color(IRColor.underPageBackgroundColor))
-        .fileImporter(
-            isPresented: $showingFolderPicker,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: false
-        ) { result in
+        .fileImporter(isPresented: $showingFolderPicker,
+                      allowedContentTypes: [.folder],
+                      allowsMultipleSelection: false) { result in
             switch result {
-            case .success(let urls):
-                if let url = urls.first {
-                    #if os(macOS)
-                    fileSystemModel.addFolder(at: url)
-                    #endif
-                }
-            case .failure(_):
-                break
+                case .success(let urls):
+                    if let url = urls.first {
+                        #if os(macOS)
+                        fileSystemModel.addFolder(at: url)
+                        #endif
+                    }
+                case .failure(_):
+                    break
             }
         }
     }
 
     private func isRootFolder(_ url: URL) -> Bool {
-        return fileSystemModel.rootFolders.contains { $0.url == url }
+        fileSystemModel.rootFolders.contains { $0.url == url }
     }
 
     private func isRootFolderSelected() -> Bool {

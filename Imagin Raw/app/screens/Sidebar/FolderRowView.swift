@@ -8,12 +8,17 @@
 import SwiftUI
 
 struct FolderRowView: View {
+
     @EnvironmentObject var fileSystemModel: FileSystemModel
     @EnvironmentObject var appState: AppState
+
     let folder: FolderItem
+
     @Binding var expandedFolders: Set<URL>
     @Binding var selectedFolder: FolderItem?
+
     let saveExpandedState: () -> Void
+    let onClick: (FolderItem) -> Void
     let onDoubleClick: () -> Void
     let isRootFolder: Bool
     let isVolumeFolder: Bool
@@ -81,12 +86,12 @@ struct FolderRowView: View {
         let childDepth = depth + 1
         let sortByDate: Bool
         switch fileSystemModel.sidebarSortOption {
-        case .name:
-            sortByDate = false        // all levels by name
-        case .dateCreated:
-            sortByDate = true         // all levels by date
-        case .nameThenDate:
-            sortByDate = childDepth >= 2  // level 1 by name, level 2+ by date
+            case .name:
+                sortByDate = false        // all levels by name
+            case .dateCreated:
+                sortByDate = true         // all levels by date
+            case .nameThenDate:
+                sortByDate = childDepth >= 2  // level 1 by name, level 2+ by date
         }
 
         if sortByDate {
@@ -128,7 +133,9 @@ struct FolderRowView: View {
         if hasChildren {
             DisclosureGroup(
                 isExpanded: Binding(
-                    get: { isExpanded },
+                    get: {
+                        isExpanded
+                    },
                     set: { newValue in
                         if newValue {
                             expandedFolders.insert(folder.url)
@@ -150,6 +157,7 @@ struct FolderRowView: View {
                                   expandedFolders: $expandedFolders,
                                   selectedFolder: $selectedFolder,
                                   saveExpandedState: saveExpandedState,
+                                  onClick: onClick,
                                   onDoubleClick: onDoubleClick,
                                   isRootFolder: false,
                                   isVolumeFolder: isVolumeFolder,
@@ -170,7 +178,7 @@ struct FolderRowView: View {
                 Text(folder.title)
             } icon: {
                 Image(systemName: folderIcon)
-                    .foregroundStyle(folderColor)
+                    .foregroundStyle(fileSystemModel.selectedFolder?.id == folder.id ? .white : folderColor)
             }
 
             if isEjectable {
@@ -186,6 +194,18 @@ struct FolderRowView: View {
             }
         }
         .tag(folder)
+        .padding(.vertical, 3)
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(
+                    fileSystemModel.selectedFolder?.id == folder.id
+                        ? folderColor.opacity(0.65)
+                        : Color.clear
+                )
+        )
         .onTapGesture {
             #if os(iOS)
             RCLog("👆 [Sidebar] tap leaf: \(folder.title) already=\(selectedFolder?.url == folder.url)")
@@ -198,13 +218,12 @@ struct FolderRowView: View {
                 selectedFolder = folder
             }
             #else
-            appState.includeSubfolders = false
-            selectedFolder = folder
+            onClick(folder)
             #endif
         }
-        .onDoubleClick {
-            onDoubleClick()
-        }
+//        .onDoubleClick {
+//            onDoubleClick()
+//        }
         #if os(macOS)
         .contextMenu {
             Button(action: {

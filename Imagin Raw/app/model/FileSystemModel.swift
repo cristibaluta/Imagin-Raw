@@ -11,8 +11,16 @@ import Photos
 
 @MainActor
 final class FileSystemModel: ObservableObject {
-    @Published var rootFolders: [FolderItem] = []
-    @Published var selectedFolder: FolderItem?
+    @Published var rootFolders: [FolderItem] = [] {
+        didSet {
+            print(">>>>>>> new rootFolders: \(rootFolders)")
+        }
+    }
+    @Published var selectedFolder: FolderItem? {
+        didSet {
+            print(">>>>>. selectedFolder: \(String(describing: selectedFolder))")
+        }
+    }
     @Published var photoMetadataDidChangeURL: URL?
     @Published var sidebarSortOption: SidebarSortOption = {
         let saved = appPrefs.string(.sidebarSortOption)

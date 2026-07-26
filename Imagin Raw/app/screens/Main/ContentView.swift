@@ -177,11 +177,11 @@ struct ContentView: View {
     private var navigationSplitView: some View {
         #if os(macOS)
         NavigationSplitView(columnVisibility: columnVisibility) {
-            // Left sidebar: folders
+            // Left sidebar: folders list
             sidebarView
                 .navigationSplitViewColumnWidth(min: 200, ideal: 200, max: 200)
         } content: {
-            // Middle: thumbnails
+            // Middle: thumbnails grid
             thumbGridView
                 .onPreferenceChange(GridWidthPreferenceKey.self) { width in
                     contentColumnWidth = width
@@ -189,8 +189,8 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: contentColumnWidth,
                                                 ideal: contentColumnWidth,
                                                 max: contentColumnWidth)
-        }
-        detail: {
+        } detail: {
+            // Right: Large photos preview
             detailView
                 .navigationSplitViewColumnWidth(min: 220, ideal: 600)
         }
