@@ -98,11 +98,12 @@ final class PhotosFolderModel: ObservableObject {
             .sorted(by: { $0.path < $1.path })
             .map { imageFile in
                 let baseName = imageFile.deletingPathExtension().lastPathComponent
-                let resValues = try? imageFile.resourceValues(forKeys: [.contentModificationDateKey,
+                let resValues = try? imageFile.resourceValues(forKeys: [.creationDateKey,
+                                                                        .contentModificationDateKey,
                                                                         .fileSizeKey])
                 // dateCreated is not reliable
-//                let dateCaptured = resValues?.contentModificationDate
-                let modifiedDate = resValues?.contentModificationDate
+                let dateCreated = resValues?.creationDate ?? Date()
+                let dateModified = resValues?.contentModificationDate
                 let size = resValues?.fileSize as? Int
                 let isRaw = FilesExtensions.isRawImageFile(imageFile)
 
@@ -110,14 +111,16 @@ final class PhotosFolderModel: ObservableObject {
                 let hasJPG = jpgLookup.contains(baseName)
                 let hasXMP = xmpLookup.contains(baseName)
 
-                return PhotoItem(url: imageFile,
+                return PhotoItem(id: UUID(),
+                                 url: imageFile,
                                  path: imageFile.path,
-                                 dateModified: modifiedDate,
+                                 dateCreated: dateCreated,
+                                 dateModified: dateModified,
                                  hasACR: hasACR,
                                  hasJPG: hasJPG,
                                  hasXMP: hasXMP,
-                                 isRawFile: isRaw,
-                                 fileSizeBytes: Int64(size ?? 0))
+                                 fileSizeBytes: Int64(size ?? 0),
+                                 toDelete: false)
             }
 
         photos.wrappedValue = basicPhotos
@@ -134,52 +137,52 @@ final class PhotosFolderModel: ObservableObject {
     /// without re-scanning the whole folder. filterAndSortPhotos() is called once by the caller after this returns.
     func applyFileSystemChanges(at urls: [URL]) {
         for url in urls {
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                // File gone — remove it
+                photos.wrappedValue.removeAll { $0.url == url }
+                continue
+            }
             guard FilesExtensions.isImageFile(url) || FilesExtensions.isMovieFile(url) else {
                 continue
             }
-
-            let exists = FileManager.default.fileExists(atPath: url.path)
-            if exists {
-                if let idx = photos.wrappedValue.firstIndex(where: { $0.url == url }) {
-                    // File already known — reload its metadata in place
-                    let photo = photos.wrappedValue[idx]
-                    let op = LoadExifOperation(photo: photo, forceReloadExif: true) { [weak self] updated in
-                        Task { @MainActor in
-                            self?.photos.wrappedValue[idx] = updated
-                        }
+            if let idx = photos.wrappedValue.firstIndex(where: { $0.url == url }) {
+                // File already known - reload its exif
+                let photo = photos.wrappedValue[idx]
+                let op = LoadExifOperation(photo: photo, forceReloadExif: true) { [weak self] updated in
+                    Task { @MainActor in
+                        self?.photos.wrappedValue[idx] = updated
                     }
-                    queue.addOperation(op)
-                } else {
-                    // New file — build a PhotoItem and append it, then load its EXIF
-                    let resValues = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
-                    let isRaw = FilesExtensions.isRawImageFile(url)
-                    let hasXMP = FileManager.default.fileExists(
-                        atPath: url.deletingPathExtension().appendingPathExtension("xmp").path)
-                    let newPhoto = PhotoItem(url: url,
-                                            path: url.path,
-                                            dateModified: resValues?.contentModificationDate,
-                                            hasACR: false,
-                                            hasJPG: false,
-                                            hasXMP: hasXMP,
-                                            isRawFile: isRaw,
-                                            fileSizeBytes: Int64(resValues?.fileSize ?? 0))
-                    photos.wrappedValue.append(newPhoto)
-                    let insertedIdx = photos.wrappedValue.count - 1
-                    let op = LoadExifOperation(photo: newPhoto, forceReloadExif: true) { [weak self] updated in
-                        Task { @MainActor in
-                            guard let self,
-                                  insertedIdx < self.photos.wrappedValue.count,
-                                  self.photos.wrappedValue[insertedIdx].id == updated.id else {
-                                return
-                            }
-                            self.photos.wrappedValue[insertedIdx] = updated
-                        }
-                    }
-                    queue.addOperation(op)
                 }
+                queue.addOperation(op)
             } else {
-                // File gone — remove it
-                photos.wrappedValue.removeAll { $0.url == url }
+                // New file - build a PhotoItem and append it, then load its EXIF
+                let resValues = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey])
+                let hasXMP = FileManager.default.fileExists(atPath: url.deletingPathExtension().appendingPathExtension("xmp").path)
+                let newPhoto = PhotoItem(id: UUID(),
+                                         url: url,
+                                         path: url.path,
+                                         dateCreated: resValues?.creationDate ?? Date(),
+                                         dateModified: resValues?.contentModificationDate,
+                                         hasACR: false,
+                                         hasJPG: false,
+                                         hasXMP: hasXMP,
+                                         xmp: nil,
+                                         exif: nil,
+                                         fileSizeBytes: Int64(resValues?.fileSize ?? 0),
+                                         toDelete: false)
+                photos.wrappedValue.append(newPhoto)
+                let insertedIdx = photos.wrappedValue.count - 1
+                let op = LoadExifOperation(photo: newPhoto, forceReloadExif: true) { [weak self] updated in
+                    Task { @MainActor in
+                        guard let self,
+                              insertedIdx < self.photos.wrappedValue.count,
+                              self.photos.wrappedValue[insertedIdx].id == updated.id else {
+                            return
+                        }
+                        self.photos.wrappedValue[insertedIdx] = updated
+                    }
+                }
+                queue.addOperation(op)
             }
         }
     }

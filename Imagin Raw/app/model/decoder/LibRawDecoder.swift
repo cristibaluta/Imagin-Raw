@@ -72,4 +72,24 @@ struct LibRawDecoder: RawDecoder {
         RCLog("Resized to \(dstW)×\(dstH) in \(String(format:"%.3f", -t0.timeIntervalSinceNow))s")
         return IRImage(cgImage: resized, size: IRSize(width: resized.width, height: resized.height))
     }
+
+    func extractExif(at url: URL) -> ExifData? {
+        guard let exifDict = RawWrapper.shared().extractExif(url) as? [String: Any] else {
+            return nil
+        }
+        return ExifData(
+            dateCaptured: exifDict["DateTime"] as? Date,
+            width:        exifDict["width"] as? Int,
+            height:       exifDict["height"] as? Int,
+            cameraMake:   exifDict["Make"] as? String,
+            cameraModel:  exifDict["Model"] as? String,
+            lensModel:    exifDict["LensModel"] as? String,
+            lensFocalLength:  (exifDict["FocalLength"] as? NSNumber)?.doubleValue,
+            iso:          (exifDict["ISO"] as? NSNumber)?.intValue,
+            aperture:     (exifDict["Aperture"] as? NSNumber)?.doubleValue,
+            shutterSpeed: (exifDict["ShutterSpeed"] as? NSNumber)?.doubleValue,
+            exposureCompensation: nil,
+            rating: nil
+        )
+    }
 }

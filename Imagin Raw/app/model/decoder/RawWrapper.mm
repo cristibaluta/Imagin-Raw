@@ -38,6 +38,16 @@
     return result;
 }
 
+- (NSDictionary *)extractExif:(NSURL *)url {
+    __block NSDictionary *result = nil;
+
+    dispatch_sync([[self class] librawQueue], ^{
+        result = [self _extractExifOnlySynchronized:url];
+    });
+
+    return result;
+}
+
 - (NSData *)_extractEmbeddedJPEGSynchronized:(NSString *)path {
     // Use heap allocation to ensure LibRaw constructor is called within serialized context
     LibRaw *raw = new LibRaw();
@@ -84,15 +94,15 @@
     return result;
 }
 
-- (RawPhoto *)extractRawPhoto:(NSURL *)url {
-    __block RawPhoto *result = nil;
+//- (RawPhoto *)extractRawPhoto:(NSURL *)url {
+//    __block RawPhoto *result = nil;
 
-    dispatch_sync([[self class] librawQueue], ^{
-        result = [self _extractRawPhotoSynchronized:url];
-    });
-
-    return result;
-}
+//    dispatch_sync([[self class] librawQueue], ^{
+//        result = [self _extractRawPhotoSynchronized:url];
+//    });
+//
+//    return result;
+//}
 
 #if TARGET_OS_OSX
 - (nullable NSImage *)extractFullResolution:(NSString *)path {
@@ -204,47 +214,79 @@
 }
 #endif
 
-- (RawPhoto *)_extractRawPhotoSynchronized:(NSURL *)url {
+//- (RawPhoto *)_extractRawPhotoSynchronized:(NSURL *)url {
+//    LibRaw *raw = new LibRaw();
+//    NSData *imageData = nil;
+//    NSMutableDictionary *exifData = [NSMutableDictionary dictionary];
+//
+//    @try {
+//        int ret = raw->open_file(url.path.UTF8String);
+//        if (ret != LIBRAW_SUCCESS) {
+//            delete raw;
+//            return [[RawPhoto alloc] initWithImageData:nil exifData:nil];
+//        }
+//
+//        // Extract EXIF data from LibRaw
+//        [self extractExifData:raw intoDict:exifData];
+//
+//        // Extract embedded JPEG
+//        ret = raw->unpack_thumb();
+//        if (ret != LIBRAW_SUCCESS) {
+//            raw->recycle();
+//            delete raw;
+//            return [[RawPhoto alloc] initWithImageData:nil exifData:exifData];
+//        }
+//
+//        libraw_processed_image_t *thumb = raw->dcraw_make_mem_thumb();
+//        if (thumb && thumb->type == LIBRAW_IMAGE_JPEG) {
+//            imageData = [NSData dataWithBytes:thumb->data length:thumb->data_size];
+//            LibRaw::dcraw_clear_mem(thumb);
+//        }
+//
+//        raw->recycle();
+//        delete raw;
+//
+//        return [[RawPhoto alloc] initWithImageData:imageData exifData:exifData];
+//    }
+//    @catch (NSException *exception) {
+//        if (raw) {
+//            raw->recycle();
+//            delete raw;
+//        }
+//        NSLog(@"LibRaw exception: %@", exception);
+//        return [[RawPhoto alloc] initWithImageData:nil exifData:nil];
+//    }
+//}
+
+- (NSDictionary *)_extractExifOnlySynchronized:(NSURL *)url {
     LibRaw *raw = new LibRaw();
-    NSData *imageData = nil;
     NSMutableDictionary *exifData = [NSMutableDictionary dictionary];
 
     @try {
+        raw->imgdata.params.use_camera_wb = 0;
+
+        // open_file() alone parses headers + maker notes — no pixel/thumb
+        // decoding happens here, so this is as cheap as LibRaw gets.
         int ret = raw->open_file(url.path.UTF8String);
-        if (ret != LIBRAW_SUCCESS) {
-            delete raw;
-            return [[RawPhoto alloc] initWithImageData:nil exifData:nil];
-        }
-
-        // Extract EXIF data from LibRaw
-        [self extractExifData:raw intoDict:exifData];
-
-        // Extract embedded JPEG
-        ret = raw->unpack_thumb();
         if (ret != LIBRAW_SUCCESS) {
             raw->recycle();
             delete raw;
-            return [[RawPhoto alloc] initWithImageData:nil exifData:exifData];
+            return nil;
         }
-
-        libraw_processed_image_t *thumb = raw->dcraw_make_mem_thumb();
-        if (thumb && thumb->type == LIBRAW_IMAGE_JPEG) {
-            imageData = [NSData dataWithBytes:thumb->data length:thumb->data_size];
-            LibRaw::dcraw_clear_mem(thumb);
-        }
+        raw->adjust_sizes_info_only();   // computes iwidth/iheight/flip-adjusted sizes, no pixel decode
+        [self extractExifData:raw intoDict:exifData];
 
         raw->recycle();
         delete raw;
-
-        return [[RawPhoto alloc] initWithImageData:imageData exifData:exifData];
+        return exifData;
     }
     @catch (NSException *exception) {
         if (raw) {
             raw->recycle();
             delete raw;
         }
-        NSLog(@"LibRaw exception: %@", exception);
-        return [[RawPhoto alloc] initWithImageData:nil exifData:nil];
+        NSLog(@"LibRaw exception (exif-only): %@", exception);
+        return nil;
     }
 }
 
@@ -269,10 +311,24 @@
     exifDict[@"ShutterSpeed"] = @(raw->imgdata.other.shutter);
 
     // Image dimensions
-    exifDict[@"ImageWidth"] = @(raw->imgdata.sizes.width);
-    exifDict[@"ImageHeight"] = @(raw->imgdata.sizes.height);
-    exifDict[@"RawWidth"] = @(raw->imgdata.sizes.raw_width);
-    exifDict[@"RawHeight"] = @(raw->imgdata.sizes.raw_height);
+    unsigned short cw = raw->imgdata.sizes.raw_inset_crops[0].cwidth;
+    unsigned short ch = raw->imgdata.sizes.raw_inset_crops[0].cheight;
+
+    if (cw > 0 && ch > 0) {
+        int flip = raw->imgdata.sizes.flip;
+        BOOL isRotated90or270 = (flip == 5 || flip == 6);
+        if (isRotated90or270) {
+            exifDict[@"width"] = @(ch);
+            exifDict[@"height"] = @(cw);
+        } else {
+            exifDict[@"width"] = @(cw);
+            exifDict[@"height"] = @(ch);
+        }
+    } else {
+        // Not populated for this file — fall back to LibRaw's own rotation-correct size
+        exifDict[@"width"] = @(raw->imgdata.sizes.iwidth);
+        exifDict[@"height"] = @(raw->imgdata.sizes.iheight);
+    }
 
     // White balance
     if (raw->imgdata.color.cam_mul[0] > 0) {
@@ -332,172 +388,6 @@
     if (raw->imgdata.color.profile_length > 0) {
         exifDict[@"ColorProfileLength"] = @(raw->imgdata.color.profile_length);
     }
-}
-
-// Extract metadata (rating, width, height) using ImageIO framework
-// Canon stores the in-camera rating in IPTC metadata as StarRating
-- (NSDictionary *)extractMetadata:(NSString *)path {
-    NSURL *fileURL = [NSURL fileURLWithPath:path];
-    CGImageSourceRef imageSource = CGImageSourceCreateWithURL((__bridge CFURLRef)fileURL, NULL);
-
-    if (!imageSource) {
-        return nil;
-    }
-
-    NSMutableDictionary *metadata = [NSMutableDictionary dictionary];
-
-    // Get image properties including EXIF, IPTC, and dimensions
-    CFDictionaryRef imageProperties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, NULL);
-    if (imageProperties) {
-        NSDictionary *properties = (__bridge_transfer NSDictionary *)imageProperties;
-
-        // Extract camera make and model
-        NSDictionary *tiffDict = properties[(NSString *)kCGImagePropertyTIFFDictionary];
-        if (tiffDict) {
-            NSString *make = tiffDict[(NSString *)kCGImagePropertyTIFFMake];
-            NSString *model = tiffDict[(NSString *)kCGImagePropertyTIFFModel];
-
-            if (make && make.length > 0) {
-                metadata[@"cameraMake"] = make;
-            }
-            if (model && model.length > 0) {
-                metadata[@"cameraModel"] = model;
-            }
-        }
-
-        // Extract rating
-        // Check IPTC dictionary for StarRating (this is where Canon stores in-camera rating)
-        NSDictionary *iptcDict = properties[(NSString *)kCGImagePropertyIPTCDictionary];
-        if (iptcDict) {
-            NSNumber *starRating = iptcDict[@"StarRating"];
-            if (starRating && [starRating intValue] > 0) {
-                metadata[@"rating"] = starRating;
-            }
-        }
-
-        // Fallback: Check standard EXIF rating if IPTC not found
-        if (!metadata[@"rating"]) {
-            NSDictionary *exifDict = properties[(NSString *)kCGImagePropertyExifDictionary];
-            if (exifDict) {
-                NSNumber *exifRating = exifDict[@"UserRating"];
-                if (exifRating && [exifRating intValue] > 0) {
-                    metadata[@"rating"] = exifRating;
-                }
-            }
-        }
-
-        // Extract capture date — priority: EXIF DateTimeOriginal > EXIF DateTimeDigitized > TIFF DateTime
-        // These all map to the moment the shutter was pressed, not the file creation date.
-        NSDictionary *exifDict = properties[(NSString *)kCGImagePropertyExifDictionary];
-        NSDictionary *tiffDict2 = properties[(NSString *)kCGImagePropertyTIFFDictionary];
-        NSString *dateTimeStr = exifDict[(NSString *)kCGImagePropertyExifDateTimeOriginal]
-                             ?: exifDict[(NSString *)kCGImagePropertyExifDateTimeDigitized]
-                             ?: tiffDict2[(NSString *)kCGImagePropertyTIFFDateTime];
-        if (dateTimeStr.length > 0) {
-            // EXIF date format: "YYYY:MM:DD HH:MM:SS"
-            NSDateFormatter *fmt = [[NSDateFormatter alloc] init];
-            fmt.dateFormat = @"yyyy:MM:dd HH:mm:ss";
-            fmt.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
-            NSDate *captureDate = [fmt dateFromString:dateTimeStr];
-            if (captureDate) {
-                metadata[@"captureDate"] = captureDate;
-            }
-        }
-
-        // Extract resolution
-        NSNumber *width = properties[(NSString *)kCGImagePropertyPixelWidth];
-        NSNumber *height = properties[(NSString *)kCGImagePropertyPixelHeight];
-
-        if (width && height) {
-            // Check EXIF orientation — values 5,6,7,8 indicate 90° rotation
-            // where the displayed width/height are swapped from the raw pixel dimensions
-            NSNumber *orientation = properties[(NSString *)kCGImagePropertyOrientation];
-            int orient = orientation ? [orientation intValue] : 1;
-            if (orient >= 5 && orient <= 8) {
-                metadata[@"width"] = height;
-                metadata[@"height"] = width;
-            } else {
-                metadata[@"width"] = width;
-                metadata[@"height"] = height;
-            }
-        }
-    }
-
-    CFRelease(imageSource);
-
-    // If we didn't get resolution from ImageIO, try LibRaw for RAW files
-    if (!metadata[@"width"] || !metadata[@"height"]) {
-        __block NSDictionary *librawResolution = nil;
-
-        dispatch_sync([[self class] librawQueue], ^{
-            LibRaw *raw = new LibRaw();
-
-            @try {
-                int ret = raw->open_file(path.UTF8String);
-                if (ret == LIBRAW_SUCCESS) {
-                    // Use the visible image dimensions (after cropping)
-                    int width = raw->imgdata.sizes.width;
-                    int height = raw->imgdata.sizes.height;
-                    int flip = raw->imgdata.sizes.flip;
-
-                    if (width > 0 && height > 0) {
-                        // flip 5 or 6 means 90° rotation — swap dimensions
-                        if (flip == 5 || flip == 6) {
-                            librawResolution = @{@"width": @(height), @"height": @(width)};
-                        } else {
-                            librawResolution = @{@"width": @(width), @"height": @(height)};
-                        }
-                    }
-
-                    raw->recycle();
-                }
-                delete raw;
-            }
-            @catch (NSException *exception) {
-                if (raw) {
-                    raw->recycle();
-                    delete raw;
-                }
-                NSLog(@"LibRaw exception in extractMetadata: %@", exception);
-            }
-        });
-
-        if (librawResolution) {
-            metadata[@"width"] = librawResolution[@"width"];
-            metadata[@"height"] = librawResolution[@"height"];
-        }
-    }
-
-    // If ImageIO didn't give us a capture date, try LibRaw's timestamp (RAW files)
-    if (!metadata[@"captureDate"]) {
-        __block NSDate *librawDate = nil;
-
-        dispatch_sync([[self class] librawQueue], ^{
-            LibRaw *raw = new LibRaw();
-            @try {
-                if (raw->open_file(path.UTF8String) == LIBRAW_SUCCESS) {
-                    time_t ts = raw->imgdata.other.timestamp;
-                    if (ts > 0) {
-                        librawDate = [NSDate dateWithTimeIntervalSince1970:(NSTimeInterval)ts];
-                    }
-                    raw->recycle();
-                }
-                delete raw;
-            }
-            @catch (NSException *exception) {
-                if (raw) {
-                    raw->recycle();
-                    delete raw;
-                }
-            }
-        });
-
-        if (librawDate) {
-            metadata[@"captureDate"] = librawDate;
-        }
-    }
-
-    return metadata.count > 0 ? metadata : nil;
 }
 
 @end

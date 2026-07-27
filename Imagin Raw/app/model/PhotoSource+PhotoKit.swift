@@ -226,26 +226,29 @@ struct PhotoKitPhotoSource: PhotoSource {
             let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
             guard let image, !degraded else {
                 if image == nil {
-                    DispatchQueue.main.async { completion(nil) }
+                    DispatchQueue.main.async {
+                        completion(nil)
+                    }
                 }
                 return
             }
-            DispatchQueue.main.async { completion(image) }
+            DispatchQueue.main.async {
+                completion(image)
+            }
         }
     }
 
-    func loadExif() async -> ExifInfo? {
+    func loadExif() async -> ExifData? {
         return await withCheckedContinuation { cont in
             let opts = PHContentEditingInputRequestOptions()
             opts.isNetworkAccessAllowed = true
             asset.requestContentEditingInput(with: opts) { input, _ in
-                guard let url = input?.fullSizeImageURL,
-                      let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-                      let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else {
+                guard let url = input?.fullSizeImageURL else {
                     cont.resume(returning: nil)
                     return
                 }
-                cont.resume(returning: ExifInfo.from(imageProperties: props))
+                let exif = CoreGraphicsDecoder().extractExif(at: url)
+                cont.resume(returning: exif)
             }
         }
     }

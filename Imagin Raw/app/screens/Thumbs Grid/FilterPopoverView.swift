@@ -20,36 +20,25 @@ struct FilterPopoverView: View {
     /// Calculate count for each label
     private func numberOfPhotos(with label: PhotoLabel) -> Int {
         if label == .noLabel {
-            return photos.filter { photo in
+            return photos.count(where: { photo in
                 let photoLabel = photo.xmp?.label ?? ""
                 return photoLabel.isEmpty && !photo.toDelete
-            }.count
+            })
         }
         else if label == .rejected {
-            return photos.filter { photo in
-                return photo.toDelete
-            }.count
+            return photos.count(where: { $0.toDelete})
         }
         else {
-            return photos.filter { photo in
+            return photos.count(where: { photo in
                 let photoLabel = photo.xmp?.label ?? ""
                 return photoLabel == label.rawValue && !photo.toDelete
-            }.count
+            })
         }
     }
 
     /// Calculate count for each rating
     private func numberOfPhotos(with rating: Int) -> Int {
-        return photos.filter { photo in
-            // Get the effective rating (XMP or in-camera fallback)
-            let effectiveRating: Int
-            if let xmpRating = photo.xmp?.rating, xmpRating > 0 {
-                effectiveRating = xmpRating
-            } else {
-                effectiveRating = photo.inCameraRating ?? 0
-            }
-            return effectiveRating == rating
-        }.count
+        photos.count(where: { $0.effectiveRating == rating })
     }
 
     var body: some View {

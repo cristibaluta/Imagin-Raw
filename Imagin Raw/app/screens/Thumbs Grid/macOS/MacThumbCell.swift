@@ -208,7 +208,7 @@ final class MacThumbCell: NSCollectionViewItem {
         let size = itemSize
         let thumbY = h - size
         let labelH: CGFloat = 16
-        let starH: CGFloat = (photo.isRawFile || JpegMetadataWriter.isSupported(URL(fileURLWithPath: photo.path))) ? 14 : 0
+        let starH: CGFloat = (photo.isRaw || JpegMetadataWriter.isSupported(URL(fileURLWithPath: photo.path))) ? 14 : 0
         let labelY = thumbY - labelH - 2
 
         let imgPad: CGFloat = 2
@@ -237,7 +237,7 @@ final class MacThumbCell: NSCollectionViewItem {
         filenameLabel.frame = CGRect(x: labelX, y: labelY + 1, width: labelW, height: labelH)
 
         // Star view
-        let supportsRating = photo.isRawFile || JpegMetadataWriter.isSupported(URL(fileURLWithPath: photo.path))
+        let supportsRating = photo.isRaw || JpegMetadataWriter.isSupported(URL(fileURLWithPath: photo.path))
         if supportsRating {
             if starView == nil {
                 let sv = MacStarRatingView()
@@ -313,7 +313,7 @@ final class MacThumbCell: NSCollectionViewItem {
         trashContainer.isHidden = !photo.toDelete
 
         let showACR = photo.hasACR || (photo.xmp?.hasEdits ?? false)
-        let showJPG = photo.isRawFile && photo.hasJPG
+        let showJPG = photo.isRaw && photo.hasJPG
         acrBadgeContainer.isHidden = !showACR
         jpgBadgeContainer.isHidden = !showJPG
         badgeStack.isHidden = !showACR && !showJPG
@@ -354,8 +354,7 @@ final class MacThumbCell: NSCollectionViewItem {
     // MARK: Helpers
 
     func currentRating(for photo: PhotoItem) -> Int {
-        if let r = photo.xmp?.rating, r > 0 { return r }
-        return photo.inCameraRating ?? 0
+        photo.effectiveRating
     }
 
     private func applyLabelStyle(for photo: PhotoItem) {
@@ -383,7 +382,7 @@ extension MacThumbCell: NSMenuDelegate {
 extension MacThumbCell {
     override func mouseEntered(with event: NSEvent) {
         starView?.isHidden = currentPhoto.map {
-            !($0.isRawFile || JpegMetadataWriter.isSupported(URL(fileURLWithPath: $0.path)))
+            !($0.isRaw || JpegMetadataWriter.isSupported(URL(fileURLWithPath: $0.path)))
         } ?? true
     }
 

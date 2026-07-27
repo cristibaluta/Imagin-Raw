@@ -22,5 +22,5 @@ protocol PhotoSource {
     func loadFullRes(completion: @escaping @Sendable (IRImage?) -> Void)
 
     /// Load EXIF metadata asynchronously.
-    func loadExif() async -> ExifInfo?
+    func loadExif() async -> ExifData?
 }

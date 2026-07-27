@@ -239,7 +239,7 @@ final class IosThumbCell: UICollectionViewCell {
         updateSelection(isSelected: isSelected, isSelectMode: isSelectMode)
         trashOverlay.isHidden = !photo.toDelete
         acrBadge.isHidden = !photo.hasACR
-        jpgBadgeView.isHidden = !(photo.isRawFile && photo.hasJPG)
+        jpgBadgeView.isHidden = !(photo.isRaw && photo.hasJPG)
         filenameLabel.text = URL(fileURLWithPath: photo.path).lastPathComponent
         applyLabelStyle(for: photo)
         updateStars(for: photo)
@@ -259,7 +259,7 @@ final class IosThumbCell: UICollectionViewCell {
     // MARK: - Stars
 
     private func updateStars(for photo: PhotoItem) {
-        guard photo.isRawFile else {
+        guard photo.isRaw else {
             starStack.isHidden = true
             return
         }

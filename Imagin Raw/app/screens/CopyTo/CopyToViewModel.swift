@@ -85,8 +85,8 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
             }
             appPrefs.set(url.absoluteString, forKey: .copyToLastBackupDestinationURL)
         } else {
-            UserDefaults.standard.removeObject(forKey: AppPreference.copyToLastBackupDestinationURL.rawValue)
-            UserDefaults.standard.removeObject(forKey: AppPreference.copyToBackupBookmark.rawValue)
+            appPrefs.reset(.copyToLastBackupDestinationURL)
+            appPrefs.reset(.copyToBackupBookmark)
         }
     }
 
@@ -133,7 +133,7 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
         if renameByExifDate {
             let fmt = DateFormatter()
             fmt.dateFormat = "yyyy-MM-dd_HHmmss"
-            baseName = fmt.string(from: photo.dateCaptured ?? Date()) + "_" + baseName
+            baseName = fmt.string(from: photo.exif?.dateCaptured ?? photo.dateCreated) + "_" + baseName
         }
         if !customPrefix.isEmpty {
             baseName = customPrefix + baseName
@@ -182,8 +182,8 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
                     firstPhoto.path.lowercased().hasSuffix(".heic")
         let ext = firstPhoto.url.pathExtension
         let destFolder = buildDestinationFolder(base: baseURL,
-                                                date: firstPhoto.dateCaptured ?? Date(),
-                                                cameraModel: firstPhoto.cameraModel,
+                                                date: firstPhoto.exif?.dateCaptured ?? firstPhoto.dateCreated,
+                                                cameraModel: firstPhoto.exif?.cameraModel,
                                                 isJpegCompanion: isJpg,
                                                 settings: settings)
 
@@ -291,8 +291,8 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
                           settings: CopySettings) throws {
 
         let destFolderURL = buildDestinationFolder(base: destBaseFolderURL,
-                                                   date: photo.dateCaptured ?? Date(),
-                                                   cameraModel: photo.cameraModel,
+                                                   date: photo.exif?.dateCaptured ?? photo.dateCreated,
+                                                   cameraModel: photo.exif?.cameraModel,
                                                    isJpegCompanion: false,
                                                    settings: settings)
         try FileManager.default.createDirectory(at: destFolderURL, withIntermediateDirectories: true)
@@ -306,7 +306,7 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
         try FileManager.default.copyItem(at: photo.url, to: destFileURL)
 
         // 2. If original file is RAW, search for all companion files and copy them
-        guard photo.isRawFile else {
+        guard photo.isRaw else {
             return
         }
         let baseName  = photo.url.deletingPathExtension().lastPathComponent
@@ -321,16 +321,16 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
                 }
             }
         }
-        // If the raw has a jpeg counterpart, search for it and add it to the list as well
+        // If the raw has a jpeg pair, search for it and add it to the list as well
         if photo.hasJPG {
             let jpegDestFolderURL = buildDestinationFolder(base: destBaseFolderURL,
-                                                           date: photo.dateCaptured ?? Date(),
-                                                           cameraModel: photo.cameraModel,
+                                                           date: photo.exif?.dateCaptured ?? photo.dateCreated,
+                                                           cameraModel: photo.exif?.cameraModel,
                                                            isJpegCompanion: true,
                                                            settings: settings)
             try FileManager.default.createDirectory(at: jpegDestFolderURL, withIntermediateDirectories: true)
 
-            for ext in ["jpg", "jpeg", "heic", "JPG", "JPEG", "HEIC"] {
+            for ext in ["jpg", "jpeg", "heic", "heif", "JPG", "JPEG", "HEIC", "HEIF"] {
                 let jpegURL = sourceDir.appendingPathComponent(baseName).appendingPathExtension(ext)
                 if FileManager.default.fileExists(atPath: jpegURL.path) {
                     let jpegDestURL = jpegDestFolderURL.appendingPathComponent(destinationFilename).appendingPathExtension(ext)

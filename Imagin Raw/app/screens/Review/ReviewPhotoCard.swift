@@ -24,16 +24,15 @@ struct ReviewPhotoCard: View {
     @State private var isHovered = false
 
     private var filename: String {
-        URL(fileURLWithPath: photo.path).lastPathComponent
+        photo.url.lastPathComponent
     }
 
     private var currentRating: Int {
-        if let r = photo.xmp?.rating, r > 0 { return r }
-        return photo.inCameraRating ?? 0
+        photo.effectiveRating
     }
 
     private var isApproved: Bool {
-        photo.xmp?.label == "Approved"
+        photo.xmp?.label == PhotoLabel.approved.rawValue
     }
 
     var body: some View {

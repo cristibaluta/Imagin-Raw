@@ -22,7 +22,7 @@ class PhotoMetadataService {
     func applyRating(_ rating: Int, to photos: [PhotoItem]) {
         for photo in photos {
             let url = URL(fileURLWithPath: photo.path)
-            if photo.isRawFile {
+            if photo.isRaw {
                 setPhotoRating(photo: photo, rating: rating)
             } else if JpegMetadataWriter.isSupported(url) {
                 let existing = JpegMetadataWriter.readMetadata(from: url)
@@ -41,7 +41,7 @@ class PhotoMetadataService {
     func applyLabel(_ label: String, to photos: [PhotoItem]) {
         for photo in photos {
             let url = URL(fileURLWithPath: photo.path)
-            if photo.isRawFile {
+            if photo.isRaw {
                 createAndSaveXmpFile(for: photo, targetLabel: label)
             } else if JpegMetadataWriter.isSupported(url) {
                 let existing = JpegMetadataWriter.readMetadata(from: url)
@@ -60,7 +60,7 @@ class PhotoMetadataService {
     func removeLabels(from photos: [PhotoItem]) {
         for photo in photos {
             let url = URL(fileURLWithPath: photo.path)
-            if photo.isRawFile {
+            if photo.isRaw {
                 removeAnyLabel(for: photo)
             } else if JpegMetadataWriter.isSupported(url) {
                 let existing = JpegMetadataWriter.readMetadata(from: url)
@@ -97,12 +97,16 @@ class PhotoMetadataService {
 
         var content: String
         if FileManager.default.fileExists(atPath: xmpURL.path) {
-            guard let existing = try? String(contentsOf: xmpURL, encoding: .utf8) else { return }
+            guard let existing = try? String(contentsOf: xmpURL, encoding: .utf8) else {
+                return
+            }
             content = XmpParser.updateRating(in: existing, rating: rating)
         } else {
             content = XmpParser.createXmpContent(rating: rating, label: photo.xmp?.label)
         }
-        guard (try? content.write(to: xmpURL, atomically: true, encoding: .utf8)) != nil else { return }
+        guard (try? content.write(to: xmpURL, atomically: true, encoding: .utf8)) != nil else {
+            return
+        }
         if let parsed = XmpParser.parseMetadata(from: content) {
             updatePhotoWithXmpMetadata(photo: photo, xmpMetadata: parsed)
         }
@@ -117,14 +121,18 @@ class PhotoMetadataService {
         var content: String
         var currentLabel: String? = nil
         if FileManager.default.fileExists(atPath: xmpURL.path) {
-            guard let existing = try? String(contentsOf: xmpURL, encoding: .utf8) else { return }
+            guard let existing = try? String(contentsOf: xmpURL, encoding: .utf8) else {
+                return
+            }
             currentLabel = XmpParser.parseMetadata(from: existing)?.label
             let newLabel: String? = (currentLabel == targetLabel) ? nil : targetLabel
             content = updateXmpLabel(in: existing, newLabel: newLabel)
         } else {
             content = XmpParser.createXmpContent(rating: photo.xmp?.rating ?? 0, label: targetLabel)
         }
-        guard (try? content.write(to: xmpURL, atomically: true, encoding: .utf8)) != nil else { return }
+        guard (try? content.write(to: xmpURL, atomically: true, encoding: .utf8)) != nil else {
+            return
+        }
         if let parsed = XmpParser.parseMetadata(from: content) {
             updatePhotoWithXmpMetadata(photo: photo, xmpMetadata: parsed)
         }
@@ -135,11 +143,13 @@ class PhotoMetadataService {
         let dir = photoURL.deletingLastPathComponent()
         let name = photoURL.deletingPathExtension().lastPathComponent
         let xmpURL = dir.appendingPathComponent("\(name).xmp")
+
         guard FileManager.default.fileExists(atPath: xmpURL.path),
               var content = try? String(contentsOf: xmpURL, encoding: .utf8) else {
             return
         }
         content = updateXmpLabel(in: content, newLabel: nil)
+
         guard (try? content.write(to: xmpURL, atomically: true, encoding: .utf8)) != nil else {
             return
         }
@@ -157,20 +167,15 @@ class PhotoMetadataService {
         photosModel.photos[idx] = PhotoItem(id: cur.id,
                                             url: cur.url,
                                             path: cur.path,
-                                            dateCaptured: cur.dateCaptured,
+                                            dateCreated: cur.dateCreated,
                                             dateModified: cur.dateModified,
-                                            toDelete: !cur.toDelete,
                                             hasACR: cur.hasACR,
                                             hasJPG: cur.hasJPG,
                                             hasXMP: cur.hasXMP,
                                             xmp: cur.xmp,
-                                            inCameraRating: cur.inCameraRating,
-                                            isRawFile: cur.isRawFile,
+                                            exif: cur.exif,
                                             fileSizeBytes: cur.fileSizeBytes,
-                                            width: cur.width,
-                                            height: cur.height,
-                                            cameraMake: cur.cameraMake,
-                                            cameraModel: cur.cameraModel)
+                                            toDelete: !cur.toDelete)
 //        fileSystemModel?.selectedPhoto = photosModel.photos[idx]
         onPhotoUpdated?()
     }
@@ -184,20 +189,15 @@ class PhotoMetadataService {
         photosModel.photos[idx] = PhotoItem(id: photo.id,
                                             url: photo.url,
                                             path: photo.path,
-                                            dateCaptured: photo.dateCaptured,
+                                            dateCreated: photo.dateCreated,
                                             dateModified: cur.dateModified,
-                                            toDelete: cur.toDelete,
                                             hasACR: cur.hasACR,
                                             hasJPG: cur.hasJPG,
                                             hasXMP: cur.hasXMP,
                                             xmp: xmpMetadata,
-                                            inCameraRating: cur.inCameraRating,
-                                            isRawFile: cur.isRawFile,
+                                            exif: cur.exif,
                                             fileSizeBytes: cur.fileSizeBytes,
-                                            width: cur.width,
-                                            height: cur.height,
-                                            cameraMake: cur.cameraMake,
-                                            cameraModel: cur.cameraModel)
+                                            toDelete: cur.toDelete)
 //        fileSystemModel?.selectedPhoto = photosModel.photos[idx]
         onPhotoUpdated?()
     }

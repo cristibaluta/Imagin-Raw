@@ -50,7 +50,7 @@ extension MacThumbCell {
 
         menu.addItem(.separator())
 
-        let isRaw = photo.isRawFile
+        let isRaw = photo.isRaw
         let url = URL(fileURLWithPath: photo.path)
         let supportsMetadata = isRaw || JpegMetadataWriter.isSupported(url)
 

@@ -92,16 +92,17 @@ class SpotlightSearcher: ObservableObject, @unchecked Sendable {
             let contentType = item.value(forAttribute: kMDItemContentType as String) as? String ?? ""
             if contentType == "public.folder" {
                 folderItems.append(FolderItem(url: url, children: nil))
-            }
-            else if FilesExtensions.isImageFile(url) || FilesExtensions.isMovieFile(url) {
-//                let date = (item.value(forAttribute: kMDItemFSCreationDate as String) as? Date) ?? Date()
-                photos.append(PhotoItem(url: url,
+            } else if FilesExtensions.isImageFile(url) || FilesExtensions.isMovieFile(url) {
+                let date = (item.value(forAttribute: kMDItemFSCreationDate as String) as? Date) ?? Date()
+                photos.append(PhotoItem(id: UUID(),
+                                        url: url,
                                         path: path,
+                                        dateCreated: date,
                                         hasACR: false,
                                         hasJPG: false,
                                         hasXMP: false,
                                         xmp: nil,
-                                        inCameraRating: nil))
+                                        toDelete: false))
             }
             #endif
         }

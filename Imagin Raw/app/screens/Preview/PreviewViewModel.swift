@@ -10,7 +10,7 @@ class PreviewViewModel: ObservableObject {
     @Published private(set) var fullResImage: IRImage?
     @Published private(set) var isLoading = false
     @Published private(set) var isLoadingFullRes = false
-    @Published private(set) var exifInfo: ExifInfo?
+    @Published private(set) var exifData: ExifData?
     @Published private(set) var alignToTopLeft: Bool = appPrefs.bool(.alignToTopLeft)
     @Published private(set) var exifIsExpanded: Bool = appPrefs.bool(.exifExpanded)
 
@@ -46,11 +46,11 @@ class PreviewViewModel: ObservableObject {
             self.image = image
             isLoading = false
 
-            let extractedExif = await photo.makeSource().loadExif()
-            guard !Task.isCancelled else {
-                return
-            }
-            exifInfo = extractedExif
+//            let extractedExif = await photo.makeSource().loadExif()
+//            guard !Task.isCancelled else {
+//                return
+//            }
+            exifData = photo.exif
         }
     }
 
@@ -101,6 +101,6 @@ class PreviewViewModel: ObservableObject {
         fullResImage = nil
         isLoading = false
         isLoadingFullRes = false
-        exifInfo = nil
+        exifData = nil
     }
 }

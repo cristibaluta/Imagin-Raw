@@ -141,12 +141,14 @@ enum ExportService {
         let url = URL(fileURLWithPath: path)
 
         if FilesExtensions.isRawImageFile(url) {
-            guard let rawPhoto = RawWrapper.shared().extractRawPhoto(url),
-                  let data = rawPhoto.imageData,
-                  let src = CGImageSourceCreateWithData(data as CFData, nil) else {
-                return nil
-            }
-            return CGImageSourceCreateImageAtIndex(src, 0, nil)
+            // TODO: extract image from raw
+            return nil
+//            guard let rawPhoto = RawWrapper.shared().extractRawPhoto(url),
+//                  let data = rawPhoto.imageData,
+//                  let src = CGImageSourceCreateWithData(data as CFData, nil) else {
+//                return nil
+//            }
+//            return CGImageSourceCreateImageAtIndex(src, 0, nil)
         } else {
             guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
                 return nil

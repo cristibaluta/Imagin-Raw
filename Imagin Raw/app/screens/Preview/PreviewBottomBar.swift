@@ -7,7 +7,7 @@ import SwiftUI
 
 struct PreviewBottomBar: View {
     let photo: PhotoItem
-    let exifInfo: ExifInfo
+    let exifData: ExifData
     @ObservedObject var model: PreviewViewModel
     @Binding var showAFPoint: Bool
     @Binding var showEditPanel: Bool
@@ -21,11 +21,11 @@ struct PreviewBottomBar: View {
     var body: some View {
         HStack(spacing: 0) {
             if model.exifIsExpanded || gridType == .large {
-                ExifExtendedView(exifInfo: exifInfo,
+                ExifExtendedView(exifData: exifData,
                                  fileSize: photo.fileSizeBytes,
-                                 dateCreated: photo.dateModified ?? Date(),// TODO
-                                 width: photo.width,
-                                 height: photo.height,
+                                 dateCreated: photo.exif?.dateCaptured,
+                                 width: photo.exif?.width,
+                                 height: photo.exif?.height,
                                  gridType: $gridType)
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -34,9 +34,9 @@ struct PreviewBottomBar: View {
                         }
                     }
             } else {
-                ExifCompactView(exifInfo: exifInfo,
+                ExifCompactView(exifData: exifData,
                                 fileSize: photo.fileSizeBytes,
-                                dateCreated: photo.dateModified ?? Date())
+                                dateCreated: photo.exif?.dateCaptured)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         model.toggleExifExpanded()

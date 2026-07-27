@@ -8,30 +8,21 @@
 import Foundation
 import Photos
 
-struct PhotoItemMetadata {
-    let hasACR: Bool
-    let hasJPG: Bool
-    let sidecar: XmpMetadata?
-}
-
 struct PhotoItem: Identifiable, Sendable {
     let id: UUID
-    var url: URL
-    var path: String           // file path on disk, OR PHAsset.localIdentifier for PhotoKit items
-    let dateCaptured: Date?
+    let url: URL
+    var path: String// file path on disk, OR PHAsset.localIdentifier for PhotoKit items
+
+    let dateCreated: Date
     let dateModified: Date?
 
     let hasACR: Bool
     let hasJPG: Bool
     let hasXMP: Bool
     let xmp: XmpMetadata?
-    let inCameraRating: Int?
-    let isRawFile: Bool
+    let exif: ExifData?
     let fileSizeBytes: Int64?
-    let width: Int?
-    let height: Int?
-    let cameraMake: String?
-    let cameraModel: String?
+    
     var toDelete: Bool = false
 
     // Non-nil when this item comes from the Photos library.
@@ -40,7 +31,7 @@ struct PhotoItem: Identifiable, Sendable {
     var phAsset: PHAsset? = nil
 
     var isPhotoKitBacked: Bool {
-        return phAsset != nil
+        phAsset != nil
     }
 
     /// XMP rating if set and > 0, otherwise in-camera rating, otherwise 0.
@@ -48,7 +39,11 @@ struct PhotoItem: Identifiable, Sendable {
         if let r = xmp?.rating, r > 0 {
 			return r
 		}
-        return inCameraRating ?? 0
+        return exif?.rating ?? 0
+    }
+
+    var isRaw: Bool {
+        return FilesExtensions.isRawImageFile(url)
     }
 
     var isVideo: Bool {
@@ -58,77 +53,33 @@ struct PhotoItem: Identifiable, Sendable {
         return FilesExtensions.isMovieFile(url)
     }
 
-    init(url: URL,
-         path: String,
-         dateCaptured: Date? = nil,
-         dateModified: Date? = nil,
-         hasACR: Bool = false,
-         hasJPG: Bool = false,
-         hasXMP: Bool = false,
-         xmp: XmpMetadata? = nil,
-         inCameraRating: Int? = nil,
-         isRawFile: Bool = false,
-         fileSizeBytes: Int64? = nil,
-         width: Int? = nil,
-         height: Int? = nil,
-         cameraMake: String? = nil,
-         cameraModel: String? = nil) {
+    // MARK: Init
 
-        self.id = UUID()
-        self.url = url
-        self.path = path
-        self.dateCaptured = dateCaptured
-        self.dateModified = dateModified
-        self.hasACR = hasACR
-        self.hasJPG = hasJPG
-        self.hasXMP = hasXMP
-        self.xmp = xmp
-        self.inCameraRating = inCameraRating
-        self.isRawFile = isRawFile
-        self.fileSizeBytes = fileSizeBytes
-        self.width = width
-        self.height = height
-        self.cameraMake = cameraMake
-        self.cameraModel = cameraModel
-        self.toDelete = false
-    }
-
-    // Preserves the existing ID when updating XMP metadata
     init(id: UUID,
          url: URL,
          path: String,
-         dateCaptured: Date? = nil,
+         dateCreated: Date,
          dateModified: Date? = nil,
-         toDelete: Bool,
          hasACR: Bool = false,
          hasJPG: Bool = false,
          hasXMP: Bool = false,
          xmp: XmpMetadata? = nil,
-         inCameraRating: Int? = nil,
-         isRawFile: Bool = false,
+         exif: ExifData? = nil,
          fileSizeBytes: Int64? = nil,
-         width: Int? = nil,
-         height: Int? = nil,
-         cameraMake: String? = nil,
-         cameraModel: String? = nil) {
-        
+         toDelete: Bool) {
+
         self.id = id
         self.url = url
         self.path = path
-        self.xmp = xmp
-        self.dateCaptured = dateCaptured
+        self.dateCreated = dateCreated
         self.dateModified = dateModified
-        self.toDelete = toDelete
         self.hasACR = hasACR
         self.hasJPG = hasJPG
         self.hasXMP = hasXMP
-        self.inCameraRating = inCameraRating
-        self.isRawFile = isRawFile
+        self.xmp = xmp
+        self.exif = exif
         self.fileSizeBytes = fileSizeBytes
-        self.width = width
-        self.height = height
-        self.cameraMake = cameraMake
-        self.cameraModel = cameraModel
+        self.toDelete = toDelete
     }
 
     // MARK: - PhotoKit init
@@ -137,24 +88,30 @@ struct PhotoItem: Identifiable, Sendable {
         self.id = UUID()
         if #available(iOS 26.0, macOS 26.0, *) {
             let dateAdded = asset.value(forKey: "addedDate") as? Date
-            self.dateCaptured = dateAdded ?? asset.creationDate// TODO: Use asset.addedDate when compiling from Xcode26
+            self.dateCreated = dateAdded ?? asset.creationDate ?? Date()// TODO: Use asset.addedDate when compiling from Xcode26
         } else {
-            self.dateCaptured = asset.creationDate
+            self.dateCreated = asset.creationDate ?? Date()
         }
         self.dateModified = asset.modificationDate
         self.hasACR = false
         self.hasJPG = false
         self.hasXMP = false
-        self.inCameraRating = nil
-        self.isRawFile = false
-        self.width = asset.pixelWidth == 0 ? nil : asset.pixelWidth
-        self.height = asset.pixelHeight == 0 ? nil : asset.pixelHeight
         self.toDelete = false
         self.phAsset = asset
-        self.cameraMake = nil
-        self.cameraModel = nil
         self.fileSizeBytes = nil
         self.xmp = nil
+        self.exif = ExifData(dateCaptured: self.dateCreated,
+                             width: asset.pixelWidth == 0 ? nil : asset.pixelWidth,
+                             height: asset.pixelHeight == 0 ? nil : asset.pixelHeight,
+                             cameraMake: nil,
+                             cameraModel: nil,
+                             lensModel: nil,
+                             lensFocalLength: nil,
+                             iso: nil,
+                             aperture: nil,
+                             shutterSpeed: nil,
+                             exposureCompensation: nil,
+                             rating: nil)
 
         if basic {
             // Fast path — no PHAssetResource lookup.
@@ -188,17 +145,12 @@ extension PhotoItem: Hashable {
         lhs.id == rhs.id &&
         lhs.path == rhs.path &&
         lhs.xmp == rhs.xmp &&
+        lhs.exif == rhs.exif &&
         lhs.dateModified == rhs.dateModified &&
         lhs.hasACR == rhs.hasACR &&
         lhs.hasJPG == rhs.hasJPG &&
         lhs.hasXMP == rhs.hasXMP &&
-        lhs.inCameraRating == rhs.inCameraRating &&
-        lhs.isRawFile == rhs.isRawFile &&
         lhs.fileSizeBytes == rhs.fileSizeBytes &&
-        lhs.width == rhs.width &&
-        lhs.height == rhs.height &&
-        lhs.cameraMake == rhs.cameraMake &&
-        lhs.cameraModel == rhs.cameraModel &&
         lhs.toDelete == rhs.toDelete
     }
 

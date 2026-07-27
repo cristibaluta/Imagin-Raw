@@ -174,12 +174,12 @@ struct PhotoPreviewView: View {
     @ViewBuilder
     private var bottomBar: some View {
         // EXIF bottom bar
-        if let photo = viewModel.photo, let exifInfo = viewModel.exifInfo {
+        if let photo = viewModel.photo, let exifData = viewModel.exifData {
             Rectangle()
                 .fill(Color.secondary.opacity(0.25))
                 .frame(height: 1)
             PreviewBottomBar(photo: photo,
-                             exifInfo: exifInfo,
+                             exifData: exifData,
                              model: viewModel,
                              showAFPoint: $showAFPoint,
                              showEditPanel: $showEditPanel,

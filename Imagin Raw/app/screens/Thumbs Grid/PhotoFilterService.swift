@@ -20,7 +20,7 @@ struct PhotoFilterService {
                 return true
             }
             let label = PhotoLabel(rawValue: photo.xmp?.label ?? "") ?? .noLabel
-            let rating = photo.xmp?.rating.flatMap { $0 > 0 ? $0 : nil } ?? photo.inCameraRating ?? 0
+            let rating = photo.xmp?.rating.flatMap { $0 > 0 ? $0 : nil } ?? photo.exif?.rating ?? 0
 
             return labels.contains(label) ||
                     ratings.contains(rating) ||
@@ -37,18 +37,18 @@ struct PhotoFilterService {
                 return { $0.url.lastPathComponent.localizedStandardCompare($1.url.lastPathComponent) == .orderedAscending }
             case .dateCaptured:
                 return {
-                    if let d0 = $0.dateCaptured, let d1 = $1.dateCaptured {
+                    if let d0 = $0.exif?.dateCaptured, let d1 = $1.exif?.dateCaptured {
                         return d0 < d1
                     } else {
-                        return $0.path < $1.path
+                        return $0.dateCreated < $1.dateCreated
                     }
                 }
             case .dateModified:
                 return {
-                    if let d0 = $0.dateModified ?? $0.dateCaptured, let d1 = $1.dateModified ?? $1.dateCaptured {
+                    if let d0 = $0.dateModified, let d1 = $1.dateModified {
                         return d0 < d1
                     } else {
-                        return $0.path < $1.path
+                        return $0.dateCreated < $1.dateCreated
                     }
                 }
             case .fileType:
@@ -71,8 +71,8 @@ struct PhotoFilterService {
                                 sortOption: ThumbGridViewModel.SortOption) -> [(title: String, photos: [PhotoItem])] {
         switch sortOption {
             case .name:         return []
-            case .dateCaptured: return groupByKey(photos) { ($0.dateCaptured ?? Date()).EEEEMMMdyyyy }
-            case .dateModified: return groupByKey(photos) { ($0.dateModified ?? $0.dateCaptured ?? Date()).EEEEMMMdyyyy }
+            case .dateCaptured: return groupByKey(photos) { ($0.exif?.dateCaptured ?? $0.dateCreated).EEEEMMMdyyyy }
+            case .dateModified: return groupByKey(photos) { ($0.dateModified ?? $0.dateCreated).EEEEMMMdyyyy }
             case .fileType:     return groupByKey(photos) { URL(fileURLWithPath: $0.path).pathExtension.uppercased() }
             case .rating:
                 return groupByKey(photos) { photo in

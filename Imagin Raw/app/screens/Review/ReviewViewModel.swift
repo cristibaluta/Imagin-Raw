@@ -55,8 +55,8 @@ class ReviewViewModel: ObservableObject {
 
     var isPortrait: Bool {
         guard let first = photos.first,
-              let w = first.width,
-              let h = first.height else {
+              let w = first.exif?.width,
+              let h = first.exif?.height else {
             return true
         }
         return h > w
@@ -113,19 +113,15 @@ class ReviewViewModel: ObservableObject {
         let newPhoto = PhotoItem(id: photo.id,
                                  url: photo.url,
                                  path: photo.path,
-                                 dateCaptured: photo.dateCaptured,
-                                 toDelete: photo.toDelete,
+                                 dateCreated: photo.dateCreated,
+                                 dateModified: photo.dateModified,
                                  hasACR: photo.hasACR,
                                  hasJPG: photo.hasJPG,
                                  hasXMP: photo.hasXMP,
                                  xmp: newXmp,
-                                 inCameraRating: photo.inCameraRating,
-                                 isRawFile: photo.isRawFile,
+                                 exif: photo.exif,
                                  fileSizeBytes: photo.fileSizeBytes,
-                                 width: photo.width,
-                                 height: photo.height,
-                                 cameraMake: photo.cameraMake,
-                                 cameraModel: photo.cameraModel)
+                                 toDelete: photo.toDelete)
         updateLocalPhoto(newPhoto)
     }
 
@@ -150,19 +146,15 @@ class ReviewViewModel: ObservableObject {
         let newPhoto = PhotoItem(id: photo.id,
                                  url: photo.url,
                                  path: photo.path,
-                                 dateCaptured: photo.dateCaptured,
-                                 toDelete: photo.toDelete,
+                                 dateCreated: photo.dateCreated,
+                                 dateModified: photo.dateModified,
                                  hasACR: photo.hasACR,
                                  hasJPG: photo.hasJPG,
                                  hasXMP: photo.hasXMP,
                                  xmp: newXmp,
-                                 inCameraRating: photo.inCameraRating,
-                                 isRawFile: photo.isRawFile,
+                                 exif: photo.exif,
                                  fileSizeBytes: photo.fileSizeBytes,
-                                 width: photo.width,
-                                 height: photo.height,
-                                 cameraMake: photo.cameraMake,
-                                 cameraModel: photo.cameraModel)
+                                 toDelete: photo.toDelete)
         updateLocalPhoto(newPhoto)
     }
 
@@ -171,19 +163,15 @@ class ReviewViewModel: ObservableObject {
         let newPhoto = PhotoItem(id: photo.id,
                                  url: photo.url,
                                  path: photo.path,
-                                 dateCaptured: photo.dateCaptured,
-                                 toDelete: !photo.toDelete,
+                                 dateCreated: photo.dateCreated,
+                                 dateModified: photo.dateModified,
                                  hasACR: photo.hasACR,
                                  hasJPG: photo.hasJPG,
                                  hasXMP: photo.hasXMP,
                                  xmp: photo.xmp,
-                                 inCameraRating: photo.inCameraRating,
-                                 isRawFile: photo.isRawFile,
+                                 exif: photo.exif,
                                  fileSizeBytes: photo.fileSizeBytes,
-                                 width: photo.width,
-                                 height: photo.height,
-                                 cameraMake: photo.cameraMake,
-                                 cameraModel: photo.cameraModel)
+                                 toDelete: !photo.toDelete)
         updateLocalPhoto(newPhoto)
     }
 

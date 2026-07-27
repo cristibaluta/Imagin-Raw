@@ -7,23 +7,6 @@
 
 import Foundation
 
-struct XmpMetadata: Equatable, Hashable {
-    let label: String?
-    let rating: Int?
-    let creator: String?
-    let rights: String?
-    let createDate: String?
-    let modifyDate: String?
-    let cameraModel: String?
-    let lens: String?
-    let focalLength: String?
-    let aperture: String?
-    let shutterSpeed: String?
-    let iso: String?
-    let exposureBias: String?
-    let hasEdits: Bool
-}
-
 #if os(macOS)
 class XmpParser {
 
@@ -127,6 +110,40 @@ class XmpParser {
         content = updateXmpAttributeXML(in: content, attribute: "xmp:MetadataDate", value: nowDate)
 
         return content
+    }
+
+    /// Parse an XMP/ISO 8601 date string into a Date.
+    /// Handles formats: "YYYY:MM:DD HH:MM:SS", "YYYY-MM-DDTHH:MM:SS", "YYYY-MM-DDTHH:MM:SS+HH:MM"
+    static func parseDate(_ string: String) -> Date? {
+        let formatters: [DateFormatter] = [
+            {
+                let f = DateFormatter()
+                f.locale = Locale(identifier: "en_US_POSIX")
+                f.dateFormat = "yyyy:MM:dd HH:mm:ss"
+                return f
+            }(),
+            {
+                let f = DateFormatter()
+                f.locale = Locale(identifier: "en_US_POSIX")
+                f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+                return f
+            }(),
+        ]
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = iso.date(from: string) {
+            return d
+        }
+        iso.formatOptions = [.withInternetDateTime]
+        if let d = iso.date(from: string) {
+            return d
+        }
+        for f in formatters {
+            if let d = f.date(from: string) {
+                return d
+            }
+        }
+        return nil
     }
 
 

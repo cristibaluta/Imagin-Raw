@@ -91,7 +91,7 @@ final class IOSFeedCell: UICollectionViewCell {
 //            }
 //            .store(in: &cancellables)
 //
-//        viewModel.$exifInfo
+//        viewModel.$exifData
 //            .receive(on: DispatchQueue.main)
 //            .sink { [weak self] exif in self?.applyExif(exif) }
 //            .store(in: &cancellables)
@@ -149,7 +149,7 @@ final class IOSFeedCell: UICollectionViewCell {
     }
 
     // MARK: - EXIF
-    private func applyExif(_ exif: ExifInfo?) {
+    private func applyExif(_ exif: ExifData?) {
         var exp: [String] = []
         if let ap = exif?.aperture     { exp.append("ƒ/\(String(format:"%.1f", ap))") }
         if let ss = exif?.shutterSpeed { exp.append(ss < 1 ? "1/\(Int(round(1/ss)))s" : "\(String(format:"%.1f",ss))s") }
