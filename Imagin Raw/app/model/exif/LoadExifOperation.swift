@@ -61,9 +61,11 @@ final class LoadExifOperation: Operation, @unchecked Sendable {
         // 2. Extract exif from the photo
         var exif: ExifData? = nil
         if FilesExtensions.isRawImageFile(photo.url) {
+            // TODO: This is super fast for lumix
             exif = LibRawDecoder().extractExif(at: photo.url)
         }
         if exif == nil {
+            // TODO: This is extremely slow for lumix and olympus, but very fast for sony
             // Fallback to CoreGraphics exif reading
             exif = CoreGraphicsDecoder().extractExif(at: photo.url)
         }

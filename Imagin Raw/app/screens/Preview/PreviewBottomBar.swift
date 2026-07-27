@@ -23,9 +23,7 @@ struct PreviewBottomBar: View {
             if model.exifIsExpanded || gridType == .large {
                 ExifExtendedView(exifData: exifData,
                                  fileSize: photo.fileSizeBytes,
-                                 dateCreated: photo.exif?.dateCaptured,
-                                 width: photo.exif?.width,
-                                 height: photo.exif?.height,
+                                 dateCreated: photo.dateCreated,
                                  gridType: $gridType)
                     .contentShape(Rectangle())
                     .onTapGesture {

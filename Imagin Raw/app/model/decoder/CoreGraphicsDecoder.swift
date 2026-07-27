@@ -89,8 +89,8 @@ struct CoreGraphicsDecoder: RawDecoder {
         let tiffDict = props[kCGImagePropertyTIFFDictionary] as? [CFString: Any]
 
         // Camera make / model
-        var cameraMake: String? = tiffDict?[kCGImagePropertyTIFFMake] as? String
-        var cameraModel: String? = tiffDict?[kCGImagePropertyTIFFModel] as? String
+        let cameraMake: String? = tiffDict?[kCGImagePropertyTIFFMake] as? String
+        let cameraModel: String? = tiffDict?[kCGImagePropertyTIFFModel] as? String
 
         // Rating — IPTC StarRating first (Canon in-camera rating lives here)
         var rating: Int? = nil
@@ -118,6 +118,7 @@ struct CoreGraphicsDecoder: RawDecoder {
             dateCaptured = fmt.date(from: dateTimeStr)
         }
 
+        // TODO: width and height are not present in the lumix raws, they are nowhere in props
         // Resolution — swap width/height for 90°/270° EXIF orientation
         var width: Int? = nil
         var height: Int? = nil

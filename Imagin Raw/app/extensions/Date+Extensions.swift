@@ -19,4 +19,12 @@ extension Date {
     var EEEEMMMdyyyy: String {
         Date.EEEEMMMdyyyyFormatter.string(from: self)
     }
+
+    /// Returns a date formatted to display in exif
+    var exifDateString: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: self)
+    }
 }
