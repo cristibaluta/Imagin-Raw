@@ -75,7 +75,7 @@ final class FolderModel: ObservableObject {
             for file in files {
                 let ext = file.pathExtension.lowercased()
                 let baseName = file.deletingPathExtension().lastPathComponent
-                if FilesExtensions.isImageFile(file) || FilesExtensions.isMovieFile(file) {
+                if FilesExtensions.isImageFile(file) || FilesExtensions.isMovieFile(file) || FilesExtensions.isAffinityFile(file) {
                     if FilesExtensions.isRawCounterpartFile(file) {
                         if rawBaseNames.contains(baseName) {
                             jpgLookup.insert(baseName)

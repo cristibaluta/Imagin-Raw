@@ -178,6 +178,6 @@ enum JpegMetadataWriter {
     }
 
     static func isSupported(_ url: URL) -> Bool {
-        FilesExtensions.supportedExtensions.contains(url.pathExtension.lowercased())
+        FilesExtensions.supportedFilesWithExif.contains(url.pathExtension.lowercased())
     }
 }

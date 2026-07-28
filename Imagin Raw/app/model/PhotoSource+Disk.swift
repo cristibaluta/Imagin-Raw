@@ -34,6 +34,9 @@ struct DiskPhotoSource: PhotoSource {
         if FilesExtensions.isSvgFile(url) {
             return svgThumbnail(url: url, maxSize: targetSize)
         }
+        if FilesExtensions.isAffinityFile(url) {
+            return affinityThumbnail(url: url, maxSize: targetSize)
+        }
         return jpegThumbnail(url: url, targetSize: targetSize)
     }
 
@@ -46,6 +49,8 @@ struct DiskPhotoSource: PhotoSource {
             return LibRawDecoder().extractPreview(at: url, maxSize: targetSize)
         } else if FilesExtensions.isSvgFile(url) {
             return svgThumbnail(url: url, maxSize: targetSize)
+        } else if FilesExtensions.isAffinityFile(url) {
+            return affinityThumbnail(url: url, maxSize: targetSize)
         } else {
             return CoreGraphicsDecoder().extractPreview(at: url, maxSize: targetSize)
         }
@@ -68,15 +73,7 @@ struct DiskPhotoSource: PhotoSource {
     }
 
     func loadExif() async -> ExifData? {
-        var exif: ExifData? = nil
-        if FilesExtensions.isRawImageFile(url) {
-            exif = LibRawDecoder().extractExif(at: url)
-        }
-        if exif == nil {
-            // Fallback to CoreGraphics exif reading
-            exif = CoreGraphicsDecoder().extractExif(at: url)
-        }
-        return exif
+        return nil
     }
 
     // MARK: - Helpers
@@ -169,6 +166,83 @@ struct DiskPhotoSource: PhotoSource {
         rasterized.unlockFocus()
 
         return rasterized
+    }
+
+    private func affinityThumbnail(url: URL, maxSize: CGFloat) -> IRImage? {
+        // 1. Define the size and scale you want
+//        let size = CGSize(width: 1024, height: 1024)
+//        let scale = NSScreen.main?.backingScaleFactor ?? 2.0
+//
+//        // 2. Create the thumbnail request configuration
+//        let request = QLThumbnailGenerator.Request(
+//            fileAt: url,
+//            size: size,
+//            scale: scale,
+//            representationTypes: .all // Tells macOS to fetch the QL extension icon/thumbnail
+//        )
+//
+//        // 3.1. Initialize a semaphore with a value of 0
+//        let semaphore = DispatchSemaphore(value: 0)
+//        var resultImage: NSImage? = nil
+//
+//        QLThumbnailGenerator.shared.generateRepresentations(for: request) { representation, type, error in
+//            switch type {
+//                case .icon: break
+//                case .lowQualityThumbnail:
+//                    break
+//                case .thumbnail:
+//                    resultImage = representation?.nsImage
+//                    semaphore.signal()
+//                @unknown default: break
+//            }
+//        }
+//
+//        // 3.3. Wait indefinitely (or use .now() + timeout) for the signal
+//        _ = semaphore.wait(timeout: .distantFuture)
+
+        // TODO: using quicklook to extract the thumbnail returns error 102
+        let resultImage = extractAnyAffinityPreview(from: url)
+        return resultImage
+    }
+
+    func extractAnyAffinityPreview(from fileURL: URL) -> NSImage? {
+        guard let fileHandle = try? FileHandle(forReadingFrom: fileURL) else { return nil }
+        defer { try? fileHandle.close() }
+
+        guard let fileSize = try? fileHandle.seekToEnd(), fileSize > 0 else { return nil }
+
+        // Read the last 15 Megabytes where the preview is trailing
+        let bufferSize = min(fileSize, UInt64(15 * 1024 * 1024))
+        guard (try? fileHandle.seek(toOffset: fileSize - bufferSize)) != nil else { return nil }
+        guard let buffer = try? fileHandle.read(upToCount: Int(bufferSize)) else { return nil }
+
+        // Magic Byte Signatures
+        let pngStart = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) // \x89PNG
+        let pngEnd   = "IEND".data(using: .ascii)!
+
+        let jpegStart = Data([0xFF, 0xD8, 0xFF]) // SOI (Start of Image)
+        let jpegEnd   = Data([0xFF, 0xD9])       // EOI (End of Image)
+
+        // 1. Try PNG Scanning First
+        if let startRange = buffer.range(of: pngStart, options: .backwards, in: 0..<buffer.count),
+           let endRange = buffer.range(of: pngEnd, options: .backwards, in: startRange.upperBound..<buffer.count) {
+
+            let totalLength = (endRange.upperBound + 4) - startRange.lowerBound // Add 4 bytes for IEND chunk CRC
+            let pngData = buffer.subdata(in: startRange.lowerBound..<(startRange.lowerBound + totalLength))
+            return NSImage(data: pngData)
+        }
+
+        // 2. Fallback to JPEG Scanning (Crucial for modern .af formats)
+        if let startRange = buffer.range(of: jpegStart, options: .backwards, in: 0..<buffer.count),
+           let endRange = buffer.range(of: jpegEnd, options: .backwards, in: startRange.upperBound..<buffer.count) {
+
+            let totalLength = endRange.upperBound - startRange.lowerBound
+            let jpegData = buffer.subdata(in: startRange.lowerBound..<(startRange.lowerBound + totalLength))
+            return NSImage(data: jpegData)
+        }
+
+        RCLog("No valid embedded PNG or JPEG stream located in file trailing block.")
+        return nil
     }
 
     private func sha256Prefix(_ string: String) -> String {

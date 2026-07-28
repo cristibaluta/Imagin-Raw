@@ -87,6 +87,11 @@ enum FilesExtensions {
         return type.conforms(to: .svg)
     }
 
+    static func isAffinityFile(_ url: URL) -> Bool {
+        let ext = url.pathExtension.lowercased()
+        return ["af", "afphoto", "afdesign", "afpub", "aftemplate"].contains(ext)
+    }
+
     // Use this to detect image files by looking at the content, but this is more costly so it could be done for photos with no extension
     static func isImageFileByContent(_ url: URL) -> Bool {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
@@ -98,5 +103,5 @@ enum FilesExtensions {
 
     // TODO: Is this replaceable by the generic isImageFile method? Do all images support metadata?
     /// File extensions that support embedded metadata writing via ImageIO.
-    static let supportedExtensions: Set<String> = ["jpg", "jpeg", "png", "tiff", "tif", "heic", "heif", "psd"]
+    static let supportedFilesWithExif: Set<String> = ["jpg", "jpeg", "png", "tiff", "tif", "heic", "heif", "psd"]
 }
