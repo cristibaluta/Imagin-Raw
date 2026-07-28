@@ -17,8 +17,7 @@ A lightweight, native macOS application for browsing, culling, and organizing RA
 
 - **Multi-root folder browsing** - add any number of folders from local disks, external drives, or SD cards; no import step, no managed library
 - **Real-time file system monitoring** - new photos, deletions, and folder structure changes are detected and reflected immediately
-- **RAW format support** - via LibRaw, covering a broad range of camera manufacturers and formats
-- **Affinity support** - Preview is low resolution
+- **Supported files** - all the RAWs and images known to macOS, plus svg and Affinity
 - **Rating and color labeling** - written to XMP sidecars (RAW) or embedded directly into the file without re-encoding (JPEG/HEIC), compatible with Adobe Bridge and Lightroom
 - **Rejection workflow** - a session-scoped label (not persisted across folder changes) for marking photos to delete; batch-delete via right-click
 - **JPG/RAW pair deduplication** - when a RAW+JPEG pair exists, only the RAW is shown in the grid
