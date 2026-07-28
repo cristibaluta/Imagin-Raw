@@ -2,8 +2,6 @@
 
 A lightweight, native macOS application for browsing, culling, and organizing RAW photos - built as a more efficient alternative to Adobe Bridge.
 
-An iOS version as an alternative to the cluttered Photos app is in development. This one wants to be also a scouting app.
-
 ![Main Interface](screenshots/main.jpg)
 
 ## Architecture
@@ -12,24 +10,25 @@ An iOS version as an alternative to the cluttered Photos app is in development. 
 - **RAW decoding**: LibRaw (C++), wrapped via Objective-C++ bridge. CoreImage also used for other formats and as a fallback
 - **Metadata**: EXIF parsed directly from RAW/JPEG binary structures; XMP sidecars read/written for Lightroom/Bridge compatibility
 - **File system monitoring**: FSEvents for real-time folder change detection
-- **Search**: NSMetadataQuery (Spotlight) for indexed file/folder search
-- **Concurrency**: A mix of Tasks and OperationQueue
+- **Search**: NSMetadataQuery (Spotlight engine) for indexed file/folder search
+- **Concurrency**: Swift6 compliant, a mix of Tasks, OperationQueue, unchecked Sendables
 
 ## Features
 
 - **Multi-root folder browsing** - add any number of folders from local disks, external drives, or SD cards; no import step, no managed library
 - **Real-time file system monitoring** - new photos, deletions, and folder structure changes are detected and reflected immediately
 - **RAW format support** - via LibRaw, covering a broad range of camera manufacturers and formats
-- **Rating and color labeling** - written to XMP sidecars (RAW) or embedded directly without re-encoding (JPEG/HEIC), compatible with Adobe Bridge and Lightroom
+- **Affinity support** - Preview is low resolution
+- **Rating and color labeling** - written to XMP sidecars (RAW) or embedded directly into the file without re-encoding (JPEG/HEIC), compatible with Adobe Bridge and Lightroom
 - **Rejection workflow** - a session-scoped label (not persisted across folder changes) for marking photos to delete; batch-delete via right-click
-- **JPG/RAW pair deduplication** - when a RAW+JPEG pair exists, only the RAW is shown in the browser
+- **JPG/RAW pair deduplication** - when a RAW+JPEG pair exists, only the RAW is shown in the grid
 - **Two grid layouts** - compact grid (more room for preview) and large grid (more room for thumbnails)
 - **Spotlight-backed search** - search across files and folder names using the macOS indexing engine
 - **SD card ingest** - copy photos into date-based folder structures, with optional simultaneous backup to a second destination
 - **Duplicate/similar photo detection** - Review mode for quickly resolving near-duplicate burst shots
-- **Instagram frame export** - fits 2:3 RAW images into a 3:4 canvas, exported as TIFF to avoid re-encoding loss (useful for Camera Raw edits because it doesn't support framing)
-- **Export video** - select photos from the same sequence and export a cool video
-- **Offline client proofing** - export PDF -> client ticks some annotation checkboxes to mark his favourites -> import the PDF back to filter for the selected photos
+- **Instagram frame export** - frame 2:3 images into a 3:4 canvas, exported as TIFF to avoid re-encoding loss (useful for Camera Raw edits which cannot add frames)
+- **Export video** - select multiple photos from the same sequence and export a cool video
+- **Offline client proofing** - export PDF -> client ticks some checkboxes to mark his favourites -> import the PDF back to filter the selected photos
 
 ## Comparison with Adobe Bridge (2022 version)
 
@@ -38,18 +37,20 @@ An iOS version as an alternative to the cluttered Photos app is in development. 
 | | Imagin RAW | Bridge |
 |---|---|---|
 | App size | ~9 MB | ~2 GB |
-| Idle CPU | 0% | non-zero |
-| Memory | As low as 100 MB depending on the album | Easily gets to GBs |
-| Launch time | Near-instant | Many seconds |
-| Scrolling | Native, smooth | Row-by-row |
-| External drive eject | No app restart needed | Requires quitting Bridge |
+| Idle CPU | 0% | 1-2% |
+| Memory | 200MB to scroll through 1300 thumbnails | 2GB for the same album |
+| Memory release | Released when switching albums | Adds up when switching albums |
+| Launch time | Instant | Seconds |
+| Scrolling | Native, smooth | Row-by-row, hard to control |
+| External drive eject | No app restart needed (unless video selected) | Requires quitting Bridge |
 
-### Where Bridge is ahead
+### Where Bridge is better
 
-- **Camera Raw–processed previews** - Bridge renders thumbnails with ACR adjustments applied. Imagin RAW currently shows embeded jpegs; replicating the ACR pipeline isn't feasible, though basic exposure/crop preview adjustments may be explored.
+- **Camera Raw–processed previews** - Bridge renders thumbnails with ACR adjustments applied. Imagin RAW currently shows the embeded jpegs in a raw; replicating the ACR pipeline isn't feasible, although basic adjustments and crop will be explored.
 
 ## Roadmap
-See the open [Issues](https://github.com/cristibaluta/Imagin-Raw/issues)
+- See the open [Issues](https://github.com/cristibaluta/Imagin-Raw/issues)
+- An iOS version as an alternative to the cluttered Photos app is in development.
 
 ## Screenshots
 ![Filtered Thumbnails](screenshots/main-dark.jpg)
@@ -81,8 +82,9 @@ See the open [Issues](https://github.com/cristibaluta/Imagin-Raw/issues)
 
 ## Installation
 - Buy from the [AppStore](https://apps.apple.com/ro/app/imagin-raw/id6760548347?mt=12) if you want to support the project and receive updates automatically
-- Download the latest release from [Releases](https://github.com/cristibaluta/Imagin-Raw/releases). Updates might not be on par with the AppStore and there's no update notification in the app
+- Download the latest release from [Releases](https://github.com/cristibaluta/Imagin-Raw/releases). The app does not update itself and does not announce you for updates either
 - Compile from source code, there should be no surprises
 
 ## Contributions
-Small straightforward fixes and issue/ideas reportings are welcome.
+- Reporting issues and ideas are welcome.
+- The code faces multiple random refactorings right now, not the best time to contribute with code.
