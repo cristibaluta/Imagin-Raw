@@ -12,7 +12,11 @@ import Combine
 class ThumbGridViewModel: ObservableObject {
 
     @Published var selectedPhotos: Set<UUID> = []
-    @Published var selectedPhoto: PhotoItem?
+    @Published var selectedPhoto: PhotoItem? {
+        didSet {
+            RCLog(">>>>>> selecting photo: \(selectedPhoto?.id)")
+        }
+    }
     @Published var selectedLabels: Set<PhotoLabel> = []
     @Published var selectedRatings: Set<Int> = []
     @Published var selectedNames: Set<String> = []
@@ -22,7 +26,11 @@ class ThumbGridViewModel: ObservableObject {
     @Published var isSidebarCollapsed: Bool = false
     @Published var lastSelectedIndex: Int?
     @Published var cachingQueueCount: Int = 0
-    @Published var isLoadingMetadata: Bool = false
+    @Published var isLoadingMetadata: Bool = false {
+        didSet {
+            RCLog(">>>>>> isLoadingMetadata: \(isLoadingMetadata)")
+        }
+    }
     @Published var isFindingDuplicates: Bool = false
     @Published var isDuplicateMode: Bool = false
     @Published var duplicateScanProgress: (done: Int, total: Int) = (0, 0)
@@ -90,21 +98,23 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     private func setupFilteredPhotosObservers() {
-        let filterChanges = Publishers.CombineLatest4(
-            $selectedLabels,
-            $selectedRatings,
-            $selectedNames,
-            $sortOption
-        )
-        .map { _ in () }
-
-        let loadingChanges = $isLoadingMetadata
-            .map { _ in () }
-
-        Publishers.Merge(filterChanges, loadingChanges)
+        Publishers.CombineLatest4($selectedLabels,
+                                  $selectedRatings,
+                                  $selectedNames,
+                                  $sortOption)
             .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.filterAndSortPhotos()
+            }
+            .store(in: &cancellables)
+
+        $isLoadingMetadata
+            .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                if self?.isLoadingMetadata == false {
+                    self?.filterAndSortPhotos()
+                    self?.initializeSelection()
+                }
             }
             .store(in: &cancellables)
     }
@@ -167,7 +177,10 @@ class ThumbGridViewModel: ObservableObject {
 
         // Filter photos
         if !isLoadingMetadata {
-            result = PhotoFilterService.apply(labels: selectedLabels, ratings: selectedRatings, names: selectedNames, to: result)
+            result = PhotoFilterService.apply(labels: selectedLabels,
+                                              ratings: selectedRatings,
+                                              names: selectedNames,
+                                              to: result)
         }
 
         if !photos.isEmpty && result.isEmpty {
@@ -189,7 +202,6 @@ class ThumbGridViewModel: ObservableObject {
 
         // Auto-select a specific photo requested via drag-and-drop / open-with
         if let url = pendingSelectURL {
-            RCLog("pendingSelectURL: \(url.lastPathComponent) | photos count: \(filteredAndSortedPhotos.count)")
             if let photo = filteredAndSortedPhotos.first(where: { $0.url == url }) {
                 RCLog("found pending photo, selecting: \(photo.url.lastPathComponent)")
                 pendingSelectURL = nil
@@ -203,7 +215,6 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func clearInvalidFilters() {
-        let before = (selectedLabels, selectedRatings)
         selectedLabels = selectedLabels.filter { label in
             photos.contains { photo in
                 if label == .rejected {
@@ -232,20 +243,17 @@ class ThumbGridViewModel: ObservableObject {
     // MARK: - Photo Loading
 
     func loadPhotosForFolder(_ folder: FolderItem, includeSubfolders: Bool) {
-        RCLog(">>>>>>> Loading photos for folder: \(folder.url.lastPathComponent) | pendingSelectURL before reset: \(pendingSelectURL?.lastPathComponent ?? "nil")")
+        RCLog("Loading photos for folder: \(folder.url.lastPathComponent) | pendingSelectURL before reset: \(pendingSelectURL?.lastPathComponent ?? "nil")")
         let savedPendingURL = pendingSelectURL
-        reset()
+        resetPreviousSession()
         pendingSelectURL = savedPendingURL
-        RCLog(">>>>>>> pendingSelectURL after reset: \(pendingSelectURL?.lastPathComponent ?? "nil")")
         setupFilteredPhotosObservers()
 
         let newPhotosModel = PhotosModel(folder: folder, includeSubfolders: includeSubfolders)
         photosModel = newPhotosModel
         metadataService.photosModel = newPhotosModel
         trashService.photosModel = newPhotosModel
-        selectedPhotos.removeAll()
         lastSelectedIndex = nil
-        selectedPhoto = nil
 
         newPhotosModel.objectWillChange
             .sink { [weak self] _ in
@@ -261,22 +269,23 @@ class ThumbGridViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        newPhotosModel.$photos
-            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.filterAndSortPhotos()
-            }
-            .store(in: &cancellables)
+//        newPhotosModel.$photos
+//            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+//            .sink { [weak self] _ in
+//                self?.filterAndSortPhotos()
+//            }
+//            .store(in: &cancellables)
 
         newPhotosModel.loadPhotos()
     }
 
-    func reset() {
+    private func resetPreviousSession() {
         cancellables.removeAll()
-        clearSearchResults()
         exitDuplicateMode()
+        searchResultsPhotos = nil
         selectedPhoto = nil
         selectedPhotos.removeAll()
+        filteredAndSortedPhotos.removeAll()
     }
 
     func reloadPhotos() {
@@ -287,7 +296,9 @@ class ThumbGridViewModel: ObservableObject {
         RCLog("Applying file system changes for \(urls.count) file(s)")
         for url in urls where !FileManager.default.fileExists(atPath: url.path) {
             if let photo = photosModel?.photos.first(where: { $0.url == url }) {
-                if selectedPhoto?.url == url { selectedPhoto = nil }
+                if selectedPhoto?.url == url {
+                    selectedPhoto = nil
+                }
                 selectedPhotos.remove(photo.id)
             }
         }

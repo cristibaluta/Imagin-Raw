@@ -7,21 +7,6 @@
 
 import SwiftUI
 
-struct ReviewGroupItem: Identifiable {
-    let id = UUID()
-    let group: DuplicateGroup
-    let index: Int
-    let totalGroups: Int
-    let onRatingChanged: (PhotoItem, Int) -> Void
-    let onApprove: (PhotoItem) -> Void
-    let onMarkForDeletion: (PhotoItem) -> Void
-    let onNavigate: (Int) -> Void
-}
-
-private struct ReviewGroupItemID: Identifiable {
-    let id = UUID()
-}
-
 struct PhotosSheetItem: Identifiable {
     let id = UUID()
     let photos: [PhotoItem]
@@ -206,17 +191,17 @@ struct ThumbGridView: View {
             visibleSectionIndex: $visibleSectionIndex
         )
         .id(appState.selectedFolder?.id)
-        .onAppear {
-            viewModel.initializeSelection()
-        }
-        .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
-            if viewModel.selectedPhoto == nil && !newPhotos.isEmpty {
-                viewModel.selectedPhoto = newPhotos.first
-                viewModel.selectedPhotos.removeAll()
-                viewModel.selectedPhotos.insert(newPhotos.first!.id)
-                viewModel.lastSelectedIndex = 0
-            }
-        }
+//        .onAppear {
+//            viewModel.initializeSelection()
+//        }
+//        .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
+//            if viewModel.selectedPhoto == nil && !newPhotos.isEmpty {
+//                viewModel.selectedPhoto = newPhotos.first
+//                viewModel.selectedPhotos.removeAll()
+//                viewModel.selectedPhotos.insert(newPhotos.first!.id)
+//                viewModel.lastSelectedIndex = 0
+//            }
+//        }
         .onChange(of: viewModel.filteredAndSortedPhotos) { oldPhotos, newPhotos in
             // Scroll to top when a new folder's photos first appear (transition from empty to non-empty)
             if oldPhotos.isEmpty && !newPhotos.isEmpty, let first = newPhotos.first {

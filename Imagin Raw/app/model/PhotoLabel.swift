@@ -6,9 +6,6 @@
 //
 
 import SwiftUI
-#if os(macOS)
-import AppKit
-#endif
 
 enum PhotoLabel: String, CaseIterable {
 
@@ -52,27 +49,13 @@ enum PhotoLabel: String, CaseIterable {
     var nsTextColor: NSColor {
         NSColor(textColor)
     }
-#endif
-
-#if os(iOS)
-    static func uiColor(for label: String) -> UIColor {
-        switch label {
-        case "Select":   return .systemRed
-        case "Second":   return .systemYellow
-        case "Approved": return UIColor(red: 133/255, green: 199/255, blue: 102/255, alpha: 1)
-        case "Review":   return .systemBlue
-        case "To Do":    return .systemPurple
-        case "Rejected": return .systemOrange
-        default:         return .clear
-        }
+#elseif os(iOS)
+    var uiColor: UIColor {
+        UIColor(self.color)
     }
 
-    static func uiTextColor(for label: String) -> UIColor {
-        switch label {
-        case "Second", "Approved": return .black
-        case "Select", "Review", "To Do", "Rejected": return .white
-        default: return .label
-        }
+    var uiTextColor: UIColor {
+        UIColor(textColor)
     }
 #endif
 }

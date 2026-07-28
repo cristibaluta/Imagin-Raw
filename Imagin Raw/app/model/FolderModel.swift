@@ -9,7 +9,7 @@ import SwiftUI
 import Combine
 
 @MainActor
-final class PhotosFolderModel: ObservableObject {
+final class FolderModel: ObservableObject {
     let isLoadingSubject = CurrentValueSubject<Bool, Never>(false)
     var photos: Binding<[PhotoItem]>!
     private var isLoadingMetadata: Bool = false {
@@ -98,6 +98,7 @@ final class PhotosFolderModel: ObservableObject {
             .sorted(by: { $0.path < $1.path })
             .map { imageFile in
                 let baseName = imageFile.deletingPathExtension().lastPathComponent
+                // TODO: why do we request the resources again?
                 let resValues = try? imageFile.resourceValues(forKeys: [.creationDateKey,
                                                                         .contentModificationDateKey,
                                                                         .fileSizeKey])
@@ -105,7 +106,6 @@ final class PhotosFolderModel: ObservableObject {
                 let dateCreated = resValues?.creationDate ?? Date()
                 let dateModified = resValues?.contentModificationDate
                 let size = resValues?.fileSize as? Int
-                let isRaw = FilesExtensions.isRawImageFile(imageFile)
 
                 let hasACR = acrLookup.contains(baseName)
                 let hasJPG = jpgLookup.contains(baseName)
@@ -155,7 +155,6 @@ final class PhotosFolderModel: ObservableObject {
                 }
                 queue.addOperation(op)
             } else {
-                // New file - build a PhotoItem and append it, then load its EXIF
                 let resValues = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey])
                 let hasXMP = FileManager.default.fileExists(atPath: url.deletingPathExtension().appendingPathExtension("xmp").path)
                 let newPhoto = PhotoItem(id: UUID(),
@@ -170,16 +169,11 @@ final class PhotosFolderModel: ObservableObject {
                                          exif: nil,
                                          fileSizeBytes: Int64(resValues?.fileSize ?? 0),
                                          toDelete: false)
-                photos.wrappedValue.append(newPhoto)
-                let insertedIdx = photos.wrappedValue.count - 1
-                let op = LoadExifOperation(photo: newPhoto, forceReloadExif: true) { [weak self] updated in
-                    Task { @MainActor in
-                        guard let self,
-                              insertedIdx < self.photos.wrappedValue.count,
-                              self.photos.wrappedValue[insertedIdx].id == updated.id else {
-                            return
-                        }
-                        self.photos.wrappedValue[insertedIdx] = updated
+                // Load the exif for the new photo
+                let op = LoadExifOperation(photo: newPhoto, forceReloadExif: true) { [weak self] updatedPhoto in
+                    Task { @MainActor [weak self] in
+                        // Insert the new photo with exif in the list
+                        self?.photos.wrappedValue.append(updatedPhoto)
                     }
                 }
                 queue.addOperation(op)
@@ -196,8 +190,8 @@ final class PhotosFolderModel: ObservableObject {
         isLoadingMetadata = true
 
         queue.maxConcurrentOperationCount = ProcessInfo.processInfo.activeProcessorCount
-        queue.qualityOfService = .utility
-        RCLog("start loading exif using \(queue.maxConcurrentOperationCount) threads")
+        queue.qualityOfService = .userInitiated
+        RCLog("Start loading exifs using \(queue.maxConcurrentOperationCount) threads")
 
         var photosWithExifs: [PhotoItem] = []
 
@@ -210,10 +204,13 @@ final class PhotosFolderModel: ObservableObject {
             queue.addOperation(op)
         }
         queue.addBarrierBlock {
-            Task { @MainActor in
-                RCLog("loaded Exifs \(photosWithExifs.count) from \(self.photos.wrappedValue.count) in \(String(format: "%.3f", Date().timeIntervalSince(startTime)))s")
-                self.isLoadingMetadata = false
+            Task { @MainActor [weak self] in
+                guard let self else {
+                    return
+                }
+                RCLog("Finish loaded exifs \(photosWithExifs.count) from \(self.photos.wrappedValue.count) in \(String(format: "%.3f", Date().timeIntervalSince(startTime)))s")
                 self.photos.wrappedValue = photosWithExifs
+                self.isLoadingMetadata = false
             }
         }
     }
@@ -232,7 +229,7 @@ final class PhotosFolderModel: ObservableObject {
         let photo = photos.wrappedValue[idx]
 
         let op = LoadExifOperation(photo: photo, forceReloadExif: true) { [weak self] photoWithExif in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 RCLog("🔄 reloadMetadata: updating photo at idx \(idx) for sidecar \(baseName)")
                 self?.photos.wrappedValue[idx] = photoWithExif
                 completion()

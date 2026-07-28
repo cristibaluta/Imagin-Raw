@@ -37,11 +37,13 @@ struct PhotoFilterService {
                 return { $0.url.lastPathComponent.localizedStandardCompare($1.url.lastPathComponent) == .orderedAscending }
             case .dateCaptured:
                 return {
-                    if let d0 = $0.exif?.dateCaptured, let d1 = $1.exif?.dateCaptured {
-                        return d0 < d1
-                    } else {
-                        return $0.dateCreated < $1.dateCreated
+                    let d0 = $0.exif?.dateCaptured ?? $0.dateCreated
+                    let d1 = $1.exif?.dateCaptured ?? $1.dateCreated
+                    if d0 == d1 {
+                        // If the date is the same, fallback to sort by name
+                        return $0.url.lastPathComponent.localizedStandardCompare($1.url.lastPathComponent) == .orderedAscending
                     }
+                    return d0 < d1
                 }
             case .dateModified:
                 return {

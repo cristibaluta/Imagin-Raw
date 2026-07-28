@@ -14,14 +14,18 @@ struct CameraDetailsView: View {
         guard let shutter = exifData.shutterSpeed else {
             return "--"
         }
-        return shutter < 1 ? "1/\(Int(round(1/shutter)))s" : "\(String(format: "%.1f", shutter))s"
+        return shutter < 1
+            ? "1/\(Int(round(1/shutter)))s"
+            : "\(String(format: "%.1f", shutter))s"
     }
 
     private var expCompText: String? {
         guard let comp = exifData.exposureCompensation else {
             return "--"
         }
-        return comp < 0 ? "-\(abs(comp))" : (comp > 0 ? "+\(comp)" : "0 EV")
+        return comp < 0
+            ? "-\(String(format: "%.1f", abs(comp)))"
+            : (comp > 0 ? "+\(String(format: "%.1f", abs(comp)))" : "0 EV")
     }
 
     var body: some View {
