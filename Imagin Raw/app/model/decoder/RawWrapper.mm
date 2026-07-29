@@ -308,109 +308,75 @@
     NSString *make = exifDict[@"Make"];
     if (make && [make rangeOfString:@"Canon" options:NSCaseInsensitiveSearch].location != NSNotFound) {
         // This is a Canon file, the exif is in the iptc but LibRaw does not support it
-
-//        // Extract embedded JPEG
-//        int ret = raw->unpack_thumb();
-//        if (ret != LIBRAW_SUCCESS) {
-//            raw->recycle();
-//            delete raw;
-//        }
-//        libraw_processed_image_t *thumb = raw->dcraw_make_mem_thumb();
-//        if (thumb && thumb->type == LIBRAW_IMAGE_JPEG) {
-//            NSData *imageData = [NSData dataWithBytes:thumb->data length:thumb->data_size];
-//            LibRaw::dcraw_clear_mem(thumb);
-//            CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef)imageData, NULL);
-//
-//            if (source) {
-//                NSDictionary *properties = CFBridgingRelease(CGImageSourceCopyPropertiesAtIndex(source, 0, NULL));
-//                CGImageMetadataRef metadata = CGImageSourceCopyMetadataAtIndex(source, 0, NULL);
-//
-//                CGImageMetadataTagRef tag = CGImageMetadataCopyTagWithPath(metadata, NULL, CFSTR("xmp:Rating"));
-//
-//                if (tag) {
-//                    NSNumber *rating = CFBridgingRelease(CGImageMetadataTagCopyValue(tag));
-//
-//                    NSLog(@"Rating = %@", rating);
-//
-//                    CFRelease(tag);
-//                }
-//            }
-//        }
-
-        // Extract rating
-        // Check IPTC dictionary for StarRating (this is where Canon stores in-camera rating)
-//        CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)url, NULL);
-//        NSDictionary *properties = (__bridge_transfer NSDictionary *)CGImageSourceCopyPropertiesAtIndex(source, 0, NULL);
-//        CGImageMetadataRef metadata = CGImageSourceCopyMetadataAtIndex(source, 0, NULL);
-//        CFRelease(source);
-//
-//        CGImageMetadataTagRef tag =
-//            CGImageMetadataCopyTagWithPath(
-//                metadata,
-//                NULL,
-//                CFSTR("xmp:Rating"));
-//
-//        CGImageMetadataEnumerateTagsUsingBlock(metadata,
-//                                               NULL,
-//                                               NULL,
-//                                               ^bool(CFStringRef  _Nonnull path, CGImageMetadataTagRef  _Nonnull tag) {
-//
-//            NSString *name = (__bridge_transfer NSString *)CGImageMetadataTagCopyName(tag);
-//            NSString *prefix = (__bridge_transfer NSString *)CGImageMetadataTagCopyPrefix(tag);
-//            NSString *ns = (__bridge_transfer NSString *)CGImageMetadataTagCopyNamespace(tag);
-//            id value = CFBridgingRelease(CGImageMetadataTagCopyValue(tag));
-//
-//            NSLog(@"%@:%@ (%@) = %@", prefix, name, ns, value);
-//
-//            return true;
-//        });
-
-//        NSDictionary *iptcDict = properties[(NSString *)kCGImagePropertyIPTCDictionary];
-//        if (iptcDict) {
-//            NSNumber *starRating = iptcDict[@"StarRating"];
-//            if (starRating && [starRating intValue] > 0) {
-//                exifDict[@"rating"] = starRating;
-//            }
-//        }
-//
-//        // Fallback: Check standard EXIF rating if IPTC not found
-//        if (!exifDict[@"rating"]) {
-//            NSDictionary *exifD = properties[(NSString *)kCGImagePropertyExifDictionary];
-//            if (exifD) {
-//                NSNumber *exifRating = exifD[@"UserRating"];
-//                if (exifRating && [exifRating intValue] > 0) {
-//                    exifDict[@"rating"] = exifRating;
-//                }
-//            }
-//        }
+        // Thhis method should not add extra time to the exif readout,
+        // it takes only 0.0001-0.0002 sec and this is the most optimized code we reached
+        NSUInteger rating = [self ratingFromCR3AtURL:url];
+        if (rating)
+            exifDict[@"Rating"] = @(rating);
     }
 
-    // GPS data (if available)
-    if (raw->imgdata.other.parsed_gps.gpsparsed) {
-        NSMutableDictionary *gpsDict = [NSMutableDictionary dictionary];
+//    // GPS data (if available)
+//    if (raw->imgdata.other.parsed_gps.gpsparsed) {
+//        NSMutableDictionary *gpsDict = [NSMutableDictionary dictionary];
+//
+//        // Convert latitude from degrees, minutes, seconds to decimal degrees
+//        float latDegrees = raw->imgdata.other.parsed_gps.latitude[0];
+//        float latMinutes = raw->imgdata.other.parsed_gps.latitude[1];
+//        float latSeconds = raw->imgdata.other.parsed_gps.latitude[2];
+//        double latDecimal = latDegrees + (latMinutes / 60.0) + (latSeconds / 3600.0);
+//        gpsDict[@"Latitude"] = @(latDecimal);
+//
+//        // Convert longitude from degrees, minutes, seconds to decimal degrees
+//        float longDegrees = raw->imgdata.other.parsed_gps.longitude[0];
+//        float longMinutes = raw->imgdata.other.parsed_gps.longitude[1];
+//        float longSeconds = raw->imgdata.other.parsed_gps.longitude[2];
+//        double longDecimal = longDegrees + (longMinutes / 60.0) + (longSeconds / 3600.0);
+//        gpsDict[@"Longitude"] = @(longDecimal);
+//
+//        gpsDict[@"Altitude"] = @(raw->imgdata.other.parsed_gps.altitude);
+//        exifDict[@"GPS"] = gpsDict;
+//    }
+//
+//    // Color profile information
+//    if (raw->imgdata.color.profile_length > 0) {
+//        exifDict[@"ColorProfileLength"] = @(raw->imgdata.color.profile_length);
+//    }
+}
 
-        // Convert latitude from degrees, minutes, seconds to decimal degrees
-        float latDegrees = raw->imgdata.other.parsed_gps.latitude[0];
-        float latMinutes = raw->imgdata.other.parsed_gps.latitude[1];
-        float latSeconds = raw->imgdata.other.parsed_gps.latitude[2];
-        double latDecimal = latDegrees + (latMinutes / 60.0) + (latSeconds / 3600.0);
-        gpsDict[@"Latitude"] = @(latDecimal);
-
-        // Convert longitude from degrees, minutes, seconds to decimal degrees
-        float longDegrees = raw->imgdata.other.parsed_gps.longitude[0];
-        float longMinutes = raw->imgdata.other.parsed_gps.longitude[1];
-        float longSeconds = raw->imgdata.other.parsed_gps.longitude[2];
-        double longDecimal = longDegrees + (longMinutes / 60.0) + (longSeconds / 3600.0);
-        gpsDict[@"Longitude"] = @(longDecimal);
-
-        gpsDict[@"Altitude"] = @(raw->imgdata.other.parsed_gps.altitude);
-        exifDict[@"GPS"] = gpsDict;
+- (NSInteger)ratingFromCR3AtURL:(NSURL *)url
+{
+    NSFileHandle *file = [NSFileHandle fileHandleForReadingFromURL:url error:nil];
+    if (!file) {
+        return -1;
     }
 
-    // Color profile information
-    if (raw->imgdata.color.profile_length > 0) {
-        exifDict[@"ColorProfileLength"] = @(raw->imgdata.color.profile_length);
+    const char pattern[] = "<xmp:Rating>";
+    const NSUInteger patternLength = sizeof(pattern) - 1;
+
+    NSData *data;
+
+    while ((data = [file readDataOfLength:64 * 1024]).length) {
+
+        const uint8_t *bytes = (const uint8_t *)data.bytes;
+        NSUInteger length = data.length;
+
+        for (NSUInteger i = 0; i + patternLength < length; i++) {
+
+            if (bytes[i] == '<' &&
+                memcmp(bytes + i, pattern, patternLength) == 0) {
+
+                uint8_t rating = bytes[i + patternLength];
+
+                if (rating >= '0' && rating <= '5') {
+                    [file closeFile];
+                    return rating - '0';
+                }
+            }
+        }
     }
+
+    [file closeFile];
+    return -1;
 }
 
 @end
