@@ -214,50 +214,6 @@
 }
 #endif
 
-//- (RawPhoto *)_extractRawPhotoSynchronized:(NSURL *)url {
-//    LibRaw *raw = new LibRaw();
-//    NSData *imageData = nil;
-//    NSMutableDictionary *exifData = [NSMutableDictionary dictionary];
-//
-//    @try {
-//        int ret = raw->open_file(url.path.UTF8String);
-//        if (ret != LIBRAW_SUCCESS) {
-//            delete raw;
-//            return [[RawPhoto alloc] initWithImageData:nil exifData:nil];
-//        }
-//
-//        // Extract EXIF data from LibRaw
-//        [self extractExifData:raw intoDict:exifData];
-//
-//        // Extract embedded JPEG
-//        ret = raw->unpack_thumb();
-//        if (ret != LIBRAW_SUCCESS) {
-//            raw->recycle();
-//            delete raw;
-//            return [[RawPhoto alloc] initWithImageData:nil exifData:exifData];
-//        }
-//
-//        libraw_processed_image_t *thumb = raw->dcraw_make_mem_thumb();
-//        if (thumb && thumb->type == LIBRAW_IMAGE_JPEG) {
-//            imageData = [NSData dataWithBytes:thumb->data length:thumb->data_size];
-//            LibRaw::dcraw_clear_mem(thumb);
-//        }
-//
-//        raw->recycle();
-//        delete raw;
-//
-//        return [[RawPhoto alloc] initWithImageData:imageData exifData:exifData];
-//    }
-//    @catch (NSException *exception) {
-//        if (raw) {
-//            raw->recycle();
-//            delete raw;
-//        }
-//        NSLog(@"LibRaw exception: %@", exception);
-//        return [[RawPhoto alloc] initWithImageData:nil exifData:nil];
-//    }
-//}
-
 - (NSDictionary *)_extractExifOnlySynchronized:(NSURL *)url {
     LibRaw *raw = new LibRaw();
     NSMutableDictionary *exifData = [NSMutableDictionary dictionary];
@@ -273,8 +229,8 @@
             delete raw;
             return nil;
         }
-        raw->adjust_sizes_info_only();   // computes iwidth/iheight/flip-adjusted sizes, no pixel decode
-        [self extractExifData:raw intoDict:exifData];
+        raw->adjust_sizes_info_only();// computes iwidth/iheight/flip-adjusted sizes, no pixel decode
+        [self extractExifData:raw intoDict:exifData withURL:url];
 
         raw->recycle();
         delete raw;
@@ -290,7 +246,8 @@
     }
 }
 
-- (void)extractExifData:(LibRaw *)raw intoDict:(NSMutableDictionary *)exifDict {
+- (void)extractExifData:(LibRaw *)raw intoDict:(NSMutableDictionary *)exifDict withURL:(NSURL *)url {
+
     if (!raw || !exifDict) return;
 
     // Camera and lens information
@@ -350,16 +307,82 @@
     // Canon MakerNote: Detect Canon files
     NSString *make = exifDict[@"Make"];
     if (make && [make rangeOfString:@"Canon" options:NSCaseInsensitiveSearch].location != NSNotFound) {
-        // This is a Canon file
-        exifDict[@"CanonMakerNoteDetected"] = @YES;
+        // This is a Canon file, the exif is in the iptc but LibRaw does not support it
 
-        // Attempt to extract rating if Canon makernotes are available
-        if (raw->imgdata.makernotes.canon.SensorWidth > 0) {
-            // Canon makernotes are parsed
-            if (raw->imgdata.makernotes.canon.Quality > 0) {
-                exifDict[@"CanonQuality"] = @(raw->imgdata.makernotes.canon.Quality);
-            }
-        }
+//        // Extract embedded JPEG
+//        int ret = raw->unpack_thumb();
+//        if (ret != LIBRAW_SUCCESS) {
+//            raw->recycle();
+//            delete raw;
+//        }
+//        libraw_processed_image_t *thumb = raw->dcraw_make_mem_thumb();
+//        if (thumb && thumb->type == LIBRAW_IMAGE_JPEG) {
+//            NSData *imageData = [NSData dataWithBytes:thumb->data length:thumb->data_size];
+//            LibRaw::dcraw_clear_mem(thumb);
+//            CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef)imageData, NULL);
+//
+//            if (source) {
+//                NSDictionary *properties = CFBridgingRelease(CGImageSourceCopyPropertiesAtIndex(source, 0, NULL));
+//                CGImageMetadataRef metadata = CGImageSourceCopyMetadataAtIndex(source, 0, NULL);
+//
+//                CGImageMetadataTagRef tag = CGImageMetadataCopyTagWithPath(metadata, NULL, CFSTR("xmp:Rating"));
+//
+//                if (tag) {
+//                    NSNumber *rating = CFBridgingRelease(CGImageMetadataTagCopyValue(tag));
+//
+//                    NSLog(@"Rating = %@", rating);
+//
+//                    CFRelease(tag);
+//                }
+//            }
+//        }
+
+        // Extract rating
+        // Check IPTC dictionary for StarRating (this is where Canon stores in-camera rating)
+//        CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)url, NULL);
+//        NSDictionary *properties = (__bridge_transfer NSDictionary *)CGImageSourceCopyPropertiesAtIndex(source, 0, NULL);
+//        CGImageMetadataRef metadata = CGImageSourceCopyMetadataAtIndex(source, 0, NULL);
+//        CFRelease(source);
+//
+//        CGImageMetadataTagRef tag =
+//            CGImageMetadataCopyTagWithPath(
+//                metadata,
+//                NULL,
+//                CFSTR("xmp:Rating"));
+//
+//        CGImageMetadataEnumerateTagsUsingBlock(metadata,
+//                                               NULL,
+//                                               NULL,
+//                                               ^bool(CFStringRef  _Nonnull path, CGImageMetadataTagRef  _Nonnull tag) {
+//
+//            NSString *name = (__bridge_transfer NSString *)CGImageMetadataTagCopyName(tag);
+//            NSString *prefix = (__bridge_transfer NSString *)CGImageMetadataTagCopyPrefix(tag);
+//            NSString *ns = (__bridge_transfer NSString *)CGImageMetadataTagCopyNamespace(tag);
+//            id value = CFBridgingRelease(CGImageMetadataTagCopyValue(tag));
+//
+//            NSLog(@"%@:%@ (%@) = %@", prefix, name, ns, value);
+//
+//            return true;
+//        });
+
+//        NSDictionary *iptcDict = properties[(NSString *)kCGImagePropertyIPTCDictionary];
+//        if (iptcDict) {
+//            NSNumber *starRating = iptcDict[@"StarRating"];
+//            if (starRating && [starRating intValue] > 0) {
+//                exifDict[@"rating"] = starRating;
+//            }
+//        }
+//
+//        // Fallback: Check standard EXIF rating if IPTC not found
+//        if (!exifDict[@"rating"]) {
+//            NSDictionary *exifD = properties[(NSString *)kCGImagePropertyExifDictionary];
+//            if (exifD) {
+//                NSNumber *exifRating = exifD[@"UserRating"];
+//                if (exifRating && [exifRating intValue] > 0) {
+//                    exifDict[@"rating"] = exifRating;
+//                }
+//            }
+//        }
     }
 
     // GPS data (if available)
