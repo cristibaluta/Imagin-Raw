@@ -88,7 +88,7 @@ struct LibRawDecoder: RawDecoder {
             iso:          (exifDict["ISO"] as? NSNumber)?.intValue,
             aperture:     (exifDict["Aperture"] as? NSNumber)?.doubleValue,
             shutterSpeed: (exifDict["ShutterSpeed"] as? NSNumber)?.doubleValue,
-            exposureCompensation: nil,
+            exposureCompensation: (exifDict["ExifExposureBiasValue"] as? NSNumber)?.doubleValue,
             rating:       (exifDict["Rating"] as? NSNumber)?.intValue
         )
     }

@@ -8,6 +8,56 @@
 #import <AppKit/AppKit.h>
 #endif
 
+typedef struct {
+    BOOL found;
+    double exposureBias;
+} ExposureBiasContext;
+
+#define EXIF_TAG_EXPOSURE_BIAS 0x9204
+
+static void exifParserCallback(void *context,
+                               int tag,
+                               int type,
+                               int len,
+                               unsigned int ord,
+                               void *ifp,
+                               long long base)
+{
+    ExposureBiasContext *ctx = (ExposureBiasContext *)context;
+    if (!ctx) return;
+
+    // Some parsers OR IFD info into upper bits; mask to be safe
+    if ((tag & 0xffff) != EXIF_TAG_EXPOSURE_BIAS)
+        return;
+
+    // ExposureBiasValue is TIFF type SRATIONAL (10): signed num/den, 4 bytes each
+    if (type != 10 || len != 1)
+        return;
+
+    LibRaw_abstract_datastream *stream = (LibRaw_abstract_datastream *)ifp;
+    if (!stream)
+        return;
+
+    uint8_t buf[8];
+    if (stream->read(buf, 1, 8) != 8)
+        return;
+
+    int32_t numerator, denominator;
+
+    if (ord == 0x4949) { // 'II' little-endian
+        numerator   = (int32_t)(buf[0] | (buf[1] << 8)  | (buf[2] << 16) | (buf[3] << 24));
+        denominator = (int32_t)(buf[4] | (buf[5] << 8)  | (buf[6] << 16) | (buf[7] << 24));
+    } else { // 'MM' big-endian
+        numerator   = (int32_t)((buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3]);
+        denominator = (int32_t)((buf[4] << 24) | (buf[5] << 16) | (buf[6] << 8) | buf[7]);
+    }
+
+    if (denominator != 0) {
+        ctx->exposureBias = (double)numerator / (double)denominator;
+        ctx->found = YES;
+    }
+}
+
 @implementation RawWrapper
 
 + (instancetype)shared {
@@ -93,16 +143,6 @@
 
     return result;
 }
-
-//- (RawPhoto *)extractRawPhoto:(NSURL *)url {
-//    __block RawPhoto *result = nil;
-
-//    dispatch_sync([[self class] librawQueue], ^{
-//        result = [self _extractRawPhotoSynchronized:url];
-//    });
-//
-//    return result;
-//}
 
 #if TARGET_OS_OSX
 - (nullable NSImage *)extractFullResolution:(NSString *)path {
@@ -221,6 +261,12 @@
     @try {
         raw->imgdata.params.use_camera_wb = 0;
 
+        ExposureBiasContext ctx;
+        ctx.found = NO;
+        ctx.exposureBias = 0.0;
+
+        raw->set_exifparser_handler(exifParserCallback, &ctx);
+
         // open_file() alone parses headers + maker notes — no pixel/thumb
         // decoding happens here, so this is as cheap as LibRaw gets.
         int ret = raw->open_file(url.path.UTF8String);
@@ -231,9 +277,15 @@
         }
         raw->adjust_sizes_info_only();// computes iwidth/iheight/flip-adjusted sizes, no pixel decode
         [self extractExifData:raw intoDict:exifData withURL:url];
+        // The exp compensations comes from the callback
+        if (ctx.found) {
+//            NSLog(@">>>>>> exp comp %f", ctx.exposureBias);
+            exifData[@"ExifExposureBiasValue"] = @(ctx.exposureBias);
+        }
 
         raw->recycle();
         delete raw;
+
         return exifData;
     }
     @catch (NSException *exception) {
@@ -250,6 +302,7 @@
 
     if (!raw || !exifDict) return;
 
+    NSDate *now = [NSDate now];
     // Camera and lens information
     if (raw->imgdata.idata.make[0] != '\0') {
         exifDict[@"Make"] = [NSString stringWithUTF8String:raw->imgdata.idata.make];
@@ -304,16 +357,10 @@
         exifDict[@"DateTime"] = date;
     }
 
-    // Canon MakerNote: Detect Canon files
-    NSString *make = exifDict[@"Make"];
-    if (make && [make rangeOfString:@"Canon" options:NSCaseInsensitiveSearch].location != NSNotFound) {
-        // This is a Canon file, the exif is in the iptc but LibRaw does not support it
-        // Thhis method should not add extra time to the exif readout,
-        // it takes only 0.0001-0.0002 sec and this is the most optimized code we reached
-        NSUInteger rating = [self ratingFromCR3AtURL:url];
-        if (rating)
-            exifDict[@"Rating"] = @(rating);
-    }
+    // TODO: Works for Canon, test with other raws too
+    NSInteger ratingLibraw = [self ratingFromXMPBuffer:raw];
+    exifDict[@"Rating"] = @(ratingLibraw);
+
 
 //    // GPS data (if available)
 //    if (raw->imgdata.other.parsed_gps.gpsparsed) {
@@ -343,39 +390,28 @@
 //    }
 }
 
-- (NSInteger)ratingFromCR3AtURL:(NSURL *)url
+- (NSInteger)ratingFromXMPBuffer:(LibRaw *)raw
 {
-    NSFileHandle *file = [NSFileHandle fileHandleForReadingFromURL:url error:nil];
-    if (!file) {
+    char *xmp = raw->imgdata.idata.xmpdata;
+    unsigned len = raw->imgdata.idata.xmplen;
+
+    // xmplen is only ever set by the CR3 parser; for other formats it's
+    // uninitialized. Guard against garbage/sentinel values as well as
+    // an implausibly large size (real XMP packets are a few KB at most).
+    if (!xmp || len == 0 || len > (10 * 1024 * 1024))
         return -1;
-    }
 
     const char pattern[] = "<xmp:Rating>";
-    const NSUInteger patternLength = sizeof(pattern) - 1;
+    const size_t patternLength = sizeof(pattern) - 1;
 
-    NSData *data;
-
-    while ((data = [file readDataOfLength:64 * 1024]).length) {
-
-        const uint8_t *bytes = (const uint8_t *)data.bytes;
-        NSUInteger length = data.length;
-
-        for (NSUInteger i = 0; i + patternLength < length; i++) {
-
-            if (bytes[i] == '<' &&
-                memcmp(bytes + i, pattern, patternLength) == 0) {
-
-                uint8_t rating = bytes[i + patternLength];
-
-                if (rating >= '0' && rating <= '5') {
-                    [file closeFile];
-                    return rating - '0';
-                }
+    for (size_t i = 0; i + patternLength < len; i++) {
+        if (xmp[i] == '<' && memcmp(xmp + i, pattern, patternLength) == 0) {
+            char rating = xmp[i + patternLength];
+            if (rating >= '0' && rating <= '5') {
+                return rating - '0';
             }
         }
     }
-
-    [file closeFile];
     return -1;
 }
 
