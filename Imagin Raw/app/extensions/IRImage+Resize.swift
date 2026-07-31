@@ -52,6 +52,12 @@ extension IRImage {
     func bitmapRepresentation() -> Data? {
         nil
     }
+    func lockFocus() {
+
+    }
+    func unlockFocus() {
+
+    }
 }
 
 extension Image {

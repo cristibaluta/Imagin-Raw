@@ -344,8 +344,10 @@ final class IosThumbCell: UICollectionViewCell {
     // MARK: - Helpers
 
     private func currentRating(for photo: PhotoItem) -> Int {
-        if let r = photo.xmp?.rating, r > 0 { return r }
-        return photo.inCameraRating ?? 0
+        if let r = photo.xmp?.rating, r > 0 {
+            return r
+        }
+        return photo.exif?.rating ?? 0
     }
 
     private func applyLabelStyle(for photo: PhotoItem) {
@@ -359,8 +361,8 @@ final class IosThumbCell: UICollectionViewCell {
             filenameLabel.textColor = .label
             return
         }
-        filenameLabel.backgroundColor = PhotoLabel.uiColor(for: label)
-        filenameLabel.textColor = PhotoLabel.uiTextColor(for: label)
+        filenameLabel.backgroundColor = PhotoLabel(rawValue: label)?.uiColor
+        filenameLabel.textColor = PhotoLabel(rawValue: label)?.uiTextColor
     }
 
     private var parentViewController: UIViewController? {

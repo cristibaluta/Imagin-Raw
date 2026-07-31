@@ -258,7 +258,7 @@ struct ThumbGridView: View {
         }
         .onChange(of: viewModel.filteredAndSortedPhotos) { oldPhotos, newPhotos in
             currentPhotos = newPhotos
-            let url = fileSystemModel.selectedFolder?.url
+            let url = appState.fileSystemModel.selectedFolder?.url
             let isPhotoKit = url?.isPhotoLibraryRoot == true || url?.isPhotoKitAlbum == true
             // Only scroll when photos are actually added, not on metadata updates
             if isPhotoKit, newPhotos.count > oldPhotos.count, let last = newPhotos.last {

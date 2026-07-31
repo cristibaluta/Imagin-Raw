@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct ContentView: View {
+struct MainView: View {
 
     let sessionID: ImaginRawSession.ID?
 
@@ -22,10 +22,6 @@ struct ContentView: View {
     @State private var isSidebarCollapsed = false
     @State private var windowWidth: CGFloat = 1200
     @State private var contentColumnWidth: CGFloat = 450
-
-    #if os(iOS)
-    @State private var feedPhotos: [PhotoItem] = []
-    #endif
 
     init(sessionID: ImaginRawSession.ID?) {
         self.sessionID = sessionID
@@ -208,21 +204,18 @@ struct ContentView: View {
             NavigationStack {
                 thumbGridView
                     .navigationDestination(item: $appState.selectedPhoto) { photo in
-                        let _ = RCLog("🔀 [Nav] navigationDestination fired for: \(photo.path.prefix(40))")
-                        return IOSFeedPreviewView(photos: feedPhotos.isEmpty ? [photo] : feedPhotos,
-                                          initialPhoto: photo)
+                        IOSFeedPreviewView(photos: appState.feedPhotos.isEmpty ? [photo] : appState.feedPhotos, initialPhoto: photo)
                             .ignoresSafeArea(edges: .bottom)
                             .navigationTitle(URL(fileURLWithPath: photo.path).deletingPathExtension().lastPathComponent)
                             .navigationBarTitleDisplayMode(.inline)
                             .onDisappear {
-                                RCLog("🔀 [Nav] feed disappeared, clearing selectedPhoto")
                                 appState.selectedPhoto = nil
                             }
                     }
             }
         }
         .onChange(of: appState.selectedPhoto) { _, newVal in
-            RCLog("📌 [ContentView] selectedPhoto changed → \(newVal?.path.prefix(40) ?? "nil")")
+            RCLog("SelectedPhoto changed → \(newVal?.path.prefix(40) ?? "nil")")
         }
         #endif
     }
@@ -236,32 +229,15 @@ struct ContentView: View {
     }
 
     private var thumbGridView: some View {
-        #if os(iOS)
-        return ThumbGridView(
-            appState: appState,
-            fileSystemModel: appState.fileSystemModel,
-            viewModel: appState.thumbsGridViewModel,
-            searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
-            onEnterReviewMode: { },
-            onToggleSidebar: {
-                columnVisibilityStorage = columnVisibilityStorage == "doubleColumn" ? "all" : "doubleColumn"
-            },
-            isSidebarCollapsed: isSidebarCollapsed,
-            windowWidth: windowWidth
-        )
-        #else
-        ThumbGridView(
-            appState: appState,
-            viewModel: appState.thumbsGridViewModel,
-            searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
-            onEnterReviewMode: { },
-            onToggleSidebar: {
-                columnVisibilityStorage = columnVisibilityStorage == "doubleColumn" ? "all" : "doubleColumn"
-            },
-            isSidebarCollapsed: isSidebarCollapsed,
-            windowWidth: windowWidth
-        )
-        #endif
+        ThumbGridView(appState: appState,
+                      viewModel: appState.thumbsGridViewModel,
+                      searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
+                      onEnterReviewMode: { },
+                      onToggleSidebar: {
+                          columnVisibilityStorage = columnVisibilityStorage == "doubleColumn" ? "all" : "doubleColumn"
+                      },
+                      isSidebarCollapsed: isSidebarCollapsed,
+                      windowWidth: windowWidth)
     }
 
     private var detailView: some View {

@@ -141,8 +141,8 @@ final class PDFEditorViewModel: ObservableObject {
                     cb.widgetControlType  = .checkBoxControl
                     cb.fieldName          = photoID
                     cb.buttonWidgetState  = .offState
-                    cb.font               = NSFont.systemFont(ofSize: 9)
-                    cb.color              = NSColor(white: 0.3, alpha: 1)
+                    cb.font               = IRFont.systemFont(ofSize: 9)
+                    cb.color              = IRColor(white: 0.3, alpha: 1)
                     page.addAnnotation(cb)
                 }
             }
@@ -219,14 +219,14 @@ private struct PDFPageRenderer {
         }
 
         // Background
-        ctx.setFillColor(NSColor.white.cgColor)
+        ctx.setFillColor(IRColor.white.cgColor)
         ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
 
         // ── Title (page 1 only) ──────────────────────────────────────────────
         if let title {
             let attrs: [NSAttributedString.Key: Any] = [
-                .font: NSFont.boldSystemFont(ofSize: 18),
-                .foregroundColor: NSColor.black
+                .font: IRFont.boldSystemFont(ofSize: 18),
+                .foregroundColor: IRColor.black
             ]
             let str      = NSAttributedString(string: title, attributes: attrs)
             let line     = CTLineCreateWithAttributedString(str)
@@ -254,10 +254,15 @@ private struct PDFPageRenderer {
                                      y: pdfY(cellTopY + cellHeight),
                                      width: cellWidth,
                                      height: cellHeight)
-            ctx.setFillColor(NSColor(white: 0.92, alpha: 1).cgColor)
+            ctx.setFillColor(IRColor(white: 0.92, alpha: 1).cgColor)
             ctx.fill(cellPDFRect)
 
-            if let cgImg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            #if os(macOS)
+            let cgImg = img.cgImage(forProposedRect: nil, context: nil, hints: nil)
+            #elseif os(iOS)
+            let cgImg = img.cgImage
+            #endif
+            if let cgImg {
                 let imgW  = CGFloat(cgImg.width)
                 let imgH  = CGFloat(cgImg.height)
                 let scale = min(cellWidth / imgW, cellHeight / imgH)
@@ -276,8 +281,8 @@ private struct PDFPageRenderer {
             let labelBaseline = pdfY(labelRowMidY + 4)   // +4 ≈ half cap-height
 
             let attrs: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 9),
-                .foregroundColor: NSColor.darkGray
+                .font: IRFont.systemFont(ofSize: 9),
+                .foregroundColor: IRColor.darkGray
             ]
 
             if showNumbers, i < photoNames.count {
@@ -293,8 +298,8 @@ private struct PDFPageRenderer {
 
         if true {
             let attrs: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 9),
-                .foregroundColor: NSColor.darkGray
+                .font: IRFont.systemFont(ofSize: 9),
+                .foregroundColor: IRColor.darkGray
             ]
             let str = NSAttributedString(string: "Page \(pageNr)", attributes: attrs)
             let line = CTLineCreateWithAttributedString(str)

@@ -16,6 +16,7 @@ typealias IRImage = NSImage
 typealias IRSize = NSSize
 typealias IRRect = NSRect
 typealias IRColor = NSColor
+typealias IRFont = NSFont
 
 extension NSImage: @unchecked @retroactive Sendable {}
 
@@ -27,6 +28,7 @@ typealias IRImage = UIImage
 typealias IRSize = CGSize
 typealias IRRect = CGRect
 typealias IRColor = UIColor
+typealias IRFont = UIFont
 
 struct NSEvent {
     struct ModifierFlags: OptionSet {

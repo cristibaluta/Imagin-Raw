@@ -23,6 +23,11 @@ extension Notification.Name {
     static let openNewWindow = Notification.Name("openNewWindow")
 }
 
+struct ImaginRawSession: Identifiable, Codable, Hashable {
+    let id: UUID
+    var rootURL: URL
+}
+
 #if os(macOS)
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -71,11 +76,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var openNewWindowHandler: (() -> Void)?
 }
 
-struct ImaginRawSession: Identifiable, Codable, Hashable {
-    let id: UUID
-    var rootURL: URL
-}
-
 @main
 struct ImaginRawApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -99,7 +99,7 @@ struct ImaginRawApp: App {
 
     var body: some Scene {
         WindowGroup(for: ImaginRawSession.ID.self) { $sessionID in
-            ContentView(sessionID: sessionID)
+            MainView(sessionID: sessionID)
                 .preferredColorScheme(colorScheme)
                 .background(Color.adaptive(light: NSColor(white: 0.85, alpha: 1.0),
                                            dark: NSColor(white: 0.25, alpha: 1.0),
@@ -145,11 +145,12 @@ struct ImaginRawApp: App {
 @main
 struct ImaginRawApp: App {
 //    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    let sessionID = UUID()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .background(Color(UIColor(white: 0.2, alpha: 1.0)))
+            MainView(sessionID: sessionID)
+//                .background(Color(UIColor(white: 0.2, alpha: 1.0)))
         }
     }
 }

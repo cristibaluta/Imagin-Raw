@@ -114,7 +114,10 @@ struct PDFEditorView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+#if os(macOS)
             .toggleStyle(.checkbox)
+#elseif os(iOS)
+            #endif
 
             Divider().frame(height: 20)
 
@@ -134,8 +137,10 @@ struct PDFEditorView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+#if os(macOS)
             .toggleStyle(.checkbox)
-
+#elseif os(iOS)
+            #endif
             Spacer()
 
             // Photo count
@@ -169,7 +174,7 @@ struct PDFEditorView: View {
 }
 
 // MARK: - PDFKit bridge
-
+#if os(macOS)
 private struct PDFKitView: NSViewRepresentable {
     let document: PDFDocument
 
@@ -188,3 +193,23 @@ private struct PDFKitView: NSViewRepresentable {
         }
     }
 }
+#elseif os(iOS)
+private struct PDFKitView: UIViewRepresentable {
+    let document: PDFDocument
+
+    func makeUIView(context: Context) -> PDFView {
+        let pdfView = PDFView()
+        pdfView.autoScales = true
+        pdfView.displayMode = .singlePageContinuous
+        pdfView.displayDirection = .vertical
+        pdfView.backgroundColor = UIColor(white: 0.15, alpha: 1)
+        return pdfView
+    }
+
+    func updateUIView(_ pdfView: PDFView, context: Context) {
+        if pdfView.document !== document {
+            pdfView.document = document
+        }
+    }
+}
+#endif

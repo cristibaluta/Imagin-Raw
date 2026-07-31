@@ -126,7 +126,7 @@ struct PhotoPreviewView: View {
     }
 
     @ViewBuilder
-    private func alignedPhoto(nsImage: NSImage, geo: GeometryProxy) -> some View {
+    private func alignedPhoto(nsImage: IRImage, geo: GeometryProxy) -> some View {
         HStack {
             if !effectiveAlignToTopLeft {
                 Spacer(minLength: 0)

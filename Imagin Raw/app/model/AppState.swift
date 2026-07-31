@@ -20,6 +20,10 @@ class AppState: ObservableObject {
     @Published var pdfEditorPhotos: [PhotoItem]? = nil
     @Published var externalAppManager = ExternalAppManager()
 
+    #if os(iOS)
+    @Published var feedPhotos: [PhotoItem] = []
+    #endif
+
     let thumbnailsCacheManager = PhotoCacheManager(thumbSize: .s256)
     let previewsCacheManager = PhotoCacheManager(thumbSize: .s1024)
     let fullResCacheManager = PhotoCacheManager(thumbSize: .full)

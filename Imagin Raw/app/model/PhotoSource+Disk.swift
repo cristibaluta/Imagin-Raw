@@ -143,27 +143,36 @@ struct DiskPhotoSource: PhotoSource {
     }
 
     private func svgThumbnail(url: URL, maxSize: CGFloat) -> IRImage? {
-        guard let image = NSImage(contentsOf: url) else {
+        guard let image = IRImage(contentsOf: url) else {
             return nil
         }
 
         // NSImage loaded from SVG reports its intrinsic/viewBox size;
         // rasterize it into a bitmap at the target resolution.
         let aspectRatio = image.size.width / image.size.height
-        let targetSize: NSSize
+        let targetSize: IRSize
         if aspectRatio > 1 {
-            targetSize = NSSize(width: maxSize, height: maxSize / aspectRatio)
+            targetSize = IRSize(width: maxSize, height: maxSize / aspectRatio)
         } else {
-            targetSize = NSSize(width: maxSize * aspectRatio, height: maxSize)
+            targetSize = IRSize(width: maxSize * aspectRatio, height: maxSize)
         }
 
-        let rasterized = NSImage(size: targetSize)
+        #if os(macOS)
+        let rasterized = IRImage(size: targetSize)
         rasterized.lockFocus()
-        image.draw(in: NSRect(origin: .zero, size: targetSize),
-                   from: NSRect(origin: .zero, size: image.size),
+        image.draw(in: IRRect(origin: .zero, size: targetSize),
+                   from: IRRect(origin: .zero, size: image.size),
                    operation: .copy,
                    fraction: 1.0)
         rasterized.unlockFocus()
+        #elseif os(iOS)
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let rasterized = renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: targetSize),
+                       blendMode: .copy,
+                       alpha: 1.0)
+        }
+        #endif
 
         return rasterized
     }
@@ -205,16 +214,26 @@ struct DiskPhotoSource: PhotoSource {
         return resultImage
     }
 
-    func extractAnyAffinityPreview(from fileURL: URL) -> NSImage? {
-        guard let fileHandle = try? FileHandle(forReadingFrom: fileURL) else { return nil }
-        defer { try? fileHandle.close() }
+    func extractAnyAffinityPreview(from fileURL: URL) -> IRImage? {
+        guard let fileHandle = try? FileHandle(forReadingFrom: fileURL) else {
+            return nil
+        }
+        defer {
+            try? fileHandle.close()
+        }
 
-        guard let fileSize = try? fileHandle.seekToEnd(), fileSize > 0 else { return nil }
+        guard let fileSize = try? fileHandle.seekToEnd(), fileSize > 0 else {
+            return nil
+        }
 
         // Read the last 15 Megabytes where the preview is trailing
         let bufferSize = min(fileSize, UInt64(15 * 1024 * 1024))
-        guard (try? fileHandle.seek(toOffset: fileSize - bufferSize)) != nil else { return nil }
-        guard let buffer = try? fileHandle.read(upToCount: Int(bufferSize)) else { return nil }
+        guard (try? fileHandle.seek(toOffset: fileSize - bufferSize)) != nil else {
+            return nil
+        }
+        guard let buffer = try? fileHandle.read(upToCount: Int(bufferSize)) else {
+            return nil
+        }
 
         // Magic Byte Signatures
         let pngStart = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) // \x89PNG
@@ -229,7 +248,7 @@ struct DiskPhotoSource: PhotoSource {
 
             let totalLength = (endRange.upperBound + 4) - startRange.lowerBound // Add 4 bytes for IEND chunk CRC
             let pngData = buffer.subdata(in: startRange.lowerBound..<(startRange.lowerBound + totalLength))
-            return NSImage(data: pngData)
+            return IRImage(data: pngData)
         }
 
         // 2. Fallback to JPEG Scanning (Crucial for modern .af formats)
@@ -238,7 +257,7 @@ struct DiskPhotoSource: PhotoSource {
 
             let totalLength = endRange.upperBound - startRange.lowerBound
             let jpegData = buffer.subdata(in: startRange.lowerBound..<(startRange.lowerBound + totalLength))
-            return NSImage(data: jpegData)
+            return IRImage(data: jpegData)
         }
 
         RCLog("No valid embedded PNG or JPEG stream located in file trailing block.")

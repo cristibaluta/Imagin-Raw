@@ -133,11 +133,17 @@ final class IOSFeedCell: UICollectionViewCell {
 
         // Static fields — available immediately
         var line1: [String] = [URL(fileURLWithPath: photo.path).lastPathComponent]
-        if let pw = photo.width, let ph = photo.height, pw > 0 { line1.append("\(pw)×\(ph)") }
-        if let b = photo.fileSizeBytes { line1.append(ByteCountFormatter.string(fromByteCount: b, countStyle: .file)) }
+        if let pw = photo.exif?.width, let ph = photo.exif?.height, pw > 0 {
+            line1.append("\(pw)×\(ph)")
+        }
+        if let b = photo.fileSizeBytes {
+            line1.append(ByteCountFormatter.string(fromByteCount: b, countStyle: .file))
+        }
         filenameLabel.text = line1.joined(separator: "  ·  ")
 
-        let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .short
+        let df = DateFormatter()
+        df.dateStyle = .medium
+        df.timeStyle = .short
         dateLabel.text = df.string(from: photo.dateCreated)
 
         exposureLabel.text = nil
@@ -151,14 +157,24 @@ final class IOSFeedCell: UICollectionViewCell {
     // MARK: - EXIF
     private func applyExif(_ exif: ExifData?) {
         var exp: [String] = []
-        if let ap = exif?.aperture     { exp.append("ƒ/\(String(format:"%.1f", ap))") }
-        if let ss = exif?.shutterSpeed { exp.append(ss < 1 ? "1/\(Int(round(1/ss)))s" : "\(String(format:"%.1f",ss))s") }
-        if let iso = exif?.iso         { exp.append("ISO \(iso)") }
-        if let fl = exif?.focalLength  { exp.append("\(String(format:"%.0f",fl)) mm") }
+        if let ap = exif?.aperture {
+            exp.append("ƒ/\(String(format:"%.1f", ap))")
+        }
+        if let ss = exif?.shutterSpeed {
+            exp.append(ss < 1 ? "1/\(Int(round(1/ss)))s" : "\(String(format:"%.1f",ss))s")
+        }
+        if let iso = exif?.iso {
+            exp.append("ISO \(iso)")
+        }
+        if let fl = exif?.lensFocalLength {
+            exp.append("\(String(format:"%.0f",fl)) mm")
+        }
         exposureLabel.text = exp.isEmpty ? nil : exp.joined(separator: "  •  ")
 
         var lens: [String] = []
-        if let l  = exif?.lensModel   { lens.append(l) }
+        if let l  = exif?.lensModel {
+            lens.append(l)
+        }
         lensLabel.text = lens.isEmpty ? nil : lens.joined(separator: "  •  ")
     }
 

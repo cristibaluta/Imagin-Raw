@@ -215,28 +215,28 @@ extension IosThumbGridCoordinator: UICollectionViewDelegate {
         onSelectToggle?(photo)
     }
 
-    private func selectRangeFrom(_ from: IndexPath, to: IndexPath) {
-        // Flatten all sections into a single ordered list with their index paths
-        var allPaths: [IndexPath] = []
-        let sectionCount = collectionView?.numberOfSections ?? 1
-        for s in 0..<sectionCount {
-            let count = collectionView?.numberOfItems(inSection: s) ?? 0
-            for i in 0..<count {
-                allPaths.append(IndexPath(item: i, section: s))
-            }
-        }
-
-        guard let startFlat = allPaths.firstIndex(of: from),
-              let endFlat = allPaths.firstIndex(of: to) else {
-            return
-        }
-
-        let lo = min(startFlat, endFlat)
-        let hi = max(startFlat, endFlat)
-        let rangePhotos = allPaths[lo...hi].map { photosForSection($0.section)[$0.item] }
-        onSelectRange?(rangePhotos)
-        selectFromIndexPath = nil
-    }
+//    private func selectRangeFrom(_ from: IndexPath, to: IndexPath) {
+//        // Flatten all sections into a single ordered list with their index paths
+//        var allPaths: [IndexPath] = []
+//        let sectionCount = collectionView?.numberOfSections ?? 1
+//        for s in 0..<sectionCount {
+//            let count = collectionView?.numberOfItems(inSection: s) ?? 0
+//            for i in 0..<count {
+//                allPaths.append(IndexPath(item: i, section: s))
+//            }
+//        }
+//
+//        guard let startFlat = allPaths.firstIndex(of: from),
+//              let endFlat = allPaths.firstIndex(of: to) else {
+//            return
+//        }
+//
+//        let lo = min(startFlat, endFlat)
+//        let hi = max(startFlat, endFlat)
+//        let rangePhotos = allPaths[lo...hi].map { photosForSection($0.section)[$0.item] }
+//        onSelectRange?(rangePhotos)
+//        selectFromIndexPath = nil
+//    }
 }
 
 // MARK: UIScrollViewDelegate

@@ -106,7 +106,7 @@ struct IOSFeedPreviewView: UIViewRepresentable {
             let w = cv.bounds.width
             let photo = photos[indexPath.item]
             let imgH: CGFloat
-            if let pw = photo.width, let ph = photo.height, pw > 0 {
+            if let pw = photo.exif?.width, let ph = photo.exif?.height, pw > 0 {
                 imgH = w * CGFloat(ph) / CGFloat(pw)
             } else {
                 imgH = w * 3.0 / 4.0

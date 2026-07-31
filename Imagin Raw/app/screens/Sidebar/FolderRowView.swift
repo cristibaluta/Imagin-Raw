@@ -181,6 +181,7 @@ struct FolderRowView: View {
                     .foregroundStyle(fileSystemModel.selectedFolder?.id == folder.id ? .white : folderColor)
             }
 
+            #if os(macOS)
             if isEjectable {
                 Spacer()
 
@@ -192,6 +193,7 @@ struct FolderRowView: View {
                 }
                 .buttonStyle(.plain)
             }
+            #endif
         }
         .tag(folder)
         .padding(.vertical, 3)
