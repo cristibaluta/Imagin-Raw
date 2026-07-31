@@ -101,10 +101,10 @@ class AppState: ObservableObject {
         // 3. When a thumbnail is selected, display it in the preview
         thumbsGridViewModel.$selectedPhotos
             .sink { [weak self] photos in
-                guard let self else {
-                    return
-                }
-                Task {
+                Task { [weak self] in
+                    guard let self else {
+                        return
+                    }
                     self.selectedPhotos = photos
                     self.previewViewModel.loadPhotos(photos)
                 }
@@ -124,7 +124,6 @@ class AppState: ObservableObject {
         RCLog("received: \(url.lastPathComponent) | isDirectory: \(isDirectory) | folderURL: \(folderURL.path)")
 
         guard let folder = fileSystemModel.findOrBuildFolder(for: folderURL) else {
-            RCLog("🔗 [handleOpenUrl] ❌ folderURL not under any known root: \(folderURL.path)")
             return
         }
 

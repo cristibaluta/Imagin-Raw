@@ -7,7 +7,7 @@ import RCPreferences
 class PreviewViewModel: ObservableObject {
 
     @Published private(set) var photos: [PhotoItem]?
-    @Published private(set) var image: IRImage?
+    @Published private(set) var images: [IRImage]?
     @Published private(set) var fullResImage: IRImage?
     @Published private(set) var isLoading = false
     @Published private(set) var isLoadingFullRes = false
@@ -26,9 +26,6 @@ class PreviewViewModel: ObservableObject {
     }
 
     func loadPhotos(_ photos: [PhotoItem]) {
-        guard photos.first?.path != self.photos?.first?.path else {
-            return
-        }
         self.photos = photos
         isLoading = true
 
@@ -37,11 +34,31 @@ class PreviewViewModel: ObservableObject {
             guard !Task.isCancelled else {
                 return
             }
-            let image = await previewsCacheManager.getImage(for: photos.first!)
+            // Load max 2 photos
+            let images: [IRImage]?
+            if photos.count > 1 {
+                if let image1 = await previewsCacheManager.getImage(for: photos.first!),
+                   let image2 = await previewsCacheManager.getImage(for: photos.last!) {
+                    images = [image1, image2]
+                } else {
+                    images = nil
+                }
+            }
+            else if let photo = photos.first {
+                if let image1 = await previewsCacheManager.getImage(for: photo) {
+                    images = [image1]
+                } else {
+                    images = nil
+                }
+            }
+            else {
+                images = nil
+            }
+
             guard !Task.isCancelled else {
                 return
             }
-            self.image = image
+            self.images = images
             isLoading = false
         }
     }
@@ -89,7 +106,7 @@ class PreviewViewModel: ObservableObject {
         loadingTask = nil
         fullResTask?.cancel()
         fullResTask = nil
-        image = nil
+        images = nil
         fullResImage = nil
         isLoading = false
         isLoadingFullRes = false

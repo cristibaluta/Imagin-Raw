@@ -18,7 +18,6 @@ struct PhotoPreviewView: View {
     @State private var exportRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .r4x5
     @State private var exportAlignment = ExportAlignment(rawValue: appPrefs.string(.exportAlignment)) ?? .center
     @State private var exportPadding: Double = appPrefs.get(.exportPadding)
-    @State private var showAFPoint: Bool = appPrefs.get(.showAFPoint)
 
     private var effectiveAlignToTopLeft: Bool {
         gridType == .large ? true : viewModel.alignToTopLeft
@@ -48,9 +47,9 @@ struct PhotoPreviewView: View {
         .onChange(of: exportAlignment) { _, newVal in
             appPrefs.set(newVal.rawValue, forKey: .exportAlignment)
         }
-        .onChange(of: showAFPoint) { _, newVal in
-            appPrefs.set(newVal, forKey: .showAFPoint)
-        }
+//        .onChange(of: showAFPoint) { _, newVal in
+//            appPrefs.set(newVal, forKey: .showAFPoint)
+//        }
         //        .sheet(isPresented: $showEditPanel) {
         //            if let preview = viewModel.preview {
         //                PerspectiveCorrectionView(image: preview) { corrected in
@@ -80,7 +79,7 @@ struct PhotoPreviewView: View {
                 #if os(macOS)
                 ZoomPanView(image: fullRes)
                 #endif
-            } else if let nsImage = viewModel.image {
+            } else if let nsImage = viewModel.images?.first {
                 GeometryReader { geo in
                     alignedPhoto(nsImage: nsImage, geo: geo)
                 }
@@ -116,7 +115,7 @@ struct PhotoPreviewView: View {
                 HStack {
                     Spacer()
                     ExportPanelView(photo: photo,
-                                    pixelSize: exportPixelSize(for: viewModel.image),
+                                    pixelSize: exportPixelSize(for: viewModel.images?.first),
                                     isPresented: $showExportPanel,
                                     selectedRatio: $exportRatio,
                                     padding: $exportPadding,
@@ -183,11 +182,7 @@ struct PhotoPreviewView: View {
             Rectangle()
                 .fill(Color.secondary.opacity(0.25))
                 .frame(height: 1)
-            PreviewBottomBar(photo: photo,
-                             exifData: exifData,
-                             model: viewModel,
-                             showAFPoint: $showAFPoint,
-                             showEditPanel: $showEditPanel,
+            PreviewBottomBar(viewModel: viewModel,
                              showExportPanel: $showExportPanel,
                              gridType: $gridType)
         }

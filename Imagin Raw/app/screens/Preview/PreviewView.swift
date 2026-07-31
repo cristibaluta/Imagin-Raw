@@ -39,7 +39,11 @@ struct PreviewView: View {
                 if photo.isVideo {
                     VideoPreviewView(photo: photo)
                 } else {
-                    PhotoPreviewView(photo: photo, viewModel: viewModel)
+                    if viewModel.photos?.count ?? 0 > 1 {
+                        PhotosPreviewView(viewModel: viewModel)
+                    } else {
+                        PhotoPreviewView(photo: photo, viewModel: viewModel)
+                    }
                 }
             } else {
                 ShortcutsHelpView()
