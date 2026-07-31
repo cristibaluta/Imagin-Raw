@@ -33,13 +33,13 @@ private final class MacKeyableCollectionView: NSCollectionView {
 struct MacThumbGridView: NSViewRepresentable {
     let delegate: ThumbCellDelegate
     let photos: [PhotoItem]
+    let selectedPhotos: [PhotoItem]
     let itemSize: CGFloat
     let cellHeight: CGFloat
-    let selectedPhotos: Set<UUID>
     var duplicateResult: DuplicateScanResult? = nil
     var onReview: ((DuplicateGroup, Int) -> Void)? = nil
     var dateGroups: [(title: String, photos: [PhotoItem])] = []
-    var sortOption: ThumbGridViewModel.SortOption = .name
+    var sortOption: SortOption = .name
     var onKeyPress: ((NSEvent) -> Bool)?
     var thumbsManager: PhotoCacheManager
     var isSearchActive: Bool = false
@@ -131,9 +131,9 @@ struct MacThumbGridView: NSViewRepresentable {
         let oldPhotoMap = Dictionary(uniqueKeysWithValues: c.photos.map { ($0.id, $0) })
 
         c.photos = photos
+        c.selectedPhotos = selectedPhotos
         c.itemSize = itemSize
         c.cellHeight = cellHeight
-        c.selectedPhotos = selectedPhotos
         c.delegate = delegate
         c.duplicateResult = duplicateResult
         c.onReview = onReview
@@ -169,7 +169,7 @@ struct MacThumbGridView: NSViewRepresentable {
                       let photo = latestMap.values.first(where: { $0.url == url }) else {
                     return
                 }
-                let isSelected = selectedPhotos.contains(photo.id)
+                let isSelected = selectedPhotos.contains(photo)
                 if oldPhotoMap[photo.id] != photo {
                     thumbItem.configure(with: photo,
                                         colorScheme: colorScheme,

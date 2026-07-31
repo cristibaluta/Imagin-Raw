@@ -11,16 +11,16 @@ import SwiftUI
 @MainActor
 class MacThumbGridCoordinator: NSObject {
     var photos: [PhotoItem] = []
+    var selectedPhotos: [PhotoItem] = []
     var itemSize: CGFloat
     var cellHeight: CGFloat
-    var selectedPhotos: Set<UUID> = []
     var delegate: ThumbCellDelegate
     var duplicateResult: DuplicateScanResult? = nil
     var onKeyDown: ((NSEvent) -> Bool)?
     var onReview: ((DuplicateGroup, Int) -> Void)?
     var photosById: [String: PhotoItem] = [:]
     var dateGroups: [(title: String, photos: [PhotoItem])] = []
-    var sortOption: ThumbGridViewModel.SortOption = .name
+    var sortOption: SortOption = .name
     weak var collectionView: NSCollectionView?
     weak var scrollView: NSScrollView?
     var onVisibleSectionChanged: ((Int) -> Void)?
@@ -164,7 +164,7 @@ extension MacThumbGridCoordinator: NSCollectionViewDataSource {
         let item = cv.makeItem(withIdentifier: MacThumbCell.identifier, for: indexPath) as! MacThumbCell
         item.configure(with: photo,
                        colorScheme: colorScheme,
-                       isSelected: selectedPhotos.contains(photo.id),
+                       isSelected: selectedPhotos.contains(photo),
                        itemSize: itemSize,
                        delegate: delegate)
         return item

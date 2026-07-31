@@ -5,12 +5,12 @@ import RCPreferences
 
 @MainActor
 class PreviewViewModel: ObservableObject {
-    @Published private(set) var photo: PhotoItem?
+
+    @Published private(set) var photos: [PhotoItem]?
     @Published private(set) var image: IRImage?
     @Published private(set) var fullResImage: IRImage?
     @Published private(set) var isLoading = false
     @Published private(set) var isLoadingFullRes = false
-    @Published private(set) var exifData: ExifData?
     @Published private(set) var alignToTopLeft: Bool = appPrefs.bool(.alignToTopLeft)
     @Published private(set) var exifIsExpanded: Bool = appPrefs.bool(.exifExpanded)
 
@@ -25,32 +25,24 @@ class PreviewViewModel: ObservableObject {
         self.fullResCacheManager = fullResCacheManager
     }
 
-    func loadPhoto(_ photo: PhotoItem) {
-        guard photo.path != self.photo?.path else {
-            RCLog("Photo already loaded \(photo.path)")
+    func loadPhotos(_ photos: [PhotoItem]) {
+        guard photos.first?.path != self.photos?.first?.path else {
             return
         }
-//        reset()
-        self.photo = photo
+        self.photos = photos
         isLoading = true
 
         loadingTask?.cancel()
-        loadingTask = Task(priority: .userInitiated) { [photo] in
+        loadingTask = Task(priority: .userInitiated) { [photos] in
             guard !Task.isCancelled else {
                 return
             }
-            let image = await previewsCacheManager.getImage(for: photo)
+            let image = await previewsCacheManager.getImage(for: photos.first!)
             guard !Task.isCancelled else {
                 return
             }
             self.image = image
             isLoading = false
-
-//            let extractedExif = await photo.makeSource().loadExif()
-//            guard !Task.isCancelled else {
-//                return
-//            }
-            exifData = photo.exif
         }
     }
 
@@ -72,7 +64,7 @@ class PreviewViewModel: ObservableObject {
     }
 
     func loadFullResolution() {
-        guard let photo else {
+        guard let photo = photos?.first else {
             return
         }
         guard fullResImage == nil && !isLoadingFullRes else {
@@ -92,7 +84,7 @@ class PreviewViewModel: ObservableObject {
     }
 
     func reset() {
-        photo = nil
+        photos = nil
         loadingTask?.cancel()
         loadingTask = nil
         fullResTask?.cancel()
@@ -101,6 +93,5 @@ class PreviewViewModel: ObservableObject {
         fullResImage = nil
         isLoading = false
         isLoadingFullRes = false
-        exifData = nil
     }
 }

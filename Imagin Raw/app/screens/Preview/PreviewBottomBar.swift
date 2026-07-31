@@ -6,13 +6,15 @@
 import SwiftUI
 
 struct PreviewBottomBar: View {
+
     let photo: PhotoItem
     let exifData: ExifData
+
     @ObservedObject var model: PreviewViewModel
     @Binding var showAFPoint: Bool
     @Binding var showEditPanel: Bool
     @Binding var showExportPanel: Bool
-    @Binding var gridType: ThumbGridViewModel.GridType
+    @Binding var gridType: GridType
 
     private var supportsAFPoint: Bool {
         RawBrand.afPointSupported.contains(FilesExtensions.brand(forPath: photo.path))

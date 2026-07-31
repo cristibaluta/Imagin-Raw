@@ -14,7 +14,7 @@ class AppState: ObservableObject {
     // Used to display info in the nav bar
     @Published var selectedFolder: FolderItem?
     @Published var includeSubfolders: Bool = false
-    @Published var selectedPhoto: PhotoItem?
+    @Published var selectedPhotos: [PhotoItem]?
     @Published var reviewGroup: ReviewGroupItem?// Photos to be displayed in the review screen
     @Published var videoEditorPhotos: [PhotoItem]? = nil
     @Published var pdfEditorPhotos: [PhotoItem]? = nil
@@ -99,14 +99,14 @@ class AppState: ObservableObject {
             .store(in: &cancellables)
 
         // 3. When a thumbnail is selected, display it in the preview
-        thumbsGridViewModel.$selectedPhoto
-            .sink { [weak self] photo in
-                guard let self, let photo else {
+        thumbsGridViewModel.$selectedPhotos
+            .sink { [weak self] photos in
+                guard let self else {
                     return
                 }
                 Task {
-                    self.selectedPhoto = photo
-                    self.previewViewModel.loadPhoto(photo)
+                    self.selectedPhotos = photos
+                    self.previewViewModel.loadPhotos(photos)
                 }
             }
             .store(in: &cancellables)

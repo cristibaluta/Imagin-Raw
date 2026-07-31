@@ -14,9 +14,9 @@ struct PhotoPreviewView: View {
 
     @State private var showExportPanel = false
     @State private var showEditPanel = false
-    @State private var gridType: ThumbGridViewModel.GridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
-    @State private var exportRatio: ExportAspectRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .r4x5
-    @State private var exportAlignment: ExportAlignment = ExportAlignment(rawValue: appPrefs.string(.exportAlignment)) ?? .center
+    @State private var gridType = GridType(rawValue: appPrefs.string(.gridType)) ?? .small
+    @State private var exportRatio = ExportAspectRatio(rawValue: appPrefs.string(.exportRatio)) ?? .r4x5
+    @State private var exportAlignment = ExportAlignment(rawValue: appPrefs.string(.exportAlignment)) ?? .center
     @State private var exportPadding: Double = appPrefs.get(.exportPadding)
     @State private var showAFPoint: Bool = appPrefs.get(.showAFPoint)
 
@@ -26,60 +26,7 @@ struct PhotoPreviewView: View {
 
     var body: some View {
         ZStack(alignment: .center) {
-            VStack(spacing: 0) {
-                // Photo
-                if let fullRes = viewModel.fullResImage {
-                    #if os(macOS)
-                    ZoomPanView(image: fullRes)
-                    #endif
-                } else if let nsImage = viewModel.image {
-                    GeometryReader { geo in
-                        alignedPhoto(nsImage: nsImage, geo: geo)
-                    }
-                } else if viewModel.isLoading {
-                    ProgressView("Loading...")
-                        .progressViewStyle(CircularProgressViewStyle())
-                } else {
-                    Text("Failed to load image")
-                        .foregroundColor(.secondary)
-                }
-
-                // Exif bar
-                if !showExportPanel {
-                    bottomBar
-                }
-            }
-
-            // Alignment button
-            if viewModel.fullResImage == nil && gridType != .large {
-                VStack {
-                    HStack {
-                        alignmentButton
-                        Spacer()
-                    }
-                    Spacer()
-                }
-            }
-
-            // Export panel overlay — bottom-right
-            if showExportPanel, let photo = viewModel.photo {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        ExportPanelView(photo: photo,
-                                        pixelSize: exportPixelSize(for: viewModel.image),
-                                        isPresented: $showExportPanel,
-                                        selectedRatio: $exportRatio,
-                                        padding: $exportPadding,
-                                        alignment: $exportAlignment)
-                        .frame(width: 220)
-                        .padding(12)
-                    }
-                }
-                .transition(.opacity)
-                .animation(.easeInOut(duration: 0.15), value: showExportPanel)
-            }
+            previewBody
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
@@ -121,7 +68,65 @@ struct PhotoPreviewView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
-            gridType = ThumbGridViewModel.GridType(rawValue: appPrefs.string(.gridType)) ?? .small
+            gridType = GridType(rawValue: appPrefs.string(.gridType)) ?? .small
+        }
+    }
+
+    @ViewBuilder
+    private var previewBody: some View {
+        VStack(spacing: 0) {
+            // Photo
+            if let fullRes = viewModel.fullResImage {
+                #if os(macOS)
+                ZoomPanView(image: fullRes)
+                #endif
+            } else if let nsImage = viewModel.image {
+                GeometryReader { geo in
+                    alignedPhoto(nsImage: nsImage, geo: geo)
+                }
+            } else if viewModel.isLoading {
+                ProgressView("Loading...")
+                    .progressViewStyle(CircularProgressViewStyle())
+            } else {
+                Text("Failed to load image")
+                    .foregroundColor(.secondary)
+            }
+
+            // Exif bar
+            if !showExportPanel {
+                bottomBar
+            }
+        }
+
+        // Alignment button
+        if viewModel.fullResImage == nil && gridType != .large {
+            VStack {
+                HStack {
+                    alignmentButton
+                    Spacer()
+                }
+                Spacer()
+            }
+        }
+
+        // Export panel overlay — bottom-right
+        if showExportPanel, let photo = viewModel.photos?.first {
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    ExportPanelView(photo: photo,
+                                    pixelSize: exportPixelSize(for: viewModel.image),
+                                    isPresented: $showExportPanel,
+                                    selectedRatio: $exportRatio,
+                                    padding: $exportPadding,
+                                    alignment: $exportAlignment)
+                    .frame(width: 220)
+                    .padding(12)
+                }
+            }
+            .transition(.opacity)
+            .animation(.easeInOut(duration: 0.15), value: showExportPanel)
         }
     }
 
@@ -174,7 +179,7 @@ struct PhotoPreviewView: View {
     @ViewBuilder
     private var bottomBar: some View {
         // EXIF bottom bar
-        if let photo = viewModel.photo, let exifData = viewModel.exifData {
+        if let photo = viewModel.photos?.first, let exifData = photo.exif {
             Rectangle()
                 .fill(Color.secondary.opacity(0.25))
                 .frame(height: 1)

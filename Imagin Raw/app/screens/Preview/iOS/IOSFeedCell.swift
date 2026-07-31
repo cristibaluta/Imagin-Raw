@@ -151,7 +151,7 @@ final class IOSFeedCell: UICollectionViewCell {
         imageView.image = nil
 
         // Hand off to the VM — it loads preview + exif and publishes via Combine
-        viewModel?.loadPhoto(photo)
+        viewModel?.loadPhotos([photo])
     }
 
     // MARK: - EXIF

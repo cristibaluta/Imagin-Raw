@@ -31,7 +31,7 @@ struct PhotoFilterService {
 
     // MARK: - Sort
 
-    static func comparator(for option: ThumbGridViewModel.SortOption) -> (PhotoItem, PhotoItem) -> Bool {
+    static func comparator(for option: SortOption) -> (PhotoItem, PhotoItem) -> Bool {
         switch option {
             case .name:
                 return { $0.url.lastPathComponent.localizedStandardCompare($1.url.lastPathComponent) == .orderedAscending }
@@ -70,7 +70,7 @@ struct PhotoFilterService {
     // MARK: - Date groups
 
     static func buildDateGroups(from photos: [PhotoItem],
-                                sortOption: ThumbGridViewModel.SortOption) -> [(title: String, photos: [PhotoItem])] {
+                                sortOption: SortOption) -> [(title: String, photos: [PhotoItem])] {
         switch sortOption {
             case .name:         return []
             case .dateCaptured: return groupByKey(photos) { ($0.exif?.dateCaptured ?? $0.dateCreated).EEEEMMMdyyyy }

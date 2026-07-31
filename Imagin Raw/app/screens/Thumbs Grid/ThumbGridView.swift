@@ -166,9 +166,9 @@ struct ThumbGridView: View {
         MacThumbGridView(
             delegate: self,
             photos: viewModel.filteredAndSortedPhotos,
+            selectedPhotos: viewModel.selectedPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,
-            selectedPhotos: viewModel.selectedPhotos,
             duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
             onReview: { group, index in
                 appState.reviewGroup = buildReviewGroupItem(group: group, index: index)
@@ -335,12 +335,9 @@ extension ThumbGridView: ThumbCellDelegate {
     }
 
     func onDoubleClick(photo: PhotoItem) {
-        viewModel.selectedPhoto = photo
-        if viewModel.selectedPhotos.count > 1 {
-            let selectedPhotoItems = viewModel.filteredAndSortedPhotos.filter {
-                viewModel.selectedPhotos.contains($0.id)
-            }
-            appState.externalAppManager.openPhotos(selectedPhotoItems)
+        if viewModel.selectedPhotos.contains(where: { $0.id == photo.id }) {
+            // If we double click one of the selected photos, open all of them
+            appState.externalAppManager.openPhotos(viewModel.selectedPhotos)
         } else {
             appState.externalAppManager.openPhotos([photo])
         }
@@ -363,14 +360,14 @@ extension ThumbGridView: ThumbCellDelegate {
     }
 
     func onCopyTo(photo: PhotoItem) {
-        let photos = viewModel.selectedPhotos.contains(photo.id)
+        let photos = viewModel.selectedPhotos.contains(photo)
             ? viewModel.getSelectedPhotosForBulkAction()
             : [photo]
         copyToViewModel = CopyToViewModel(photos: photos)
     }
 
     func onRenameTo(photo: PhotoItem) {
-        let photos = viewModel.selectedPhotos.contains(photo.id)
+        let photos = viewModel.selectedPhotos.contains(photo)
             ? viewModel.getSelectedPhotosForBulkAction()
             : [photo]
         renameSheetPhotos = PhotosSheetItem(photos: photos)
@@ -390,14 +387,14 @@ extension ThumbGridView: ThumbCellDelegate {
     }
 
     func onReviewSelected(photo: PhotoItem) {
-        let photos = viewModel.selectedPhotos.contains(photo.id)
+        let photos = viewModel.selectedPhotos.contains(photo)
             ? viewModel.getSelectedPhotosForBulkAction()
             : [photo]
         appState.reviewGroup = buildReviewGroupItemFromPhotos(photos)
     }
 
     func onOpenWith(photo: PhotoItem, app: PhotoApp) {
-        let photos = viewModel.selectedPhotos.contains(photo.id)
+        let photos = viewModel.selectedPhotos.contains(photo)
             ? viewModel.getSelectedPhotosForBulkAction()
             : [photo]
         appState.externalAppManager.openPhotos(photos, with: app)
@@ -406,7 +403,7 @@ extension ThumbGridView: ThumbCellDelegate {
     func onCreateVideo(photos: [PhotoItem]) {
         // If the tapped photo is part of the current selection, use all selected
         let triggerPhoto = photos.first
-        let isInSelection = triggerPhoto.map { viewModel.selectedPhotos.contains($0.id) } ?? false
+        let isInSelection = triggerPhoto.map { viewModel.selectedPhotos.contains($0) } ?? false
         let selectedPhotoItems = isInSelection
             ? viewModel.getSelectedPhotosForBulkAction()
             : photos
@@ -415,7 +412,7 @@ extension ThumbGridView: ThumbCellDelegate {
 
     func onCreatePDF(photos: [PhotoItem]) {
         let triggerPhoto = photos.first
-        let isInSelection = triggerPhoto.map { viewModel.selectedPhotos.contains($0.id) } ?? false
+        let isInSelection = triggerPhoto.map { viewModel.selectedPhotos.contains($0) } ?? false
         let selectedPhotoItems = isInSelection
             ? viewModel.getSelectedPhotosForBulkAction()
             : photos

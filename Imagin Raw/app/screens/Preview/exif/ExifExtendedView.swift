@@ -13,7 +13,7 @@ struct ExifExtendedView: View {
     let fileSize: Int64?
     let dateCreated: Date?
 
-    @Binding var gridType: ThumbGridViewModel.GridType
+    @Binding var gridType: GridType
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

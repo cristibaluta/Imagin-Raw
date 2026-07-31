@@ -22,6 +22,7 @@ struct MainView: View {
     @State private var isSidebarCollapsed = false
     @State private var windowWidth: CGFloat = 1200
     @State private var contentColumnWidth: CGFloat = 450
+    static var sidebarColumnWidth: CGFloat = 200
 
     init(sessionID: ImaginRawSession.ID?) {
         self.sessionID = sessionID
@@ -66,11 +67,11 @@ struct MainView: View {
         return appState.selectedFolder?.url
     }
 
-    private var shareablePhoto: URL? {
-        guard let selectedPhoto = appState.selectedPhoto else {
+    private var shareablePhotos: [URL]? {
+        guard let selectedPhotos = appState.selectedPhotos else {
             return nil
         }
-        return URL(fileURLWithPath: selectedPhoto.path)
+        return selectedPhotos.map { $0.url }
     }
 
     var body: some View {
@@ -156,7 +157,7 @@ struct MainView: View {
 
     private var navigationSubtitle: String {
         let url: URL
-        if let photo = appState.selectedPhoto {
+        if let photo = appState.selectedPhotos?.first {
             url = URL(fileURLWithPath: photo.path)
         } else if let folder = navigationDocumentURL {
             url = folder
@@ -175,7 +176,9 @@ struct MainView: View {
         NavigationSplitView(columnVisibility: columnVisibility) {
             // Left sidebar: folders list
             sidebarView
-                .navigationSplitViewColumnWidth(min: 200, ideal: 200, max: 200)
+                .navigationSplitViewColumnWidth(min: MainView.sidebarColumnWidth,
+                                                ideal: MainView.sidebarColumnWidth,
+                                                max: MainView.sidebarColumnWidth)
         } content: {
             // Middle: thumbnails grid
             thumbGridView
@@ -268,7 +271,7 @@ struct MainView: View {
                 }
                 .keyboardShortcut(.escape, modifiers: [])
             }
-        } else if let _ = appState.selectedPhoto {
+        } else if let _ = appState.selectedPhotos {
             ToolbarItemGroup(placement: .navigation) {
                 navigationToolbarItems
             }
@@ -328,16 +331,16 @@ struct MainView: View {
         } primaryAction: {
             if appState.thumbsGridViewModel.selectedPhotos.count > 0 {
                 let selectedPhotoItems = appState.thumbsGridViewModel.filteredAndSortedPhotos.filter {
-                    appState.thumbsGridViewModel.selectedPhotos.contains($0.id)
+                    appState.thumbsGridViewModel.selectedPhotos.contains($0)
                 }
                 appState.externalAppManager.openPhotos(selectedPhotoItems)
             }
         }
-        .disabled(appState.selectedPhoto == nil)
+        .disabled(appState.selectedPhotos == nil)
 
         // Sharing/Export button
-        if let photoURL = shareablePhoto {
-            ShareLink(item: photoURL) {
+        if let photoURLs = shareablePhotos {
+            ShareLink(items: photoURLs) {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.primary)

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SortPopoverView: View {
-    @Binding var sortOption: ThumbGridViewModel.SortOption
+    @Binding var sortOption: SortOption
     @EnvironmentObject var fileSystemModel: FileSystemModel
     @Environment(\.dismiss) private var dismiss
 
@@ -49,7 +49,7 @@ struct SortPopoverView: View {
                     .padding(.bottom, 4)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(ThumbGridViewModel.SortOption.allCases, id: \.self) { option in
+                    ForEach(SortOption.allCases, id: \.self) { option in
                         Button(action: {
                             sortOption = option
                             dismiss()

@@ -10,6 +10,7 @@ import SwiftUI
 struct PreviewView: View {
 
     @ObservedObject var viewModel: PreviewViewModel
+
     var videoEditorPhotos: [PhotoItem]?
     var pdfEditorPhotos: [PhotoItem]?
     var albumName: String = ""
@@ -34,7 +35,7 @@ struct PreviewView: View {
             } else if let photos = pdfEditorPhotos, photos.count >= 1 {
                 PDFEditorView(photos: photos, albumName: albumName, cacheManager: previewsCacheManager, onDismiss: onDismissPDFEditor)
                     .id(photos.map(\.id).hashValue)
-            } else if let photo = viewModel.photo {
+            } else if let photo = viewModel.photos?.first {
                 if photo.isVideo {
                     VideoPreviewView(photo: photo)
                 } else {
