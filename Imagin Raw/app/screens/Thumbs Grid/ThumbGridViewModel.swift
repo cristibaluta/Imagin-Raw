@@ -470,7 +470,7 @@ class ThumbGridViewModel: ObservableObject {
                     }
                     return true
                 }
-                if chars == "c" || chars == "C" {
+                if chars == "s" || chars == "S" {
                     onToggleSidebar?()
                     return true
                 }

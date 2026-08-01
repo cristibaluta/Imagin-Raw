@@ -58,7 +58,7 @@ struct ShortcutsHelpView: View {
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     Text("Space   Review mode")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("C       Toggle Sidebar")
+                    Text("S       Toggle Sidebar")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     Text("G       Toggle Grid type")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
