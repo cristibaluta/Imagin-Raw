@@ -16,8 +16,6 @@ class AppState: ObservableObject {
     @Published var includeSubfolders: Bool = false
     @Published var selectedPhotos: [PhotoItem]?
     @Published var reviewGroup: ReviewGroupItem?// Photos to be displayed in the review screen
-    @Published var videoEditorPhotos: [PhotoItem]? = nil
-    @Published var pdfEditorPhotos: [PhotoItem]? = nil
     @Published var externalAppManager = ExternalAppManager()
 
     #if os(iOS)

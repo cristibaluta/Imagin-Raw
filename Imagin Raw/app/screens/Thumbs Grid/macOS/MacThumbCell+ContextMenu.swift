@@ -36,7 +36,7 @@ extension MacThumbCell {
         let createVideo = NSMenuItem(title: "Create Video...",
                                      action: reviewCount >= 2 ? #selector(handleCreateVideo) : nil,
                                      keyEquivalent: "")
-        createVideo.image = NSImage(systemSymbolName: "film.stack", accessibilityDescription: nil)
+        createVideo.image = NSImage(systemSymbolName: "movieclapper", accessibilityDescription: nil)
         createVideo.isEnabled = reviewCount > 1
         menu.addItem(createVideo)
 

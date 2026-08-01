@@ -115,7 +115,7 @@ struct PreviewBottomBar: View {
     @ViewBuilder
     private var pdfButton: some View {
         Button(action: {
-            showExportPanel.toggle()
+            viewModel.showPDFEditor = true
         }) {
             Image(systemName: "text.rectangle.page")
                 .font(.system(size: 14, weight: .medium))
@@ -130,7 +130,7 @@ struct PreviewBottomBar: View {
     @ViewBuilder
     private var videoButton: some View {
         Button(action: {
-            showExportPanel.toggle()
+            viewModel.showVideoEditor = true
         }) {
             Image(systemName: "movieclapper")
                 .font(.system(size: 14, weight: .medium))

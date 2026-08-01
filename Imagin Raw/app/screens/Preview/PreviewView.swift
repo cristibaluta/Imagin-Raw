@@ -11,12 +11,8 @@ struct PreviewView: View {
 
     @ObservedObject var viewModel: PreviewViewModel
 
-    var videoEditorPhotos: [PhotoItem]?
-    var pdfEditorPhotos: [PhotoItem]?
     var albumName: String = ""
     var previewsCacheManager: PhotoCacheManager
-    var onDismissVideoEditor: (() -> Void)?
-    var onDismissPDFEditor: (() -> Void)?
 
     var body: some View {
         #if DEBUG
@@ -29,20 +25,29 @@ struct PreviewView: View {
                 .frame(height: 1)
 
             // Content
-            if let photos = videoEditorPhotos, photos.count >= 2 {
-                VideoEditorView(photos: photos, cacheManager: previewsCacheManager, onDismiss: onDismissVideoEditor)
+            if let photos = viewModel.photos {
+
+                if viewModel.showVideoEditor {
+                    VideoEditorView(photos: photos, cacheManager: previewsCacheManager, onDismiss: {
+                        viewModel.showVideoEditor = false
+                    })
                     .id(photos.map(\.id).hashValue)
-            } else if let photos = pdfEditorPhotos, photos.count >= 1 {
-                PDFEditorView(photos: photos, albumName: albumName, cacheManager: previewsCacheManager, onDismiss: onDismissPDFEditor)
+                }
+                else if viewModel.showPDFEditor {
+                    PDFEditorView(photos: photos, albumName: albumName, cacheManager: previewsCacheManager, onDismiss: {
+                        viewModel.showPDFEditor = false
+                    })
                     .id(photos.map(\.id).hashValue)
-            } else if let photo = viewModel.photos?.first {
-                if photo.isVideo {
-                    VideoPreviewView(photo: photo)
-                } else {
-                    if viewModel.photos?.count ?? 0 > 1 {
-                        PhotosPreviewView(viewModel: viewModel)
+                }
+                else {
+                    if photos.first?.isVideo == true {
+                        VideoPreviewView(photo: photos.first!)
                     } else {
-                        PhotoPreviewView(photo: photo, viewModel: viewModel)
+                        if viewModel.photos?.count ?? 0 > 1 {
+                            PhotosPreviewView(viewModel: viewModel)
+                        } else {
+                            PhotoPreviewView(viewModel: viewModel)
+                        }
                     }
                 }
             } else {

@@ -9,7 +9,6 @@ import SwiftUI
 
 struct PhotoPreviewView: View {
 
-    var photo: PhotoItem
     @ObservedObject var viewModel: PreviewViewModel
 
     @State private var showExportPanel = false

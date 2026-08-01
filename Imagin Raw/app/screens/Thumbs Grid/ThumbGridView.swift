@@ -404,19 +404,19 @@ extension ThumbGridView: ThumbCellDelegate {
         // If the tapped photo is part of the current selection, use all selected
         let triggerPhoto = photos.first
         let isInSelection = triggerPhoto.map { viewModel.selectedPhotos.contains($0) } ?? false
-        let selectedPhotoItems = isInSelection
-            ? viewModel.selectedPhotos
-            : photos
-        appState.videoEditorPhotos = selectedPhotoItems
+        guard isInSelection else {
+            return
+        }
+        appState.previewViewModel.showVideoEditor = true
     }
 
     func onCreatePDF(photos: [PhotoItem]) {
         let triggerPhoto = photos.first
         let isInSelection = triggerPhoto.map { viewModel.selectedPhotos.contains($0) } ?? false
-        let selectedPhotoItems = isInSelection
-            ? viewModel.selectedPhotos
-            : photos
-        appState.pdfEditorPhotos = selectedPhotoItems
+        guard isInSelection else {
+            return
+        }
+        appState.previewViewModel.showPDFEditor = true
     }
 
     func selectedPhotosCount() -> Int {

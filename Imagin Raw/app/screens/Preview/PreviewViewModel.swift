@@ -13,6 +13,8 @@ class PreviewViewModel: ObservableObject {
     @Published private(set) var isLoadingFullRes = false
     @Published private(set) var alignToTopLeft: Bool = appPrefs.bool(.alignToTopLeft)
     @Published private(set) var exifIsExpanded: Bool = appPrefs.bool(.exifExpanded)
+    @Published var showVideoEditor: Bool = false
+    @Published var showPDFEditor: Bool = false
 
     let previewsCacheManager: PhotoCacheManager
     private let fullResCacheManager: PhotoCacheManager
