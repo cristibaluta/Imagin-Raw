@@ -283,7 +283,7 @@ struct ThumbGridView: View {
                 viewModel.applyLabel(.approved, to: [photo])
             },
             onMarkForDeletion: { photo in
-                viewModel.toggleDeleteState(for: [photo])
+                viewModel.toggleRejectedState(for: [photo])
             },
             onNavigate: { newIndex in
                 guard newIndex >= 0, newIndex < groups.count else {
@@ -308,7 +308,7 @@ struct ThumbGridView: View {
                 viewModel.applyLabel(.approved, to: [photo])
             },
             onMarkForDeletion: { photo in
-                viewModel.toggleDeleteState(for: [photo])
+                viewModel.toggleRejectedState(for: [photo])
             },
             onNavigate: { _ in }
         )
@@ -383,7 +383,7 @@ extension ThumbGridView: ThumbCellDelegate {
     }
 
     func onReject(photo: PhotoItem) {
-        viewModel.toggleDeleteState(for: [photo])
+        viewModel.toggleRejectedState(for: [photo])
     }
 
     func onReviewSelected(photo: PhotoItem) {

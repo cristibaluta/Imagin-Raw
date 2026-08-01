@@ -184,17 +184,19 @@ class ThumbGridViewModel: ObservableObject {
         selectedLabels = selectedLabels.filter { label in
             photos.contains { photo in
                 if label == .rejected {
-                    return photo.toDelete
+                    return photo.state == .rejected
                 }
                 let xmpLabel = photo.xmp?.label ?? ""
                 if label == .noLabel {
-                    return xmpLabel.isEmpty && !photo.toDelete
+                    return xmpLabel.isEmpty && photo.state != .rejected
                 }
-                return xmpLabel == label.rawValue && !photo.toDelete
+                return xmpLabel == label.rawValue && photo.state != .rejected
             }
         }
         selectedRatings = selectedRatings.filter { rating in
-            photos.contains { $0.effectiveRating == rating }
+            photos.contains {
+                $0.effectiveRating == rating
+            }
         }
     }
 
@@ -338,7 +340,7 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func getPhotosMarkedForDeletion() -> [PhotoItem] {
-        photos.filter { $0.toDelete }
+        photos.filter { $0.state == .rejected }
     }
 
     // MARK: - Rating & Label (delegate to service)
@@ -360,8 +362,8 @@ class ThumbGridViewModel: ObservableObject {
         metadataService.applyRating(0, to: photos)
     }
 
-    func toggleDeleteState(for photos: [PhotoItem]) {
-        metadataService.toggleDeleteState(for: photos)
+    func toggleRejectedState(for photos: [PhotoItem]) {
+        metadataService.toggleRejectedState(for: photos)
     }
 
     func movePhotosToTrash(_ photos: [PhotoItem]) {
@@ -453,7 +455,7 @@ class ThumbGridViewModel: ObservableObject {
                 if !selectedPhotos.isEmpty {
                     event.modifierFlags.contains(.command)
                         ? movePhotosToTrash(selectedPhotos)
-                        : toggleDeleteState(for: selectedPhotos)
+                        : toggleRejectedState(for: selectedPhotos)
                 }
                 return true
             default:
@@ -491,7 +493,7 @@ class ThumbGridViewModel: ObservableObject {
                     if mods.contains(.option) {
                         selectedLabels = selectedLabels.contains(.rejected) ? [] : [.rejected]
                     } else {
-                        toggleDeleteState(for: photos)
+                        toggleRejectedState(for: photos)
                     }
                     return true
                 }

@@ -154,13 +154,17 @@ extension MacThumbCell {
 
         menu.addItem(.separator())
 
-        let trash = NSMenuItem(title: "Move to Trash", action: #selector(handleMoveToTrash), keyEquivalent: String(Unicode.Scalar(NSBackspaceCharacter)!))
+        let trash = NSMenuItem(title: "Move to Trash",
+                               action: #selector(handleMoveToTrash),
+                               keyEquivalent: String(Unicode.Scalar(NSBackspaceCharacter)!))
         trash.keyEquivalentModifierMask = [.command]
         trash.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
         menu.addItem(trash)
-        if photo.toDelete, let count = delegate?.markedForDeletionCount(), count > 0 {
+        
+        if photo.state == .rejected, let count = delegate?.markedForDeletionCount(), count > 0 {
             let all = NSMenuItem(title: "Move to Trash all Rejected Photos (\(count))",
-                                 action: #selector(handleMoveAllToTrash), keyEquivalent: "")
+                                 action: #selector(handleMoveAllToTrash),
+                                 keyEquivalent: "")
             all.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
             menu.addItem(all)
         }

@@ -91,7 +91,7 @@ struct PhotoPreviewView: View {
             }
 
             // Exif bar
-            if !showExportPanel {
+            if viewModel.photos?.isEmpty == false, !showExportPanel {
                 bottomBar
             }
         }
@@ -177,14 +177,12 @@ struct PhotoPreviewView: View {
     @ViewBuilder
     private var bottomBar: some View {
         // EXIF bottom bar
-        if let photo = viewModel.photos?.first, let exifData = photo.exif {
-            Rectangle()
-                .fill(Color.secondary.opacity(0.25))
-                .frame(height: 1)
-            PreviewBottomBar(viewModel: viewModel,
-                             showExportPanel: $showExportPanel,
-                             gridType: $gridType)
-        }
+        Rectangle()
+            .fill(Color.secondary.opacity(0.25))
+            .frame(height: 1)
+        PreviewBottomBar(viewModel: viewModel,
+                         showExportPanel: $showExportPanel,
+                         gridType: $gridType)
     }
 }
 

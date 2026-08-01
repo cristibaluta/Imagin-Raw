@@ -77,7 +77,7 @@ struct ReviewPhotoCard: View {
             #endif
 
             // Reject overlay
-            if photo.toDelete {
+            if photo.state == .rejected {
                 Image(systemName: "xmark")
                     .font(.system(size: 32, weight: .bold))
                     .foregroundColor(PhotoLabel.rejected.color)
@@ -121,11 +121,11 @@ struct ReviewPhotoCard: View {
 
                     // Reject
                     Button(action: onMarkForDeletion) {
-                        Image(systemName: photo.toDelete ? "arrow.uturn.backward" : "xmark.circle")
-                            .foregroundColor(photo.toDelete ? .white : PhotoLabel.rejected.color)
+                        Image(systemName: photo.state == .rejected ? "arrow.uturn.backward" : "xmark.circle")
+                            .foregroundColor(photo.state == .rejected ? .white : PhotoLabel.rejected.color)
                     }
                     .buttonStyle(.plain)
-                    .help(photo.toDelete ? "Undo reject" : "Reject")
+                    .help(photo.state == .rejected ? "Undo reject" : "Reject")
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
@@ -137,8 +137,9 @@ struct ReviewPhotoCard: View {
         .contentShape(Rectangle())
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(photo.toDelete ? PhotoLabel.rejected.color.opacity(0.7) :
-                        isApproved ? PhotoLabel.approved.color.opacity(0.7) : Color.clear,
+                .stroke(photo.state == .rejected
+                            ? PhotoLabel.rejected.color.opacity(0.7)
+                            : (isApproved ? PhotoLabel.approved.color.opacity(0.7) : Color.clear),
                         lineWidth: 2)
         )
         .onAppear {

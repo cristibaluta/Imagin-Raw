@@ -77,8 +77,10 @@ class PhotoMetadataService {
 
     // MARK: - Delete state
 
-    func toggleDeleteState(for photos: [PhotoItem]) {
-        for photo in photos { toggleToDeleteState(for: photo) }
+    func toggleRejectedState(for photos: [PhotoItem]) {
+        for photo in photos {
+            toggleRejectedState(for: photo)
+        }
     }
 
     // MARK: - Internal model update
@@ -158,12 +160,13 @@ class PhotoMetadataService {
         }
     }
 
-    private func toggleToDeleteState(for photo: PhotoItem) {
+    private func toggleRejectedState(for photo: PhotoItem) {
         guard let photosModel,
               let idx = photosModel.photos.firstIndex(where: { $0.path == photo.path }) else {
             return
         }
         let cur = photosModel.photos[idx]
+        let newState: PhotoState = cur.state == .rejected ? .none : .rejected
         photosModel.photos[idx] = PhotoItem(id: cur.id,
                                             url: cur.url,
                                             path: cur.path,
@@ -175,8 +178,7 @@ class PhotoMetadataService {
                                             xmp: cur.xmp,
                                             exif: cur.exif,
                                             fileSizeBytes: cur.fileSizeBytes,
-                                            toDelete: !cur.toDelete)
-//        fileSystemModel?.selectedPhoto = photosModel.photos[idx]
+                                            state: newState)
         onPhotoUpdated?()
     }
 
@@ -197,8 +199,7 @@ class PhotoMetadataService {
                                             xmp: xmpMetadata,
                                             exif: cur.exif,
                                             fileSizeBytes: cur.fileSizeBytes,
-                                            toDelete: cur.toDelete)
-//        fileSystemModel?.selectedPhoto = photosModel.photos[idx]
+                                            state: cur.state)
         onPhotoUpdated?()
     }
 

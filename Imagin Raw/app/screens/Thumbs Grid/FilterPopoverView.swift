@@ -22,16 +22,16 @@ struct FilterPopoverView: View {
         if label == .noLabel {
             return photos.count(where: { photo in
                 let photoLabel = photo.xmp?.label ?? ""
-                return photoLabel.isEmpty && !photo.toDelete
+                return photoLabel.isEmpty && photo.state != .rejected
             })
         }
         else if label == .rejected {
-            return photos.count(where: { $0.toDelete})
+            return photos.count(where: { $0.state == .rejected })
         }
         else {
             return photos.count(where: { photo in
                 let photoLabel = photo.xmp?.label ?? ""
-                return photoLabel == label.rawValue && !photo.toDelete
+                return photoLabel == label.rawValue && photo.state != .rejected
             })
         }
     }

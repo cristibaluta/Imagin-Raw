@@ -351,7 +351,7 @@ final class IosThumbCell: UICollectionViewCell {
     }
 
     private func applyLabelStyle(for photo: PhotoItem) {
-        if photo.toDelete {
+        if photo.state == .rejected {
             filenameLabel.backgroundColor = UIColor.systemOrange
             filenameLabel.textColor = .black
             return

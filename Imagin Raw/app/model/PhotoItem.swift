@@ -23,7 +23,7 @@ struct PhotoItem: Identifiable, Sendable {
     let exif: ExifData?
     let fileSizeBytes: Int64?
     
-    var toDelete: Bool = false
+    var state: PhotoState = .none
 
     // Non-nil when this item comes from the Photos library.
     // Excluded from Hashable / Equatable so PHAsset object identity
@@ -66,7 +66,7 @@ struct PhotoItem: Identifiable, Sendable {
          xmp: XmpMetadata? = nil,
          exif: ExifData? = nil,
          fileSizeBytes: Int64? = nil,
-         toDelete: Bool) {
+         state: PhotoState) {
 
         self.id = id
         self.url = url
@@ -79,7 +79,7 @@ struct PhotoItem: Identifiable, Sendable {
         self.xmp = xmp
         self.exif = exif
         self.fileSizeBytes = fileSizeBytes
-        self.toDelete = toDelete
+        self.state = state
     }
 
     // MARK: - PhotoKit init
@@ -96,7 +96,7 @@ struct PhotoItem: Identifiable, Sendable {
         self.hasACR = false
         self.hasJPG = false
         self.hasXMP = false
-        self.toDelete = false
+        self.state = .none
         self.phAsset = asset
         self.fileSizeBytes = nil
         self.xmp = nil
@@ -151,7 +151,7 @@ extension PhotoItem: Hashable {
         lhs.hasJPG == rhs.hasJPG &&
         lhs.hasXMP == rhs.hasXMP &&
         lhs.fileSizeBytes == rhs.fileSizeBytes &&
-        lhs.toDelete == rhs.toDelete
+        lhs.state == rhs.state
     }
 
     func hash(into hasher: inout Hasher) {

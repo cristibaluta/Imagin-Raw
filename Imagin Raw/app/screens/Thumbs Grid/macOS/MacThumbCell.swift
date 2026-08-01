@@ -310,7 +310,7 @@ final class MacThumbCell: NSCollectionViewItem {
         currentPhoto = photo
 
         updateSelection(isSelected: isSelected)
-        trashContainer.isHidden = !photo.toDelete
+        trashContainer.isHidden = photo.state != .rejected
 
         let showACR = photo.hasACR || (photo.xmp?.hasEdits ?? false)
         let showJPG = photo.isRaw && photo.hasJPG
@@ -358,7 +358,7 @@ final class MacThumbCell: NSCollectionViewItem {
     }
 
     private func applyLabelStyle(for photo: PhotoItem) {
-        if photo.toDelete {
+        if photo.state == .rejected {
             filenameLabel.layer?.backgroundColor = NSColor.systemOrange.cgColor
             filenameLabel.textColor = .black
             return

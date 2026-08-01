@@ -102,7 +102,7 @@ class SpotlightSearcher: ObservableObject, @unchecked Sendable {
                                         hasJPG: false,
                                         hasXMP: false,
                                         xmp: nil,
-                                        toDelete: false))
+                                        state: .none))
             }
             #endif
         }

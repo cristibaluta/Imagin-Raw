@@ -121,7 +121,7 @@ class ReviewViewModel: ObservableObject {
                                  xmp: newXmp,
                                  exif: photo.exif,
                                  fileSizeBytes: photo.fileSizeBytes,
-                                 toDelete: photo.toDelete)
+                                 state: photo.state)
         updateLocalPhoto(newPhoto)
     }
 
@@ -154,12 +154,13 @@ class ReviewViewModel: ObservableObject {
                                  xmp: newXmp,
                                  exif: photo.exif,
                                  fileSizeBytes: photo.fileSizeBytes,
-                                 toDelete: photo.toDelete)
+                                 state: photo.state)
         updateLocalPhoto(newPhoto)
     }
 
     func handleToggleDelete(for photo: PhotoItem) {
         onMarkForDeletion?(photo)
+        let newState: PhotoState = photo.state == .rejected ? .none : .rejected
         let newPhoto = PhotoItem(id: photo.id,
                                  url: photo.url,
                                  path: photo.path,
@@ -171,7 +172,7 @@ class ReviewViewModel: ObservableObject {
                                  xmp: photo.xmp,
                                  exif: photo.exif,
                                  fileSizeBytes: photo.fileSizeBytes,
-                                 toDelete: !photo.toDelete)
+                                 state: newState)
         updateLocalPhoto(newPhoto)
     }
 

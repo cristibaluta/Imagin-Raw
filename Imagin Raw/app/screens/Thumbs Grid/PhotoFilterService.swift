@@ -22,10 +22,10 @@ struct PhotoFilterService {
             let label = PhotoLabel(rawValue: photo.xmp?.label ?? "") ?? .noLabel
             let rating = photo.xmp?.rating.flatMap { $0 > 0 ? $0 : nil } ?? photo.exif?.rating ?? 0
 
-            return labels.contains(label) ||
+            return  labels.contains(label) ||
                     ratings.contains(rating) ||
-                    (labels.contains(.rejected) && photo.toDelete) ||
-                    (labels.contains(.noLabel) && label == .noLabel && !photo.toDelete)
+                    (labels.contains(.rejected) && photo.state == .rejected) ||
+                    (labels.contains(.noLabel) && label == .noLabel && photo.state != .rejected)
         }
     }
 
@@ -61,7 +61,8 @@ struct PhotoFilterService {
                 }
             case .rating:
                 return {
-                    let r1 = $0.effectiveRating, r2 = $1.effectiveRating
+                    let r1 = $0.effectiveRating
+                    let r2 = $1.effectiveRating
                     return r1 != r2 ? r1 > r2 : $0.path < $1.path
                 }
         }
@@ -111,10 +112,10 @@ struct PhotoFilterService {
 
     static func availableLabels(from photos: [PhotoItem]) -> [PhotoLabel] {
         var labelSet = Set<PhotoLabel>()
-        var hasToDelete = false
+        var hasRejectedPhotos = false
         for photo in photos {
-            if photo.toDelete {
-                hasToDelete = true
+            if photo.state == .rejected {
+                hasRejectedPhotos = true
             }
             if let label = PhotoLabel(rawValue: photo.xmp?.label ?? "") {
                 labelSet.insert(label)
@@ -128,7 +129,7 @@ struct PhotoFilterService {
         for label in labels where labelSet.contains(label) {
             result.append(label)
         }
-        if hasToDelete {
+        if hasRejectedPhotos {
             result.append(.rejected)
         }
         return result

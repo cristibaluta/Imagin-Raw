@@ -120,7 +120,7 @@ final class FolderModel: ObservableObject {
                                  hasJPG: hasJPG,
                                  hasXMP: hasXMP,
                                  fileSizeBytes: Int64(size ?? 0),
-                                 toDelete: false)
+                                 state: .none)
             }
 
         photos.wrappedValue = basicPhotos
@@ -168,7 +168,7 @@ final class FolderModel: ObservableObject {
                                          xmp: nil,
                                          exif: nil,
                                          fileSizeBytes: Int64(resValues?.fileSize ?? 0),
-                                         toDelete: false)
+                                         state: .none)
                 // Load the exif for the new photo
                 let op = LoadExifOperation(photo: newPhoto, forceReloadExif: true) { [weak self] updatedPhoto in
                     Task { @MainActor [weak self] in

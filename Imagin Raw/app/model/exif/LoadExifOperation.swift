@@ -82,6 +82,6 @@ final class LoadExifOperation: Operation, @unchecked Sendable {
                          xmp: xmp,
                          exif: exif,
                          fileSizeBytes: photo.fileSizeBytes,
-                         toDelete: photo.toDelete)
+                         state: photo.state)
     }
 }
