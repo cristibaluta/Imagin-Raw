@@ -361,14 +361,14 @@ extension ThumbGridView: ThumbCellDelegate {
 
     func onCopyTo(photo: PhotoItem) {
         let photos = viewModel.selectedPhotos.contains(photo)
-            ? viewModel.getSelectedPhotosForBulkAction()
+            ? viewModel.selectedPhotos
             : [photo]
         copyToViewModel = CopyToViewModel(photos: photos)
     }
 
     func onRenameTo(photo: PhotoItem) {
         let photos = viewModel.selectedPhotos.contains(photo)
-            ? viewModel.getSelectedPhotosForBulkAction()
+            ? viewModel.selectedPhotos
             : [photo]
         renameSheetPhotos = PhotosSheetItem(photos: photos)
     }
@@ -388,14 +388,14 @@ extension ThumbGridView: ThumbCellDelegate {
 
     func onReviewSelected(photo: PhotoItem) {
         let photos = viewModel.selectedPhotos.contains(photo)
-            ? viewModel.getSelectedPhotosForBulkAction()
+            ? viewModel.selectedPhotos
             : [photo]
         appState.reviewGroup = buildReviewGroupItemFromPhotos(photos)
     }
 
     func onOpenWith(photo: PhotoItem, app: PhotoApp) {
         let photos = viewModel.selectedPhotos.contains(photo)
-            ? viewModel.getSelectedPhotosForBulkAction()
+            ? viewModel.selectedPhotos
             : [photo]
         appState.externalAppManager.openPhotos(photos, with: app)
     }
@@ -405,7 +405,7 @@ extension ThumbGridView: ThumbCellDelegate {
         let triggerPhoto = photos.first
         let isInSelection = triggerPhoto.map { viewModel.selectedPhotos.contains($0) } ?? false
         let selectedPhotoItems = isInSelection
-            ? viewModel.getSelectedPhotosForBulkAction()
+            ? viewModel.selectedPhotos
             : photos
         appState.videoEditorPhotos = selectedPhotoItems
     }
@@ -414,7 +414,7 @@ extension ThumbGridView: ThumbCellDelegate {
         let triggerPhoto = photos.first
         let isInSelection = triggerPhoto.map { viewModel.selectedPhotos.contains($0) } ?? false
         let selectedPhotoItems = isInSelection
-            ? viewModel.getSelectedPhotosForBulkAction()
+            ? viewModel.selectedPhotos
             : photos
         appState.pdfEditorPhotos = selectedPhotoItems
     }

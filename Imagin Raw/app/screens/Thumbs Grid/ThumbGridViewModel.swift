@@ -339,17 +339,6 @@ class ThumbGridViewModel: ObservableObject {
         photos.filter { $0.toDelete }
     }
 
-    func getSelectedPhotosForBulkAction() -> [PhotoItem] {
-//        let allPhotos = filteredAndSortedPhotos
-//        if selectedPhotos.count > 1 {
-//            return allPhotos.filter { selectedPhotos.contains($0) }
-//        }
-//        if let sel = selectedPhoto {
-//            return [allPhotos.first(where: { $0.id == sel.id }) ?? sel]
-//        }
-        return filteredAndSortedPhotos
-    }
-
     // MARK: - Rating & Label (delegate to service)
 
     func applyRating(_ rating: Int, to photos: [PhotoItem]) {
@@ -382,7 +371,7 @@ class ThumbGridViewModel: ObservableObject {
 
         // 2. Move selected photos to trash
         let photosToDelete = selectedPhotos.contains(first)
-            ? getSelectedPhotosForBulkAction()
+            ? selectedPhotos
             : photos
         trashService.movePhotosToTrash(photosToDelete)
 
@@ -449,21 +438,20 @@ class ThumbGridViewModel: ObservableObject {
                 }
                 return false
             case .return:
-                let photos = getSelectedPhotosForBulkAction()
                 openPhotos(selectedPhotos.count > 1
                            ? filteredAndSortedPhotos.filter { selectedPhotos.contains($0) }
-                           : photos)
+                           : selectedPhotos)
                 return true
             case .space:
-                let photos = getSelectedPhotosForBulkAction()
-                if !photos.isEmpty {
-                    onReviewSelected?(photos)
+                if !selectedPhotos.isEmpty {
+                    onReviewSelected?(selectedPhotos)
                 }
                 return true
             case .delete:
-                let photos = getSelectedPhotosForBulkAction()
-                if !photos.isEmpty {
-                    event.modifierFlags.contains(.command) ? movePhotosToTrash(photos) : toggleDeleteState(for: photos)
+                if !selectedPhotos.isEmpty {
+                    event.modifierFlags.contains(.command)
+                        ? movePhotosToTrash(selectedPhotos)
+                        : toggleDeleteState(for: selectedPhotos)
                 }
                 return true
             default:
@@ -489,8 +477,7 @@ class ThumbGridViewModel: ObservableObject {
                     return true
                 }
 
-                let photos = getSelectedPhotosForBulkAction()
-                if photos.isEmpty {
+                if selectedPhotos.isEmpty {
                     return false
                 }
 
