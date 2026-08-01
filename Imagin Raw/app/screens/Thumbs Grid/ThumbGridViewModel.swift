@@ -306,7 +306,7 @@ class ThumbGridViewModel: ObservableObject {
         let photoIndex = filteredAndSortedPhotos.firstIndex(where: { $0.id == photo.id }) ?? 0
         if modifiers.contains(.command) {
             // Toggle selected state
-            if selectedPhotos.contains(photo) == true {
+            if selectedPhotos.contains(photo) {
                 selectedPhotos.removeAll(where: { $0.id == photo.id })
             } else {
                 selectedPhotos.append(photo)
@@ -316,7 +316,9 @@ class ThumbGridViewModel: ObservableObject {
             let start = min(lastSelectedIndex ?? 0, photoIndex)
             let end = max(lastSelectedIndex ?? 0, photoIndex)
             for i in start...end where i < filteredAndSortedPhotos.count {
-                selectedPhotos.append(filteredAndSortedPhotos[i])
+                if !selectedPhotos.contains(filteredAndSortedPhotos[i]) {
+                    selectedPhotos.append(filteredAndSortedPhotos[i])
+                }
             }
         } else {
             selectedPhotos = [photo]
