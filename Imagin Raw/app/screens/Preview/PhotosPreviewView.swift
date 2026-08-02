@@ -27,25 +27,27 @@ struct PhotosPreviewView: View {
     private var previewBody: some View {
         VStack(spacing: 0) {
             Spacer()
-            // Photo
-            if let nsImage1 = viewModel.images?.first, let nsImage2 = viewModel.images?.last {
-                GeometryReader { geo in
-                    HStack {
-                        Image(nsImage: nsImage1)
-                            .resizable()
-                            .scaledToFit()
-                        Image(nsImage: nsImage2)
-                            .resizable()
-                            .scaledToFit()
-                    }
-                    .padding(8)
+            HStack {
+                Spacer()
+                // Photo
+                if let nsImage1 = viewModel.images?.first, let nsImage2 = viewModel.images?.last {
+                        HStack {
+                            Image(nsImage: nsImage1)
+                                .resizable()
+                                .scaledToFit()
+                            Image(nsImage: nsImage2)
+                                .resizable()
+                                .scaledToFit()
+                        }
+                        .padding(8)
+                } else if viewModel.isLoading {
+                    ProgressView("Loading...")
+                        .progressViewStyle(CircularProgressViewStyle())
+                } else {
+                    Text("Failed to load image")
+                        .foregroundColor(.secondary)
                 }
-            } else if viewModel.isLoading {
-                ProgressView("Loading...")
-                    .progressViewStyle(CircularProgressViewStyle())
-            } else {
-                Text("Failed to load image")
-                    .foregroundColor(.secondary)
+                Spacer()
             }
             Spacer()
 
