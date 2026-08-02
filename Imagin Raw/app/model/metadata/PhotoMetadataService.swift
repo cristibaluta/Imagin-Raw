@@ -75,7 +75,11 @@ class PhotoMetadataService {
         }
     }
 
-    // MARK: - Delete state
+    func toggleCopyState(for photos: [PhotoItem]) {
+        for photo in photos {
+            toggleCopyState(for: photo)
+        }
+    }
 
     func toggleRejectedState(for photos: [PhotoItem]) {
         for photo in photos {
@@ -158,6 +162,28 @@ class PhotoMetadataService {
         if let parsed = XmpParser.parseMetadata(from: content) {
             updatePhotoWithXmpMetadata(photo: photo, xmpMetadata: parsed)
         }
+    }
+
+    private func toggleCopyState(for photo: PhotoItem) {
+        guard let photosModel,
+              let idx = photosModel.photos.firstIndex(where: { $0.path == photo.path }) else {
+            return
+        }
+        let cur = photosModel.photos[idx]
+        let newState: PhotoState = cur.state == .copy ? .none : .copy
+        photosModel.photos[idx] = PhotoItem(id: cur.id,
+                                            url: cur.url,
+                                            path: cur.path,
+                                            dateCreated: cur.dateCreated,
+                                            dateModified: cur.dateModified,
+                                            hasACR: cur.hasACR,
+                                            hasJPG: cur.hasJPG,
+                                            hasXMP: cur.hasXMP,
+                                            xmp: cur.xmp,
+                                            exif: cur.exif,
+                                            fileSizeBytes: cur.fileSizeBytes,
+                                            state: newState)
+        onPhotoUpdated?()
     }
 
     private func toggleRejectedState(for photo: PhotoItem) {

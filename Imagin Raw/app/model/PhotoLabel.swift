@@ -16,6 +16,7 @@ enum PhotoLabel: String, CaseIterable {
     case review = "Review"
     case todo = "To Do"
     case rejected = "Rejected"
+    case copy = "To Copy"
 
     var color: Color {
         switch self {
@@ -25,6 +26,7 @@ enum PhotoLabel: String, CaseIterable {
             case .review:   return .blue
             case .todo:     return .purple
             case .rejected: return .orange
+            case .copy:     return .indigo
             default:        return .secondary
         }
     }

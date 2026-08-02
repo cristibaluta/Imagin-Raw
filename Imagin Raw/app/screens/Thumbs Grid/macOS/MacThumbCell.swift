@@ -5,7 +5,6 @@
 //  Created by Cristian Baluta on 17.03.2026.
 //
 #if os(macOS)
-import Foundation
 import AppKit
 import SwiftUI
 
@@ -15,6 +14,7 @@ private final class MacVerticallyCenteredTextFieldCell: NSTextFieldCell {
         let superRect = super.drawingRect(forBounds: rect)
         let size = cellSize(forBounds: rect)
         let dy = (superRect.height - size.height) / 2
+        
         return NSRect(x: superRect.minX,
                       y: superRect.minY + dy,
                       width: superRect.width,
@@ -358,11 +358,6 @@ final class MacThumbCell: NSCollectionViewItem {
     }
 
     private func applyLabelStyle(for photo: PhotoItem) {
-        if photo.state == .rejected {
-            filenameLabel.layer?.backgroundColor = NSColor.systemOrange.cgColor
-            filenameLabel.textColor = .black
-            return
-        }
         guard let label = PhotoLabel(rawValue: photo.xmp?.label ?? "") else {
             filenameLabel.layer?.backgroundColor = NSColor.clear.cgColor
             filenameLabel.textColor = .labelColor

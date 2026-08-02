@@ -10,5 +10,5 @@ import Foundation
 enum PhotoState {
     case none
     case rejected
-    case selected
+    case copy
 }

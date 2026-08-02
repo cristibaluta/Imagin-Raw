@@ -362,6 +362,10 @@ class ThumbGridViewModel: ObservableObject {
         metadataService.applyRating(0, to: photos)
     }
 
+    func toggleCopyState(for photos: [PhotoItem]) {
+        metadataService.toggleCopyState(for: photos)
+    }
+
     func toggleRejectedState(for photos: [PhotoItem]) {
         metadataService.toggleRejectedState(for: photos)
     }
@@ -481,19 +485,24 @@ class ThumbGridViewModel: ObservableObject {
                     return true
                 }
 
+                // This actions are applied only to selectedPhotos
                 if selectedPhotos.isEmpty {
                     return false
                 }
 
                 if chars == "a" || chars == "A" {
-                    applyLabel(.approved, to: photos)
+                    applyLabel(.approved, to: selectedPhotos)
+                    return true
+                }
+                if chars == "c" || chars == "C" {
+                    toggleCopyState(for: selectedPhotos)
                     return true
                 }
                 if chars == "x" || chars == "X" {
                     if mods.contains(.option) {
                         selectedLabels = selectedLabels.contains(.rejected) ? [] : [.rejected]
                     } else {
-                        toggleRejectedState(for: photos)
+                        toggleRejectedState(for: selectedPhotos)
                     }
                     return true
                 }
@@ -505,7 +514,7 @@ class ThumbGridViewModel: ObservableObject {
                             selectedRatings.insert(r)
                         }
                     } else {
-                        applyRating(r, to: photos)
+                        applyRating(r, to: selectedPhotos)
                     }
                     return true
                 }
@@ -522,12 +531,12 @@ class ThumbGridViewModel: ObservableObject {
                             selectedLabels.insert(label)
                         }
                     } else {
-                        applyLabel(label, to: photos)
+                        applyLabel(label, to: selectedPhotos)
                     }
                     return true
                 }
                 if chars == "-" {
-                    removeLabelsAndRatings(from: photos)
+                    removeLabelsAndRatings(from: selectedPhotos)
                     return true
                 }
                 return false
