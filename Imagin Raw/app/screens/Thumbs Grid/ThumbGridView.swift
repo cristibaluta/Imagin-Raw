@@ -355,6 +355,13 @@ extension ThumbGridView: ThumbCellDelegate {
         copyToViewModel = CopyToViewModel(photos: photos)
     }
 
+    func onQuickCopy(photo: PhotoItem) {
+        let photos = viewModel.selectedPhotos.contains(photo)
+            ? viewModel.selectedPhotos
+            : [photo]
+        viewModel.quickCopy(photos: photos)
+    }
+
     func onRenameTo(photo: PhotoItem) {
         let photos = viewModel.selectedPhotos.contains(photo)
             ? viewModel.selectedPhotos

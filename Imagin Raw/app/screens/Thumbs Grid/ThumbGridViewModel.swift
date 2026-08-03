@@ -485,6 +485,10 @@ class ThumbGridViewModel: ObservableObject {
                     selectAll()
                     return true
                 }
+                if mods.contains(.option) && chars == "c" {
+                    quickCopy(photos: selectedPhotos)
+                    return true
+                }
                 if chars == "z" {
                     if mods.contains(.command) {
                         undoLastTrash()
@@ -824,5 +828,12 @@ class ThumbGridViewModel: ObservableObject {
 
     func loadSimilarityMode() {
         similarityMode = DuplicateFinderService.SimilarityMode(rawValue: appPrefs.int(.similarityMode)) ?? .loose
+    }
+
+    func quickCopy(photos: [PhotoItem]) {
+        let model = CopyToViewModel(photos: photos)
+        Task {
+            await model.startCopy()
+        }
     }
 }

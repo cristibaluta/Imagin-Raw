@@ -149,6 +149,8 @@ extension MacThumbCell {
 
         let copy = NSMenuItem(title: "Copy to...", action: #selector(handleCopyTo), keyEquivalent: "")
         menu.addItem(copy)
+        let quickCopy = NSMenuItem(title: "Quick copy", action: #selector(handleQuickCopy), keyEquivalent: "")
+        menu.addItem(quickCopy)
         let rename = NSMenuItem(title: "Batch Rename...", action: #selector(handleRenameTo), keyEquivalent: "")
         menu.addItem(rename)
 
@@ -212,6 +214,13 @@ extension MacThumbCell {
             return
         }
         delegate?.onCopyTo(photo: p)
+    }
+
+    @objc private func handleQuickCopy() {
+        guard let p = currentPhoto else {
+            return
+        }
+        delegate?.onQuickCopy(photo: p)
     }
 
     @objc private func handleRenameTo() {
