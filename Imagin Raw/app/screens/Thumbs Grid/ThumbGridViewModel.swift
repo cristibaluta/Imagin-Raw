@@ -11,31 +11,33 @@ import Combine
 @MainActor
 class ThumbGridViewModel: ObservableObject {
 
+    @Published private(set) var filteredAndSortedPhotos: [PhotoItem] = []
+    @Published private(set) var groupedPhotos: [(title: String, photos: [PhotoItem])] = []
     @Published var selectedPhotos: [PhotoItem] = []
+    @Published var lastSelectedIndexPath: IndexPath?
+    // Filtering options
     @Published var selectedLabels: Set<PhotoLabel> = []
     @Published var selectedRatings: Set<Int> = []
     @Published var selectedNames: Set<String> = []
+    // Sorting
     @Published var sortOption: SortOption = .name
+    // UI
     @Published var gridType: GridType = .small
     @Published var windowWidth: CGFloat = 1200
     @Published var isSidebarCollapsed: Bool = false
-    @Published var lastSelectedIndex: Int?
-    @Published var cachingQueueCount: Int = 0
     @Published var isLoadingMetadata: Bool = false
-    // Duplicate
+    // Duplicates
+    @Published var cachingQueueCount: Int = 0
     @Published var isFindingDuplicates: Bool = false
     @Published var isDuplicateMode: Bool = false
     @Published var duplicateScanProgress: (done: Int, total: Int) = (0, 0)
     @Published var duplicateScanResult: DuplicateScanResult? = nil
     @Published var similarityMode: DuplicateFinderService.SimilarityMode = .loose
-
-    @Published private(set) var filteredAndSortedPhotos: [PhotoItem] = []
-    @Published private(set) var groupedPhotos: [(title: String, photos: [PhotoItem])] = []
-    @Published var photosToCopy: [PhotoItem] = []
-    @Published var copyDestinationURL: URL?
-
     private var findingDuplicatesTask: Task<Void, Never>?
     private var duplicateScanData: DuplicateScanData? = nil
+
+//    @Published var photosToCopy: [PhotoItem] = []
+//    @Published var copyDestinationURL: URL?
 
     /// Set before loading a folder to auto-select a specific photo once it appears in the grid.
     var pendingSelectURL: URL? = nil {
@@ -179,9 +181,15 @@ class ThumbGridViewModel: ObservableObject {
         }
 
         if let id = lastSelectedPhotoId {
-            lastSelectedIndex = filteredAndSortedPhotos.firstIndex { $0.id == id }
+            for (i, group) in groupedPhotos.enumerated() {
+                let item = group.photos.firstIndex { $0.id == id }
+                if let item {
+                    lastSelectedIndexPath = IndexPath(item: item, section: i)
+                    break
+                }
+            }
         } else if !selectedPhotos.isEmpty {
-            lastSelectedIndex = nil
+            lastSelectedIndexPath = nil
         }
 
         // Auto-select a specific photo requested via drag-and-drop / open-with
@@ -190,7 +198,14 @@ class ThumbGridViewModel: ObservableObject {
                 RCLog("found pending photo, selecting: \(photo.url.lastPathComponent)")
                 pendingSelectURL = nil
                 selectedPhotos = [photo]
-                lastSelectedIndex = filteredAndSortedPhotos.firstIndex { $0.id == photo.id }
+
+                for (i, group) in groupedPhotos.enumerated() {
+                    let item = group.photos.firstIndex { $0.id == photo.id }
+                    if let item {
+                        lastSelectedIndexPath = IndexPath(item: item, section: i)
+                        break
+                    }
+                }
             } else {
                 RCLog("pending photo not in grid yet, waiting...")
             }
@@ -238,7 +253,7 @@ class ThumbGridViewModel: ObservableObject {
         photosModel = newPhotosModel
         metadataService.photosModel = newPhotosModel
         trashService.photosModel = newPhotosModel
-        lastSelectedIndex = nil
+        lastSelectedIndexPath = nil
 
         newPhotosModel.objectWillChange
             .sink { [weak self] _ in
@@ -298,7 +313,7 @@ class ThumbGridViewModel: ObservableObject {
     func loadSearchResults(_ items: [PhotoItem]) {
         searchResultsPhotos = items
         selectedPhotos.removeAll()
-        lastSelectedIndex = nil
+        lastSelectedIndexPath = nil
         filterAndSortPhotos()
     }
 
@@ -322,32 +337,29 @@ class ThumbGridViewModel: ObservableObject {
     // MARK: - Selection
 
     func handlePhotoTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
-        let photoIndex = filteredAndSortedPhotos.firstIndex(where: { $0.id == photo.id }) ?? 0
+        guard let photoIndexPath = indexPath(for: photo) else {
+            return
+        }
         if modifiers.contains(.command) {
             // Toggle selected state
             if selectedPhotos.contains(photo) {
                 selectedPhotos.removeAll(where: { $0.id == photo.id })
             } else {
                 selectedPhotos.append(photo)
-                lastSelectedIndex = photoIndex
+                lastSelectedIndexPath = photoIndexPath
             }
         } else if modifiers.contains(.shift) {
-            let start = min(lastSelectedIndex ?? 0, photoIndex)
-            let end = max(lastSelectedIndex ?? 0, photoIndex)
-            for i in start...end where i < filteredAndSortedPhotos.count {
-                if !selectedPhotos.contains(filteredAndSortedPhotos[i]) {
-                    selectedPhotos.append(filteredAndSortedPhotos[i])
-                }
-            }
+            selectedPhotos += photos(from: lastSelectedIndexPath ?? IndexPath(item: 0, section: 0), to: photoIndexPath)
+            lastSelectedIndexPath = photoIndexPath
         } else {
             selectedPhotos = [photo]
-            lastSelectedIndex = photoIndex
+            lastSelectedIndexPath = photoIndexPath
         }
     }
 
     func selectAll() {
         selectedPhotos = filteredAndSortedPhotos
-        lastSelectedIndex = 0
+        lastSelectedIndexPath = IndexPath(item: 0, section: 0)
     }
 
     func initializeSelection() {
@@ -411,13 +423,13 @@ class ThumbGridViewModel: ObservableObject {
 
         // 5. Find the next closest index after the photos were deleted
         if let index, index < filteredAndSortedPhotos.count {
-            let nextIndex = min(index, filteredAndSortedPhotos.count - 1)
-            let nextPhoto = filteredAndSortedPhotos[nextIndex]
-            selectedPhotos = [nextPhoto]
-            lastSelectedIndex = nextIndex
+//            let nextIndex = min(index, filteredAndSortedPhotos.count - 1)
+//            let nextPhoto = filteredAndSortedPhotos[nextIndex]
+//            selectedPhotos = [nextPhoto]
+//            lastSelectedIndexPath = nextIndex
         } else {
             selectedPhotos.removeAll()
-            lastSelectedIndex = nil
+            lastSelectedIndexPath = nil
         }
     }
 
@@ -634,10 +646,47 @@ class ThumbGridViewModel: ObservableObject {
         if let nextIndex {
             let nextPhoto = groupedPhotos[nextIndex.section].photos[nextIndex.item]
             selectedPhotos = [nextPhoto]
-            lastSelectedIndex = nil
+            lastSelectedIndexPath = nextIndex
             return nextPhoto
         }
         return nil
+    }
+
+    private func indexPath(for photo: PhotoItem) -> IndexPath? {
+        for (i, group) in groupedPhotos.enumerated() {
+            let item = group.photos.firstIndex { $0.id == photo.id }
+            if let item {
+                return IndexPath(item: item, section: i)
+            }
+        }
+        return nil
+    }
+
+    private func photos(from a: IndexPath, to b: IndexPath) -> [PhotoItem] {
+        let start = min(a, b)
+        let end = max(a, b)
+
+        guard start.section >= 0, end.section < groupedPhotos.count else {
+            return []
+        }
+
+        var result: [PhotoItem] = []
+
+        for section in start.section...end.section {
+            let photos = groupedPhotos[section].photos
+            let firstItem = section == start.section ? start.item : 0
+            let lastItem = section == end.section ? end.item : photos.count - 1
+
+            guard firstItem >= 0, lastItem < photos.count, firstItem <= lastItem else {
+                continue
+            }
+
+            for item in photos[firstItem...lastItem] where !selectedPhotos.contains(item) {
+                result.append(item)
+            }
+        }
+
+        return result
     }
 
     // Get IndexPath for a row/col in a section, clamping to last item if column doesn't exist in that row
