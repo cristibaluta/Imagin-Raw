@@ -22,13 +22,15 @@ class ThumbGridViewModel: ObservableObject {
     @Published var lastSelectedIndex: Int?
     @Published var cachingQueueCount: Int = 0
     @Published var isLoadingMetadata: Bool = false
+    // Duplicate
     @Published var isFindingDuplicates: Bool = false
     @Published var isDuplicateMode: Bool = false
     @Published var duplicateScanProgress: (done: Int, total: Int) = (0, 0)
     @Published var duplicateScanResult: DuplicateScanResult? = nil
     @Published var similarityMode: DuplicateFinderService.SimilarityMode = .loose
+
     @Published private(set) var filteredAndSortedPhotos: [PhotoItem] = []
-    @Published private(set) var dateGroups: [(title: String, photos: [PhotoItem])] = []
+    @Published private(set) var groupedPhotos: [(title: String, photos: [PhotoItem])] = []
     @Published var photosToCopy: [PhotoItem] = []
     @Published var copyDestinationURL: URL?
 
@@ -37,30 +39,8 @@ class ThumbGridViewModel: ObservableObject {
 
     /// Set before loading a folder to auto-select a specific photo once it appears in the grid.
     var pendingSelectURL: URL? = nil {
-        didSet { RCLog("🎯 [ThumbGridViewModel] pendingSelectURL set to: \(pendingSelectURL?.lastPathComponent ?? "nil")") }
-    }
-
-    var groupedPhotos: [(title: String, photos: [PhotoItem])] {
-        if let duplicateScanResult {
-            var index = 0
-            let count = duplicateScanResult.groups.count
-            return duplicateScanResult.groups.map {
-                index += 1
-//                let pct = max(0, min(100, Int(((1.0 - Double($0.distance)) * 100).rounded())))
-                return (title: "Group \(index) / \(count)", photos: $0.photos)
-            }
-        }
-        switch sortOption {
-            case .name:
-                return [("Sorted by Name", filteredAndSortedPhotos)]
-            case .dateCaptured:
-                return dateGroups
-            case .dateModified:
-                return dateGroups
-            case .fileType:
-                return []
-            case .rating:
-                return []
+        didSet {
+            RCLog("🎯 [ThumbGridViewModel] pendingSelectURL set to: \(pendingSelectURL?.lastPathComponent ?? "nil")")
         }
     }
 
@@ -187,7 +167,16 @@ class ThumbGridViewModel: ObservableObject {
         filteredAndSortedPhotos = result
 
         // Group photos
-        dateGroups = PhotoFilterService.buildDateGroups(from: result, sortOption: sortOption)
+        if let duplicateScanResult {
+            var index = 0
+            let count = duplicateScanResult.groups.count
+            groupedPhotos = duplicateScanResult.groups.map {
+                index += 1
+                return (title: "Group \(index) / \(count)", photos: $0.photos)
+            }
+        } else {
+            groupedPhotos = PhotoFilterService.groupPhotos(from: result, sortOption: sortOption)
+        }
 
         if let id = lastSelectedPhotoId {
             lastSelectedIndex = filteredAndSortedPhotos.firstIndex { $0.id == id }
@@ -575,87 +564,71 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     private func navigateTo(_ key: KeyEquivalent) -> PhotoItem? {
-        if dateGroups.count > 0 {
-            var nextIndex: IndexPath? = nil
-            var item: Int? = 0
-            let section: Int? = dateGroups.firstIndex {
-                let r = $0.photos.firstIndex { $0.id == selectedPhotos.first?.id }
-                item = r
-                return r != nil
-            }
-            if let section, let item {
-                switch key {
-                    case .leftArrow:
-                        // Find the prev  item in the current section
-                        if item > 0 {
-                            nextIndex = IndexPath(item: item - 1, section: section)
-                        } else {
-                            // Go to prev item in the prev section
-                            if section > 0 {
-                                nextIndex = IndexPath(item: dateGroups[section-1].photos.count - 1, section: section - 1)
-                            } else {
-                                return nil
-                            }
-                        }
-                    case .rightArrow:
-                        // Find the next  item in the current section
-                        let photosInSection = dateGroups[section].photos
-                        if photosInSection.count > item + 1 {
-                            nextIndex = IndexPath(item: item + 1, section: section)
-                        } else {
-                            // Go to first item in the next section
-                            if section + 1 < dateGroups.count {
-                                nextIndex = IndexPath(item: 0, section: section + 1)
-                            } else {
-                                nextIndex = IndexPath(item: 0, section: 0)
-                            }
-                        }
-                    case .upArrow:
-                        let columns = 3
-                        let currentRow = item / columns
-                        let currentCol = item % columns
-                        if currentRow - 1 >= 0 {
-                            nextIndex = indexInSection(section: section, row: currentRow - 1, col: currentCol)
-                        } else {
-                            // move to previous section, same column, LAST row
-                            nextIndex = lastAvailable(fromSection: section - 1, col: currentCol, searchBackward: true)
-                        }
-                    case .downArrow:
-                        let columns = 3
-                        let currentRow = item / columns
-                        let currentCol = item % columns
-                        let rowsInSection = (dateGroups[section].photos.count + columns - 1) / columns
-                        if currentRow + 1 < rowsInSection {
-                            // move down within section, clamp to last item in that row
-                            nextIndex = indexInSection(section: section, row: currentRow + 1, col: currentCol)
-                        } else {
-                            // move to next section, same column, first row that has it
-                            nextIndex = firstAvailable(fromSection: section + 1, col: currentCol, searchForward: true)
-                        }
-                    default:
-                        return nil
-                }
-            }
-            if let nextIndex {
-                let nextPhoto = dateGroups[nextIndex.section].photos[nextIndex.item]
-                selectedPhotos = [nextPhoto]
-                lastSelectedIndex = nil
-                return nextPhoto
-            }
-        } else {
-            // Navigate through the filteredAndSortedPhotos
-            let cur = filteredAndSortedPhotos.firstIndex { $0.id == selectedPhotos.first?.id } ?? 0
-            var nextIndex = cur
-
+        guard groupedPhotos.count > 0 else {
+            return nil
+        }
+        var nextIndex: IndexPath? = nil
+        var item: Int? = 0
+        let section: Int? = groupedPhotos.firstIndex {
+            let r = $0.photos.firstIndex { $0.id == selectedPhotos.first?.id }
+            item = r
+            return r != nil
+        }
+        if let section, let item {
             switch key {
-                case .leftArrow:  nextIndex = max(0, cur - 1)
-                case .rightArrow: nextIndex = min(filteredAndSortedPhotos.count - 1, cur + 1)
-                case .upArrow:    nextIndex = max(0, cur - gridType.columnCount)
-                case .downArrow:  nextIndex = min(filteredAndSortedPhotos.count - 1, cur + gridType.columnCount)
+                case .leftArrow:
+                    // Find the prev  item in the current section
+                    if item > 0 {
+                        nextIndex = IndexPath(item: item - 1, section: section)
+                    } else {
+                        // Go to prev item in the prev section
+                        if section > 0 {
+                            nextIndex = IndexPath(item: groupedPhotos[section-1].photos.count - 1, section: section - 1)
+                        } else {
+                            return nil
+                        }
+                    }
+                case .rightArrow:
+                    // Find the next  item in the current section
+                    let photosInSection = groupedPhotos[section].photos
+                    if photosInSection.count > item + 1 {
+                        nextIndex = IndexPath(item: item + 1, section: section)
+                    } else {
+                        // Go to first item in the next section
+                        if section + 1 < groupedPhotos.count {
+                            nextIndex = IndexPath(item: 0, section: section + 1)
+                        } else {
+                            nextIndex = IndexPath(item: 0, section: 0)
+                        }
+                    }
+                case .upArrow:
+                    let columns = 3
+                    let currentRow = item / columns
+                    let currentCol = item % columns
+                    if currentRow - 1 >= 0 {
+                        nextIndex = indexInSection(section: section, row: currentRow - 1, col: currentCol)
+                    } else {
+                        // move to previous section, same column, LAST row
+                        nextIndex = lastAvailable(fromSection: section - 1, col: currentCol, searchBackward: true)
+                    }
+                case .downArrow:
+                    let columns = 3
+                    let currentRow = item / columns
+                    let currentCol = item % columns
+                    let rowsInSection = (groupedPhotos[section].photos.count + columns - 1) / columns
+                    if currentRow + 1 < rowsInSection {
+                        // move down within section, clamp to last item in that row
+                        nextIndex = indexInSection(section: section, row: currentRow + 1, col: currentCol)
+                    } else {
+                        // move to next section, same column, first row that has it
+                        nextIndex = firstAvailable(fromSection: section + 1, col: currentCol, searchForward: true)
+                    }
                 default:
                     return nil
             }
-            let nextPhoto = filteredAndSortedPhotos[nextIndex]
+        }
+        if let nextIndex {
+            let nextPhoto = groupedPhotos[nextIndex.section].photos[nextIndex.item]
             selectedPhotos = [nextPhoto]
             lastSelectedIndex = nil
             return nextPhoto
@@ -666,7 +639,7 @@ class ThumbGridViewModel: ObservableObject {
     // Get IndexPath for a row/col in a section, clamping to last item if column doesn't exist in that row
     func indexInSection(section: Int, row: Int, col: Int) -> IndexPath? {
         let columns = 3
-        let count = dateGroups[section].photos.count
+        let count = groupedPhotos[section].photos.count
         let candidate = row * columns + col
         let item = min(candidate, count - 1)  // clamp if row is short
         guard item >= 0 else {
@@ -677,8 +650,10 @@ class ThumbGridViewModel: ObservableObject {
 
     // Search forward through sections for the first row containing `col`
     func firstAvailable(fromSection: Int, col: Int, searchForward: Bool) -> IndexPath? {
-        guard fromSection < dateGroups.count, fromSection >= 0 else { return nil }
-        let count = dateGroups[fromSection].photos.count
+        guard fromSection < groupedPhotos.count, fromSection >= 0 else {
+            return nil
+        }
+        let count = groupedPhotos[fromSection].photos.count
         guard count > 0 else {
             return firstAvailable(fromSection: fromSection + 1, col: col, searchForward: true)
         }
@@ -688,9 +663,11 @@ class ThumbGridViewModel: ObservableObject {
 
     // Search backward through sections for the LAST row containing `col`
     func lastAvailable(fromSection: Int, col: Int, searchBackward: Bool) -> IndexPath? {
-        guard fromSection >= 0, fromSection < dateGroups.count else { return nil }
+        guard fromSection >= 0, fromSection < groupedPhotos.count else {
+            return nil
+        }
         let columns = 3
-        let count = dateGroups[fromSection].photos.count
+        let count = groupedPhotos[fromSection].photos.count
         guard count > 0 else {
             return lastAvailable(fromSection: fromSection - 1, col: col, searchBackward: true)
         }
@@ -820,6 +797,7 @@ class ThumbGridViewModel: ObservableObject {
                 }
                 self.isFindingDuplicates = false
                 self.isDuplicateMode = true
+                self.filterAndSortPhotos()
             }
         }
     }
@@ -841,6 +819,7 @@ class ThumbGridViewModel: ObservableObject {
         isDuplicateMode = false
         duplicateScanResult = nil
         duplicateScanData = nil
+        filterAndSortPhotos()
     }
 
     func loadSimilarityMode() {

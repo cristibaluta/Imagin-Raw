@@ -70,8 +70,7 @@ struct PhotoFilterService {
 
     // MARK: - Date groups
 
-    static func buildDateGroups(from photos: [PhotoItem],
-                                sortOption: SortOption) -> [(title: String, photos: [PhotoItem])] {
+    static func groupPhotos(from photos: [PhotoItem], sortOption: SortOption) -> [(title: String, photos: [PhotoItem])] {
         switch sortOption {
             case .name:         return []
             case .dateCaptured: return groupByKey(photos) { ($0.exif?.dateCaptured ?? $0.dateCreated).EEEEMMMdyyyy }
@@ -85,8 +84,7 @@ struct PhotoFilterService {
         }
     }
 
-    private static func groupByKey(_ photos: [PhotoItem],
-                                   key: (PhotoItem) -> String) -> [(title: String, photos: [PhotoItem])] {
+    private static func groupByKey(_ photos: [PhotoItem], key: (PhotoItem) -> String) -> [(title: String, photos: [PhotoItem])] {
         var groups: [(title: String, photos: [PhotoItem])] = []
         var currentKey: String? = nil
         var currentPhotos: [PhotoItem] = []
