@@ -35,12 +35,16 @@ struct DuplicateScanData: Sendable {
         var groups: [DuplicateGroup] = []
 
         for i in indices {
-            guard !assigned.contains(i) else { continue }
+            guard !assigned.contains(i) else {
+                continue
+            }
             var groupIndices: [Int] = [i]
             var maxDist: Float = 0
 
             for j in indices where j > i {
-                guard !assigned.contains(j) else { continue }
+                guard !assigned.contains(j) else {
+                    continue
+                }
                 let dist = distances[i][j - i - 1]
                 if dist <= threshold {
                     groupIndices.append(j)
@@ -50,7 +54,9 @@ struct DuplicateScanData: Sendable {
 
             if groupIndices.count > 1 {
                 var groupPhotos = groupIndices.map { photos[$0] }
-                if let sortBy { groupPhotos.sort(by: sortBy) }
+                if let sortBy {
+                    groupPhotos.sort(by: sortBy)
+                }
                 groups.append(DuplicateGroup(photos: groupPhotos, distance: maxDist))
                 assigned.formUnion(groupIndices)
             }
@@ -59,7 +65,9 @@ struct DuplicateScanData: Sendable {
         let sorted: [DuplicateGroup]
         if let sortBy {
             sorted = groups.sorted { a, b in
-                guard let firstA = a.photos.first, let firstB = b.photos.first else { return false }
+                guard let firstA = a.photos.first, let firstB = b.photos.first else {
+                    return false
+                }
                 return sortBy(firstA, firstB)
             }
         } else {

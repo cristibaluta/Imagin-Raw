@@ -7,8 +7,8 @@
 
 import Foundation
 
-enum PhotoState {
+enum PhotoState: String {
     case none
-    case rejected
-    case copy
+    case rejected = "Rejected"
+    case copy = "To Copy"
 }

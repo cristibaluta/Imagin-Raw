@@ -208,7 +208,7 @@ final class MacThumbCell: NSCollectionViewItem {
         let size = itemSize
         let thumbY = h - size
         let labelH: CGFloat = 16
-        let starH: CGFloat = (photo.isRaw || JpegMetadataWriter.isSupported(URL(fileURLWithPath: photo.path))) ? 14 : 0
+        let starH: CGFloat = (photo.isRaw || JpegMetadataWriter.isSupported(photo.url)) ? 14 : 0
         let labelY = thumbY - labelH - 2
 
         let imgPad: CGFloat = 2
@@ -237,18 +237,20 @@ final class MacThumbCell: NSCollectionViewItem {
         filenameLabel.frame = CGRect(x: labelX, y: labelY + 1, width: labelW, height: labelH)
 
         // Star view
-        let supportsRating = photo.isRaw || JpegMetadataWriter.isSupported(URL(fileURLWithPath: photo.path))
+        let supportsRating = photo.isRaw || JpegMetadataWriter.isSupported(photo.url)
         if supportsRating {
             if starView == nil {
                 let sv = MacStarRatingView()
                 sv.onRatingChanged = { [weak self] r in
-                    guard let self, let p = self.currentPhoto else { return }
+                    guard let self, let p = self.currentPhoto else {
+                        return
+                    }
                     self.delegate?.onRatingChanged(photo: p, rating: r)
                 }
                 view.addSubview(sv)
                 starView = sv
             }
-            let rating = currentRating(for: photo)
+            let rating = photo.effectiveRating
             starView?.rating = rating
             starView?.colorScheme = colorScheme
             starView?.frame = CGRect(x: 0, y: labelY - starH - 2, width: w, height: starH)
@@ -259,7 +261,9 @@ final class MacThumbCell: NSCollectionViewItem {
     }
 
     private func actualImageRect(in frame: CGRect) -> CGRect {
-        guard let image = thumbView.image else { return frame }
+        guard let image = thumbView.image else {
+            return frame
+        }
         // Use pixel size from the best representation for accurate scaling
         let pixelSize: CGSize
         if let rep = image.bestRepresentation(for: frame, context: nil, hints: nil) {
@@ -317,10 +321,10 @@ final class MacThumbCell: NSCollectionViewItem {
         acrBadgeContainer.isHidden = !showACR
         jpgBadgeContainer.isHidden = !showJPG
         badgeStack.isHidden = !showACR && !showJPG
-
-        filenameLabel.stringValue = URL(fileURLWithPath: photo.path).lastPathComponent
+        filenameLabel.stringValue = photo.url.lastPathComponent
         applyLabelStyle(for: photo)
-        starView?.rating = currentRating(for: photo)
+        starView?.rating = photo.effectiveRating
+
         view.menu = makeContextMenu(for: photo)
 
         if view.trackingAreas.isEmpty {
@@ -353,12 +357,8 @@ final class MacThumbCell: NSCollectionViewItem {
 
     // MARK: Helpers
 
-    func currentRating(for photo: PhotoItem) -> Int {
-        photo.effectiveRating
-    }
-
     private func applyLabelStyle(for photo: PhotoItem) {
-        guard let label = PhotoLabel(rawValue: photo.xmp?.label ?? "") else {
+        guard let label = PhotoLabel(rawValue: photo.xmp?.label ?? photo.state.rawValue) else {
             filenameLabel.layer?.backgroundColor = NSColor.clear.cgColor
             filenameLabel.textColor = .labelColor
             return
@@ -376,18 +376,11 @@ extension MacThumbCell: NSMenuDelegate {
 
 extension MacThumbCell {
     override func mouseEntered(with event: NSEvent) {
-        starView?.isHidden = currentPhoto.map {
-            !($0.isRaw || JpegMetadataWriter.isSupported(URL(fileURLWithPath: $0.path)))
-        } ?? true
+        starView?.isHidden = currentPhoto.map { !($0.isRaw || JpegMetadataWriter.isSupported($0.url)) } ?? true
     }
 
     override func mouseExited(with event: NSEvent) {
-        let rating = currentPhoto.map {
-            currentRating(for: $0)
-        } ?? 0
-        if rating == 0 {
-            starView?.isHidden = true
-        }
+        starView?.isHidden = (currentPhoto?.effectiveRating ?? 0) == 0
     }
 
     override func mouseDown(with event: NSEvent) {

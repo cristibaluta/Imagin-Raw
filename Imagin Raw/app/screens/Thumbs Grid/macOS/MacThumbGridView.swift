@@ -10,32 +10,27 @@ import AppKit
 
 struct MacThumbGridView: NSViewRepresentable {
     let delegate: ThumbCellDelegate
-    let photos: [PhotoItem]
+    let photos: [(title: String, photos: [PhotoItem])]
     let selectedPhotos: [PhotoItem]
     let itemSize: CGFloat
     let cellHeight: CGFloat
-    var duplicateResult: DuplicateScanResult? = nil
-    var onReview: ((DuplicateGroup, Int) -> Void)? = nil
-    var dateGroups: [(title: String, photos: [PhotoItem])] = []
-    var sortOption: SortOption = .name
-    var onKeyPress: ((NSEvent) -> Bool)?
-    var thumbsManager: PhotoCacheManager
-    var isSearchActive: Bool = false
+    let isDuplicateMode: Bool
+    let onReview: ((Int) -> Void)?
+    let onKeyPress: ((NSEvent) -> Bool)?
+    let thumbsManager: PhotoCacheManager
+    let isSearchActive: Bool
 
     @Binding var scrollToPhotoId: UUID?
     @Binding var scrollToCenteredPhotoId: UUID?
     @Binding var visibleSectionIndex: Int
-    @Environment(\.colorScheme) private var colorScheme: ColorScheme  // ✅ triggers updateNSView on change
+    @Environment(\.colorScheme) private var colorScheme: ColorScheme
 
     func makeCoordinator() -> MacThumbGridCoordinator {
         MacThumbGridCoordinator(itemSize: itemSize, cellHeight: cellHeight, delegate: delegate)
     }
 
-    private var isDateGrouped: Bool {
-        sortOption != .name && !dateGroups.isEmpty
-    }
-
     func makeNSView(context: Context) -> NSScrollView {
+        print(">>>>>>> make NSView photos.count \(photos.count)")
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
@@ -48,6 +43,7 @@ struct MacThumbGridView: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        print(">>>>>>> update NSView photos.count \(photos.count)")
         let coord = context.coordinator
         coord.colorScheme = colorScheme
         coord.onVisibleSectionChanged = { idx in
@@ -56,103 +52,82 @@ struct MacThumbGridView: NSViewRepresentable {
             }
         }
 
-        let sortChanged       = coord.sortOption != sortOption
-        let photosChanged     = coord.photos.map(\.id) != photos.map(\.id)
+        let photosChanged     = photoIDs(from: coord.photos) != photoIDs(from: photos)
         let sizeChanged       = coord.itemSize != itemSize || coord.cellHeight != cellHeight
-        let selectionChanged  = coord.selectedPhotos != selectedPhotos
-        let dupChanged        = coord.duplicateResult?.groups.map(\.id) != duplicateResult?.groups.map(\.id)
-        let dateGroupsChanged = coord.dateGroups.map({ $0.title }) != dateGroups.map({ $0.title })
+        let selectedPhotosChanged = coord.selectedPhotos != selectedPhotos
 
+        coord.delegate = delegate
         coord.photos = photos
         coord.selectedPhotos = selectedPhotos
         coord.itemSize = itemSize
         coord.cellHeight = cellHeight
-        coord.delegate = delegate
-        coord.duplicateResult = duplicateResult
+        coord.isDuplicateMode = isDuplicateMode
         coord.onReview = onReview
-        coord.dateGroups = dateGroups
-        coord.sortOption = sortOption
-        coord.photosById = Dictionary(uniqueKeysWithValues: photos.map { ($0.path, $0) })
         coord.onKeyDown = { event in
             self.onKeyPress?(event) ?? false
         }
 
-        if sortChanged {
-            buildCollectionView(in: scrollView, context: context)
-        }
         guard let collectionView = coord.collectionView else {
             return
         }
-
-        if photosChanged || sizeChanged || dupChanged || dateGroupsChanged || sortChanged {
-            let headerHeight: CGFloat = (duplicateResult != nil || isDateGrouped) ? 32 : 0
-            collectionView.collectionViewLayout = coord.makeLayout(itemSize: itemSize,
-                                                                   cellHeight: cellHeight,
-                                                                   headerHeight: headerHeight)
+        if sizeChanged {
+            buildCollectionView(in: scrollView, context: context)
+        }
+        if photosChanged {
             collectionView.reloadData()
-        } else {
-            // TODO: Not sure how this works
-
-            let latestMap  = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
-            let oldPhotoMap = Dictionary(uniqueKeysWithValues: coord.photos.map { ($0.id, $0) })
+        }
+        if selectedPhotosChanged {
+//            let latestMap  = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
+//            let oldPhotoMap = Dictionary(uniqueKeysWithValues: coord.photos.map { ($0.id, $0) })
 
             collectionView.visibleItems().forEach { item in
                 guard let thumbItem = item as? MacThumbCell,
                       let url = thumbItem.currentPhoto?.url,
-                      let photo = latestMap.values.first(where: { $0.url == url }) else {
+                      let photo = self.photos.flatMap(\.photos).first(where: { $0.url == url }) else {
                     return
                 }
                 let isSelected = selectedPhotos.contains(photo)
-                if oldPhotoMap[photo.id] != photo {
-                    thumbItem.configure(with: photo,
-                                        colorScheme: colorScheme,
-                                        isSelected: isSelected,
-                                        itemSize: itemSize,
-                                        delegate: delegate)
-                } else if selectionChanged {
-                    thumbItem.updateSelection(isSelected: isSelected)
-                }
+                print(">>>>>>>> refreshing cell \(url.lastPathComponent) isSelected: \(isSelected) state: \(photo.state)")
+                // TODO: update only the cells that updated
+                thumbItem.configure(with: photo,
+                                    colorScheme: colorScheme,
+                                    isSelected: isSelected,
+                                    itemSize: itemSize,
+                                    delegate: delegate)
+                thumbItem.updateSelection(isSelected: isSelected)
             }
         }
 
-        if let photoId = scrollToPhotoId {
+//        if photosChanged || sizeChanged || dupChanged || dateGroupsChanged || sortChanged {
+//            let headerHeight: CGFloat = (duplicateResult != nil || isDateGrouped) ? 32 : 0
+//            collectionView.collectionViewLayout = coord.makeLayout(itemSize: itemSize,
+//                                                                   cellHeight: cellHeight,
+//                                                                   headerHeight: headerHeight)
+//            collectionView.reloadData()
+//        }
+
+        if let scrollToPhotoId {
             var targetIndexPath: IndexPath?
 
-            if let result = duplicateResult {
-                outer: for (s, group) in result.groups.enumerated() {
-                    for (i, photo) in group.photos.enumerated() {
-                        if photo.id == photoId {
-                            targetIndexPath = IndexPath(item: i, section: s)
-                            break outer
-                        }
+            outer: for (s, group) in photos.enumerated() {
+                for (i, photo) in group.photos.enumerated() {
+                    if photo.id == scrollToPhotoId {
+                        targetIndexPath = IndexPath(item: i, section: s)
+                        break outer
                     }
                 }
-            } else if isDateGrouped {
-                outer: for (s, group) in dateGroups.enumerated() {
-                    for (i, photo) in group.photos.enumerated() {
-                        if photo.id == photoId {
-                            targetIndexPath = IndexPath(item: i, section: s)
-                            break outer
-                        }
-                    }
-                }
-            } else if let index = photos.firstIndex(where: { $0.id == photoId }) {
-                targetIndexPath = IndexPath(item: index, section: 0)
             }
 
-            if let ip = targetIndexPath {
+            if let targetIndexPath {
                 NSAnimationContext.runAnimationGroup { ctx in
                     ctx.allowsImplicitAnimation = true
-                    if isDateGrouped,
-                       let headerAttrs = collectionView.collectionViewLayout?.layoutAttributesForSupplementaryView(
+                    if let headerAttrs = collectionView.collectionViewLayout?.layoutAttributesForSupplementaryView(
                            ofKind: NSCollectionView.elementKindSectionHeader,
-                           at: IndexPath(item: 0, section: ip.section)),
+                           at: IndexPath(item: 0, section: targetIndexPath.section)),
                        let scrollView = collectionView.enclosingScrollView {
-                        scrollView.contentView.animator().setBoundsOrigin(
-                            NSPoint(x: 0, y: headerAttrs.frame.minY)
-                        )
+                        scrollView.contentView.animator().setBoundsOrigin(NSPoint(x: 0, y: headerAttrs.frame.minY))
                     } else {
-                        collectionView.animator().scrollToItems(at: [ip], scrollPosition: .centeredVertically)
+                        collectionView.animator().scrollToItems(at: [targetIndexPath], scrollPosition: .centeredVertically)
                     }
                 }
             }
@@ -165,32 +140,19 @@ struct MacThumbGridView: NSViewRepresentable {
         if let photoId = scrollToCenteredPhotoId {
             var targetIndexPath: IndexPath?
 
-            if let result = duplicateResult {
-                outer: for (s, group) in result.groups.enumerated() {
-                    for (i, photo) in group.photos.enumerated() {
-                        if photo.id == photoId {
-                            targetIndexPath = IndexPath(item: i, section: s)
-                            break outer
-                        }
+            outer: for (s, group) in photos.enumerated() {
+                for (i, photo) in group.photos.enumerated() {
+                    if photo.id == photoId {
+                        targetIndexPath = IndexPath(item: i, section: s)
+                        break outer
                     }
                 }
-            } else if isDateGrouped {
-                outer: for (s, group) in dateGroups.enumerated() {
-                    for (i, photo) in group.photos.enumerated() {
-                        if photo.id == photoId {
-                            targetIndexPath = IndexPath(item: i, section: s)
-                            break outer
-                        }
-                    }
-                }
-            } else if let index = photos.firstIndex(where: { $0.id == photoId }) {
-                targetIndexPath = IndexPath(item: index, section: 0)
             }
 
-            if let ip = targetIndexPath {
+            if let targetIndexPath {
                 NSAnimationContext.runAnimationGroup { ctx in
                     ctx.allowsImplicitAnimation = true
-                    collectionView.animator().scrollToItems(at: [ip], scrollPosition: .centeredVertically)
+                    collectionView.animator().scrollToItems(at: [targetIndexPath], scrollPosition: .centeredVertically)
                 }
             }
 
@@ -202,7 +164,7 @@ struct MacThumbGridView: NSViewRepresentable {
 
     private func buildCollectionView(in scrollView: NSScrollView, context: Context) {
         let coord = context.coordinator
-        let headerHeight: CGFloat = (duplicateResult != nil || isDateGrouped) ? 32 : 0
+        let headerHeight: CGFloat = 32
 
         let cv = MacKeyableCollectionView()
         cv.onKeyDown = { event in
@@ -237,6 +199,10 @@ struct MacThumbGridView: NSViewRepresentable {
                 cv.window?.makeFirstResponder(cv)
             }
         }
+    }
+
+    private func photoIDs(from groups: [(title: String, photos: [PhotoItem])]) -> [PhotoItem.ID] {
+        groups.flatMap(\.photos).map(\.id)
     }
 }
 #endif

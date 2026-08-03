@@ -10,19 +10,19 @@ import SwiftUI
 
 @MainActor
 class MacThumbGridCoordinator: NSObject {
-    var photos: [PhotoItem] = []
+    // Photos grouped by date or duplicates
+    var photos: [(title: String, photos: [PhotoItem])] = []
     var selectedPhotos: [PhotoItem] = []
     var itemSize: CGFloat
     var cellHeight: CGFloat
     var delegate: ThumbCellDelegate
-    var duplicateResult: DuplicateScanResult? = nil
+    var isDuplicateMode: Bool = false
     var onKeyDown: ((NSEvent) -> Bool)?
-    var onReview: ((DuplicateGroup, Int) -> Void)?
-    var photosById: [String: PhotoItem] = [:]
-    var dateGroups: [(title: String, photos: [PhotoItem])] = []
-    var sortOption: SortOption = .name
+    var onReview: ((Int) -> Void)?
+
     weak var collectionView: NSCollectionView?
     weak var scrollView: NSScrollView?
+
     var onVisibleSectionChanged: ((Int) -> Void)?
     var lastClickedIndexPath: IndexPath?
 
@@ -30,9 +30,6 @@ class MacThumbGridCoordinator: NSObject {
     private var scrollEndTimer: Timer?
     nonisolated(unsafe) private var scrollObserver: NSObjectProtocol?
 
-    private var isDateGrouped: Bool {
-        sortOption != .name && !dateGroups.isEmpty
-    }
     var colorScheme: ColorScheme = .light {
         didSet {
             guard oldValue != colorScheme else { return }
@@ -64,21 +61,43 @@ class MacThumbGridCoordinator: NSObject {
         return layout
     }
 
+    private func reloadDiffs() {
+        // 1. Snapshot the old state
+//        let oldItems = self.prevSelectedPhotos
+//
+//        // 2. Create the new state in a temporary array
+//        var newItems = self.selectedPhotos
+//
+//        var itemsToReload = Set<IndexPath>()
+//        for (index, (oldItem, newItem)) in zip(oldItems, newItems).enumerated() {
+//            if oldItem != newItem { // This checks the Equatable conformance (isSelected changed)
+//                itemsToReload.insert(IndexPath(item: index, section: 0))
+//            }
+//        }
+
+        // 3. Calculate the difference between old and new states
+//        let diff = newItems.difference(from: oldItems)
+//
+//        // 4. Extract the indices that actually changed
+//        var itemsToReload = Set<IndexPath>()
+//        for change in diff {
+//            switch change {
+//            case .insert(let offset, _, _), .remove(let offset, _, _):
+//                itemsToReload.insert(IndexPath(item: offset, section: 0))
+//            }
+//        }
+//
+//        // 6. Only reload the items that toggled state
+//        if !itemsToReload.isEmpty {
+//            collectionView!.reloadItems(at: itemsToReload)
+//        }
+    }
+
     private func photosForSection(_ section: Int) -> [PhotoItem] {
-        if let result = duplicateResult {
-            guard section < result.groups.count else {
-                return []
-            }
-            return result.groups[section].photos.map {
-                photosById[$0.path] ?? $0
-            }
-        } else if isDateGrouped {
-            guard section < dateGroups.count else {
-                return []
-            }
-            return dateGroups[section].photos
+        guard section < photos.count else {
+            return []
         }
-        return section == 0 ? photos : []
+        return photos[section].photos
     }
 
     /// Call once after the scroll view is created to start observing scroll events.
@@ -94,29 +113,19 @@ class MacThumbGridCoordinator: NSObject {
             Task {
                 await self.reportVisibleSection()
             }
-//            self.scrollEndTimer?.invalidate()
-//            self.scrollEndTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
-//                guard let self else {
-//                    return
-//                }
-//                self.isScrolling = false
-//                self.boostVisibleItems()
-//            }
         }
     }
 
     private func reportVisibleSection() {
-        guard let cv = collectionView, let sv = scrollView, isDateGrouped else {
+        guard let cv = collectionView, let sv = scrollView else {
             return
         }
         let topY = sv.contentView.bounds.minY
         let layout = cv.collectionViewLayout as? NSCollectionViewFlowLayout
         var activeSection = 0
-        for section in 0..<dateGroups.count {
+        for section in 0..<photos.count {
             let ip = IndexPath(item: 0, section: section)
-            guard let attrs = layout?.layoutAttributesForSupplementaryView(
-                ofKind: NSCollectionView.elementKindSectionHeader,
-                at: ip) else {
+            guard let attrs = layout?.layoutAttributesForSupplementaryView(ofKind: NSCollectionView.elementKindSectionHeader, at: ip) else {
                 continue
             }
             if attrs.frame.minY <= topY + 1 {
@@ -130,12 +139,12 @@ class MacThumbGridCoordinator: NSObject {
 extension MacThumbGridCoordinator: NSCollectionViewPrefetching {
 
     func collectionView(_ collectionView: NSCollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
-        let items = indexPaths.map { photos[$0.item] }
+        let items = indexPaths.map { photos[$0.section].photos[$0.item] }
         delegate.startCachingImages(for: items)
     }
 
     func collectionView(_ collectionView: NSCollectionView, cancelPrefetchingForItemsAt indexPaths: [IndexPath]) {
-        let items = indexPaths.map { photos[$0.item] }
+        let items = indexPaths.map { photos[$0.section].photos[$0.item] }
         delegate.stopCachingImages(for: items)
     }
 }
@@ -143,13 +152,7 @@ extension MacThumbGridCoordinator: NSCollectionViewPrefetching {
 extension MacThumbGridCoordinator: NSCollectionViewDataSource {
 
     func numberOfSections(in cv: NSCollectionView) -> Int {
-        if duplicateResult != nil {
-            return duplicateResult!.groups.count
-        }
-        if isDateGrouped {
-            return dateGroups.count
-        }
-        return 1
+        return photos.count
     }
 
     func collectionView(_ cv: NSCollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -159,12 +162,16 @@ extension MacThumbGridCoordinator: NSCollectionViewDataSource {
     func collectionView(_ cv: NSCollectionView,
                         itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
 
-        let photo = photosForSection(indexPath.section)[indexPath.item]
+        guard let item = cv.makeItem(withIdentifier: MacThumbCell.identifier, for: indexPath) as? MacThumbCell else {
+            return NSCollectionViewItem()
+        }
 
-        let item = cv.makeItem(withIdentifier: MacThumbCell.identifier, for: indexPath) as! MacThumbCell
+        let photo = photosForSection(indexPath.section)[indexPath.item]
+        let isSelected = selectedPhotos.contains(photo)
+//        print(">>>>>>>. itemForRepresentedObjectAt: \(indexPath) isSelected: \(isSelected)")
         item.configure(with: photo,
                        colorScheme: colorScheme,
-                       isSelected: selectedPhotos.contains(photo),
+                       isSelected: isSelected,
                        itemSize: itemSize,
                        delegate: delegate)
         return item
@@ -177,25 +184,27 @@ extension MacThumbGridCoordinator: NSCollectionViewDataSource {
         guard kind == NSCollectionView.elementKindSectionHeader else {
             return NSView()
         }
-        // Duplicate group header
-        if let result = duplicateResult, indexPath.section < result.groups.count {
+        guard indexPath.section < photos.count else {
+            return NSView()
+        }
+        let groupTitle = photos[indexPath.section].title
+        if isDuplicateMode {
+            // Duplicate group header
             let header = cv.makeSupplementaryView(ofKind: kind,
                                                   withIdentifier: MacDuplicateSectionHeader.identifier,
                                                   for: indexPath) as! MacDuplicateSectionHeader
-            header.configure(group: result.groups[indexPath.section],
+            header.configure(title: groupTitle,
                              index: indexPath.section,
                              onReview: onReview)
             return header
-        }
-        // Date group header
-        if isDateGrouped, indexPath.section < dateGroups.count {
+        } else {
+            // Date group header
             let header = cv.makeSupplementaryView(ofKind: kind,
                                                   withIdentifier: MacDateSectionHeader.identifier,
                                                   for: indexPath) as! MacDateSectionHeader
-            header.configure(title: dateGroups[indexPath.section].title)
+            header.configure(title: groupTitle)
             return header
         }
-        return NSView()
     }
 }
 

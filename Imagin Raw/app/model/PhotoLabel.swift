@@ -33,9 +33,9 @@ enum PhotoLabel: String, CaseIterable {
 
     var textColor: Color {
         switch self {
-            case .second, .approved:                 return .black
-            case .select, .review, .todo, .rejected: return .white
-            default:                                 return .primary
+            case .second, .approved, .rejected:  return .black
+            case .select, .review, .todo, .copy: return .white
+            default:                             return .primary
         }
     }
 

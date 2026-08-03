@@ -40,6 +40,34 @@ class ThumbGridViewModel: ObservableObject {
         didSet { RCLog("🎯 [ThumbGridViewModel] pendingSelectURL set to: \(pendingSelectURL?.lastPathComponent ?? "nil")") }
     }
 
+    var groupedPhotos: [(title: String, photos: [PhotoItem])] {
+        if let duplicateScanResult {
+            var index = 0
+            let count = duplicateScanResult.groups.count
+            return duplicateScanResult.groups.map {
+                index += 1
+//                let pct = max(0, min(100, Int(((1.0 - Double($0.distance)) * 100).rounded())))
+                return (title: "Group \(index) / \(count)", photos: $0.photos)
+            }
+        }
+        switch sortOption {
+            case .name:
+                return [("Sorted by Name", filteredAndSortedPhotos)]
+            case .dateCaptured:
+                return dateGroups
+            case .dateModified:
+                return dateGroups
+            case .fileType:
+                return []
+            case .rating:
+                return []
+        }
+    }
+
+    var showMinimap: Bool {
+        groupedPhotos.count > 1
+    }
+
     private let fileSystemModel: FileSystemModel
     let thumbsManager: PhotoCacheManager
     private let cachingManager: IRCachingImageManager
@@ -127,7 +155,7 @@ class ThumbGridViewModel: ObservableObject {
     var gridWidth: CGFloat {
         let cols = CGFloat(effectiveColumnCount)
         let thumbsWidth = cols * gridType.thumbSize + (cols + 1) * Self.gap
-        let minimap: CGFloat = (!dateGroups.isEmpty && !isDuplicateMode) ? MinimapView.width : 0
+        let minimap: CGFloat = groupedPhotos.count > 1 ? MinimapView.width : 0
         return thumbsWidth + minimap + 1
     }
 

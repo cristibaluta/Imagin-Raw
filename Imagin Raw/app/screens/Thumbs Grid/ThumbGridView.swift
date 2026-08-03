@@ -37,7 +37,6 @@ struct ThumbGridView: View {
     @State private var renameSheetPhotos: PhotosSheetItem? = nil
     @State private var showDuplicatesSheet: Bool = false
     @State private var isSelectMode: Bool = false
-    @Binding var currentPhotos: [PhotoItem]
     @State private var hasAppeared = false
     @State private var ignoringSearchResults = false
 
@@ -47,8 +46,7 @@ struct ThumbGridView: View {
          onEnterReviewMode: (() -> Void)?,
          onToggleSidebar: (() -> Void)? = nil,
          isSidebarCollapsed: Bool = false,
-         windowWidth: CGFloat = 1200,
-         currentPhotos: Binding<[PhotoItem]> = .constant([])) {
+         windowWidth: CGFloat = 1200) {
 
         self.appState = appState
         self.viewModel = viewModel
@@ -57,14 +55,12 @@ struct ThumbGridView: View {
         self.onToggleSidebar = onToggleSidebar
         self.isSidebarCollapsed = isSidebarCollapsed
         self.windowWidth = windowWidth
-        self._currentPhotos = currentPhotos
     }
 
     var body: some View {
         #if DEBUG
         let _ = Self._printChanges()
         #endif
-        let showMinimap = !viewModel.dateGroups.isEmpty && !viewModel.isDuplicateMode
         VStack(spacing: 0) {
             // Top line separator
             Rectangle()
@@ -84,9 +80,9 @@ struct ThumbGridView: View {
                 // Photos
                 HStack(spacing: 0) {
                     // Minimap
-                    if showMinimap {
+                    if viewModel.showMinimap {
                         MinimapView(
-                            groups: viewModel.dateGroups,
+                            groups: viewModel.groupedPhotos,
                             onScrollTo: { photoId in scrollToPhotoId = photoId },
                             visibleSectionIndex: visibleSectionIndex)
                     }
@@ -162,19 +158,20 @@ struct ThumbGridView: View {
     // MARK: - Photo Grid
     // NSCollectionView-based grid
     private var collectionPhotoGridView: some View {
+        #if DEBUG
+        let _ = Self._printChanges()
+        #endif
         #if os(macOS)
-        MacThumbGridView(
+        return MacThumbGridView(
             delegate: self,
-            photos: viewModel.filteredAndSortedPhotos,
+            photos: viewModel.groupedPhotos,
             selectedPhotos: viewModel.selectedPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,
-            duplicateResult: viewModel.isDuplicateMode ? viewModel.duplicateScanResult : nil,
-            onReview: { group, index in
-                appState.reviewGroup = buildReviewGroupItem(group: group, index: index)
+            isDuplicateMode: viewModel.isDuplicateMode,
+            onReview: { groupIndex in
+                appState.reviewGroup = buildReviewGroupItem(groupIndex: groupIndex)
             },
-            dateGroups: viewModel.dateGroups,
-            sortOption: viewModel.sortOption,
             onKeyPress: { event in
                 viewModel.handleKeyEvent(
                     event,
@@ -191,17 +188,6 @@ struct ThumbGridView: View {
             visibleSectionIndex: $visibleSectionIndex
         )
         .id(appState.selectedFolder?.id)
-//        .onAppear {
-//            viewModel.initializeSelection()
-//        }
-//        .onChange(of: viewModel.photos) { oldPhotos, newPhotos in
-//            if viewModel.selectedPhoto == nil && !newPhotos.isEmpty {
-//                viewModel.selectedPhoto = newPhotos.first
-//                viewModel.selectedPhotos.removeAll()
-//                viewModel.selectedPhotos.insert(newPhotos.first!.id)
-//                viewModel.lastSelectedIndex = 0
-//            }
-//        }
         .onChange(of: viewModel.filteredAndSortedPhotos) { oldPhotos, newPhotos in
             // Scroll to top when a new folder's photos first appear (transition from empty to non-empty)
             if oldPhotos.isEmpty && !newPhotos.isEmpty, let first = newPhotos.first {
@@ -257,7 +243,7 @@ struct ThumbGridView: View {
             }
         }
         .onChange(of: viewModel.filteredAndSortedPhotos) { oldPhotos, newPhotos in
-            currentPhotos = newPhotos
+//            currentPhotos = newPhotos
             let url = appState.fileSystemModel.selectedFolder?.url
             let isPhotoKit = url?.isPhotoLibraryRoot == true || url?.isPhotoKitAlbum == true
             // Only scroll when photos are actually added, not on metadata updates
@@ -270,11 +256,14 @@ struct ThumbGridView: View {
         #endif
     }
 
-    private func buildReviewGroupItem(group: DuplicateGroup, index: Int) -> ReviewGroupItem {
-        let groups = viewModel.duplicateScanResult?.groups ?? []
+    private func buildReviewGroupItem(groupIndex: Int) -> ReviewGroupItem {
+        guard let groups = viewModel.duplicateScanResult?.groups, groupIndex < groups.count else {
+            fatalError()
+        }
+        let group = groups[groupIndex]
         return ReviewGroupItem(
             group: group,
-            index: index,
+            index: groupIndex,
             totalGroups: groups.count,
             onRatingChanged: { photo, rating in
                 viewModel.applyRating(rating, to: [photo])
@@ -289,7 +278,7 @@ struct ThumbGridView: View {
                 guard newIndex >= 0, newIndex < groups.count else {
                     return
                 }
-                appState.reviewGroup = buildReviewGroupItem(group: groups[newIndex], index: newIndex)
+                appState.reviewGroup = buildReviewGroupItem(groupIndex: newIndex)
                 appState.reviewViewModel.setup(with: appState.reviewGroup!)
             }
         )

@@ -65,7 +65,7 @@ extension MacThumbCell {
             let item = NSMenuItem(title: title, action: #selector(handleSetRating(_:)), keyEquivalent: i > 0 ? "\(i)" : "-")
             item.keyEquivalentModifierMask = []
             item.tag = i
-            if currentRating(for: photo) == i {
+            if photo.effectiveRating == i {
                 item.state = .on
             }
             rateMenu.addItem(item)
