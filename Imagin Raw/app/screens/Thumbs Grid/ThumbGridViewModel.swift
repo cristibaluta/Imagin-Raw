@@ -26,18 +26,6 @@ class ThumbGridViewModel: ObservableObject {
     @Published var windowWidth: CGFloat = 1200
     @Published var isSidebarCollapsed: Bool = false
     @Published var isLoadingMetadata: Bool = false
-    // Duplicates
-    @Published var cachingQueueCount: Int = 0
-    @Published var isFindingDuplicates: Bool = false
-    @Published var isDuplicateMode: Bool = false
-    @Published var duplicateScanProgress: (done: Int, total: Int) = (0, 0)
-    @Published var duplicateScanResult: DuplicateScanResult? = nil
-    @Published var similarityMode: DuplicateFinderService.SimilarityMode = .loose
-    private var findingDuplicatesTask: Task<Void, Never>?
-    private var duplicateScanData: DuplicateScanData? = nil
-
-//    @Published var photosToCopy: [PhotoItem] = []
-//    @Published var copyDestinationURL: URL?
 
     /// Set before loading a folder to auto-select a specific photo once it appears in the grid.
     var pendingSelectURL: URL? = nil {
@@ -52,6 +40,7 @@ class ThumbGridViewModel: ObservableObject {
 
     private let fileSystemModel: FileSystemModel
     let thumbsManager: PhotoCacheManager
+    private let duplicatesFinderModel: DuplicatesFinderViewModel
     private let cachingManager: IRCachingImageManager
     private(set) var photosModel: PhotosModel?
     private var searchResultsPhotos: [PhotoItem]? = nil
@@ -60,15 +49,20 @@ class ThumbGridViewModel: ObservableObject {
     private let metadataService = PhotoMetadataService()
     private let trashService: PhotoTrashService
 
-    init(fileSystemModel: FileSystemModel, thumbsManager: PhotoCacheManager, trashService: PhotoTrashService) {
+    init(fileSystemModel: FileSystemModel,
+         thumbsManager: PhotoCacheManager,
+         trashService: PhotoTrashService,
+         duplicatesFinderModel: DuplicatesFinderViewModel) {
         self.fileSystemModel = fileSystemModel
         self.thumbsManager = thumbsManager
         self.trashService = trashService
         self.cachingManager = IRCachingImageManager(cacheManager: thumbsManager)
+        self.duplicatesFinderModel = duplicatesFinderModel
+
         loadSortOption()
         loadGridType()
-        loadSimilarityMode()
         setupFilteredPhotosObservers()
+
         metadataService.fileSystemModel = fileSystemModel
         metadataService.onPhotoUpdated = { [weak self] in
             self?.filterAndSortPhotos()
@@ -93,6 +87,16 @@ class ThumbGridViewModel: ObservableObject {
                     self?.filterAndSortPhotos()
                     self?.initializeSelection()
                 }
+            }
+            .store(in: &cancellables)
+
+        duplicatesFinderModel.$duplicateScanResult
+            .dropFirst()
+            .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                // TODO: Without the delay, filterAndSortPhotos doesn't actually find the duplicateScanResult
+                // and it's not showing the correct thumbnails
+                self?.filterAndSortPhotos()
             }
             .store(in: &cancellables)
     }
@@ -142,7 +146,7 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     var showCachingProgress: Bool {
-        cachingQueueCount > 0
+        duplicatesFinderModel.cachingQueueCount > 0
     }
 
     // MARK: - Filtering
@@ -169,10 +173,10 @@ class ThumbGridViewModel: ObservableObject {
         filteredAndSortedPhotos = result
 
         // Group photos
-        if let duplicateScanResult {
+        if let results = duplicatesFinderModel.duplicateScanResult {
             var index = 0
-            let count = duplicateScanResult.groups.count
-            groupedPhotos = duplicateScanResult.groups.map {
+            let count = results.groups.count
+            groupedPhotos = results.groups.map {
                 index += 1
                 return (title: "Group \(index) / \(count)", photos: $0.photos)
             }
@@ -281,7 +285,7 @@ class ThumbGridViewModel: ObservableObject {
 
     private func resetPreviousSession() {
         cancellables.removeAll()
-        exitDuplicateMode()
+        duplicatesFinderModel.exitDuplicateMode()
         searchResultsPhotos = nil
         selectedPhotos.removeAll()
         filteredAndSortedPhotos.removeAll()
@@ -753,130 +757,6 @@ class ThumbGridViewModel: ObservableObject {
     func toggleGridType() {
         gridType = gridType == .small ? .large : .small
         saveGridType()
-    }
-
-    // MARK: - Duplicate Finding
-
-    func findDuplicates() {
-        guard !isFindingDuplicates else {
-            return
-        }
-        let photosToScan = filteredAndSortedPhotos
-        guard !photosToScan.isEmpty else {
-            return
-        }
-        isFindingDuplicates = true
-        duplicateScanProgress = (0, photosToScan.count)
-        duplicateScanResult = nil
-        duplicateScanData = nil
-
-        findingDuplicatesTask = Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else {
-                return
-            }
-
-            // Ensure all thumbnail are downloaded
-            RCLog("Resolving thumbnail URLs...")
-            var imageURLs: [Int: URL] = [:]
-            var missingUrls: [Int: PhotoItem] = [:]
-
-            // 1. Find the photos that are not cached yet
-            for (index, photo) in photosToScan.enumerated() {
-                let diskURL = self.thumbsManager.cachedPhotoUrl(for: photo.url)
-                if FileManager.default.fileExists(atPath: diskURL.path) {
-                    imageURLs[index] = diskURL
-                } else {
-                    missingUrls[index] = photo
-                }
-            }
-
-            // 2. Cache the missing photos
-            var toComplete = missingUrls.count
-            let tc_i = toComplete
-            DispatchQueue.main.async {
-                self.cachingQueueCount = tc_i
-            }
-            for (index, photo) in missingUrls {
-                // Check before each iteration
-                if Task.isCancelled {
-                    RCLog("Thumbnail generation cancelled at index \(index)")
-                    DispatchQueue.main.async {
-                        self.cachingQueueCount = 0
-                        self.isFindingDuplicates = false
-                        self.isDuplicateMode = false
-                    }
-                    return
-                }
-                let diskURL = self.thumbsManager.cachedPhotoUrl(for: photo.url)
-                _ = await self.thumbsManager.getImage(for: photo)
-
-                if FileManager.default.fileExists(atPath: diskURL.path) {
-                    imageURLs[index] = diskURL
-                } else {
-                    RCLog("Thumb missing after generation: \(diskURL.lastPathComponent)")
-                }
-                toComplete -= 1
-                let tc_o = toComplete
-                DispatchQueue.main.async {
-                    self.cachingQueueCount = tc_o
-                }
-            }
-
-            // 3. Find duplicates
-            let data = await DuplicateFinderService.scan(photos: photosToScan,
-                                                         cachedImagesURLs: imageURLs,
-                                                         progress: { done, total in
-                                                             DispatchQueue.main.async {
-                                                                 self.duplicateScanProgress = (done, total)
-                                                             }
-                                                         },
-                                                         isCancelled: { Task.isCancelled })
-            // If data was cancelled, indexes are incomplete and we need to stop the rest of the scan
-            if Task.isCancelled {
-                RCLog("Duplicate finds were cancelled")
-                DispatchQueue.main.async {
-                    self.isFindingDuplicates = false
-                    self.isDuplicateMode = false
-                }
-                return
-            }
-            await MainActor.run {
-                self.duplicateScanData = data
-                if let data {
-                    let result = data.recluster(threshold: self.similarityMode.distanceThreshold,
-                                                sortBy: self.photoSortComparator)
-                    self.duplicateScanResult = result
-                    RCLog("Scan complete: \(result.groups.count) group(s) in \(String(format: "%.2f", data.scanDuration))s")
-                }
-                self.isFindingDuplicates = false
-                self.isDuplicateMode = true
-                self.filterAndSortPhotos()
-            }
-        }
-    }
-
-    func cancelFindingDuplicates() {
-        findingDuplicatesTask?.cancel()
-        findingDuplicatesTask = nil
-    }
-
-    func setSimilarityMode(_ mode: DuplicateFinderService.SimilarityMode) {
-        similarityMode = mode
-        appPrefs.set(mode.rawValue, forKey: .similarityMode)
-        if let data = duplicateScanData {
-            duplicateScanResult = data.recluster(threshold: mode.distanceThreshold, sortBy: photoSortComparator)
-        }
-    }
-
-    func exitDuplicateMode() {
-        isDuplicateMode = false
-        duplicateScanResult = nil
-        duplicateScanData = nil
-        filterAndSortPhotos()
-    }
-
-    func loadSimilarityMode() {
-        similarityMode = DuplicateFinderService.SimilarityMode(rawValue: appPrefs.int(.similarityMode)) ?? .loose
     }
 
     func quickCopy(photos: [PhotoItem]) {

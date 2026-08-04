@@ -23,6 +23,7 @@ struct GridWidthPreferenceKey: PreferenceKey {
 struct ThumbGridView: View {
     @ObservedObject var appState: AppState
     @ObservedObject private var viewModel: ThumbGridViewModel
+    @ObservedObject private var duplicatesFinderModel: DuplicatesFinderViewModel
 
     let searchPhotoResults: [PhotoItem]?
     let onEnterReviewMode: (() -> Void)?
@@ -42,6 +43,7 @@ struct ThumbGridView: View {
 
     init(appState: AppState,
          viewModel: ThumbGridViewModel,
+         duplicatesFinderModel: DuplicatesFinderViewModel,
          searchPhotoResults: [PhotoItem]? = nil,
          onEnterReviewMode: (() -> Void)?,
          onToggleSidebar: (() -> Void)? = nil,
@@ -50,6 +52,7 @@ struct ThumbGridView: View {
 
         self.appState = appState
         self.viewModel = viewModel
+        self.duplicatesFinderModel = duplicatesFinderModel
         self.searchPhotoResults = searchPhotoResults
         self.onEnterReviewMode = onEnterReviewMode
         self.onToggleSidebar = onToggleSidebar
@@ -101,7 +104,9 @@ struct ThumbGridView: View {
                 Rectangle()
                     .fill(Color.secondary.opacity(0.25))
                     .frame(height: 1)
-                ThumbsBottomBar(viewModel: viewModel, showDuplicatesSheet: $showDuplicatesSheet)
+                ThumbsBottomBar(viewModel: viewModel,
+                                duplicateViewModel: duplicatesFinderModel,
+                                showDuplicatesSheet: $showDuplicatesSheet)
             }
         }
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth)
@@ -115,7 +120,7 @@ struct ThumbGridView: View {
                 .interactiveDismissDisabled(false)
         }
         .sheet(isPresented: $showDuplicatesSheet) {
-            DuplicatesResultSheet(viewModel: viewModel)
+            DuplicatesResultSheet(viewModel: duplicatesFinderModel)
         }
         .onChange(of: searchPhotoResults) { oldResults, newResults in
             if let results = newResults {
@@ -168,7 +173,7 @@ struct ThumbGridView: View {
             selectedPhotos: viewModel.selectedPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,
-            isDuplicateMode: viewModel.isDuplicateMode,
+            isDuplicateMode: duplicatesFinderModel.isDuplicateMode,
             onReview: { groupIndex in
                 appState.reviewGroup = buildReviewGroupItem(groupIndex: groupIndex)
             },
@@ -257,7 +262,7 @@ struct ThumbGridView: View {
     }
 
     private func buildReviewGroupItem(groupIndex: Int) -> ReviewGroupItem {
-        guard let groups = viewModel.duplicateScanResult?.groups, groupIndex < groups.count else {
+        guard let groups = duplicatesFinderModel.duplicateScanResult?.groups, groupIndex < groups.count else {
             fatalError()
         }
         let group = groups[groupIndex]

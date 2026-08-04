@@ -234,6 +234,7 @@ struct MainView: View {
     private var thumbGridView: some View {
         ThumbGridView(appState: appState,
                       viewModel: appState.thumbsGridViewModel,
+                      duplicatesFinderModel: appState.duplicatesFinderModel,
                       searchPhotoResults: searchText.count >= 3 ? searcher.photoResults : nil,
                       onEnterReviewMode: { },
                       onToggleSidebar: {

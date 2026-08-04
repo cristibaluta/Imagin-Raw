@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct DuplicatesResultSheet: View {
-    @ObservedObject var viewModel: ThumbGridViewModel
+    @ObservedObject var viewModel: DuplicatesFinderViewModel
     @Environment(\.dismiss) private var dismiss
 
     private var isWaitingForThumbs: Bool {

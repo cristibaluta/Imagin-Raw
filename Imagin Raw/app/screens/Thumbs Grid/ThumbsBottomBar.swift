@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ThumbsBottomBar: View {
     @StateObject var viewModel: ThumbGridViewModel
+    @StateObject var duplicateViewModel: DuplicatesFinderViewModel
     @Binding var showDuplicatesSheet: Bool
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
@@ -18,18 +19,20 @@ struct ThumbsBottomBar: View {
             buttonGrid
                 .padding(.leading, 8)
 
-            if viewModel.isDuplicateMode {
+            if duplicateViewModel.isDuplicateMode {
                 Spacer()
-                if !viewModel.isFindingDuplicates {
+                if !duplicateViewModel.isFindingDuplicates {
                     HStack(spacing: 0) {
                         ForEach(DuplicateFinderService.SimilarityMode.allCases, id: \.self) { mode in
-                            Button(action: { viewModel.setSimilarityMode(mode) }) {
+                            Button(action: {
+                                duplicateViewModel.setSimilarityMode(mode)
+                            }) {
                                 Text(mode.label)
-                                    .font(.system(size: 10, weight: viewModel.similarityMode == mode ? .semibold : .regular))
-                                    .foregroundColor(viewModel.similarityMode == mode ? .primary : .secondary)
+                                    .font(.system(size: 10, weight: duplicateViewModel.similarityMode == mode ? .semibold : .regular))
+                                    .foregroundColor(duplicateViewModel.similarityMode == mode ? .primary : .secondary)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(viewModel.similarityMode == mode ? Color.accentColor.opacity(0.15) : Color.clear)
+                                    .background(duplicateViewModel.similarityMode == mode ? Color.accentColor.opacity(0.15) : Color.clear)
                             }
                             .buttonStyle(PlainButtonStyle())
                             if mode != DuplicateFinderService.SimilarityMode.allCases.last {
@@ -158,7 +161,7 @@ struct ThumbsBottomBar: View {
 
     private var buttonFindDuplicates: some View {
         Button(action: {
-            viewModel.findDuplicates()
+            duplicateViewModel.findDuplicates(in: viewModel.filteredAndSortedPhotos)
             showDuplicatesSheet = true
         }) {
             Image(systemName: "rectangle.on.rectangle.angled")
@@ -171,7 +174,7 @@ struct ThumbsBottomBar: View {
 
     private var buttonExitDuplicates: some View {
         Button(action: {
-            viewModel.exitDuplicateMode()
+            duplicateViewModel.exitDuplicateMode()
         }) {
             Image(systemName: "xmark.circle")
                 .font(.system(size: 14, weight: .medium))
@@ -187,7 +190,7 @@ struct ThumbsBottomBar: View {
                 Text("Collecting metadata...")
                     .foregroundColor(.orange)
             } else if viewModel.showCachingProgress {
-                Text("Generating \(viewModel.cachingQueueCount) thumbnails...")
+                Text("Generating \(duplicateViewModel.cachingQueueCount) thumbnails...")
                     .foregroundColor(.orange)
             } else if viewModel.selectedPhotos.count > 1 {
                 Text("\(viewModel.selectedPhotos.count) of \(viewModel.photos.count) selected")

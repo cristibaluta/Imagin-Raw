@@ -31,6 +31,7 @@ class AppState: ObservableObject {
     let previewViewModel: PreviewViewModel
     let reviewViewModel: ReviewViewModel
     let trashService: PhotoTrashService
+    let duplicatesFinderModel: DuplicatesFinderViewModel
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -40,9 +41,13 @@ class AppState: ObservableObject {
                                              cacheManagers: [thumbnailsCacheManager, previewsCacheManager, fullResCacheManager])
         self.trashService = trashService
 
+        let duplicatesFinderModel = DuplicatesFinderViewModel(thumbsManager: thumbnailsCacheManager)
+        self.duplicatesFinderModel = duplicatesFinderModel
+        
         thumbsGridViewModel = ThumbGridViewModel(fileSystemModel: fileSystemModel,
                                                  thumbsManager: thumbnailsCacheManager,
-                                                 trashService: trashService)
+                                                 trashService: trashService,
+                                                 duplicatesFinderModel: duplicatesFinderModel)
         previewViewModel = PreviewViewModel(previewsCacheManager: previewsCacheManager,
                                             fullResCacheManager: fullResCacheManager)
         reviewViewModel = ReviewViewModel(previewsCacheManager: previewsCacheManager,
