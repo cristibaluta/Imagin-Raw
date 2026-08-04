@@ -16,7 +16,7 @@ class AppState: ObservableObject {
     @Published var includeSubfolders: Bool = false
     @Published var selectedPhotos: [PhotoItem]?
     @Published var reviewGroup: ReviewGroupItem?// Photos to be displayed in the review screen
-    @Published var externalAppManager = ExternalAppManager()
+    @Published var externalAppManager: ExternalAppManager
 
     #if os(iOS)
     @Published var feedPhotos: [PhotoItem] = []
@@ -43,11 +43,15 @@ class AppState: ObservableObject {
 
         let duplicatesFinderModel = DuplicatesFinderViewModel(thumbsManager: thumbnailsCacheManager)
         self.duplicatesFinderModel = duplicatesFinderModel
-        
+
+        let externalAppManager = ExternalAppManager()
+        self.externalAppManager = externalAppManager
+
         thumbsGridViewModel = ThumbGridViewModel(fileSystemModel: fileSystemModel,
                                                  thumbsManager: thumbnailsCacheManager,
                                                  trashService: trashService,
-                                                 duplicatesFinderModel: duplicatesFinderModel)
+                                                 duplicatesFinderModel: duplicatesFinderModel,
+                                                 externalAppManager: externalAppManager)
         previewViewModel = PreviewViewModel(previewsCacheManager: previewsCacheManager,
                                             fullResCacheManager: fullResCacheManager)
         reviewViewModel = ReviewViewModel(previewsCacheManager: previewsCacheManager,
@@ -113,6 +117,13 @@ class AppState: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+
+        thumbsGridViewModel.onReviewSelected = { [weak self] reviewGroupItem in
+            self?.reviewGroup = reviewGroupItem
+            if let group = reviewGroupItem {
+                self?.reviewViewModel.setup(with: group)
+            }
+        }
     }
 
     /// Pending URL to open — set before the window is ready, consumed in handleOpenUrl.

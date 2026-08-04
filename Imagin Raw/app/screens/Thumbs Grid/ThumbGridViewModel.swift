@@ -26,6 +26,10 @@ class ThumbGridViewModel: ObservableObject {
     @Published var windowWidth: CGFloat = 1200
     @Published var isSidebarCollapsed: Bool = false
     @Published var isLoadingMetadata: Bool = false
+    @Published var copyToViewModel: CopyToViewModel? = nil
+    @Published var renameViewModel: PhotosSheetItem? = nil
+
+    var onReviewSelected: ((ReviewGroupItem?) -> Void)?
 
     /// Set before loading a folder to auto-select a specific photo once it appears in the grid.
     var pendingSelectURL: URL? = nil {
@@ -41,6 +45,7 @@ class ThumbGridViewModel: ObservableObject {
     private let fileSystemModel: FileSystemModel
     let thumbsManager: PhotoCacheManager
     private let duplicatesFinderModel: DuplicatesFinderViewModel
+    private let externalAppManager: ExternalAppManager
     private let cachingManager: IRCachingImageManager
     private(set) var photosModel: PhotosModel?
     private var searchResultsPhotos: [PhotoItem]? = nil
@@ -52,12 +57,15 @@ class ThumbGridViewModel: ObservableObject {
     init(fileSystemModel: FileSystemModel,
          thumbsManager: PhotoCacheManager,
          trashService: PhotoTrashService,
-         duplicatesFinderModel: DuplicatesFinderViewModel) {
+         duplicatesFinderModel: DuplicatesFinderViewModel,
+         externalAppManager: ExternalAppManager) {
+
         self.fileSystemModel = fileSystemModel
         self.thumbsManager = thumbsManager
         self.trashService = trashService
         self.cachingManager = IRCachingImageManager(cacheManager: thumbsManager)
         self.duplicatesFinderModel = duplicatesFinderModel
+        self.externalAppManager = externalAppManager
 
         loadSortOption()
         loadGridType()
@@ -328,14 +336,6 @@ class ThumbGridViewModel: ObservableObject {
 
     func requestImage(for photo: PhotoItem, completion: @escaping @Sendable (IRImage?) -> Void) {
         cachingManager.requestImage(for: photo, completion: completion)
-    }
-
-    func startCachingImages(for photos: [PhotoItem]) {
-        cachingManager.startCachingImages(for: photos)
-    }
-
-    func stopCachingImages(for photos: [PhotoItem]) {
-        cachingManager.stopCachingImages(for: photos)
     }
 
     // MARK: - Selection
@@ -764,5 +764,176 @@ class ThumbGridViewModel: ObservableObject {
         Task {
             await model.startCopy()
         }
+    }
+
+    func buildReviewGroupItem(groupIndex: Int) {
+        guard let groups = duplicatesFinderModel.duplicateScanResult?.groups, groupIndex < groups.count else {
+            fatalError()
+        }
+        let group = groups[groupIndex]
+        let reviewGroupItem = ReviewGroupItem(
+            group: group,
+            index: groupIndex,
+            totalGroups: groups.count,
+            onRatingChanged: { [weak self] photo, rating in
+                self?.applyRating(rating, to: [photo])
+            },
+            onApprove: { [weak self] photo in
+                self?.applyLabel(.approved, to: [photo])
+            },
+            onMarkForDeletion: { [weak self] photo in
+                self?.toggleRejectedState(for: [photo])
+            },
+            onNavigate: { [weak self] newIndex in
+                guard newIndex >= 0, newIndex < groups.count else {
+                    return
+                }
+                self?.buildReviewGroupItem(groupIndex: newIndex)
+            }
+        )
+        onReviewSelected?(reviewGroupItem)
+    }
+
+    func buildReviewGroupItemFromPhotos(_ photos: [PhotoItem]) {
+        let group = DuplicateGroup(photos: photos, distance: 0)
+        let reviewGroupItem = ReviewGroupItem(
+            group: group,
+            index: 0,
+            totalGroups: 1,
+            onRatingChanged: { [weak self] photo, rating in
+                self?.applyRating(rating, to: [photo])
+            },
+            onApprove: { [weak self] photo in
+                self?.applyLabel(.approved, to: [photo])
+            },
+            onMarkForDeletion: { [weak self] photo in
+                self?.toggleRejectedState(for: [photo])
+            },
+            onNavigate: { _ in }
+        )
+        onReviewSelected?(reviewGroupItem)
+    }
+}
+
+extension ThumbGridViewModel: ThumbCellDelegate {
+
+    func image(for photo: PhotoItem, completion: @escaping @Sendable (IRImage?) -> Void) -> Void {
+        requestImage(for: photo, completion: completion)
+    }
+
+    func startCachingImages(for photos: [PhotoItem]) {
+        cachingManager.startCachingImages(for: photos)
+    }
+
+    func stopCachingImages(for photos: [PhotoItem]) {
+        cachingManager.stopCachingImages(for: photos)
+    }
+
+    func onTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
+        handlePhotoTap(photo: photo, modifiers: modifiers)
+    }
+
+    func onDoubleClick(photo: PhotoItem) {
+        if selectedPhotos.contains(where: { $0.id == photo.id }) {
+            // If we double click one of the selected photos, open all of them
+            externalAppManager.openPhotos(selectedPhotos)
+        } else {
+            externalAppManager.openPhotos([photo])
+        }
+    }
+
+    func onRatingChanged(photo: PhotoItem, rating: Int) {
+        applyRating(rating, to: [photo])
+    }
+
+    func onLabelChanged(photo: PhotoItem, label: PhotoLabel?) {
+        if let label {
+            applyLabel(label, to: [photo])
+        } else {
+            removeLabels(from: [photo])
+        }
+    }
+
+    func onMoveToTrash(photo: PhotoItem) {
+        movePhotosToTrash([photo])
+    }
+
+    func onCopyTo(photo: PhotoItem) {
+        let photos = selectedPhotos.contains(photo)
+            ? selectedPhotos
+            : [photo]
+        copyToViewModel = CopyToViewModel(photos: photos)
+    }
+
+    func onQuickCopy(photo: PhotoItem) {
+        let photos = selectedPhotos.contains(photo)
+            ? selectedPhotos
+            : [photo]
+        quickCopy(photos: photos)
+    }
+
+    func onRenameTo(photo: PhotoItem) {
+        let photos = selectedPhotos.contains(photo)
+            ? selectedPhotos
+            : [photo]
+        renameViewModel = PhotosSheetItem(photos: photos)
+    }
+
+    func onMoveAllMarkedToTrash(photo: PhotoItem) {
+        let marked = getPhotosMarkedForDeletion()
+        movePhotosToTrash(marked)
+    }
+
+    func onApprove(photo: PhotoItem) {
+        applyLabel(.approved, to: [photo])
+    }
+
+    func onReject(photo: PhotoItem) {
+        toggleRejectedState(for: [photo])
+    }
+
+    func onReviewSelected(photo: PhotoItem) {
+        let photos = selectedPhotos.contains(photo)
+            ? selectedPhotos
+            : [photo]
+        buildReviewGroupItemFromPhotos(photos)
+    }
+
+    func onOpenWith(photo: PhotoItem, app: PhotoApp) {
+        let photos = selectedPhotos.contains(photo)
+            ? selectedPhotos
+            : [photo]
+        externalAppManager.openPhotos(photos, with: app)
+    }
+
+    func onCreateVideo(photos: [PhotoItem]) {
+        // If the tapped photo is part of the current selection, use all selected
+        let triggerPhoto = photos.first
+        let isInSelection = triggerPhoto.map { selectedPhotos.contains($0) } ?? false
+        guard isInSelection else {
+            return
+        }
+//        appState.previewViewModel.showVideoEditor = true
+    }
+
+    func onCreatePDF(photos: [PhotoItem]) {
+        let triggerPhoto = photos.first
+        let isInSelection = triggerPhoto.map { selectedPhotos.contains($0) } ?? false
+        guard isInSelection else {
+            return
+        }
+//        appState.previewViewModel.showPDFEditor = true
+    }
+
+    func selectedPhotosCount() -> Int {
+        selectedPhotos.count
+    }
+
+    func markedForDeletionCount() -> Int {
+        getPhotosMarkedForDeletion().count
+    }
+
+    func discoveredPhotoApps() -> [PhotoApp] {
+        externalAppManager.discoveredPhotoApps
     }
 }

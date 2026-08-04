@@ -10,6 +10,7 @@ import SwiftUI
 @MainActor
 class DuplicatesFinderViewModel: ObservableObject {
 
+    @Published var showDuplicatesSheet: Bool = false
     @Published var cachingQueueCount: Int = 0
     @Published var isFindingDuplicates: Bool = false
     @Published var isDuplicateMode: Bool = false

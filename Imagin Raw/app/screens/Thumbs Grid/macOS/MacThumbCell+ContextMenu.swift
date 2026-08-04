@@ -147,11 +147,14 @@ extension MacThumbCell {
             menu.addItem(openWithItem)
         }
 
+        menu.addItem(.separator())
+
+        let quickCopy = NSMenuItem(title: "Quick copy to", action: #selector(handleQuickCopy), keyEquivalent: "c")
+        quickCopy.keyEquivalentModifierMask = [.option]
+        menu.addItem(quickCopy)
         let copy = NSMenuItem(title: "Copy to...", action: #selector(handleCopyTo), keyEquivalent: "")
         menu.addItem(copy)
-        let quickCopy = NSMenuItem(title: "Quick copy", action: #selector(handleQuickCopy), keyEquivalent: "")
-        menu.addItem(quickCopy)
-        let rename = NSMenuItem(title: "Batch Rename...", action: #selector(handleRenameTo), keyEquivalent: "")
+        let rename = NSMenuItem(title: "Rename...", action: #selector(handleRenameTo), keyEquivalent: "")
         menu.addItem(rename)
 
         menu.addItem(.separator())

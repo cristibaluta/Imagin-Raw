@@ -34,9 +34,6 @@ struct ThumbGridView: View {
     @State private var scrollToPhotoId: UUID? = nil
     @State private var scrollToCenteredPhotoId: UUID? = nil
     @State private var visibleSectionIndex: Int = 0
-    @State private var copyToViewModel: CopyToViewModel? = nil
-    @State private var renameSheetPhotos: PhotosSheetItem? = nil
-    @State private var showDuplicatesSheet: Bool = false
     @State private var isSelectMode: Bool = false
     @State private var hasAppeared = false
     @State private var ignoringSearchResults = false
@@ -104,22 +101,20 @@ struct ThumbGridView: View {
                 Rectangle()
                     .fill(Color.secondary.opacity(0.25))
                     .frame(height: 1)
-                ThumbsBottomBar(viewModel: viewModel,
-                                duplicateViewModel: duplicatesFinderModel,
-                                showDuplicatesSheet: $showDuplicatesSheet)
+                ThumbsBottomBar(viewModel: viewModel, duplicateViewModel: duplicatesFinderModel)
             }
         }
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth)
-        .sheet(item: $copyToViewModel) { vm in
+        .sheet(item: $viewModel.copyToViewModel) { vm in
             CopyToView(viewModel: vm)
                 .environmentObject(appState.fileSystemModel)
                 .interactiveDismissDisabled(false)
         }
-        .sheet(item: $renameSheetPhotos) { item in
-            RenameView(photosToRename: item.photos)
+        .sheet(item: $viewModel.renameViewModel) { vm in
+            RenameView(photosToRename: vm.photos)
                 .interactiveDismissDisabled(false)
         }
-        .sheet(isPresented: $showDuplicatesSheet) {
+        .sheet(isPresented: $duplicatesFinderModel.showDuplicatesSheet) {
             DuplicatesResultSheet(viewModel: duplicatesFinderModel)
         }
         .onChange(of: searchPhotoResults) { oldResults, newResults in
@@ -168,14 +163,14 @@ struct ThumbGridView: View {
         #endif
         #if os(macOS)
         return MacThumbGridView(
-            delegate: self,
+            delegate: viewModel,
             photos: viewModel.groupedPhotos,
             selectedPhotos: viewModel.selectedPhotos,
             itemSize: viewModel.gridType.thumbSize,
             cellHeight: viewModel.gridType.cellHeight,
             isDuplicateMode: duplicatesFinderModel.isDuplicateMode,
             onReview: { groupIndex in
-                appState.reviewGroup = buildReviewGroupItem(groupIndex: groupIndex)
+                viewModel.buildReviewGroupItem(groupIndex: groupIndex)
             },
             onKeyPress: { event in
                 viewModel.handleKeyEvent(
@@ -183,7 +178,7 @@ struct ThumbGridView: View {
                     scrollTo: { photoId in scrollToCenteredPhotoId = photoId },
                     openPhotos: { photos in appState.externalAppManager.openPhotos(photos) },
                     onToggleSidebar: { onToggleSidebar?() },
-                    onReviewSelected: { photos in appState.reviewGroup = buildReviewGroupItemFromPhotos(photos) }
+                    onReviewSelected: { photos in viewModel.buildReviewGroupItemFromPhotos(photos) }
                 )
             },
             thumbsManager: viewModel.thumbsManager,
@@ -259,176 +254,5 @@ struct ThumbGridView: View {
             }
         }
         #endif
-    }
-
-    private func buildReviewGroupItem(groupIndex: Int) -> ReviewGroupItem {
-        guard let groups = duplicatesFinderModel.duplicateScanResult?.groups, groupIndex < groups.count else {
-            fatalError()
-        }
-        let group = groups[groupIndex]
-        return ReviewGroupItem(
-            group: group,
-            index: groupIndex,
-            totalGroups: groups.count,
-            onRatingChanged: { photo, rating in
-                viewModel.applyRating(rating, to: [photo])
-            },
-            onApprove: { photo in
-                viewModel.applyLabel(.approved, to: [photo])
-            },
-            onMarkForDeletion: { photo in
-                viewModel.toggleRejectedState(for: [photo])
-            },
-            onNavigate: { newIndex in
-                guard newIndex >= 0, newIndex < groups.count else {
-                    return
-                }
-                appState.reviewGroup = buildReviewGroupItem(groupIndex: newIndex)
-                appState.reviewViewModel.setup(with: appState.reviewGroup!)
-            }
-        )
-    }
-
-    private func buildReviewGroupItemFromPhotos(_ photos: [PhotoItem]) -> ReviewGroupItem {
-        let group = DuplicateGroup(photos: photos, distance: 0)
-        return ReviewGroupItem(
-            group: group,
-            index: 0,
-            totalGroups: 1,
-            onRatingChanged: { photo, rating in
-                viewModel.applyRating(rating, to: [photo])
-            },
-            onApprove: { photo in
-                viewModel.applyLabel(.approved, to: [photo])
-            },
-            onMarkForDeletion: { photo in
-                viewModel.toggleRejectedState(for: [photo])
-            },
-            onNavigate: { _ in }
-        )
-    }
-}
-
-// TODO: this should stay in the viewModel
-extension ThumbGridView: ThumbCellDelegate {
-
-    func image(for photo: PhotoItem, completion: @escaping @Sendable (IRImage?) -> Void) -> Void {
-        viewModel.requestImage(for: photo, completion: completion)
-    }
-
-    func startCachingImages(for photos: [PhotoItem]) {
-        viewModel.startCachingImages(for: photos)
-    }
-
-    func stopCachingImages(for photos: [PhotoItem]) {
-        viewModel.stopCachingImages(for: photos)
-    }
-
-    func onTap(photo: PhotoItem, modifiers: NSEvent.ModifierFlags) {
-        viewModel.handlePhotoTap(photo: photo, modifiers: modifiers)
-    }
-
-    func onDoubleClick(photo: PhotoItem) {
-        if viewModel.selectedPhotos.contains(where: { $0.id == photo.id }) {
-            // If we double click one of the selected photos, open all of them
-            appState.externalAppManager.openPhotos(viewModel.selectedPhotos)
-        } else {
-            appState.externalAppManager.openPhotos([photo])
-        }
-    }
-
-    func onRatingChanged(photo: PhotoItem, rating: Int) {
-        viewModel.applyRating(rating, to: [photo])
-    }
-
-    func onLabelChanged(photo: PhotoItem, label: PhotoLabel?) {
-        if let label {
-            viewModel.applyLabel(label, to: [photo])
-        } else {
-            viewModel.removeLabels(from: [photo])
-        }
-    }
-
-    func onMoveToTrash(photo: PhotoItem) {
-        viewModel.movePhotosToTrash([photo])
-    }
-
-    func onCopyTo(photo: PhotoItem) {
-        let photos = viewModel.selectedPhotos.contains(photo)
-            ? viewModel.selectedPhotos
-            : [photo]
-        copyToViewModel = CopyToViewModel(photos: photos)
-    }
-
-    func onQuickCopy(photo: PhotoItem) {
-        let photos = viewModel.selectedPhotos.contains(photo)
-            ? viewModel.selectedPhotos
-            : [photo]
-        viewModel.quickCopy(photos: photos)
-    }
-
-    func onRenameTo(photo: PhotoItem) {
-        let photos = viewModel.selectedPhotos.contains(photo)
-            ? viewModel.selectedPhotos
-            : [photo]
-        renameSheetPhotos = PhotosSheetItem(photos: photos)
-    }
-
-    func onMoveAllMarkedToTrash(photo: PhotoItem) {
-        let marked = viewModel.getPhotosMarkedForDeletion()
-        viewModel.movePhotosToTrash(marked)
-    }
-
-    func onApprove(photo: PhotoItem) {
-        viewModel.applyLabel(.approved, to: [photo])
-    }
-
-    func onReject(photo: PhotoItem) {
-        viewModel.toggleRejectedState(for: [photo])
-    }
-
-    func onReviewSelected(photo: PhotoItem) {
-        let photos = viewModel.selectedPhotos.contains(photo)
-            ? viewModel.selectedPhotos
-            : [photo]
-        appState.reviewGroup = buildReviewGroupItemFromPhotos(photos)
-    }
-
-    func onOpenWith(photo: PhotoItem, app: PhotoApp) {
-        let photos = viewModel.selectedPhotos.contains(photo)
-            ? viewModel.selectedPhotos
-            : [photo]
-        appState.externalAppManager.openPhotos(photos, with: app)
-    }
-
-    func onCreateVideo(photos: [PhotoItem]) {
-        // If the tapped photo is part of the current selection, use all selected
-        let triggerPhoto = photos.first
-        let isInSelection = triggerPhoto.map { viewModel.selectedPhotos.contains($0) } ?? false
-        guard isInSelection else {
-            return
-        }
-        appState.previewViewModel.showVideoEditor = true
-    }
-
-    func onCreatePDF(photos: [PhotoItem]) {
-        let triggerPhoto = photos.first
-        let isInSelection = triggerPhoto.map { viewModel.selectedPhotos.contains($0) } ?? false
-        guard isInSelection else {
-            return
-        }
-        appState.previewViewModel.showPDFEditor = true
-    }
-
-    func selectedPhotosCount() -> Int {
-        viewModel.selectedPhotos.count
-    }
-
-    func markedForDeletionCount() -> Int {
-        viewModel.getPhotosMarkedForDeletion().count
-    }
-
-    func discoveredPhotoApps() -> [PhotoApp] {
-        appState.externalAppManager.discoveredPhotoApps
     }
 }

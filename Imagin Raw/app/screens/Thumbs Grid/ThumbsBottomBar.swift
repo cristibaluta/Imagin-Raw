@@ -10,7 +10,7 @@ import SwiftUI
 struct ThumbsBottomBar: View {
     @StateObject var viewModel: ThumbGridViewModel
     @StateObject var duplicateViewModel: DuplicatesFinderViewModel
-    @Binding var showDuplicatesSheet: Bool
+//    @Binding var showDuplicatesSheet: Bool
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
 
@@ -161,8 +161,8 @@ struct ThumbsBottomBar: View {
 
     private var buttonFindDuplicates: some View {
         Button(action: {
+            duplicateViewModel.showDuplicatesSheet = true
             duplicateViewModel.findDuplicates(in: viewModel.filteredAndSortedPhotos)
-            showDuplicatesSheet = true
         }) {
             Image(systemName: "rectangle.on.rectangle.angled")
                 .font(.system(size: 14, weight: .medium))
