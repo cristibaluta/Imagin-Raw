@@ -26,8 +26,8 @@ class ThumbGridViewModel: ObservableObject {
     @Published var windowWidth: CGFloat = 1200
     @Published var isSidebarCollapsed: Bool = false
     @Published var isLoadingMetadata: Bool = false
-    @Published var copyToViewModel: CopyToViewModel? = nil
-    @Published var renameViewModel: PhotosSheetItem? = nil
+    @Published var copyJob: PhotoCopySheetModel? = nil
+    @Published var renameJob: PhotosSheetItem? = nil
 
     var onReviewSelected: ((ReviewGroupItem?) -> Void)?
 
@@ -760,9 +760,16 @@ class ThumbGridViewModel: ObservableObject {
     }
 
     func quickCopy(photos: [PhotoItem]) {
-        let model = CopyToViewModel(photos: photos)
-        Task {
-            await model.startCopy()
+        copyJob = PhotoCopySheetModel(photos: photos, isCopying: true)
+        Task(priority: .userInitiated) {
+            guard let copyJob else {
+                return
+            }
+            await copyJob.startCopy()
+            if copyJob.copyError == nil && !copyJob.isCancelled {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                self.copyJob = nil
+            }
         }
     }
 
@@ -862,7 +869,7 @@ extension ThumbGridViewModel: ThumbCellDelegate {
         let photos = selectedPhotos.contains(photo)
             ? selectedPhotos
             : [photo]
-        copyToViewModel = CopyToViewModel(photos: photos)
+        copyJob = PhotoCopySheetModel(photos: photos)
     }
 
     func onQuickCopy(photo: PhotoItem) {
@@ -876,7 +883,7 @@ extension ThumbGridViewModel: ThumbCellDelegate {
         let photos = selectedPhotos.contains(photo)
             ? selectedPhotos
             : [photo]
-        renameViewModel = PhotosSheetItem(photos: photos)
+        renameJob = PhotosSheetItem(photos: photos)
     }
 
     func onMoveAllMarkedToTrash(photo: PhotoItem) {

@@ -88,7 +88,7 @@ struct RenameView: View {
         Group {
             if showProgressView {
                 let startOffset = sequentialStartIndex
-                let viewModel = RenameProgressViewModel(photosToRename: photosToRename,
+                let viewModel = PhotoRenameSheetModel(photosToRename: photosToRename,
                                                         newFilename: { newFilename(for: $0, index: $1, startOffset: startOffset) },
                                                         onComplete: { dismiss() },
                                                         onCancel: { dismiss() })

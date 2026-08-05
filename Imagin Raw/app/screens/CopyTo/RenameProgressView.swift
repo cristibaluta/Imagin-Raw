@@ -9,7 +9,7 @@ import SwiftUI
 
 struct RenameProgressView: View {
 
-    @ObservedObject var viewModel: RenameProgressViewModel
+    @ObservedObject var viewModel: PhotoRenameSheetModel
     
     var body: some View {
         VStack(spacing: 16) {

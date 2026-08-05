@@ -105,13 +105,13 @@ struct ThumbGridView: View {
             }
         }
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth)
-        .sheet(item: $viewModel.copyToViewModel) { vm in
-            CopyToView(viewModel: vm)
+        .sheet(item: $viewModel.copyJob) { model in
+            CopyToView(viewModel: model)
                 .environmentObject(appState.fileSystemModel)
                 .interactiveDismissDisabled(false)
         }
-        .sheet(item: $viewModel.renameViewModel) { vm in
-            RenameView(photosToRename: vm.photos)
+        .sheet(item: $viewModel.renameJob) { model in
+            RenameView(photosToRename: model.photos)
                 .interactiveDismissDisabled(false)
         }
         .sheet(isPresented: $duplicatesFinderModel.showDuplicatesSheet) {

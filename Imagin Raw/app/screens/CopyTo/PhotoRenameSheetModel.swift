@@ -1,5 +1,5 @@
 //
-//  CopyToViewModel 2.swift
+//  PhotoCopySheetModel 2.swift
 //  Imagin Raw
 //
 //  Created by Cristian Baluta on 12.06.2026.
@@ -8,7 +8,7 @@
 import Foundation
 
 @MainActor
-class RenameProgressViewModel: ObservableObject, Identifiable {
+class PhotoRenameSheetModel: ObservableObject, Identifiable {
     let id = UUID()
 
     @Published var progress: Double = 0

@@ -1,11 +1,11 @@
 //
-//  CopyToViewModel.swift
+//  PhotoCopySheetModel.swift
 //  Imagin Raw
 //
 
 import Foundation
 
-class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
+class PhotoCopySheetModel: ObservableObject, Identifiable, @unchecked Sendable {
     let id = UUID()
 
     // MARK: - Photos
@@ -29,6 +29,7 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
     @Published var organizeJpgsInSubfolder: Bool
 
     // MARK: - Progress state (observed by CopyProgressView)
+    @Published var isCopying: Bool
     @Published var copyProgress: Double = 0.0
     @Published var currentFile: String = ""
     @Published var copiedCount: Int = 0
@@ -36,10 +37,11 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
     @Published var copyError: String?
 
     private(set) var isCancelled: Bool = false
-//    private var copyTask: Task<Void, Never>?
 
-    init(photos: [PhotoItem]) {
+    init(photos: [PhotoItem], isCopying: Bool = false) {
         self.photos = photos
+        self.isCopying = isCopying
+
         renameByExifDate        = appPrefs.bool(.copyToRenameByExifDate)
         useSequentialNumbers    = appPrefs.bool(.copyToUseSequentialNumbers)
         customPrefix            = appPrefs.string(.copyToCustomPrefix)
@@ -218,6 +220,7 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
             return
         }
         await MainActor.run {
+            isCopying = true
             copyProgress = 0
             copiedCount = 0
             copyError = nil
@@ -370,31 +373,5 @@ class CopyToViewModel: ObservableObject, Identifiable, @unchecked Sendable {
         #else
         return nil
         #endif
-    }
-}
-
-// MARK: - Settings snapshot (value type for safe cross-actor capture)
-
-struct CopySettings {
-    let renameByExifDate: Bool
-    let useSequentialNumbers: Bool
-    let customPrefix: String
-    let organizeByYear: Bool
-    let organizeByMonth: Bool
-    let organizeByDay: Bool
-    let eventName: String
-    let organizeByCameraModel: Bool
-    let organizeJpgsInSubfolder: Bool
-
-    init(_ vm: CopyToViewModel) {
-        renameByExifDate        = vm.renameByExifDate
-        useSequentialNumbers    = vm.useSequentialNumbers
-        customPrefix            = vm.customPrefix
-        organizeByYear          = vm.organizeByYear
-        organizeByMonth         = vm.organizeByMonth
-        organizeByDay           = vm.organizeByDay
-        eventName               = vm.eventName
-        organizeByCameraModel   = vm.organizeByCameraModel
-        organizeJpgsInSubfolder = vm.organizeJpgsInSubfolder
     }
 }
