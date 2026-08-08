@@ -14,7 +14,7 @@ protocol PhotoSource {
     func loadThumbnail(targetSize: CGFloat, completion: @escaping @Sendable (IRImage?) -> Void)
 
     /// Load a preview image (short edge ≤ targetSize) and call completion on any thread.
-    func loadPreview(targetSize: CGFloat) -> IRImage?
+    func loadPreview(targetSize: CGFloat) async -> IRImage?
     func loadPreview(targetSize: CGFloat, completion: @escaping @Sendable (IRImage?) -> Void)
 
     /// Load the full-resolution image and call completion on the main thread.

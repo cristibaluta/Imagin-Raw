@@ -10,6 +10,7 @@ import AVFoundation
 import CoreGraphics
 import ImageIO
 import CryptoKit
+import QuickLookThumbnailing
 
 struct DiskPhotoSource: PhotoSource {
     let url: URL
@@ -19,7 +20,7 @@ struct DiskPhotoSource: PhotoSource {
         return "\(dirHash)_\(url.lastPathComponent)"
     }
 
-    func loadThumbnail(targetSize: CGFloat) -> IRImage? {
+    func loadThumbnail(targetSize: CGFloat) async -> IRImage? {
 
         // Ensure the file is local (iCloud)
         guard ICloudDownloader.ensureDownloaded(at: url) else {
@@ -37,6 +38,12 @@ struct DiskPhotoSource: PhotoSource {
         if FilesExtensions.isAffinityFile(url) {
             return affinityThumbnail(url: url, maxSize: targetSize)
         }
+        if url.pathExtension == "nc" {
+            return ncPreview(url: url)
+        }
+        if url.pathExtension == "stl" {
+            return await extractSTLPreview(from: url)
+        }
         return jpegThumbnail(url: url, targetSize: targetSize)
     }
 
@@ -44,13 +51,17 @@ struct DiskPhotoSource: PhotoSource {
 
     }
 
-    func loadPreview(targetSize: CGFloat) -> IRImage? {
+    func loadPreview(targetSize: CGFloat) async -> IRImage? {
         if FilesExtensions.isRawImageFile(url) {
             return LibRawDecoder().extractPreview(at: url, maxSize: targetSize)
         } else if FilesExtensions.isSvgFile(url) {
             return svgThumbnail(url: url, maxSize: targetSize)
         } else if FilesExtensions.isAffinityFile(url) {
             return affinityThumbnail(url: url, maxSize: targetSize)
+        } else if url.pathExtension == "nc" {
+            return ncPreview(url: url)
+        } else if url.pathExtension == "stl" {
+            return await extractSTLPreview(from: url, size: CGSize(width: targetSize, height: targetSize))
         } else {
             return CoreGraphicsDecoder().extractPreview(at: url, maxSize: targetSize)
         }
@@ -178,37 +189,6 @@ struct DiskPhotoSource: PhotoSource {
     }
 
     private func affinityThumbnail(url: URL, maxSize: CGFloat) -> IRImage? {
-        // 1. Define the size and scale you want
-//        let size = CGSize(width: 1024, height: 1024)
-//        let scale = NSScreen.main?.backingScaleFactor ?? 2.0
-//
-//        // 2. Create the thumbnail request configuration
-//        let request = QLThumbnailGenerator.Request(
-//            fileAt: url,
-//            size: size,
-//            scale: scale,
-//            representationTypes: .all // Tells macOS to fetch the QL extension icon/thumbnail
-//        )
-//
-//        // 3.1. Initialize a semaphore with a value of 0
-//        let semaphore = DispatchSemaphore(value: 0)
-//        var resultImage: NSImage? = nil
-//
-//        QLThumbnailGenerator.shared.generateRepresentations(for: request) { representation, type, error in
-//            switch type {
-//                case .icon: break
-//                case .lowQualityThumbnail:
-//                    break
-//                case .thumbnail:
-//                    resultImage = representation?.nsImage
-//                    semaphore.signal()
-//                @unknown default: break
-//            }
-//        }
-//
-//        // 3.3. Wait indefinitely (or use .now() + timeout) for the signal
-//        _ = semaphore.wait(timeout: .distantFuture)
-
         // TODO: using quicklook to extract the thumbnail returns error 102
         let resultImage = extractAnyAffinityPreview(from: url)
         return resultImage
@@ -262,6 +242,129 @@ struct DiskPhotoSource: PhotoSource {
 
         RCLog("No valid embedded PNG or JPEG stream located in file trailing block.")
         return nil
+    }
+
+    private func ncPreview(url: URL) -> IRImage? {
+        guard let fileHandle = try? FileHandle(forReadingFrom: url) else {
+            return nil
+        }
+        defer {
+            try? fileHandle.close()
+        }
+
+        let beginMarker = ";(thumbnail_image_begin)"
+        let endMarker = ";(thumbnail_image_end)"
+
+        var base64String = ""
+        var isCollecting = false
+        var foundEnd = false
+
+        // Read the file in chunks and split into lines manually, since .nc files
+        // can be large and we want to bail out as soon as the end marker is hit
+        // rather than loading the whole file into memory.
+        let chunkSize = 64 * 1024
+        var leftover = ""
+
+        while !foundEnd {
+            guard let chunk = try? fileHandle.read(upToCount: chunkSize), !chunk.isEmpty else {
+                break
+            }
+            guard let chunkString = String(data: chunk, encoding: .utf8) else {
+                // Fall back to ASCII if the file isn't strictly UTF-8
+                guard let asciiString = String(data: chunk, encoding: .ascii) else {
+                    return nil
+                }
+                leftover += asciiString
+                continue
+            }
+            leftover += chunkString
+
+            var lines = leftover.components(separatedBy: .newlines)
+            // Keep the last (possibly incomplete) line for the next chunk
+            leftover = lines.removeLast()
+
+            for line in lines {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+                if trimmed == endMarker {
+                    foundEnd = true
+                    break
+                }
+
+                if isCollecting {
+                    // Strip the leading ";" comment prefix before appending
+                    if trimmed.hasPrefix(";") {
+                        base64String += trimmed.dropFirst()
+                    } else {
+                        base64String += trimmed
+                    }
+                } else if trimmed == beginMarker {
+                    isCollecting = true
+                }
+            }
+        }
+
+        // Handle end marker if it landed in the final leftover fragment
+        if !foundEnd {
+            let trimmed = leftover.trimmingCharacters(in: .whitespaces)
+            if isCollecting && trimmed == endMarker {
+                foundEnd = true
+            } else if isCollecting && !trimmed.isEmpty {
+                base64String += trimmed.hasPrefix(";") ? String(trimmed.dropFirst()) : trimmed
+            }
+        }
+
+        guard !base64String.isEmpty else {
+            RCLog("No thumbnail_image markers found in .nc file: \(url.lastPathComponent)")
+            return nil
+        }
+
+        guard let imageData = Data(base64Encoded: base64String) else {
+            RCLog("Failed to decode base64 thumbnail in .nc file: \(url.lastPathComponent)")
+            return nil
+        }
+
+        return IRImage(data: imageData)
+    }
+
+    func extractSTLPreview(from url: URL, size: CGSize = CGSize(width: 1024, height: 1024)) async -> IRImage? {
+        let scale = await MainActor.run {
+            NSScreen.main?.backingScaleFactor ?? 2.0
+        }
+
+        let request = QLThumbnailGenerator.Request(
+            fileAt: url,
+            size: size,
+            scale: scale,
+            representationTypes: .thumbnail // we only actually want the real thumbnail, not the icon
+        )
+
+        return await withCheckedContinuation { continuation in
+            var didResume = false
+            let resumeOnce: (IRImage?) -> Void = { image in
+                guard !didResume else {
+                    return
+                }
+                guard let image else {
+                    return
+                }
+                didResume = true
+                continuation.resume(returning: image)
+            }
+
+            QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { representation, error in
+                if let error {
+                    RCLog("QuickLook thumbnail generation failed for \(url.lastPathComponent): \(error)")
+                    resumeOnce(nil)
+                    return
+                }
+                guard let nsImage = representation?.nsImage else {
+                    resumeOnce(nil)
+                    return
+                }
+                resumeOnce(IRImage(data: nsImage.tiffRepresentation ?? Data()))
+            }
+        }
     }
 
     private func sha256Prefix(_ string: String) -> String {

@@ -9,7 +9,7 @@ import SwiftUI
 import Combine
 
 @MainActor
-final class FolderModel: ObservableObject {
+final class FolderContentModel: ObservableObject {
     let isLoadingSubject = CurrentValueSubject<Bool, Never>(false)
     var photos: Binding<[PhotoItem]>!
     private var isLoadingMetadata: Bool = false {
@@ -19,8 +19,8 @@ final class FolderModel: ObservableObject {
     }
 
     private let folder: FolderItem
-    private let queue = OperationQueue()
     private let includeSubfolders: Bool
+    private let exifQueue = OperationQueue()
 
     init(folder: FolderItem, includeSubfolders: Bool) {
         self.folder = folder
@@ -28,7 +28,7 @@ final class FolderModel: ObservableObject {
     }
 
     deinit {
-        queue.cancelAllOperations()
+        exifQueue.cancelAllOperations()
         RCLog("🗑️ PhotosModel deallocated for: \(folder.url.lastPathComponent)")
     }
 
@@ -75,7 +75,11 @@ final class FolderModel: ObservableObject {
             for file in files {
                 let ext = file.pathExtension.lowercased()
                 let baseName = file.deletingPathExtension().lastPathComponent
-                if FilesExtensions.isImageFile(file) || FilesExtensions.isMovieFile(file) || FilesExtensions.isAffinityFile(file) {
+
+                if FilesExtensions.isImageFile(file) ||
+                    FilesExtensions.isMovieFile(file) ||
+                    FilesExtensions.isAffinityFile(file) {
+
                     if FilesExtensions.isRawCounterpartFile(file) {
                         if rawBaseNames.contains(baseName) {
                             jpgLookup.insert(baseName)
@@ -89,6 +93,10 @@ final class FolderModel: ObservableObject {
                     xmpLookup.insert(baseName)
                 } else if ext == "acr" {
                     acrLookup.insert(baseName)
+                } else if ext == "nc" {
+                    images.append(file)
+                } else if ext == "stl" {
+                    images.append(file)
                 }
             }
         }
@@ -129,7 +137,7 @@ final class FolderModel: ObservableObject {
     }
 
     func reloadPhotos() {
-        queue.cancelAllOperations()
+        exifQueue.cancelAllOperations()
         loadPhotos()
     }
 
@@ -153,7 +161,7 @@ final class FolderModel: ObservableObject {
                         self?.photos.wrappedValue[idx] = updated
                     }
                 }
-                queue.addOperation(op)
+                exifQueue.addOperation(op)
             } else {
                 let resValues = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey])
                 let hasXMP = FileManager.default.fileExists(atPath: url.deletingPathExtension().appendingPathExtension("xmp").path)
@@ -176,7 +184,7 @@ final class FolderModel: ObservableObject {
                         self?.photos.wrappedValue.append(updatedPhoto)
                     }
                 }
-                queue.addOperation(op)
+                exifQueue.addOperation(op)
             }
         }
     }
@@ -189,9 +197,9 @@ final class FolderModel: ObservableObject {
         let startTime = Date()
         isLoadingMetadata = true
 
-        queue.maxConcurrentOperationCount = ProcessInfo.processInfo.activeProcessorCount
-        queue.qualityOfService = .userInitiated
-        RCLog("Start loading exifs using \(queue.maxConcurrentOperationCount) threads")
+        exifQueue.maxConcurrentOperationCount = ProcessInfo.processInfo.activeProcessorCount
+        exifQueue.qualityOfService = .userInitiated
+        RCLog("Start loading exifs using \(exifQueue.maxConcurrentOperationCount) threads")
 
         var photosWithExifs: [PhotoItem] = []
 
@@ -201,9 +209,9 @@ final class FolderModel: ObservableObject {
                     photosWithExifs.append(photoWithExif)
                 }
             }
-            queue.addOperation(op)
+            exifQueue.addOperation(op)
         }
-        queue.addBarrierBlock {
+        exifQueue.addBarrierBlock {
             Task { @MainActor [weak self] in
                 guard let self else {
                     return
@@ -235,6 +243,6 @@ final class FolderModel: ObservableObject {
                 completion()
             }
         }
-        queue.addOperation(op)
+        exifQueue.addOperation(op)
     }
 }

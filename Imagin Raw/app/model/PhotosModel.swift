@@ -24,13 +24,13 @@ final class PhotosModel: ObservableObject {
     @Published var isLoadingMetadata: Bool = false
 
     private let folder: FolderItem
-    private let folderModel: FolderModel
+    private let folderModel: FolderContentModel
     private let photokitModel: PhotosKitModel
 
     init(folder: FolderItem, includeSubfolders: Bool) {
         self.folder = folder
 
-        folderModel = FolderModel(folder: folder, includeSubfolders: includeSubfolders)
+        folderModel = FolderContentModel(folder: folder, includeSubfolders: includeSubfolders)
         photokitModel = PhotosKitModel(folder: folder)
 
         folderModel.photos = Binding(

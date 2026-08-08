@@ -155,7 +155,7 @@ struct PhotoKitPhotoSource: PhotoSource {
         }
     }
 
-    func loadPreview(targetSize: CGFloat) -> IRImage? {
+    func loadPreview(targetSize: CGFloat) async -> IRImage? {
         return nil
     }
 

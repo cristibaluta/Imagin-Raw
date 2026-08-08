@@ -116,7 +116,7 @@ final class PhotoCacheManager: Sendable {
             case .s256:
                 image = await source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
             case .s1024:
-                image = source.loadPreview(targetSize: CGFloat(thumbSize.rawValue))
+                image = await source.loadPreview(targetSize: CGFloat(thumbSize.rawValue))
             case .full:
                 image = source.loadFullRes()
         }
