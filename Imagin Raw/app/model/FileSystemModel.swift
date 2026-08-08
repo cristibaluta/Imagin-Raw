@@ -9,11 +9,25 @@ import CoreServices
 import Combine
 import Photos
 
+enum PathKind {
+    case file
+    case directory
+    case missing // removed — type unknowable, caller must infer from tracked state
+}
+
+private func pathKind(for url: URL) -> PathKind {
+    var isDirectory: ObjCBool = false
+    guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+        return .missing
+    }
+    return isDirectory.boolValue ? .directory : .file
+}
+
 @MainActor
 final class FileSystemModel: ObservableObject {
     @Published var rootFolders: [FolderItem] = [] {
         didSet {
-            print(">>>>>>> new rootFolders: \(rootFolders)")
+            print(">>>>>>> set new rootFolders: \(rootFolders.count)")
         }
     }
     @Published var selectedFolder: FolderItem? {
@@ -152,6 +166,7 @@ final class FileSystemModel: ObservableObject {
 
         // Store all bookmarks (including unmounted volumes)
         allFolderBookmarks = folderBookmarks
+        var folders: [FolderItem] = []
 
         // Only add folders that are currently accessible (mounted)
         for bookmark in folderBookmarks {
@@ -160,14 +175,16 @@ final class FileSystemModel: ObservableObject {
             }
             if FileManager.default.fileExists(atPath: restoredURL.path) {
                 let folderTree = loadFolderTree(at: restoredURL, maxDepth: 2, currentDepth: 0, bookmarkData: bookmark.bookmarkData)
-                rootFolders.append(folderTree)
+                folders.append(folderTree)
                 fileSystemMonitor.startMonitoring(url: restoredURL)
                 accessedURLs.insert(restoredURL)
             } else {
+                // TODO: should we do this and mark it differently? Does this check slow down the app when launched with drives plugged in?
                 // Folder doesn't exist yet (unmounted volume) - keep in allFolderBookmarks but don't add to rootFolders
                 restoredURL.stopAccessingSecurityScopedResource()
             }
         }
+        rootFolders = folders
     }
 
     private func saveFolderBookmarksToUserDefaults() {
@@ -558,18 +575,34 @@ extension FileSystemModel: FileSystemMonitorDelegate {
                 continue
             }
 
-            let isInsideSelected = selectedFolder.url == url || url.path.hasPrefix(selectedFolder.url.path)
-            guard isInsideSelected else {
+            if url == selectedFolder.url {
+                // FSEvents coalesced to the folder itself rather than the specific file.
+                folderContentDidChangeSubject.send(selectedFolder.url)
                 continue
             }
 
-            let isDirectFileChild = url.deletingLastPathComponent().path == selectedFolder.url.path
-            let isMediaFile = FilesExtensions.isImageFile(url) || FilesExtensions.isMovieFile(url)
-            if isDirectFileChild && isMediaFile {
-                fileChanges.append(url)
-            } else {
-                // Directory-level or nested change — fall back to broad reload signal
+            let isInsideSelected = url.path.hasPrefix(selectedFolder.url.path + "/")
+            guard isInsideSelected else { continue }
+
+            let isDirectChild = url.deletingLastPathComponent().path == selectedFolder.url.path
+            guard isDirectChild else {
+                RCLog("⏭️ Ignoring nested descendant change: \(url.path)")
+                continue
+            }
+
+            switch pathKind(for: url) {
+            case .directory:
+                // A folder appeared directly under selectedFolder — not a media change.
                 folderContentDidChangeSubject.send(selectedFolder.url)
+            case .file, .missing:
+                // Exists as a file (added/edited) OR was removed — either way, if the
+                // extension says media, the grid needs to know about this specific file.
+                // We don't need to know which of the three happened.
+                if FilesExtensions.isImageFile(url) || FilesExtensions.isMovieFile(url) {
+                    fileChanges.append(url)
+                } else {
+                    folderContentDidChangeSubject.send(selectedFolder.url)
+                }
             }
         }
 
@@ -585,47 +618,129 @@ extension FileSystemModel: FileSystemMonitorDelegate {
         photoMetadataDidChangeURL = url
     }
 
+    // Rules for refreshing:
+    // 1. If the url is an existing folder, load its content with 2 levels
+    // 2. If the url is a new folder, load its content with 2 levels and insert in the tree
+    // 3. If the url is a removed folder, remove it from the tree
+    // 4. If the url is a file in current folder, reload the folder with 2 levels
+    // 5. If the url is a removed file, reload the folder with 2 levels
+    // 6. If the url is inside a descendant folder of selectedFolder (not selectedFolder itself):
+    //    - a file added/removed there is a no-op (doesn't affect the sidebar tree)
+    //    - a folder added/removed there only reloads that folder's immediate parent
     private func refreshFolderTree(for changedURL: URL) {
-        // Find the closest monitored parent folder that contains this changed path
-        var refreshURL = changedURL
-        var foundMonitoredParent = false
+        let parentURL = changedURL.deletingLastPathComponent()
+        let kind = pathKind(for: changedURL)
+        let existingNode = findFolderNode(url: changedURL, in: rootFolders)
 
-        // Walk up the directory tree to find a monitored root folder
-        while !foundMonitoredParent && refreshURL.path != "/" {
-            if rootFolders.contains(where: { $0.url.path == refreshURL.path }) {
-                foundMonitoredParent = true
-                break
+        // Case 6: strictly a DESCENDANT of selectedFolder — excludes selectedFolder's
+        // direct children, which folderContentsDidChange already owns.
+        if let selectedFolder,
+           changedURL != selectedFolder.url,
+           changedURL.deletingLastPathComponent() != selectedFolder.url,
+           changedURL.path.hasPrefix(selectedFolder.url.path + "/") {
+
+            let isFolderChange = (kind == .directory) || existingNode != nil
+            guard isFolderChange else {
+                RCLog("⏭️ Ignoring file change deep inside selected folder: \(changedURL.path)")
+                return
             }
-            refreshURL = refreshURL.deletingLastPathComponent()
+            reloadFolderNode(at: parentURL, in: &rootFolders)
+            RCLog("🔄 Folder change inside selected folder's subtree, refreshed parent: \(parentURL.path)")
+            return
         }
 
-        // If we found a monitored parent, refresh from there
-        if foundMonitoredParent {
-            for i in 0..<rootFolders.count {
-                if rootFolders[i].url.path == refreshURL.path {
-                    let refreshedTree = loadFolderTree(
-                        at: rootFolders[i].url,
-                        maxDepth: 2,
-                        currentDepth: 0,
-                        bookmarkData: rootFolders[i].bookmarkData
-                    )
-                    rootFolders[i] = refreshedTree
-                    return
+        switch kind {
+        case .directory:
+            // Cases 1 & 2
+            let refreshedFolder = loadFolderTree(at: changedURL, maxDepth: 2, currentDepth: 0,
+                                                 bookmarkData: existingNode?.bookmarkData)
+            insertOrReplaceFolder(refreshedFolder, parentURL: parentURL, in: &rootFolders)
+            RCLog("🔄 Folder refreshed/inserted in tree: \(changedURL.path)")
+
+        case .file:
+            // Case 4
+            reloadFolderNode(at: parentURL, in: &rootFolders)
+            RCLog("📄 File change detected, reloaded parent folder: \(parentURL.path)")
+
+        case .missing:
+            if existingNode != nil {
+                // Case 3 — was a tracked folder
+                if selectedFolder?.url == changedURL
+                    || selectedFolder?.url.path.hasPrefix(changedURL.path + "/") == true {
+                    selectedFolder = nil
                 }
+                removeFolderNode(url: changedURL, in: &rootFolders)
+                RCLog("❌ Folder removed from tree: \(changedURL.path)")
+            } else {
+                // Case 5 — was a file
+                reloadFolderNode(at: parentURL, in: &rootFolders)
+                RCLog("📄 File removal detected, reloaded parent folder: \(parentURL.path)")
             }
-        } else {
-            // If no monitored parent found, try to refresh any root folder that might contain this path
-            for i in 0..<rootFolders.count {
-                if changedURL.path.hasPrefix(rootFolders[i].url.path) {
-                    let refreshedTree = loadFolderTree(
-                        at: rootFolders[i].url,
-                        maxDepth: 2,
-                        currentDepth: 0,
-                        bookmarkData: rootFolders[i].bookmarkData
-                    )
-                    rootFolders[i] = refreshedTree
-                    return
+        }
+    }
+
+    /// Recursively searches the tree for the FolderItem matching `url`.
+    private func findFolderNode(url: URL, in folders: [FolderItem]) -> FolderItem? {
+        for folder in folders {
+            if folder.url == url { return folder }
+            if let children = folder.children, let found = findFolderNode(url: url, in: children) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    /// Finds the node matching `parentURL` and either replaces the existing child with
+    /// the same url as `folder`, or inserts `folder` as a new child in alphabetically
+    /// sorted position (matching the ordering `loadFolderTree` produces).
+    private func insertOrReplaceFolder(_ folder: FolderItem, parentURL: URL, in folders: inout [FolderItem]) {
+        for i in 0..<folders.count {
+            if folders[i].url == parentURL {
+                var children = folders[i].children ?? []
+                if let idx = children.firstIndex(where: { $0.url == folder.url }) {
+                    children[idx] = folder
+                } else {
+                    let insertIdx = children.firstIndex {
+                        $0.url.lastPathComponent.localizedStandardCompare(folder.url.lastPathComponent) == .orderedDescending
+                    } ?? children.count
+                    children.insert(folder, at: insertIdx)
                 }
+                folders[i] = FolderItem(url: folders[i].url, children: children, bookmarkData: folders[i].bookmarkData)
+                return
+            }
+            if var children = folders[i].children {
+                insertOrReplaceFolder(folder, parentURL: parentURL, in: &children)
+                folders[i] = FolderItem(url: folders[i].url, children: children, bookmarkData: folders[i].bookmarkData)
+            }
+        }
+    }
+
+    /// Recursively removes the FolderItem matching `url` from the tree.
+    private func removeFolderNode(url: URL, in folders: inout [FolderItem]) {
+        if let idx = folders.firstIndex(where: { $0.url == url }) {
+            folders.remove(at: idx)
+            return
+        }
+        for i in 0..<folders.count {
+            if var children = folders[i].children {
+                removeFolderNode(url: url, in: &children)
+                folders[i] = FolderItem(url: folders[i].url,
+                                        children: children.isEmpty ? nil : children,
+                                        bookmarkData: folders[i].bookmarkData)
+            }
+        }
+    }
+
+    /// Recursively finds the node matching `url` and reloads its subtree (2 levels deep).
+    private func reloadFolderNode(at url: URL, in folders: inout [FolderItem]) {
+        for i in 0..<folders.count {
+            if folders[i].url == url {
+                folders[i] = loadFolderTree(at: url, maxDepth: 2, currentDepth: 0, bookmarkData: folders[i].bookmarkData)
+                return
+            }
+            if var children = folders[i].children {
+                reloadFolderNode(at: url, in: &children)
+                folders[i] = FolderItem(url: folders[i].url, children: children, bookmarkData: folders[i].bookmarkData)
             }
         }
     }
