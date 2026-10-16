@@ -60,9 +60,8 @@ struct CopyOptionsView: View {
                     Spacer()
                     Toggle("Year", isOn: $viewModel.organizeByYear).toggleStyle(.automatic)
                     Toggle("Month", isOn: $viewModel.organizeByMonth).toggleStyle(.automatic)
-                        .disabled(!viewModel.organizeByYear)
                     Toggle("Day", isOn: $viewModel.organizeByDay).toggleStyle(.automatic)
-                        .disabled(!viewModel.organizeByMonth)
+                    Toggle("Join with \"-\"", isOn: $viewModel.joinDate).toggleStyle(.automatic)
                 }
 
                 HStack(spacing: 12) {

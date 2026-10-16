@@ -14,6 +14,7 @@ struct CopySettings {
     let organizeByYear: Bool
     let organizeByMonth: Bool
     let organizeByDay: Bool
+    let joinDate: Bool
     let eventName: String
     let organizeByCameraModel: Bool
     let organizeJpgsInSubfolder: Bool
@@ -25,6 +26,7 @@ struct CopySettings {
         organizeByYear          = vm.organizeByYear
         organizeByMonth         = vm.organizeByMonth
         organizeByDay           = vm.organizeByDay
+        joinDate                = vm.joinDate
         eventName               = vm.eventName
         organizeByCameraModel   = vm.organizeByCameraModel
         organizeJpgsInSubfolder = vm.organizeJpgsInSubfolder

@@ -45,6 +45,7 @@ enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
     case copyToOrganizeByYear = "CopyTo_OrganizeByYear"
     case copyToOrganizeByMonth = "CopyTo_OrganizeByMonth"
     case copyToOrganizeByDay = "CopyTo_OrganizeByDay"
+    case copyToJoinDate = "CopyTo_JoinDate"
     case copyToEventName = "CopyTo_EventName"
     case copyToOrganizeByCameraModel = "CopyTo_OrganizeByCameraModel"
     case copyToOrganizeJpgsInSubfolder = "CopyTo_OrganizeJpgsInSubfolder"
@@ -77,6 +78,7 @@ enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
             case .copyToOrganizeByYear:     return false
             case .copyToOrganizeByMonth:    return false
             case .copyToOrganizeByDay:      return false
+            case .copyToJoinDate:           return false
             case .copyToEventName:          return ""
             case .copyToOrganizeByCameraModel: return false
             case .copyToOrganizeJpgsInSubfolder: return false

@@ -24,6 +24,7 @@ class PhotoCopySheetModel: ObservableObject, Identifiable, @unchecked Sendable {
     @Published var organizeByYear: Bool
     @Published var organizeByMonth: Bool
     @Published var organizeByDay: Bool
+    @Published var joinDate: Bool
     @Published var eventName: String
     @Published var organizeByCameraModel: Bool
     @Published var organizeJpgsInSubfolder: Bool
@@ -48,6 +49,8 @@ class PhotoCopySheetModel: ObservableObject, Identifiable, @unchecked Sendable {
         organizeByYear          = appPrefs.bool(.copyToOrganizeByYear)
         organizeByMonth         = appPrefs.bool(.copyToOrganizeByMonth)
         organizeByDay           = appPrefs.bool(.copyToOrganizeByDay)
+        joinDate                = appPrefs.bool(.copyToJoinDate)
+        joinDate                = appPrefs.bool(.copyToJoinDate)
         eventName               = appPrefs.string(.copyToEventName)
         organizeByCameraModel   = appPrefs.bool(.copyToOrganizeByCameraModel)
         organizeJpgsInSubfolder = appPrefs.bool(.copyToOrganizeJpgsInSubfolder)
@@ -71,6 +74,7 @@ class PhotoCopySheetModel: ObservableObject, Identifiable, @unchecked Sendable {
         appPrefs.set(organizeByYear,          forKey: .copyToOrganizeByYear)
         appPrefs.set(organizeByMonth,         forKey: .copyToOrganizeByMonth)
         appPrefs.set(organizeByDay,           forKey: .copyToOrganizeByDay)
+        appPrefs.set(joinDate,                forKey: .copyToJoinDate)
         appPrefs.set(eventName,               forKey: .copyToEventName)
         appPrefs.set(organizeByCameraModel,   forKey: .copyToOrganizeByCameraModel)
         appPrefs.set(organizeJpgsInSubfolder, forKey: .copyToOrganizeJpgsInSubfolder)
@@ -150,14 +154,22 @@ class PhotoCopySheetModel: ObservableObject, Identifiable, @unchecked Sendable {
                                         settings: CopySettings) -> URL {
         var dest = base
         let cal = Calendar.current
+        var parts: [String] = []
         if settings.organizeByYear {
-            dest = dest.appendingPathComponent(String(cal.component(.year, from: date)))
+            parts.append(String(cal.component(.year, from: date)))
         }
         if settings.organizeByMonth {
-            dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.month, from: date)))
+            parts.append(String(format: "%02d", cal.component(.month, from: date)))
         }
         if settings.organizeByDay {
-            dest = dest.appendingPathComponent(String(format: "%02d", cal.component(.day, from: date)))
+            parts.append(String(format: "%02d", cal.component(.day, from: date)))
+        }
+        if settings.joinDate, !parts.isEmpty {
+            dest = dest.appendingPathComponent(parts.joined(separator: "-"))
+        } else {
+            for part in parts {
+                dest = dest.appendingPathComponent(part)
+            }
         }
         if !settings.eventName.isEmpty {
             dest = dest.appendingPathComponent(settings.eventName)
