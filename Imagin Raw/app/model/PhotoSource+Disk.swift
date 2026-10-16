@@ -48,6 +48,12 @@ struct DiskPhotoSource: PhotoSource {
         if url.pathExtension == "stl" {
             return await extractSTLPreview(from: url)
         }
+        if hasGainMap {
+            // Preserve the HDR gain map in the grid thumbnail too — the generic
+            // jpegThumbnail() path below doesn't request HDR decoding and would
+            // otherwise show a flattened SDR thumbnail.
+            return CoreGraphicsDecoder().extractPreview(at: url, maxSize: targetSize, hasGainMap: true)
+        }
         return jpegThumbnail(url: url, targetSize: targetSize)
     }
 
@@ -344,8 +350,8 @@ struct DiskPhotoSource: PhotoSource {
         )
 
         return await withCheckedContinuation { continuation in
-            var didResume = false
-            let resumeOnce: (IRImage?) -> Void = { image in
+            nonisolated(unsafe) var didResume = false
+            let resumeOnce: @Sendable (IRImage?) -> Void = { image in
                 guard !didResume else {
                     return
                 }

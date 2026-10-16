@@ -94,15 +94,31 @@ final class PhotoCacheManager: Sendable {
             await evictDiskCacheIfNeeded()
         }
     }
-    
+
     func getImage(for photo: PhotoItem) async -> IRImage? {
+        let source = photo.makeSource()
+
+        // Gain map (HDR) images must bypass the memory/disk cache entirely — caching
+        // converts images to a baseline 8-bit JPEG via bitmapRepresentation(), which
+        // permanently discards the extended dynamic range / gain map data. Decode fresh
+        // every time instead so the HDR boost is preserved when displayed.
+        if photo.hasGainMap {
+            switch thumbSize {
+                case .s256:
+                    return await source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
+                case .s1024:
+                    return await source.loadPreview(targetSize: CGFloat(thumbSize.rawValue))
+                case .full:
+                    return source.loadFullRes()
+            }
+        }
+
         // 1. Search for the image in the memory
         if let memoryData = await memoryCache.getImageData(for: photo.path) {
             return IRImage(data: memoryData)
         }
 
         // 2. Search for the image on disk cache
-        let source = photo.makeSource()
         if source is DiskPhotoSource, thumbSize.cacheLimit > 0 {
             if let diskData = loadFromDisk(for: photo.url) {
                 await memoryCache.setImageData(diskData, for: photo.path)
