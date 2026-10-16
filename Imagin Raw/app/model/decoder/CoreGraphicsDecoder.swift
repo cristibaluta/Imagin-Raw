@@ -8,6 +8,11 @@
 import ImageIO
 import CoreImage
 import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 struct CoreGraphicsDecoder: RawDecoder {
 
@@ -213,38 +218,79 @@ struct CoreGraphicsDecoder: RawDecoder {
         return ctx.makeImage() ?? cg
     }
 
-    /// Decodes an image that contains an embedded HDR gain map (e.g. Apple ProRAW-derived HEIC,
-    /// iPhone HDR photos, or Sony's 10-bit HIF), combining the base image with the gain map to
-    /// produce a full extended-range image.
-    /// EXIF orientation is applied automatically by CoreImage (`.applyOrientationProperty`), so
-    /// the result must NOT be passed through `applyingOrientation(_:)` or `normalizeToSRGB(_:)`,
-    /// both of which redraw into a plain 8-bit sRGB CGContext and would discard the gain map /
-    /// extended range data.
-    private func decodeGainMapImage(at url: URL, maxPixelSize: CGFloat?) -> CGImage? {
-        // Files with a real gain map (JPEG/JXL/HEIC): let ImageIO apply it.
-        // PQ/HLG files without a gain map (AVIF/HIF) must go through the CoreImage path
-        // below, which renders them correctly (ImageIO's output was over-bright for them).
-        if #available(macOS 15.0, iOS 18.0, *),
-           let src = CGImageSourceCreateWithURL(url as CFURL, nil),
-           CGImageSourceCopyAuxiliaryDataInfoAtIndex(src, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil
-            || CGImageSourceCopyAuxiliaryDataInfoAtIndex(src, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil {
-            var options: [CFString: Any] = [
-                kCGImageSourceDecodeRequest: kCGImageSourceDecodeToHDR,
-                kCGImageSourceShouldCacheImmediately: true,
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceThumbnailMaxPixelSize: 20000
-            ]
-            if let maxPixelSize {
-                options[kCGImageSourceThumbnailMaxPixelSize] = Int(maxPixelSize)
-            }
-            let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary)
-            if let cg, cg.bitsPerComponent > 8 || (cg.colorSpace.map { CGColorSpaceUsesExtendedRange($0) } ?? false) {
-                return cg
-            }
-        }
+    // MARK: - HDR decoding
+    //
+    // decodeGainMapImage picks ONE strategy per call:
+    //   1. SDR display (headroom == 1)  -> decodeToSDR       (nothing above 1.0 may reach the screen)
+    //   2. HDR display                  -> decodeWithImageIOHDR (gain-map files) or decodeWithCoreImage (PQ/HLG)
+    // The result must NOT be passed through applyingOrientation / normalizeToSRGB / JPEG caching,
+    // which redraw into 8-bit and destroy the extended range.
 
-        // Fallback: CoreImage
+    /// Maximum EDR headroom of the main display. 1.0 = SDR display.
+    private var displayHeadroom: CGFloat {
+        #if os(macOS)
+        return max(1.0, NSScreen.main?.maximumPotentialExtendedDynamicRangeColorComponentValue ?? 1.0)
+        #else
+        return max(1.0, UIScreen.main.potentialEDRHeadroom)
+        #endif
+    }
+
+    private func decodeGainMapImage(at url: URL, maxPixelSize: CGFloat?) -> CGImage? {
+        let headroom = displayHeadroom
+        let name = url.lastPathComponent
+
+        if headroom <= 1.0, let sdr = decodeToSDR(at: url, maxPixelSize: maxPixelSize) {
+            RCLog("HDR file \(name): SDR display (headroom \(headroom)) -> ImageIO SDR, cs=\(sdr.colorSpace?.name as String? ?? "nil")")
+            return sdr
+        }
+        if let hdr = decodeWithImageIOHDR(at: url, maxPixelSize: maxPixelSize) {
+            RCLog("HDR file \(name): headroom \(headroom) -> ImageIO HDR, cs=\(hdr.colorSpace?.name as String? ?? "nil")")
+            return hdr
+        }
+        RCLog("HDR file \(name): headroom \(headroom) -> CoreImage")
+        return decodeWithCoreImage(at: url, maxPixelSize: maxPixelSize, headroom: headroom)
+    }
+
+    /// SDR rendition: base image for gain-map files, tone-mapped for PQ/HLG. macOS 15+/iOS 18+.
+    private func decodeToSDR(at url: URL, maxPixelSize: CGFloat?) -> CGImage? {
+        guard #available(macOS 15.0, iOS 18.0, *),
+              let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            return nil
+        }
+        let options: [CFString: Any] = [
+            kCGImageSourceDecodeRequest: kCGImageSourceDecodeToSDR,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: Int(maxPixelSize ?? 20000)
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary)
+    }
+
+    /// Gain-map files only (JPEG/JXL/HEIC): ImageIO applies the gain map itself.
+    private func decodeWithImageIOHDR(at url: URL, maxPixelSize: CGFloat?) -> CGImage? {
+        guard #available(macOS 15.0, iOS 18.0, *),
+              let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              CGImageSourceCopyAuxiliaryDataInfoAtIndex(src, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil
+                || CGImageSourceCopyAuxiliaryDataInfoAtIndex(src, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil else {
+            return nil
+        }
+        let options: [CFString: Any] = [
+            kCGImageSourceDecodeRequest: kCGImageSourceDecodeToHDR,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: Int(maxPixelSize ?? 20000)
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary),
+              cg.bitsPerComponent > 8 || (cg.colorSpace.map { CGColorSpaceUsesExtendedRange($0) } ?? false) else {
+            return nil
+        }
+        return cg
+    }
+
+    /// PQ/HLG files (and fallback): CoreImage, tone-mapped to the display headroom.
+    private func decodeWithCoreImage(at url: URL, maxPixelSize: CGFloat?, headroom: CGFloat) -> CGImage? {
         guard var ciImage = CIImage(contentsOf: url, options: [
             .expandToHDR: true,
             .applyOrientationProperty: true
@@ -258,6 +304,14 @@ struct CoreGraphicsDecoder: RawDecoder {
                 let scale = maxPixelSize / longestEdge
                 ciImage = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
             }
+        }
+
+        // Tone-map to what the display can actually show (HDR.md §4)
+        if #available(macOS 15.0, iOS 18.0, *), ciImage.contentHeadroom > Float(headroom) {
+            ciImage = ciImage.applyingFilter("CIToneMapHeadroom", parameters: [
+                "inputSourceHeadroom": ciImage.contentHeadroom,
+                "inputTargetHeadroom": headroom
+            ])
         }
 
         // Render into a *linear* extended space (see HDR.md §3, option B)
