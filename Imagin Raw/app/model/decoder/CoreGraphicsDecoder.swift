@@ -221,6 +221,28 @@ struct CoreGraphicsDecoder: RawDecoder {
     /// both of which redraw into a plain 8-bit sRGB CGContext and would discard the gain map /
     /// extended range data.
     private func decodeGainMapImage(at url: URL, maxPixelSize: CGFloat?) -> CGImage? {
+        // Preferred: let ImageIO apply the gain map / PQ / HLG itself and hand back a
+        // float, extended-range CGImage. This works for JPEG (MPF + ISO gain maps), HEIC,
+        // AVIF and JXL, and avoids the lossy CoreImage round trip below.
+        if #available(macOS 15.0, iOS 18.0, *),
+           let src = CGImageSourceCreateWithURL(url as CFURL, nil) {
+            var options: [CFString: Any] = [
+                kCGImageSourceDecodeRequest: kCGImageSourceDecodeToHDR,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: 20000
+            ]
+            if let maxPixelSize {
+                options[kCGImageSourceThumbnailMaxPixelSize] = Int(maxPixelSize)
+            }
+            let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary)
+            if let cg, cg.bitsPerComponent > 8 || (cg.colorSpace.map { CGColorSpaceUsesExtendedRange($0) } ?? false) {
+                return cg
+            }
+        }
+
+        // Fallback: CoreImage
         guard var ciImage = CIImage(contentsOf: url, options: [
             .expandToHDR: true,
             .applyOrientationProperty: true
@@ -236,10 +258,11 @@ struct CoreGraphicsDecoder: RawDecoder {
             }
         }
 
-        guard let extendedColorSpace = CGColorSpace(name: CGColorSpace.extendedSRGB) else {
+        guard let extendedColorSpace = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3) else {
             return nil
         }
-        let context = CIContext(options: [.workingColorSpace: extendedColorSpace])
+        let context = CIContext(options: [.workingColorSpace: extendedColorSpace,
+                                          .workingFormat: CIFormat.RGBAh.rawValue])
         return context.createCGImage(ciImage,
                                       from: ciImage.extent,
                                       format: .RGBAh,
