@@ -114,6 +114,10 @@ struct ThumbGridView: View {
             RenameView(photosToRename: model.photos)
                 .interactiveDismissDisabled(false)
         }
+        .sheet(item: $viewModel.exportJob) { job in
+            ExportJPEGProgressView(job: job)
+                .interactiveDismissDisabled(true)
+        }
         .sheet(isPresented: $duplicatesFinderModel.showDuplicatesSheet) {
             DuplicatesResultSheet(viewModel: duplicatesFinderModel)
         }

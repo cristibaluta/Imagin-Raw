@@ -28,6 +28,7 @@ class ThumbGridViewModel: ObservableObject {
     @Published var isLoadingMetadata: Bool = false
     @Published var copyJob: PhotoCopySheetModel? = nil
     @Published var renameJob: PhotosSheetItem? = nil
+    @Published var exportJob: ExportJPEGJob? = nil
 
     var onReviewSelected: ((ReviewGroupItem?) -> Void)?
 
@@ -904,39 +905,22 @@ extension ThumbGridViewModel: ThumbCellDelegate {
             return
         }
         let paths = photos.map { $0.url.path(percentEncoded: false) }
-        DispatchQueue.global(qos: .userInitiated).async {
-            let fm = FileManager.default
-            var failed = 0
-            for path in paths {
-                let src = URL(fileURLWithPath: path)
-                guard let data = RawWrapper.shared().extractLargestEmbeddedJPEG(atPath: path) else {
-                    failed += 1
-                    continue
-                }
-                let base = src.deletingPathExtension().lastPathComponent
-                var dest = folder.appendingPathComponent(base + ".jpg")
-                var n = 1
-                while fm.fileExists(atPath: dest.path) {
-                    dest = folder.appendingPathComponent("\(base)_\(n).jpg")
-                    n += 1
-                }
-                do {
-                    try data.write(to: dest)
-                } catch {
-                    failed += 1
-                }
+        let job = ExportJPEGJob(paths: paths, destination: folder)
+        job.onFinished = { [weak self] job in
+            self?.exportJob = nil
+            if job.failed > 0 && !job.isCancelled {
+                let alert = NSAlert()
+                alert.messageText = "Some JPEGs could not be exported"
+                alert.informativeText = "\(job.failed) of \(job.total) file(s) failed."
+                alert.runModal()
             }
-            let failedCount = failed
-            DispatchQueue.main.async {
-                if failedCount > 0 {
-                    let alert = NSAlert()
-                    alert.messageText = "Some JPEGs could not be exported"
-                    alert.informativeText = "\(failedCount) of \(paths.count) file(s) failed."
-                    alert.runModal()
-                }
-                NSWorkspace.shared.open(folder)
+            // Open the folder only after a completed (non-cancelled) export
+            if !job.isCancelled {
+                NSWorkspace.shared.open(job.destination)
             }
         }
+        exportJob = job
+        job.start()
         #endif
     }
 
