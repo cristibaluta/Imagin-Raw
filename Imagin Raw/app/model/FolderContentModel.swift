@@ -21,6 +21,7 @@ final class FolderContentModel: ObservableObject {
     private let folder: FolderItem
     private let includeSubfolders: Bool
     private let exifQueue = OperationQueue()
+    private var photosWithExifsBuffer: [PhotoItem] = []
 
     init(folder: FolderItem, includeSubfolders: Bool) {
         self.folder = folder
@@ -196,28 +197,30 @@ final class FolderContentModel: ObservableObject {
     private func loadLocalExifs() {
         let startTime = Date()
         isLoadingMetadata = true
+        photosWithExifsBuffer = []
 
         exifQueue.maxConcurrentOperationCount = ProcessInfo.processInfo.activeProcessorCount
         exifQueue.qualityOfService = .userInitiated
         RCLog("Start loading exifs using \(exifQueue.maxConcurrentOperationCount) threads")
 
-        var photosWithExifs: [PhotoItem] = []
+        let totalCount = photos.wrappedValue.count
 
         for photo in photos.wrappedValue {
-            let op = LoadExifOperation(photo: photo) { photoWithExif in
-                Task {
-                    photosWithExifs.append(photoWithExif)
+            let op = LoadExifOperation(photo: photo) { [weak self] photoWithExif in
+                Task { @MainActor [weak self] in
+                    self?.photosWithExifsBuffer.append(photoWithExif)
                 }
             }
             exifQueue.addOperation(op)
         }
-        exifQueue.addBarrierBlock {
+        exifQueue.addBarrierBlock { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else {
                     return
                 }
-                RCLog("Finish loaded exifs \(photosWithExifs.count) from \(self.photos.wrappedValue.count) in \(String(format: "%.3f", Date().timeIntervalSince(startTime)))s")
-                self.photos.wrappedValue = photosWithExifs
+                RCLog("Finish loaded exifs \(self.photosWithExifsBuffer.count) from \(totalCount) in \(String(format: "%.3f", Date().timeIntervalSince(startTime)))s")
+                self.photos.wrappedValue = self.photosWithExifsBuffer
+                self.photosWithExifsBuffer = []
                 self.isLoadingMetadata = false
             }
         }
