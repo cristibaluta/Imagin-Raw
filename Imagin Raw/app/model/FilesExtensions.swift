@@ -141,7 +141,27 @@ enum FilesExtensions {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             return false
         }
-        return CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil
+        if CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil {
+            return true
+        }
+        if #available(macOS 15.0, iOS 18.0, *),
+           CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil {
+            return true
+        }
+        // Gain-map-less HDR (e.g. Sony HIF / HEIC with PQ or HLG transfer function)
+        if let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+           let profile = props[kCGImagePropertyProfileName] as? String {
+            let name = profile.lowercased()
+            if name.contains("pq") || name.contains("hlg") || name.contains("2100") || name.contains("2020") {
+                return true
+            }
+        }
+        if let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceThumbnailMaxPixelSize: 16,
+                                                                       kCGImageSourceCreateThumbnailFromImageAlways: true] as CFDictionary),
+           let cs = image.colorSpace, CGColorSpaceUsesITUR_2100TF(cs) {
+            return true
+        }
+        return false
     }
 
     // TODO: Is this replaceable by the generic isImageFile method? Do all images support metadata?
