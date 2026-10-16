@@ -157,7 +157,7 @@ extension MacThumbCell {
         let rename = NSMenuItem(title: "Rename...", action: #selector(handleRenameTo), keyEquivalent: "")
         menu.addItem(rename)
         if isRaw {
-            let extract = NSMenuItem(title: "Extract Embedded Preview...", action: #selector(handleExtractPreviews), keyEquivalent: "")
+            let extract = NSMenuItem(title: "Export Embedded JPEG...", action: #selector(handleExtractPreviews), keyEquivalent: "")
             menu.addItem(extract)
         }
 

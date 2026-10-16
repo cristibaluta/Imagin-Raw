@@ -893,13 +893,13 @@ extension ThumbGridViewModel: ThumbCellDelegate {
             return
         }
         let panel = NSOpenPanel()
-        panel.title = "Extract Embedded Previews"
-        panel.message = "Choose where to save the extracted previews"
+        panel.title = "Export Embedded JPEG"
+        panel.message = "Choose where to save the JPEG embedded in the raw files"
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = "Extract"
+        panel.prompt = "Export"
         guard panel.runModal() == .OK, let folder = panel.url else {
             return
         }
@@ -930,7 +930,7 @@ extension ThumbGridViewModel: ThumbCellDelegate {
             DispatchQueue.main.async {
                 if failedCount > 0 {
                     let alert = NSAlert()
-                    alert.messageText = "Some previews could not be extracted"
+                    alert.messageText = "Some JPEGs could not be exported"
                     alert.informativeText = "\(failedCount) of \(paths.count) file(s) failed."
                     alert.runModal()
                 }
