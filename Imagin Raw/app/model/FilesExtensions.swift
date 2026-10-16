@@ -71,6 +71,11 @@ enum FilesExtensions {
     /// "hif" is not a system-registered UTType extension, so it must be matched explicitly.
     static let rawCounterpartExtensions: Set<String> = ["jpg", "jpeg", "heic", "heif", "hif"]
 
+    /// Same as rawCounterpartExtensions, but including uppercased variants too —
+    /// useful when probing the filesystem for a companion file by trying each extension in turn.
+    static let rawCounterpartExtensionsAllCase: [String] = rawCounterpartExtensions
+        .flatMap { [$0, $0.uppercased()] }
+
     static func isRawCounterpartFile(_ url: URL) -> Bool {
         let ext = url.pathExtension.lowercased()
         if rawCounterpartExtensions.contains(ext) {

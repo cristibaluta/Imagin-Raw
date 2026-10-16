@@ -99,8 +99,8 @@ class PhotoRenameSheetModel: ObservableObject, Identifiable {
 
         // Rename associated JPG/HEIC/HIF companion if present
         if photo.hasJPG {
-            for ext in [photo.companionImageExt, photo.companionImageExt?.uppercased(),
-                        "jpg", "jpeg", "heic", "heif", "hif", "JPG", "JPEG", "HEIC", "HEIF", "HIF"].compactMap({ $0 }) {
+            for ext in [photo.companionImageExt, photo.companionImageExt?.uppercased()].compactMap({ $0 })
+                + FilesExtensions.rawCounterpartExtensionsAllCase {
                 let jpgSource = sourceURL.deletingPathExtension().appendingPathExtension(ext)
                 if fm.fileExists(atPath: jpgSource.path) {
                     let jpgDest = destURL.deletingPathExtension().appendingPathExtension(ext)
