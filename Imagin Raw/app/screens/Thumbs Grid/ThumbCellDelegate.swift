@@ -21,6 +21,7 @@ protocol ThumbCellDelegate: Sendable {
     func onCopyTo(photo: PhotoItem) -> Void
     func onQuickCopy(photo: PhotoItem) -> Void
     func onRenameTo(photo: PhotoItem) -> Void
+    func onExtractPreviews(photo: PhotoItem) -> Void
     func onMoveAllMarkedToTrash(photo: PhotoItem) -> Void
     func onApprove(photo: PhotoItem) -> Void
     func onReject(photo: PhotoItem) -> Void

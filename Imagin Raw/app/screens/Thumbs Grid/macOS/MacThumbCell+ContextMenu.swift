@@ -156,6 +156,10 @@ extension MacThumbCell {
         menu.addItem(copy)
         let rename = NSMenuItem(title: "Rename...", action: #selector(handleRenameTo), keyEquivalent: "")
         menu.addItem(rename)
+        if isRaw {
+            let extract = NSMenuItem(title: "Extract Embedded Preview...", action: #selector(handleExtractPreviews), keyEquivalent: "")
+            menu.addItem(extract)
+        }
 
         menu.addItem(.separator())
 
@@ -165,7 +169,7 @@ extension MacThumbCell {
         trash.keyEquivalentModifierMask = [.command]
         trash.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
         menu.addItem(trash)
-        
+
         if photo.state == .rejected, let count = delegate?.markedForDeletionCount(), count > 0 {
             let all = NSMenuItem(title: "Move to Trash all Rejected Photos (\(count))",
                                  action: #selector(handleMoveAllToTrash),
@@ -231,6 +235,13 @@ extension MacThumbCell {
             return
         }
         delegate?.onRenameTo(photo: p)
+    }
+
+    @objc private func handleExtractPreviews() {
+        guard let p = currentPhoto else {
+            return
+        }
+        delegate?.onExtractPreviews(photo: p)
     }
 
     @objc private func handleMoveToTrash() {

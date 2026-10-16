@@ -88,6 +88,50 @@ static void exifParserCallback(void *context,
     return result;
 }
 
+- (NSData *)extractLargestEmbeddedJPEGAtPath:(NSString *)filePath {
+    __block NSData *result = nil;
+
+    dispatch_sync([[self class] librawQueue], ^{
+        LibRaw *raw = new LibRaw();
+        @try {
+            if (raw->open_file(filePath.UTF8String) != LIBRAW_SUCCESS) {
+                delete raw;
+                return;
+            }
+            int best = -1;
+            unsigned long long bestPixels = 0;
+            int count = raw->imgdata.thumbs_list.thumbcount;
+            for (int i = 0; i < count && i < LIBRAW_THUMBNAIL_MAXCOUNT; i++) {
+                libraw_thumbnail_item_t item = raw->imgdata.thumbs_list.thumblist[i];
+                if (item.tformat != LIBRAW_INTERNAL_THUMBNAIL_JPEG) continue;
+                unsigned long long pixels = (unsigned long long)item.twidth * item.theight;
+                if (best < 0 || pixels > bestPixels ||
+                    (pixels == bestPixels && item.tlength > raw->imgdata.thumbs_list.thumblist[best].tlength)) {
+                    best = i;
+                    bestPixels = pixels;
+                }
+            }
+            int ret = (best >= 0) ? raw->unpack_thumb_ex(best) : raw->unpack_thumb();
+            if (ret == LIBRAW_SUCCESS) {
+                libraw_processed_image_t *thumb = raw->dcraw_make_mem_thumb();
+                if (thumb && thumb->type == LIBRAW_IMAGE_JPEG) {
+                    result = [NSData dataWithBytes:thumb->data length:thumb->data_size];
+                }
+                if (thumb) LibRaw::dcraw_clear_mem(thumb);
+            }
+            raw->recycle();
+            delete raw;
+        }
+        @catch (NSException *exception) {
+            raw->recycle();
+            delete raw;
+            result = nil;
+        }
+    });
+
+    return result;
+}
+
 - (NSDictionary *)extractExif:(NSURL *)url {
     __block NSDictionary *result = nil;
 

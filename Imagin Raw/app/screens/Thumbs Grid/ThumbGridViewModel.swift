@@ -886,6 +886,60 @@ extension ThumbGridViewModel: ThumbCellDelegate {
         renameJob = PhotosSheetItem(photos: photos)
     }
 
+    func onExtractPreviews(photo: PhotoItem) {
+        #if os(macOS)
+        let photos = (selectedPhotos.contains(photo) ? selectedPhotos : [photo]).filter { $0.isRaw }
+        guard !photos.isEmpty else {
+            return
+        }
+        let panel = NSOpenPanel()
+        panel.title = "Extract Embedded Previews"
+        panel.message = "Choose where to save the extracted previews"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Extract"
+        guard panel.runModal() == .OK, let folder = panel.url else {
+            return
+        }
+        let paths = photos.map { $0.url.path(percentEncoded: false) }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let fm = FileManager.default
+            var failed = 0
+            for path in paths {
+                let src = URL(fileURLWithPath: path)
+                guard let data = RawWrapper.shared().extractLargestEmbeddedJPEG(atPath: path) else {
+                    failed += 1
+                    continue
+                }
+                let base = src.deletingPathExtension().lastPathComponent
+                var dest = folder.appendingPathComponent(base + ".jpg")
+                var n = 1
+                while fm.fileExists(atPath: dest.path) {
+                    dest = folder.appendingPathComponent("\(base)_\(n).jpg")
+                    n += 1
+                }
+                do {
+                    try data.write(to: dest)
+                } catch {
+                    failed += 1
+                }
+            }
+            let failedCount = failed
+            DispatchQueue.main.async {
+                if failedCount > 0 {
+                    let alert = NSAlert()
+                    alert.messageText = "Some previews could not be extracted"
+                    alert.informativeText = "\(failedCount) of \(paths.count) file(s) failed."
+                    alert.runModal()
+                }
+                NSWorkspace.shared.open(folder)
+            }
+        }
+        #endif
+    }
+
     func onMoveAllMarkedToTrash(photo: PhotoItem) {
         let marked = getPhotosMarkedForDeletion()
         movePhotosToTrash(marked)

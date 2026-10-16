@@ -21,6 +21,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (instancetype)shared;
 //- (nullable RawPhoto *)extractRawPhoto:(NSURL *)url;
 - (nullable NSData *)extractEmbeddedJPEG:(NSString *)path;
+/// Extracts the largest embedded JPEG preview. Takes a plain filesystem path.
+- (nullable NSData *)extractLargestEmbeddedJPEGAtPath:(NSString *)filePath;
 //- (nullable NSDictionary *)extractMetadata:(NSString *)path;
 - (nullable NSDictionary *)extractExif:(NSURL *)url;
 #if TARGET_OS_OSX
