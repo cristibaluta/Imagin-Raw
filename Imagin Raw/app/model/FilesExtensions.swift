@@ -134,5 +134,5 @@ enum FilesExtensions {
 
     // TODO: Is this replaceable by the generic isImageFile method? Do all images support metadata?
     /// File extensions that support embedded metadata writing via ImageIO.
-    static let supportedFilesWithExif: Set<String> = ["jpg", "jpeg", "png", "tiff", "tif", "heic", "heif", "psd"]
+    static let supportedFilesWithExif: Set<String> = ["jpg", "jpeg", "png", "tiff", "tif", "heic", "heif", "hif", "psd"]
 }
