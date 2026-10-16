@@ -149,6 +149,7 @@ struct PhotoPreviewView: View {
                     Image(nsImage: nsImage)
                         .resizable()
                         .scaledToFit()
+                        .allowedDynamicRange(.high)
                     //                                    .overlay(showAFPoint ? FocusPointOverlay(nsImage: nsImage,
                     //                                                             focusResult: parseOlympusAFPoint(from: URL(fileURLWithPath: photo.path))) : nil)
                     //                                    .overlay(FocusPointOverlay(nsImage: nsImage,

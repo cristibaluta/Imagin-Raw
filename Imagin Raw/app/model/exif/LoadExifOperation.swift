@@ -70,6 +70,12 @@ final class LoadExifOperation: Operation, @unchecked Sendable {
             exif = CoreGraphicsDecoder().extractExif(at: photo.url)
         }
 
+        // 2.5 Check for an embedded HDR gain map — RAW files never have one, only their
+        // developed JPEG/HEIC/HIF counterparts can, so skip the check (and its file I/O) for RAW.
+        // Computed once here and cached on PhotoItem to avoid re-detecting it on every
+        // thumbnail/preview/full-res decode.
+        let hasGainMap = photo.isRaw ? false : FilesExtensions.hasGainMap(at: photo.url)
+
         // 3. Build PhotoItem
         return PhotoItem(id: photo.id,
                          url: photo.url,
@@ -78,6 +84,7 @@ final class LoadExifOperation: Operation, @unchecked Sendable {
                          dateModified: photo.dateModified,
                          hasACR: photo.hasACR,
                          companionImageExt: photo.companionImageExt,
+                         hasGainMap: hasGainMap,
                          hasXMP: xmp != nil,
                          xmp: xmp,
                          exif: exif,

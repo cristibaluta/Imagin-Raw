@@ -39,6 +39,7 @@ struct ZoomPanView: View {
 
             Image(nsImage: image)
                 .resizable()
+                .allowedDynamicRange(.high)
                 .frame(width: imgW, height: imgH)
                 .offset(x: offsetX, y: offsetY)
                 .frame(width: viewW, height: viewH, alignment: .topLeading)

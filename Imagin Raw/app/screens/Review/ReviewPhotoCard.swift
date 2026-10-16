@@ -52,6 +52,7 @@ struct ReviewPhotoCard: View {
                             Image(nsImage: img)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
+                                .allowedDynamicRange(.high)
                         }
                         ProgressView("Loading full res…")
                             .progressViewStyle(.circular)
@@ -61,12 +62,14 @@ struct ReviewPhotoCard: View {
                     Image(nsImage: img)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
+                        .allowedDynamicRange(.high)
                 }
             } else {
                 if let img = previewImage {
                     Image(nsImage: img)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
+                        .allowedDynamicRange(.high)
 //                        .transition(.opacity)
                 } else if isLoading {
                     ProgressView()
@@ -199,6 +202,7 @@ struct SyncedZoomView: View {
 
             Image(nsImage: image)
                 .resizable()
+                .allowedDynamicRange(.high)
                 .frame(width: imgW, height: imgH)
                 .offset(x: offsetX, y: offsetY)
                 .frame(width: viewW, height: viewH, alignment: .topLeading)

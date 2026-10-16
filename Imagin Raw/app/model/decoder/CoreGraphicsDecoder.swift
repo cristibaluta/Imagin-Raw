@@ -6,13 +6,28 @@
 //
 
 import ImageIO
+import CoreImage
 import UniformTypeIdentifiers
 
 struct CoreGraphicsDecoder: RawDecoder {
 
     func decodeFullRes(at url: URL) -> IRImage? {
+        decodeFullRes(at: url, hasGainMap: FilesExtensions.hasGainMap(at: url))
+    }
+
+    /// - Parameter hasGainMap: Pass a pre-computed value (cached on `PhotoItem` from the EXIF
+    ///   loading pass) to skip re-detecting the gain map on every decode call.
+    func decodeFullRes(at url: URL, hasGainMap: Bool) -> IRImage? {
         let t0 = Date()
         let filename = url.lastPathComponent
+
+        // Gain map (HDR) images need a different decode path to preserve the extended
+        // dynamic range content — the regular ImageIO + CGContext path below flattens
+        // everything to 8-bit sRGB, which would discard the gain map.
+        if hasGainMap, let hdr = decodeGainMapImage(at: url, maxPixelSize: nil) {
+            RCLog("HDR gain map \(filename) in \(String(format:"%.3f",-t0.timeIntervalSinceNow))s  \(hdr.width)×\(hdr.height)")
+            return IRImage(cgImage: hdr, size: IRSize(width: hdr.width, height: hdr.height))
+        }
 
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             return nil
@@ -46,7 +61,22 @@ struct CoreGraphicsDecoder: RawDecoder {
     }
 
     func extractPreview(at url: URL, maxSize: CGFloat) -> IRImage? {
+        extractPreview(at: url, maxSize: maxSize, hasGainMap: FilesExtensions.hasGainMap(at: url))
+    }
+
+    /// - Parameter hasGainMap: Pass a pre-computed value (cached on `PhotoItem` from the EXIF
+    ///   loading pass) to skip re-detecting the gain map on every decode call.
+    func extractPreview(at url: URL, maxSize: CGFloat, hasGainMap: Bool) -> IRImage? {
         let t0 = Date()
+
+        // Gain map (HDR) images: decode + downscale via CoreImage so the extended
+        // dynamic range content is preserved (orientation is applied automatically too,
+        // so we must NOT run this through applyingOrientation(_:) below, which would
+        // flatten the gain map away via a plain CGContext draw).
+        if hasGainMap, let hdr = decodeGainMapImage(at: url, maxPixelSize: maxSize) {
+            RCLog("extractPreview (HDR) from \(url.lastPathComponent) in \(String(format:"%.3f", -t0.timeIntervalSinceNow))s")
+            return IRImage(cgImage: hdr, size: IRSize(width: hdr.width, height: hdr.height))
+        }
 
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             return nil
@@ -181,5 +211,38 @@ struct CoreGraphicsDecoder: RawDecoder {
         }
         ctx.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
         return ctx.makeImage() ?? cg
+    }
+
+    /// Decodes an image that contains an embedded HDR gain map (e.g. Apple ProRAW-derived HEIC,
+    /// iPhone HDR photos, or Sony's 10-bit HIF), combining the base image with the gain map to
+    /// produce a full extended-range image.
+    /// EXIF orientation is applied automatically by CoreImage (`.applyOrientationProperty`), so
+    /// the result must NOT be passed through `applyingOrientation(_:)` or `normalizeToSRGB(_:)`,
+    /// both of which redraw into a plain 8-bit sRGB CGContext and would discard the gain map /
+    /// extended range data.
+    private func decodeGainMapImage(at url: URL, maxPixelSize: CGFloat?) -> CGImage? {
+        guard var ciImage = CIImage(contentsOf: url, options: [
+            .expandToHDR: true,
+            .applyOrientationProperty: true
+        ]) else {
+            return nil
+        }
+
+        if let maxPixelSize {
+            let longestEdge = max(ciImage.extent.width, ciImage.extent.height)
+            if longestEdge > maxPixelSize {
+                let scale = maxPixelSize / longestEdge
+                ciImage = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+            }
+        }
+
+        guard let extendedColorSpace = CGColorSpace(name: CGColorSpace.extendedSRGB) else {
+            return nil
+        }
+        let context = CIContext(options: [.workingColorSpace: extendedColorSpace])
+        return context.createCGImage(ciImage,
+                                      from: ciImage.extent,
+                                      format: .RGBAh,
+                                      colorSpace: extendedColorSpace)
     }
 }

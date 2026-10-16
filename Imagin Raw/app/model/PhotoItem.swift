@@ -19,6 +19,8 @@ struct PhotoItem: Identifiable, Sendable {
     let hasACR: Bool
     /// Lowercased file extension of the RAW's companion "developed" image file (e.g. "jpg", "heic", "hif"), if any.
     let companionImageExt: String?
+    /// True if this photo's own file (not a companion) has an embedded HDR gain map.
+    let hasGainMap: Bool
     let hasXMP: Bool
     let xmp: XmpMetadata?
     let exif: ExifData?
@@ -77,6 +79,7 @@ struct PhotoItem: Identifiable, Sendable {
          dateModified: Date? = nil,
          hasACR: Bool = false,
          companionImageExt: String? = nil,
+         hasGainMap: Bool = false,
          hasXMP: Bool = false,
          xmp: XmpMetadata? = nil,
          exif: ExifData? = nil,
@@ -90,6 +93,7 @@ struct PhotoItem: Identifiable, Sendable {
         self.dateModified = dateModified
         self.hasACR = hasACR
         self.companionImageExt = companionImageExt
+        self.hasGainMap = hasGainMap
         self.hasXMP = hasXMP
         self.xmp = xmp
         self.exif = exif
@@ -110,6 +114,7 @@ struct PhotoItem: Identifiable, Sendable {
         self.dateModified = asset.modificationDate
         self.hasACR = false
         self.companionImageExt = nil
+        self.hasGainMap = false
         self.hasXMP = false
         self.state = .none
         self.phAsset = asset
@@ -164,6 +169,7 @@ extension PhotoItem: Hashable {
         lhs.dateModified == rhs.dateModified &&
         lhs.hasACR == rhs.hasACR &&
         lhs.companionImageExt == rhs.companionImageExt &&
+        lhs.hasGainMap == rhs.hasGainMap &&
         lhs.hasXMP == rhs.hasXMP &&
         lhs.fileSizeBytes == rhs.fileSizeBytes &&
         lhs.state == rhs.state
@@ -181,6 +187,6 @@ extension PhotoItem {
         if let asset = phAsset {
             return PhotoKitPhotoSource(asset: asset, photoPath: path)
         }
-        return DiskPhotoSource(url: url)
+        return DiskPhotoSource(url: url, hasGainMap: hasGainMap)
     }
 }

@@ -14,6 +14,10 @@ import QuickLookThumbnailing
 
 struct DiskPhotoSource: PhotoSource {
     let url: URL
+    /// Pre-computed (cached on `PhotoItem` during EXIF loading) flag indicating whether this
+    /// photo's file has an embedded HDR gain map, to avoid re-parsing the file header on
+    /// every thumbnail/preview/full-res decode.
+    var hasGainMap: Bool = false
 
     var cacheKey: String {
         let dirHash = sha256Prefix(url.deletingLastPathComponent().path)
@@ -63,7 +67,7 @@ struct DiskPhotoSource: PhotoSource {
         } else if url.pathExtension == "stl" {
             return await extractSTLPreview(from: url, size: CGSize(width: targetSize, height: targetSize))
         } else {
-            return CoreGraphicsDecoder().extractPreview(at: url, maxSize: targetSize)
+            return CoreGraphicsDecoder().extractPreview(at: url, maxSize: targetSize, hasGainMap: hasGainMap)
         }
     }
 
@@ -75,7 +79,7 @@ struct DiskPhotoSource: PhotoSource {
         if FilesExtensions.isRawImageFile(url) {
             return LibRawDecoder().decodeFullRes(at: url)
         } else {
-            return CoreGraphicsDecoder().decodeFullRes(at: url)
+            return CoreGraphicsDecoder().decodeFullRes(at: url, hasGainMap: hasGainMap)
         }
     }
 

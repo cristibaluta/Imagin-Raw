@@ -7,6 +7,7 @@
 
 import Foundation
 import UniformTypeIdentifiers
+import ImageIO
 
 enum RawBrand {
     case olympus
@@ -130,6 +131,17 @@ enum FilesExtensions {
         }
         let type = CGImageSourceGetType(source) as String?
         return type != nil
+    }
+
+    /// Checks whether the image at `url` has an embedded HDR gain map
+    /// (e.g. Apple ProRAW-derived HEIC, iPhone HDR photos, Sony's 10-bit HIF).
+    /// Note: this is independent of RAW files — RAW formats do not carry gain maps themselves,
+    /// only their JPEG/HEIC/HIF "developed" counterparts can.
+    static func hasGainMap(at url: URL) -> Bool {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            return false
+        }
+        return CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil
     }
 
     // TODO: Is this replaceable by the generic isImageFile method? Do all images support metadata?

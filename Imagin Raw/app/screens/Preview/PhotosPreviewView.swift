@@ -35,9 +35,11 @@ struct PhotosPreviewView: View {
                             Image(nsImage: nsImage1)
                                 .resizable()
                                 .scaledToFit()
+                                .allowedDynamicRange(.high)
                             Image(nsImage: nsImage2)
                                 .resizable()
                                 .scaledToFit()
+                                .allowedDynamicRange(.high)
                         }
                         .padding(8)
                 } else if viewModel.isLoading {
