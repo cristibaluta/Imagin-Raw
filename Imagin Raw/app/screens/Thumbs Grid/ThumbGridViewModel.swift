@@ -890,7 +890,34 @@ extension ThumbGridViewModel: ThumbCellDelegate {
     func onExtractPreviews(photo: PhotoItem) {
         #if os(macOS)
         let photos = (selectedPhotos.contains(photo) ? selectedPhotos : [photo]).filter { $0.isRaw }
-        guard !photos.isEmpty else {
+        exportEmbeddedJPEGs(paths: photos.map { $0.url.path(percentEncoded: false) })
+        #endif
+    }
+
+    /// Exports the embedded JPEG of every raw file located directly inside the folder.
+    func exportEmbeddedJPEGs(inFolder folderURL: URL) {
+        #if os(macOS)
+        let files = (try? FileManager.default.contentsOfDirectory(at: folderURL,
+                                                                  includingPropertiesForKeys: nil,
+                                                                  options: [.skipsHiddenFiles])) ?? []
+        let paths = files
+            .filter { FilesExtensions.isRawImageFile($0) }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+            .map { $0.path(percentEncoded: false) }
+        if paths.isEmpty {
+            let alert = NSAlert()
+            alert.messageText = "No raw files found"
+            alert.informativeText = "This folder doesn't contain any raw files."
+            alert.runModal()
+            return
+        }
+        exportEmbeddedJPEGs(paths: paths)
+        #endif
+    }
+
+    #if os(macOS)
+    private func exportEmbeddedJPEGs(paths: [String]) {
+        guard !paths.isEmpty, exportJob == nil else {
             return
         }
         let panel = NSOpenPanel()
@@ -904,7 +931,6 @@ extension ThumbGridViewModel: ThumbCellDelegate {
         guard panel.runModal() == .OK, let folder = panel.url else {
             return
         }
-        let paths = photos.map { $0.url.path(percentEncoded: false) }
         let job = ExportJPEGJob(paths: paths, destination: folder)
         job.onFinished = { [weak self] job in
             self?.exportJob = nil
@@ -921,8 +947,8 @@ extension ThumbGridViewModel: ThumbCellDelegate {
         }
         exportJob = job
         job.start()
-        #endif
     }
+    #endif
 
     func onMoveAllMarkedToTrash(photo: PhotoItem) {
         let marked = getPhotosMarkedForDeletion()

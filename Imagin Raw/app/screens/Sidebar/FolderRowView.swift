@@ -243,6 +243,14 @@ struct FolderRowView: View {
                 Label("Show in Finder", systemImage: "")
             }
 
+            Divider()
+
+            Button(action: {
+                appState.thumbsGridViewModel.exportEmbeddedJPEGs(inFolder: folder.url)
+            }) {
+                Label("Export Embedded JPEG...", systemImage: "")
+            }
+
             Button(action: {
                 let cacheURL = appState.thumbnailsCacheManager.cacheDir(folderUrl: folder.url)
                 NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: cacheURL.path)
