@@ -333,7 +333,8 @@ class PhotoCopySheetModel: ObservableObject, Identifiable, @unchecked Sendable {
                                                            settings: settings)
             try FileManager.default.createDirectory(at: jpegDestFolderURL, withIntermediateDirectories: true)
 
-            for ext in ["jpg", "jpeg", "heic", "heif", "JPG", "JPEG", "HEIC", "HEIF"] {
+            for ext in [photo.companionImageExt, photo.companionImageExt?.uppercased(),
+                        "jpg", "jpeg", "heic", "heif", "hif", "JPG", "JPEG", "HEIC", "HEIF", "HIF"].compactMap({ $0 }) {
                 let jpegURL = sourceDir.appendingPathComponent(baseName).appendingPathExtension(ext)
                 if FileManager.default.fileExists(atPath: jpegURL.path) {
                     let jpegDestURL = jpegDestFolderURL.appendingPathComponent(destinationFilename).appendingPathExtension(ext)

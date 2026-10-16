@@ -57,7 +57,7 @@ final class FolderContentModel: ObservableObject {
         // Analyze the files and split by category, across all scanned folders.
         var images: [URL] = []
         var acrLookup: Set<String> = Set()
-        var jpgLookup: Set<String> = Set()
+        var jpgLookup: [String: String] = [:]  // baseName -> companion file extension (jpg, heic, hif, ...)
         var xmpLookup: Set<String> = Set()
 
         for folderURL in foldersToScan {
@@ -83,7 +83,7 @@ final class FolderContentModel: ObservableObject {
 
                     if FilesExtensions.isRawCounterpartFile(file) {
                         if rawBaseNames.contains(baseName) {
-                            jpgLookup.insert(baseName)
+                            jpgLookup[baseName] = ext
                         } else {
                             images.append(file)
                         }
@@ -117,7 +117,7 @@ final class FolderContentModel: ObservableObject {
                 let size = resValues?.fileSize as? Int
 
                 let hasACR = acrLookup.contains(baseName)
-                let hasJPG = jpgLookup.contains(baseName)
+                let companionImageExt = jpgLookup[baseName]
                 let hasXMP = xmpLookup.contains(baseName)
 
                 return PhotoItem(id: UUID(),
@@ -126,7 +126,7 @@ final class FolderContentModel: ObservableObject {
                                  dateCreated: dateCreated,
                                  dateModified: dateModified,
                                  hasACR: hasACR,
-                                 hasJPG: hasJPG,
+                                 companionImageExt: companionImageExt,
                                  hasXMP: hasXMP,
                                  fileSizeBytes: Int64(size ?? 0),
                                  state: .none)
@@ -166,13 +166,18 @@ final class FolderContentModel: ObservableObject {
             } else {
                 let resValues = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .fileSizeKey])
                 let hasXMP = FileManager.default.fileExists(atPath: url.deletingPathExtension().appendingPathExtension("xmp").path)
+                let companionImageExt: String? = FilesExtensions.isRawImageFile(url)
+                    ? FilesExtensions.rawCounterpartExtensions.first { ext in
+                        FileManager.default.fileExists(atPath: url.deletingPathExtension().appendingPathExtension(ext).path)
+                    }
+                    : nil
                 let newPhoto = PhotoItem(id: UUID(),
                                          url: url,
                                          path: url.path,
                                          dateCreated: resValues?.creationDate ?? Date(),
                                          dateModified: resValues?.contentModificationDate,
                                          hasACR: false,
-                                         hasJPG: false,
+                                         companionImageExt: companionImageExt,
                                          hasXMP: hasXMP,
                                          xmp: nil,
                                          exif: nil,

@@ -97,9 +97,10 @@ class PhotoRenameSheetModel: ObservableObject, Identifiable {
             try? fm.moveItem(at: acrSource, to: acrDest)
         }
 
-        // Rename associated JPG if present
+        // Rename associated JPG/HEIC/HIF companion if present
         if photo.hasJPG {
-            for ext in ["jpg", "jpeg", "JPG", "JPEG"] {
+            for ext in [photo.companionImageExt, photo.companionImageExt?.uppercased(),
+                        "jpg", "jpeg", "heic", "heif", "hif", "JPG", "JPEG", "HEIC", "HEIF", "HIF"].compactMap({ $0 }) {
                 let jpgSource = sourceURL.deletingPathExtension().appendingPathExtension(ext)
                 if fm.fileExists(atPath: jpgSource.path) {
                     let jpgDest = destURL.deletingPathExtension().appendingPathExtension(ext)

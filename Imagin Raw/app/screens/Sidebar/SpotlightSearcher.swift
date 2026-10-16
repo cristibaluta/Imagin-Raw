@@ -99,7 +99,7 @@ class SpotlightSearcher: ObservableObject, @unchecked Sendable {
                                         path: path,
                                         dateCreated: date,
                                         hasACR: false,
-                                        hasJPG: false,
+                                        companionImageExt: nil,
                                         hasXMP: false,
                                         xmp: nil,
                                         state: .none))

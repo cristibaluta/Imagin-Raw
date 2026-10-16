@@ -66,12 +66,38 @@ enum FilesExtensions {
         return type.conforms(to: .rawImage) // Apple's built-in RAW image UTType (macOS 10.15+/iOS 13+)
     }
 
+    /// File extensions of images that can act as a "developed" counterpart to a RAW file
+    /// (e.g. camera-generated JPG/HEIC, or Sony's 10-bit HIF).
+    /// "hif" is not a system-registered UTType extension, so it must be matched explicitly.
+    static let rawCounterpartExtensions: Set<String> = ["jpg", "jpeg", "heic", "heif", "hif"]
+
     static func isRawCounterpartFile(_ url: URL) -> Bool {
-        guard let type = UTType(filenameExtension: url.pathExtension.lowercased()) else {
+        let ext = url.pathExtension.lowercased()
+        if rawCounterpartExtensions.contains(ext) {
+            return true
+        }
+        guard let type = UTType(filenameExtension: ext) else {
             return false
         }
         return type.conforms(to: .jpeg) || type.conforms(to: .heic) || type.conforms(to: .heif)
     }
+
+    /// Short badge text to show in the UI for a RAW's companion image file, based on its extension.
+    static func companionBadgeText(forExtension ext: String) -> String {
+        switch ext.lowercased() {
+            case "jpeg":
+                return "+JPG"
+            case "heic":
+                return "+HEIC"
+            case "heif":
+                return "+HEIF"
+            case "hif":
+                return "+HIF"
+            default:
+                return "+\(ext.uppercased())"
+        }
+    }
+
 
     static func isMovieFile(_ url: URL) -> Bool {
         guard let type = UTType(filenameExtension: url.pathExtension.lowercased()) else {

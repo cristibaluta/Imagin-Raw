@@ -88,7 +88,6 @@ final class IosThumbCell: UICollectionViewCell {
         acrBadge.isHidden = true
         contentView.addSubview(acrBadge)
 
-        jpgBadge.text = "+JPG"
         jpgBadge.font = UIFont.boldSystemFont(ofSize: 8)
         jpgBadge.textColor = .white
         jpgBadge.textAlignment = .center
@@ -239,7 +238,12 @@ final class IosThumbCell: UICollectionViewCell {
         updateSelection(isSelected: isSelected, isSelectMode: isSelectMode)
         trashOverlay.isHidden = !photo.toDelete
         acrBadge.isHidden = !photo.hasACR
-        jpgBadgeView.isHidden = !(photo.isRaw && photo.hasJPG)
+        if let badgeText = photo.companionBadgeText {
+            jpgBadge.text = badgeText
+            jpgBadgeView.isHidden = !photo.isRaw
+        } else {
+            jpgBadgeView.isHidden = true
+        }
         filenameLabel.text = URL(fileURLWithPath: photo.path).lastPathComponent
         applyLabelStyle(for: photo)
         updateStars(for: photo)

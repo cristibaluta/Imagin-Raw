@@ -17,13 +17,28 @@ struct PhotoItem: Identifiable, Sendable {
     let dateModified: Date?
 
     let hasACR: Bool
-    let hasJPG: Bool
+    /// Lowercased file extension of the RAW's companion "developed" image file (e.g. "jpg", "heic", "hif"), if any.
+    let companionImageExt: String?
     let hasXMP: Bool
     let xmp: XmpMetadata?
     let exif: ExifData?
     let fileSizeBytes: Int64?
-    
+
     var state: PhotoState = .none
+
+    /// True if a companion developed image (JPG/HEIC/HIF/...) exists alongside this RAW file.
+    var hasJPG: Bool {
+        companionImageExt != nil
+    }
+
+    /// Short badge text (e.g. "+JPG", "+HIF") describing the companion image's format, for UI display.
+    var companionBadgeText: String? {
+        guard let companionImageExt else {
+            return nil
+        }
+        return FilesExtensions.companionBadgeText(forExtension: companionImageExt)
+    }
+
 
     // Non-nil when this item comes from the Photos library.
     // Excluded from Hashable / Equatable so PHAsset object identity
@@ -37,8 +52,8 @@ struct PhotoItem: Identifiable, Sendable {
     /// XMP rating if set and > 0, otherwise in-camera rating, otherwise 0.
     var effectiveRating: Int {
         if let r = xmp?.rating, r > 0 {
-			return r
-		}
+            return r
+        }
         return exif?.rating ?? 0
     }
 
@@ -47,7 +62,7 @@ struct PhotoItem: Identifiable, Sendable {
     }
 
     var isVideo: Bool {
-		if let asset = phAsset {
+        if let asset = phAsset {
             return asset.mediaType == .video
         }
         return FilesExtensions.isMovieFile(url)
@@ -61,7 +76,7 @@ struct PhotoItem: Identifiable, Sendable {
          dateCreated: Date,
          dateModified: Date? = nil,
          hasACR: Bool = false,
-         hasJPG: Bool = false,
+         companionImageExt: String? = nil,
          hasXMP: Bool = false,
          xmp: XmpMetadata? = nil,
          exif: ExifData? = nil,
@@ -74,7 +89,7 @@ struct PhotoItem: Identifiable, Sendable {
         self.dateCreated = dateCreated
         self.dateModified = dateModified
         self.hasACR = hasACR
-        self.hasJPG = hasJPG
+        self.companionImageExt = companionImageExt
         self.hasXMP = hasXMP
         self.xmp = xmp
         self.exif = exif
@@ -94,7 +109,7 @@ struct PhotoItem: Identifiable, Sendable {
         }
         self.dateModified = asset.modificationDate
         self.hasACR = false
-        self.hasJPG = false
+        self.companionImageExt = nil
         self.hasXMP = false
         self.state = .none
         self.phAsset = asset
@@ -148,7 +163,7 @@ extension PhotoItem: Hashable {
         lhs.exif == rhs.exif &&
         lhs.dateModified == rhs.dateModified &&
         lhs.hasACR == rhs.hasACR &&
-        lhs.hasJPG == rhs.hasJPG &&
+        lhs.companionImageExt == rhs.companionImageExt &&
         lhs.hasXMP == rhs.hasXMP &&
         lhs.fileSizeBytes == rhs.fileSizeBytes &&
         lhs.state == rhs.state

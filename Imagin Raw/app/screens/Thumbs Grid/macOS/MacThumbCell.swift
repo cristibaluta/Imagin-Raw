@@ -9,12 +9,12 @@ import AppKit
 import SwiftUI
 
 private final class MacVerticallyCenteredTextFieldCell: NSTextFieldCell {
-    
+
     override func drawingRect(forBounds rect: NSRect) -> NSRect {
         let superRect = super.drawingRect(forBounds: rect)
         let size = cellSize(forBounds: rect)
         let dy = (superRect.height - size.height) / 2
-        
+
         return NSRect(x: superRect.minX,
                       y: superRect.minY + dy,
                       width: superRect.width,
@@ -317,7 +317,10 @@ final class MacThumbCell: NSCollectionViewItem {
         trashContainer.isHidden = photo.state != .rejected
 
         let showACR = photo.hasACR || (photo.xmp?.hasEdits ?? false)
-        let showJPG = photo.isRaw && photo.hasJPG
+        let showJPG = photo.isRaw && photo.companionBadgeText != nil
+        if let badgeText = photo.companionBadgeText {
+            jpgBadge.stringValue = badgeText
+        }
         acrBadgeContainer.isHidden = !showACR
         jpgBadgeContainer.isHidden = !showJPG
         badgeStack.isHidden = !showACR && !showJPG

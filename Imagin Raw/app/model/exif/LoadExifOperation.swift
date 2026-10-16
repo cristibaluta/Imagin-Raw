@@ -77,7 +77,7 @@ final class LoadExifOperation: Operation, @unchecked Sendable {
                          dateCreated: photo.dateCreated,
                          dateModified: photo.dateModified,
                          hasACR: photo.hasACR,
-                         hasJPG: photo.hasJPG,
+                         companionImageExt: photo.companionImageExt,
                          hasXMP: xmp != nil,
                          xmp: xmp,
                          exif: exif,
