@@ -152,7 +152,7 @@ enum FilesExtensions {
         if let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
            let profile = props[kCGImagePropertyProfileName] as? String {
             let name = profile.lowercased()
-            if name.contains("pq") || name.contains("hlg") || name.contains("2100") || name.contains("2020") {
+            if name.contains("pq") || name.contains("hlg") || name.contains("2100") {
                 return true
             }
         }

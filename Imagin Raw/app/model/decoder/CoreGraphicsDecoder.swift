@@ -221,11 +221,13 @@ struct CoreGraphicsDecoder: RawDecoder {
     /// both of which redraw into a plain 8-bit sRGB CGContext and would discard the gain map /
     /// extended range data.
     private func decodeGainMapImage(at url: URL, maxPixelSize: CGFloat?) -> CGImage? {
-        // Preferred: let ImageIO apply the gain map / PQ / HLG itself and hand back a
-        // float, extended-range CGImage. This works for JPEG (MPF + ISO gain maps), HEIC,
-        // AVIF and JXL, and avoids the lossy CoreImage round trip below.
+        // Files with a real gain map (JPEG/JXL/HEIC): let ImageIO apply it.
+        // PQ/HLG files without a gain map (AVIF/HIF) must go through the CoreImage path
+        // below, which renders them correctly (ImageIO's output was over-bright for them).
         if #available(macOS 15.0, iOS 18.0, *),
-           let src = CGImageSourceCreateWithURL(url as CFURL, nil) {
+           let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+           CGImageSourceCopyAuxiliaryDataInfoAtIndex(src, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil
+            || CGImageSourceCopyAuxiliaryDataInfoAtIndex(src, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil {
             var options: [CFString: Any] = [
                 kCGImageSourceDecodeRequest: kCGImageSourceDecodeToHDR,
                 kCGImageSourceShouldCacheImmediately: true,
@@ -258,6 +260,7 @@ struct CoreGraphicsDecoder: RawDecoder {
             }
         }
 
+        // Render into a *linear* extended space (see HDR.md §3, option B)
         guard let extendedColorSpace = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3) else {
             return nil
         }

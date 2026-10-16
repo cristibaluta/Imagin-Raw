@@ -48,12 +48,7 @@ struct DiskPhotoSource: PhotoSource {
         if url.pathExtension == "stl" {
             return await extractSTLPreview(from: url)
         }
-        if hasGainMap {
-            // Preserve the HDR gain map in the grid thumbnail too — the generic
-            // jpegThumbnail() path below doesn't request HDR decoding and would
-            // otherwise show a flattened SDR thumbnail.
-            return CoreGraphicsDecoder().extractPreview(at: url, maxSize: targetSize, hasGainMap: true)
-        }
+        // Grid thumbnails are intentionally SDR (HDR.md §4 policy): fast and cacheable.
         return jpegThumbnail(url: url, targetSize: targetSize)
     }
 

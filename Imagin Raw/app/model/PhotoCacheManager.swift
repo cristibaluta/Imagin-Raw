@@ -102,7 +102,8 @@ final class PhotoCacheManager: Sendable {
         // converts images to a baseline 8-bit JPEG via bitmapRepresentation(), which
         // permanently discards the extended dynamic range / gain map data. Decode fresh
         // every time instead so the HDR boost is preserved when displayed.
-        if photo.hasGainMap {
+        // Thumbnails (.s256) are SDR and may be cached; only preview/full-res keep HDR.
+        if photo.hasGainMap && thumbSize != .s256 {
             switch thumbSize {
                 case .s256:
                     return await source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
