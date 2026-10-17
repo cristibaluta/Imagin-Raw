@@ -149,6 +149,12 @@ struct ThumbGridView: View {
                 viewModel.reloadMetadata(forSidecar: url)
             }
         }
+        .onChange(of: viewModel.pendingScrollPhotoId) { _, photoId in
+            if let photoId {
+                scrollToCenteredPhotoId = photoId
+                viewModel.pendingScrollPhotoId = nil
+            }
+        }
         .onChange(of: windowWidth) { _, newWidth in
             viewModel.windowWidth = newWidth
         }

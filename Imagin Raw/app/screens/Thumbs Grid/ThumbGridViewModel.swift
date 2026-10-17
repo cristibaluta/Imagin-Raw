@@ -8,13 +8,31 @@
 import SwiftUI
 import Combine
 
+struct PageInfo: Equatable {
+    /// Zero-based
+    let index: Int
+    let count: Int
+}
+
 @MainActor
 class ThumbGridViewModel: ObservableObject {
 
     @Published private(set) var filteredAndSortedPhotos: [PhotoItem] = []
     @Published private(set) var groupedPhotos: [(title: String, photos: [PhotoItem])] = []
-    @Published var selectedPhotos: [PhotoItem] = []
+    @Published var selectedPhotos: [PhotoItem] = [] {
+        didSet {
+            // A selection made by the user defines the page size. Pagination keeps it,
+            // so the last (shorter) page doesn't shrink it.
+            if !isPaging, !selectedPhotos.isEmpty {
+                pageSize = selectedPhotos.count
+            }
+        }
+    }
     @Published var lastSelectedIndexPath: IndexPath?
+    /// Set when pagination moves the selection, so the grid can scroll to it.
+    @Published var pendingScrollPhotoId: UUID?
+    private(set) var pageSize: Int = 1
+    private var isPaging = false
     // Filtering options
     @Published var selectedLabels: Set<PhotoLabel> = []
     @Published var selectedRatings: Set<Int> = []
@@ -473,6 +491,10 @@ class ThumbGridViewModel: ObservableObject {
         }
 
         switch key {
+            case .leftArrow where pageSize > 1, .rightArrow where pageSize > 1:
+                // Jump by 'number of selected photos'
+                goToPage(offset: key == .leftArrow ? -1 : 1)
+                return true
             case .leftArrow, .rightArrow, .upArrow, .downArrow:
                 if let nextPhoto = navigateTo(key) {
                     scrollTo(nextPhoto.id)
@@ -582,6 +604,41 @@ class ThumbGridViewModel: ObservableObject {
         #else
         return false
         #endif
+    }
+
+    // MARK: - Pagination
+
+    /// Page of the current selection, where pages are consecutive chunks of `pageSize` photos.
+    var currentPageInfo: PageInfo? {
+        let flat = groupedPhotos.flatMap(\.photos)
+        let ids = Set(selectedPhotos.map(\.id))
+        guard pageSize > 0, !flat.isEmpty,
+              let first = flat.firstIndex(where: { ids.contains($0.id) }) else {
+            return nil
+        }
+        return PageInfo(index: first / pageSize, count: (flat.count + pageSize - 1) / pageSize)
+    }
+
+    /// Selects the next (+1) or previous (-1) page. The first/last pages contain only the remaining photos.
+    @discardableResult
+    func goToPage(offset: Int) -> Bool {
+        let flat = groupedPhotos.flatMap(\.photos)
+        guard let info = currentPageInfo else {
+            return false
+        }
+        let target = info.index + offset
+        guard (0..<info.count).contains(target) else {
+            return false
+        }
+        let start = target * pageSize
+        let pagePhotos = Array(flat[start..<min(flat.count, start + pageSize)])
+
+        isPaging = true
+        selectedPhotos = pagePhotos
+        isPaging = false
+        lastSelectedIndexPath = indexPath(for: pagePhotos[0])
+        pendingScrollPhotoId = pagePhotos[0].id
+        return true
     }
 
     private func navigateTo(_ key: KeyEquivalent) -> PhotoItem? {

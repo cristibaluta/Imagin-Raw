@@ -22,7 +22,11 @@ struct PhotosPreviewView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
             .overlay(alignment: .topLeading) {
-                reviewButton
+                HStack(spacing: 0) {
+                    reviewButton
+                    pagePill
+                    Spacer()
+                }
             }
             .sheet(item: $viewModel.exportJob) { job in
                 ExportJPEGProgressView(job: job)
@@ -54,6 +58,36 @@ struct PhotosPreviewView: View {
         }
         .buttonStyle(PlainButtonStyle())
         .help("Review selected photos")
+    }
+
+    @ViewBuilder
+    private var pagePill: some View {
+        if let info = viewModel.pageInfo {
+            HStack(spacing: 8) {
+                Button {
+                    viewModel.onPageChange?(-1)
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .disabled(info.index == 0)
+
+                Text("Page \(info.index + 1) of \(info.count)")
+                    .font(.callout.monospacedDigit())
+
+                Button {
+                    viewModel.onPageChange?(1)
+                } label: {
+                    Image(systemName: "chevron.right")
+                }
+                .disabled(info.index >= info.count - 1)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(Color.secondary.opacity(0.25)))
+            .help("Previous / next page of photos")
+        }
     }
 
     @ViewBuilder

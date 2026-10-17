@@ -114,9 +114,14 @@ class AppState: ObservableObject {
                     }
                     self.selectedPhotos = photos
                     self.previewViewModel.loadPhotos(photos)
+                    self.previewViewModel.pageInfo = self.thumbsGridViewModel.currentPageInfo
                 }
             }
             .store(in: &cancellables)
+
+        previewViewModel.onPageChange = { [weak self] offset in
+            self?.thumbsGridViewModel.goToPage(offset: offset)
+        }
 
         previewViewModel.onReview = { [weak self] photos in
             self?.thumbsGridViewModel.buildReviewGroupItemFromPhotos(photos)

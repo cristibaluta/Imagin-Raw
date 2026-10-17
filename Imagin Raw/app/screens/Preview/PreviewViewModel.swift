@@ -19,6 +19,10 @@ class PreviewViewModel: ObservableObject {
 
     /// Called to enter review mode with the given photos. Set by AppState.
     var onReview: (([PhotoItem]) -> Void)?
+    /// Called to move to the next (+1) / previous (-1) page of photos. Set by AppState.
+    var onPageChange: ((Int) -> Void)?
+    /// Page of the displayed photos, nil when unknown.
+    @Published var pageInfo: PageInfo?
 
     func startReview() {
         guard let photos, photos.count > 1 else {
