@@ -28,6 +28,42 @@ final class ExportJPEGJob: ObservableObject, Identifiable {
 
     var total: Int { paths.count }
 
+    #if os(macOS)
+    /// Asks for a destination folder and returns a job (not started), or nil if the user cancelled.
+    /// `onFinished` is called after the job ends and the result alerts were handled.
+    static func promptAndCreate(paths: [String], onFinished: @escaping () -> Void) -> ExportJPEGJob? {
+        guard !paths.isEmpty else {
+            return nil
+        }
+        let panel = NSOpenPanel()
+        panel.title = "Export Embedded JPEG"
+        panel.message = "Choose where to save the JPEG embedded in the raw files"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Export"
+        guard panel.runModal() == .OK, let folder = panel.url else {
+            return nil
+        }
+        let job = ExportJPEGJob(paths: paths, destination: folder)
+        job.onFinished = { job in
+            onFinished()
+            if job.failed > 0 && !job.isCancelled {
+                let alert = NSAlert()
+                alert.messageText = "Some JPEGs could not be exported"
+                alert.informativeText = "\(job.failed) of \(job.total) file(s) failed."
+                alert.runModal()
+            }
+            // Open the folder only after a completed (non-cancelled) export
+            if !job.isCancelled {
+                NSWorkspace.shared.open(job.destination)
+            }
+        }
+        return job
+    }
+    #endif
+
     func start() {
         let paths = self.paths
         let destination = self.destination
@@ -49,14 +85,14 @@ final class ExportJPEGJob: ObservableObject, Identifiable {
                     ok = (try? data.write(to: dest)) != nil
                 }
                 let success = ok
-                await MainActor.run { [weak self] in
+                await MainActor.run {
                     self?.completed += 1
                     if !success {
                         self?.failed += 1
                     }
                 }
             }
-            await MainActor.run { [weak self] in
+            await MainActor.run {
                 guard let self else {
                     return
                 }

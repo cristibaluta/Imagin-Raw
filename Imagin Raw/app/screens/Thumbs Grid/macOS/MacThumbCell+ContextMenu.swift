@@ -48,9 +48,17 @@ extension MacThumbCell {
         createPDF.isEnabled = reviewCount > 1
         menu.addItem(createPDF)
 
+        // Export embedded JPEG
+        let isRaw = photo.isRaw
+        let extract = NSMenuItem(title: "Export Embedded JPEG...",
+                                 action: isRaw ? #selector(handleExtractPreviews) : nil,
+                                 keyEquivalent: "")
+        extract.image = NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: nil)
+        extract.isEnabled = isRaw
+        menu.addItem(extract)
+
         menu.addItem(.separator())
 
-        let isRaw = photo.isRaw
         let url = URL(fileURLWithPath: photo.path)
         let supportsMetadata = isRaw || JpegMetadataWriter.isSupported(url)
 
@@ -156,10 +164,6 @@ extension MacThumbCell {
         menu.addItem(copy)
         let rename = NSMenuItem(title: "Rename...", action: #selector(handleRenameTo), keyEquivalent: "")
         menu.addItem(rename)
-        if isRaw {
-            let extract = NSMenuItem(title: "Export Embedded JPEG...", action: #selector(handleExtractPreviews), keyEquivalent: "")
-            menu.addItem(extract)
-        }
 
         menu.addItem(.separator())
 

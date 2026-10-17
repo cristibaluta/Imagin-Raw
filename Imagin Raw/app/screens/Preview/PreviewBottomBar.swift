@@ -54,6 +54,12 @@ struct PreviewBottomBar: View {
                         pdfButton
                         separator
                         videoButton
+                        #if os(macOS)
+                        if viewModel.hasRawPhotos {
+                            separator
+                            exportJPEGButton
+                        }
+                        #endif
                     }
                 }
                 .frame(height: 40)
@@ -125,6 +131,21 @@ struct PreviewBottomBar: View {
         }
         .buttonStyle(PlainButtonStyle())
         .help("Create PDF from selected photos")
+    }
+
+    @ViewBuilder
+    private var exportJPEGButton: some View {
+        Button(action: {
+            viewModel.exportEmbeddedJPEGs()
+        }) {
+            Image(systemName: "photo.badge.arrow.down")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.secondary)
+                .padding(.trailing, 12)
+                .padding(.leading, 10)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .help("Export embedded JPEGs from the selected raw photos")
     }
 
     @ViewBuilder

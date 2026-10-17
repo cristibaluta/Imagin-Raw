@@ -15,6 +15,7 @@ class PreviewViewModel: ObservableObject {
     @Published private(set) var exifIsExpanded: Bool = appPrefs.bool(.exifExpanded)
     @Published var showVideoEditor: Bool = false
     @Published var showPDFEditor: Bool = false
+    @Published var exportJob: ExportJPEGJob? = nil
 
     let previewsCacheManager: PhotoCacheManager
     private let fullResCacheManager: PhotoCacheManager
@@ -100,6 +101,26 @@ class PreviewViewModel: ObservableObject {
             self.fullResImage = image
             self.isLoadingFullRes = false
         }
+    }
+
+    var hasRawPhotos: Bool {
+        photos?.contains(where: { $0.isRaw }) ?? false
+    }
+
+    func exportEmbeddedJPEGs() {
+        #if os(macOS)
+        guard exportJob == nil else {
+            return
+        }
+        let paths = (photos ?? []).filter { $0.isRaw }.map { $0.url.path(percentEncoded: false) }
+        guard let job = ExportJPEGJob.promptAndCreate(paths: paths, onFinished: { [weak self] in
+            self?.exportJob = nil
+        }) else {
+            return
+        }
+        exportJob = job
+        job.start()
+        #endif
     }
 
     func reset() {

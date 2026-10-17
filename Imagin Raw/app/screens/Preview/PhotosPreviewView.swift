@@ -21,6 +21,10 @@ struct PhotosPreviewView: View {
         previewBody
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
+            .sheet(item: $viewModel.exportJob) { job in
+                ExportJPEGProgressView(job: job)
+                    .interactiveDismissDisabled(true)
+            }
     }
 
     @ViewBuilder
