@@ -101,7 +101,9 @@ struct ThumbGridView: View {
                 Rectangle()
                     .fill(Color.secondary.opacity(0.25))
                     .frame(height: 1)
-                ThumbsBottomBar(viewModel: viewModel, duplicateViewModel: duplicatesFinderModel)
+                ThumbsBottomBar(viewModel: viewModel,
+                                duplicateViewModel: duplicatesFinderModel,
+                                previewViewModel: appState.previewViewModel)
             }
         }
         .preference(key: GridWidthPreferenceKey.self, value: viewModel.gridWidth)

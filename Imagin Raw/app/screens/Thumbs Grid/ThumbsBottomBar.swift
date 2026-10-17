@@ -10,6 +10,7 @@ import SwiftUI
 struct ThumbsBottomBar: View {
     @StateObject var viewModel: ThumbGridViewModel
     @StateObject var duplicateViewModel: DuplicatesFinderViewModel
+    @ObservedObject var previewViewModel: PreviewViewModel
 //    @Binding var showDuplicatesSheet: Bool
     @State private var showFilterPopover = false
     @State private var showSortPopover = false
@@ -59,11 +60,22 @@ struct ThumbsBottomBar: View {
 //                    }
                 }
             } else {
-                buttonSort
-                buttonsFilters
-                buttonFindDuplicates
+                if viewModel.selectedPhotos.count <= 1 {
+                    buttonSort
+                    buttonsFilters
+                    buttonFindDuplicates
+                }
                 Spacer()
-                photoCountText
+                if viewModel.selectedPhotos.count > 1 {
+                    // Actions and count are one unit, vertically centered on the same line
+                    HStack(alignment: .center, spacing: 8) {
+                        buttonsMultiSelection
+                        photoCountText
+                    }
+                    .frame(maxHeight: .infinity, alignment: .center)
+                } else {
+                    photoCountText
+                }
             }
 
             Rectangle()
@@ -155,6 +167,45 @@ struct ThumbsBottomBar: View {
         .overlay(
             RoundedRectangle(cornerRadius: 3)
                 .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+        )
+        .layoutPriority(1)
+    }
+
+    private var buttonsMultiSelection: some View {
+        HStack(spacing: 10) {
+            Button(action: { previewViewModel.showPDFEditor = true }) {
+                Image(systemName: "text.rectangle.page")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.blue)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .help("Create PDF from selected photos")
+
+            Button(action: { previewViewModel.showVideoEditor = true }) {
+                Image(systemName: "movieclapper")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.blue)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .help("Create movie clip from selected photos")
+
+            #if os(macOS)
+            if viewModel.selectedPhotos.contains(where: { $0.isRaw }) {
+                Button(action: { previewViewModel.exportEmbeddedJPEGs() }) {
+                    Image(systemName: "photo.badge.arrow.down")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .help("Export embedded JPEGs from the selected raw photos")
+            }
+            #endif
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .overlay(
+            RoundedRectangle(cornerRadius: 3)
+                .stroke(Color.blue.opacity(0.5), lineWidth: 1)
         )
         .layoutPriority(1)
     }
