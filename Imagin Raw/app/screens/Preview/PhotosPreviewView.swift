@@ -21,6 +21,9 @@ struct PhotosPreviewView: View {
         previewBody
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
+            .overlay(alignment: .topLeading) {
+                reviewButton
+            }
             .sheet(item: $viewModel.exportJob) { job in
                 ExportJPEGProgressView(job: job)
                     .interactiveDismissDisabled(true)
@@ -60,6 +63,20 @@ struct PhotosPreviewView: View {
             // Exif bar
             bottomBar
         }
+    }
+
+    @ViewBuilder
+    private var reviewButton: some View {
+        Button(action: {
+            viewModel.startReview()
+        }) {
+            Image(systemName: "eye")
+                .font(.title2)
+                .foregroundColor(.blue)
+                .padding()
+        }
+        .buttonStyle(PlainButtonStyle())
+        .help("Review selected photos")
     }
 
     @ViewBuilder

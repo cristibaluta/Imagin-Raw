@@ -49,9 +49,6 @@ struct PreviewBottomBar: View {
                         zoomButton
                         separator
                         exportButton
-                    } else if viewModel.photos?.count ?? 0 > 1 {
-                        separator
-                        reviewButton
                     }
                 }
                 .frame(height: 40)
@@ -65,21 +62,6 @@ struct PreviewBottomBar: View {
         Rectangle()
             .fill(Color.secondary.opacity(0.25))
             .frame(width: 1, height: 14)
-    }
-
-    @ViewBuilder
-    private var reviewButton: some View {
-        Button(action: {
-            viewModel.startReview()
-        }) {
-            Image(systemName: "eye")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.blue)
-                .padding(.trailing, 12)
-                .padding(.leading, 10)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .help("Review selected photos")
     }
 
     @ViewBuilder
