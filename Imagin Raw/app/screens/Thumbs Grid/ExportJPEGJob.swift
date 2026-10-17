@@ -85,14 +85,14 @@ final class ExportJPEGJob: ObservableObject, Identifiable {
                     ok = (try? data.write(to: dest)) != nil
                 }
                 let success = ok
-                await MainActor.run {
+                await MainActor.run { [weak self] in
                     self?.completed += 1
                     if !success {
                         self?.failed += 1
                     }
                 }
             }
-            await MainActor.run {
+            await MainActor.run { [weak self] in
                 guard let self else {
                     return
                 }
