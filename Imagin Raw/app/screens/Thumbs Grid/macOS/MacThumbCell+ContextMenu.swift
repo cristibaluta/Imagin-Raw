@@ -53,7 +53,7 @@ extension MacThumbCell {
         let extract = NSMenuItem(title: "Export Embedded JPEG...",
                                  action: isRaw ? #selector(handleExtractPreviews) : nil,
                                  keyEquivalent: "")
-        extract.image = NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: nil)
+        extract.image = NSImage(systemSymbolName: "photo.badge.arrow.down", accessibilityDescription: nil)
         extract.isEnabled = isRaw
         menu.addItem(extract)
 
