@@ -40,24 +40,22 @@ class PreviewViewModel: ObservableObject {
 
     func loadPhotos(_ photos: [PhotoItem]) {
         self.photos = photos
+        loadingTask?.cancel()
+
+        // Multiple photos are loaded by the grid cells themselves
+        guard photos.count <= 1 else {
+            images = nil
+            isLoading = false
+            return
+        }
         isLoading = true
 
-        loadingTask?.cancel()
         loadingTask = Task(priority: .userInitiated) { [photos] in
             guard !Task.isCancelled else {
                 return
             }
-            // Load max 2 photos
             let images: [IRImage]?
-            if photos.count > 1 {
-                if let image1 = await previewsCacheManager.getImage(for: photos.first!),
-                   let image2 = await previewsCacheManager.getImage(for: photos.last!) {
-                    images = [image1, image2]
-                } else {
-                    images = nil
-                }
-            }
-            else if let photo = photos.first {
+            if let photo = photos.first {
                 if let image1 = await previewsCacheManager.getImage(for: photo) {
                     images = [image1]
                 } else {

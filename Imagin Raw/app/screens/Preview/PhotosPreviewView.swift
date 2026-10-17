@@ -33,32 +33,9 @@ struct PhotosPreviewView: View {
     @ViewBuilder
     private var previewBody: some View {
         VStack(spacing: 0) {
-            Spacer()
-            HStack {
-                Spacer()
-                // Photo
-                if let nsImage1 = viewModel.images?.first, let nsImage2 = viewModel.images?.last {
-                        HStack {
-                            Image(nsImage: nsImage1)
-                                .resizable()
-                                .scaledToFit()
-                                .allowedDynamicRange(.high)
-                            Image(nsImage: nsImage2)
-                                .resizable()
-                                .scaledToFit()
-                                .allowedDynamicRange(.high)
-                        }
-                        .padding(8)
-                } else if viewModel.isLoading {
-                    ProgressView("Loading...")
-                        .progressViewStyle(CircularProgressViewStyle())
-                } else {
-                    Text("Failed to load image")
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-            }
-            Spacer()
+            MacFitGridView(photos: viewModel.photos ?? [],
+                           cacheManager: viewModel.previewsCacheManager)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Exif bar
             bottomBar
