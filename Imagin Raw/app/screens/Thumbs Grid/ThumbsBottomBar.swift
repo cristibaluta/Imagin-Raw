@@ -173,7 +173,7 @@ struct ThumbsBottomBar: View {
 
     private var buttonsMultiSelection: some View {
         HStack(spacing: 10) {
-            Button(action: { previewViewModel.showPDFEditor = true }) {
+            Button(action: { previewViewModel.openPDFEditor() }) {
                 Image(systemName: "text.rectangle.page")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)
@@ -181,7 +181,7 @@ struct ThumbsBottomBar: View {
             .buttonStyle(PlainButtonStyle())
             .help("Create PDF from selected photos")
 
-            Button(action: { previewViewModel.showVideoEditor = true }) {
+            Button(action: { previewViewModel.openVideoEditor() }) {
                 Image(systemName: "movieclapper")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.blue)

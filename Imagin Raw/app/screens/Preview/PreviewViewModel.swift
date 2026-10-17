@@ -103,6 +103,18 @@ class PreviewViewModel: ObservableObject {
         }
     }
 
+    /// Shows the PDF editor, closing the video editor if it is open.
+    func openPDFEditor() {
+        showVideoEditor = false
+        showPDFEditor = true
+    }
+
+    /// Shows the video editor, closing the PDF editor if it is open.
+    func openVideoEditor() {
+        showPDFEditor = false
+        showVideoEditor = true
+    }
+
     var hasRawPhotos: Bool {
         photos?.contains(where: { $0.isRaw }) ?? false
     }
