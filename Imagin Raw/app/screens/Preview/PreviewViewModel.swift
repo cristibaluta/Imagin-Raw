@@ -17,6 +17,16 @@ class PreviewViewModel: ObservableObject {
     @Published var showPDFEditor: Bool = false
     @Published var exportJob: ExportJPEGJob? = nil
 
+    /// Called to enter review mode with the given photos. Set by AppState.
+    var onReview: (([PhotoItem]) -> Void)?
+
+    func startReview() {
+        guard let photos, photos.count > 1 else {
+            return
+        }
+        onReview?(photos)
+    }
+
     let previewsCacheManager: PhotoCacheManager
     private let fullResCacheManager: PhotoCacheManager
 

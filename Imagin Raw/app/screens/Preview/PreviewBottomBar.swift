@@ -49,6 +49,9 @@ struct PreviewBottomBar: View {
                         zoomButton
                         separator
                         exportButton
+                    } else if viewModel.photos?.count ?? 0 > 1 {
+                        separator
+                        reviewButton
                     }
                 }
                 .frame(height: 40)
@@ -62,6 +65,21 @@ struct PreviewBottomBar: View {
         Rectangle()
             .fill(Color.secondary.opacity(0.25))
             .frame(width: 1, height: 14)
+    }
+
+    @ViewBuilder
+    private var reviewButton: some View {
+        Button(action: {
+            viewModel.startReview()
+        }) {
+            Image(systemName: "eye")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.blue)
+                .padding(.trailing, 12)
+                .padding(.leading, 10)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .help("Review selected photos")
     }
 
     @ViewBuilder
@@ -105,5 +123,50 @@ struct PreviewBottomBar: View {
         }
         .buttonStyle(PlainButtonStyle())
         .help("Export: add borders / change canvas")
+    }
+
+    @ViewBuilder
+    private var pdfButton: some View {
+        Button(action: {
+            viewModel.showPDFEditor = true
+        }) {
+            Image(systemName: "text.rectangle.page")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(showExportPanel ? .accentColor : .secondary)
+                .padding(.trailing, 12)
+                .padding(.leading, 10)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .help("Create PDF from selected photos")
+    }
+
+    @ViewBuilder
+    private var exportJPEGButton: some View {
+        Button(action: {
+            viewModel.exportEmbeddedJPEGs()
+        }) {
+            Image(systemName: "photo.badge.arrow.down")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.secondary)
+                .padding(.trailing, 12)
+                .padding(.leading, 10)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .help("Export embedded JPEGs from the selected raw photos")
+    }
+
+    @ViewBuilder
+    private var videoButton: some View {
+        Button(action: {
+            viewModel.showVideoEditor = true
+        }) {
+            Image(systemName: "movieclapper")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(showExportPanel ? .accentColor : .secondary)
+                .padding(.trailing, 12)
+                .padding(.leading, 10)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .help("Create movie clip from selected photos")
     }
 }

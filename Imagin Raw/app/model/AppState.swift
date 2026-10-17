@@ -118,6 +118,10 @@ class AppState: ObservableObject {
             }
             .store(in: &cancellables)
 
+        previewViewModel.onReview = { [weak self] photos in
+            self?.thumbsGridViewModel.buildReviewGroupItemFromPhotos(photos)
+        }
+
         thumbsGridViewModel.onReviewSelected = { [weak self] reviewGroupItem in
             self?.reviewGroup = reviewGroupItem
             if let group = reviewGroupItem {
