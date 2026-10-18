@@ -9,6 +9,7 @@ import SwiftUI
 
 struct FolderSelectionPopoverView: View {
     @EnvironmentObject var fileSystemModel: FileSystemModel
+    @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var initialSelectedFolder: FolderItem?
 

@@ -289,6 +289,7 @@ struct MainView: View {
                 FolderSelectionPopoverView()
                     .frame(width: 250, height: 500)
                     .environmentObject(appState.fileSystemModel)
+                    .environmentObject(appState)
             }
         }
     }
