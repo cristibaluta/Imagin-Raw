@@ -49,7 +49,9 @@ struct ReviewView: View {
                 }
             }
             .overlay(alignment: .top) {
+                // Sits in the (hidden) title bar area, next to the traffic lights
                 topBar
+                    .ignoresSafeArea(edges: .top)
             }
             .focusable()
             .focusEffectDisabled()
@@ -100,7 +102,7 @@ struct ReviewView: View {
     // MARK: - Top bar
 
     private var topBar: some View {
-        HStack {
+        HStack(spacing: 12) {
             Button {
                 appState.reviewGroup = nil
             } label: {
@@ -113,8 +115,6 @@ struct ReviewView: View {
             }
             .buttonStyle(.plain)
             .help("Close review")
-
-            Spacer()
 
             if viewModel.showsPagination {
                 HStack(spacing: 8) {
@@ -154,7 +154,10 @@ struct ReviewView: View {
             .buttonStyle(.plain)
             .help("Toggle 100% zoom (Z)")
         }
-        .padding(12)
+        .padding(.leading, 84) // room for the window traffic lights
+        .padding(.trailing, 12)
+        .padding(.top, 12)
+        .frame(height: 48)
     }
 }
 #else
