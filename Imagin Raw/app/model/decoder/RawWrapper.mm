@@ -346,7 +346,6 @@ static void exifParserCallback(void *context,
 
     if (!raw || !exifDict) return;
 
-    NSDate *now = [NSDate now];
     // Camera and lens information
     if (raw->imgdata.idata.make[0] != '\0') {
         exifDict[@"Make"] = [NSString stringWithUTF8String:raw->imgdata.idata.make];

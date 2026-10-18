@@ -18,7 +18,7 @@ typealias IRRect = NSRect
 typealias IRColor = NSColor
 typealias IRFont = NSFont
 
-extension NSImage: @unchecked @retroactive Sendable {}
+//extension NSImage: @unchecked @retroactive Sendable {}
 
 #elseif os(iOS)
 

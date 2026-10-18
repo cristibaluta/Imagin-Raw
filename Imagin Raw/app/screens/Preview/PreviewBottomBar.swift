@@ -73,7 +73,7 @@ struct PreviewBottomBar: View {
         let isActive = isMulti ? viewModel.isMultiZoomed : viewModel.fullResImage != nil
         let isLoading = isMulti ? viewModel.isLoadingMultiFullRes : viewModel.isLoadingFullRes
 
-        return Button(action: {
+        Button(action: {
             if isMulti {
                 viewModel.toggleMultiZoom()
             } else if viewModel.fullResImage != nil {
