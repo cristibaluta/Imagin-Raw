@@ -265,7 +265,10 @@ final class MacThumbCell: NSCollectionViewItem {
             starView?.isHidden = true
             return
         }
-        starView?.isHidden = photo.effectiveRating == 0 && !isMouseInside
+        // Use the star view's own rating: it's updated immediately when the user clicks a star,
+        // while currentPhoto may be stale until the cell is reconfigured.
+        let rating = starView?.rating ?? photo.effectiveRating
+        starView?.isHidden = rating == 0 && !isMouseInside
     }
 
     /// Derived from the actual pointer position, so it stays correct across reconfigure/reuse.
