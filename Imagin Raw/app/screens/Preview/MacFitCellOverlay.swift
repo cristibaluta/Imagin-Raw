@@ -65,8 +65,8 @@ final class MacFitCellOverlay: NSView {
         }
         bar.addSubview(starView)
 
-        configure(button: approveButton, symbol: "checkmark.circle.fill", action: #selector(approveTapped))
-        configure(button: rejectButton, symbol: "xmark.circle.fill", action: #selector(rejectTapped))
+        configure(button: approveButton, symbol: "hand.thumbsup.fill", action: #selector(approveTapped))
+        configure(button: rejectButton, symbol: "hand.thumbsdown.fill", action: #selector(rejectTapped))
         approveButton.toolTip = "Approve (A)"
         rejectButton.toolTip = "Reject (X)"
         bar.addSubview(approveButton)
@@ -75,7 +75,7 @@ final class MacFitCellOverlay: NSView {
         removeBar.wantsLayer = true
         removeBar.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.55).cgColor
         addSubview(removeBar)
-        configure(button: removeButton, symbol: "xmark", action: #selector(removeTapped))
+        configure(button: removeButton, symbol: "minus", action: #selector(removeTapped))
         removeButton.contentTintColor = .white
         removeButton.toolTip = "Remove from preview"
         removeBar.addSubview(removeButton)

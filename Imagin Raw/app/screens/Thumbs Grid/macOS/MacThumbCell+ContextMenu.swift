@@ -123,7 +123,7 @@ extension MacThumbCell {
         // Approve
         let approveItem = NSMenuItem(title: "Approve", action: supportsMetadata ? #selector(handleApprove) : nil, keyEquivalent: "a")
         approveItem.keyEquivalentModifierMask = []
-        approveItem.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)
+        approveItem.image = NSImage(systemSymbolName: "hand.thumbsup.fill", accessibilityDescription: nil)
         if !supportsMetadata {
             approveItem.isEnabled = false
         }
@@ -132,7 +132,7 @@ extension MacThumbCell {
         // Reject
         let rejectItem = NSMenuItem(title: "Reject", action: supportsMetadata ? #selector(handleReject) : nil, keyEquivalent: "x")
         rejectItem.keyEquivalentModifierMask = []
-        rejectItem.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
+        rejectItem.image = NSImage(systemSymbolName: "hand.thumbsdown.fill", accessibilityDescription: nil)
         if !supportsMetadata { rejectItem.isEnabled = false }
         menu.addItem(rejectItem)
 
