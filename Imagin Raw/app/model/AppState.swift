@@ -115,6 +115,11 @@ class AppState: ObservableObject {
                     self.selectedPhotos = photos
                     self.previewViewModel.loadPhotos(photos)
                     self.previewViewModel.pageInfo = self.thumbsGridViewModel.currentPageInfo
+                    // Paging while reviewing: show the new page in the review
+                    if let rg = self.reviewGroup, rg.isPageReview, !photos.isEmpty,
+                       rg.group.photos.map(\.id) != photos.map(\.id) {
+                        self.thumbsGridViewModel.buildReviewGroupItemFromPhotos(photos)
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -149,10 +154,15 @@ class AppState: ObservableObject {
             }
             .store(in: &cancellables)
 
+        reviewViewModel.onPageChange = { [weak self] offset in
+            self?.thumbsGridViewModel.goToPage(offset: offset)
+        }
+
         thumbsGridViewModel.onReviewSelected = { [weak self] reviewGroupItem in
             self?.reviewGroup = reviewGroupItem
             if let group = reviewGroupItem {
                 self?.reviewViewModel.setup(with: group)
+                self?.reviewViewModel.pageInfo = group.isPageReview ? self?.thumbsGridViewModel.currentPageInfo : nil
             }
         }
     }

@@ -889,7 +889,8 @@ class ThumbGridViewModel: ObservableObject {
             onMarkForDeletion: { [weak self] photo in
                 self?.toggleRejectedState(for: [photo])
             },
-            onNavigate: { _ in }
+            onNavigate: { _ in },
+            isPageReview: true
         )
         onReviewSelected?(reviewGroupItem)
     }

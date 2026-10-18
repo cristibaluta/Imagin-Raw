@@ -13,6 +13,8 @@ class ReviewViewModel: ObservableObject {
     @Published var fullResImages: [String: IRImage] = [:]
     @Published var fullResLoading: Set<String> = []
     @Published var hoveredPhotoId: UUID? = nil
+    /// Page of the displayed photos when reviewing a page of the selection, nil otherwise
+    @Published var pageInfo: PageInfo?
 
     let previewsManager: PhotoCacheManager
     private let fullResManager: PhotoCacheManager
@@ -25,6 +27,8 @@ class ReviewViewModel: ObservableObject {
     var onApprove: ((PhotoItem) -> Void)? = nil
     var onMarkForDeletion: ((PhotoItem) -> Void)? = nil
     var onNavigate: ((Int) -> Void)? = nil
+    var onPageChange: ((Int) -> Void)? = nil
+    var isPageReview = false
 
     init(previewsCacheManager: PhotoCacheManager, fullResCacheManager: PhotoCacheManager) {
         self.previewsManager = previewsCacheManager
@@ -40,6 +44,7 @@ class ReviewViewModel: ObservableObject {
         self.onApprove = reviewGroupItem.onApprove
         self.onMarkForDeletion = reviewGroupItem.onMarkForDeletion
         self.onNavigate = reviewGroupItem.onNavigate
+        self.isPageReview = reviewGroupItem.isPageReview
     }
 
     var hoveredPhoto: PhotoItem? {
@@ -179,18 +184,51 @@ class ReviewViewModel: ObservableObject {
         updateLocalPhoto(newPhoto)
     }
 
+    var showsPagination: Bool {
+        isPageReview ? (pageInfo?.count ?? 0) > 1 : totalGroups > 1
+    }
+
+    var paginationText: String {
+        if isPageReview, let info = pageInfo {
+            return "Page \(info.index + 1) of \(info.count)"
+        }
+        return "\(groupIndex + 1) of \(totalGroups)"
+    }
+
+    var canNavigateLeft: Bool {
+        isPageReview ? (pageInfo?.index ?? 0) > 0 : groupIndex > 0
+    }
+
+    var canNavigateRight: Bool {
+        if isPageReview {
+            guard let info = pageInfo else {
+                return false
+            }
+            return info.index < info.count - 1
+        }
+        return groupIndex < totalGroups - 1
+    }
+
     func navigateLeft() {
-        guard groupIndex > 0 else {
+        guard canNavigateLeft else {
             return
         }
-        onNavigate?(groupIndex - 1)
+        if isPageReview {
+            onPageChange?(-1)
+        } else {
+            onNavigate?(groupIndex - 1)
+        }
     }
 
     func navigateRight() {
-        guard groupIndex < totalGroups - 1 else {
+        guard canNavigateRight else {
             return
         }
-        onNavigate?(groupIndex + 1)
+        if isPageReview {
+            onPageChange?(1)
+        } else {
+            onNavigate?(groupIndex + 1)
+        }
     }
 
     // MARK: - Private

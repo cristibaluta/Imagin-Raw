@@ -16,6 +16,8 @@ struct ReviewGroupItem: Identifiable {
     let onApprove: (PhotoItem) -> Void
     let onMarkForDeletion: (PhotoItem) -> Void
     let onNavigate: (Int) -> Void
+    /// True when the review shows a page of the current selection (paged with the preview pagination)
+    var isPageReview = false
 }
 
 struct ReviewGroupItemID: Identifiable {

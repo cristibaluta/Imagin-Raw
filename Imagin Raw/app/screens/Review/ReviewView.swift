@@ -116,27 +116,27 @@ struct ReviewView: View {
 
             Spacer()
 
-            if viewModel.totalGroups > 1 {
+            if viewModel.showsPagination {
                 HStack(spacing: 8) {
                     Button(action: viewModel.navigateLeft) {
                         Image(systemName: "chevron.left")
                     }
-                    .disabled(viewModel.groupIndex <= 0)
+                    .disabled(!viewModel.canNavigateLeft)
 
-                    Text("\(viewModel.groupIndex + 1) of \(viewModel.totalGroups)")
+                    Text(viewModel.paginationText)
                         .font(.callout.monospacedDigit())
 
                     Button(action: viewModel.navigateRight) {
                         Image(systemName: "chevron.right")
                     }
-                    .disabled(viewModel.groupIndex >= viewModel.totalGroups - 1)
+                    .disabled(!viewModel.canNavigateRight)
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)
                 .background(.ultraThinMaterial, in: Capsule())
                 .overlay(Capsule().stroke(Color.secondary.opacity(0.25)))
-                .help("Previous / next group")
+                .help("Previous / next")
             }
 
             Spacer()
