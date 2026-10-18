@@ -36,7 +36,7 @@ struct ReviewView: View {
                        onRatingChanged: { viewModel.handleRating($1, for: $0) },
                        onApprove: { viewModel.handleApprove(for: $0) },
                        onReject: { viewModel.handleToggleDelete(for: $0) },
-                       onRemove: { _ in })
+                       onRemove: { viewModel.handleRemove(for: $0) })
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(IRColor.windowBackgroundColor))
             .overlay(alignment: .bottomTrailing) {

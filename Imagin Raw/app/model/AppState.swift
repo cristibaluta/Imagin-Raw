@@ -154,6 +154,10 @@ class AppState: ObservableObject {
             }
             .store(in: &cancellables)
 
+        reviewViewModel.onRemove = { [weak self] photo in
+            self?.thumbsGridViewModel.deselectPhoto(photo)
+        }
+
         reviewViewModel.onPageChange = { [weak self] offset in
             self?.thumbsGridViewModel.goToPage(offset: offset)
         }

@@ -26,6 +26,7 @@ class ReviewViewModel: ObservableObject {
     var onRatingChanged: ((PhotoItem, Int) -> Void)? = nil
     var onApprove: ((PhotoItem) -> Void)? = nil
     var onMarkForDeletion: ((PhotoItem) -> Void)? = nil
+    var onRemove: ((PhotoItem) -> Void)? = nil
     var onNavigate: ((Int) -> Void)? = nil
     var onPageChange: ((Int) -> Void)? = nil
     var isPageReview = false
@@ -163,6 +164,20 @@ class ReviewViewModel: ObservableObject {
                                  fileSizeBytes: photo.fileSizeBytes,
                                  state: photo.state)
         updateLocalPhoto(newPhoto)
+    }
+
+    /// Removes the photo from the review (and from the selection when reviewing a page), keeping at least one photo.
+    func handleRemove(for photo: PhotoItem) {
+        guard photos.count > 1 else {
+            return
+        }
+        if isPageReview {
+            onRemove?(photo)
+        }
+        photos.removeAll { $0.id == photo.id }
+        if hoveredPhotoId == photo.id {
+            hoveredPhotoId = nil
+        }
     }
 
     func handleToggleDelete(for photo: PhotoItem) {
