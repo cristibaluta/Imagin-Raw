@@ -16,6 +16,10 @@ class PreviewViewModel: ObservableObject {
     @Published var showVideoEditor: Bool = false
     @Published var showPDFEditor: Bool = false
     @Published var exportJob: ExportJPEGJob? = nil
+    @Published private(set) var isMultiZoomed = false
+    @Published private(set) var isLoadingMultiFullRes = false
+    /// Full resolution images of the displayed photos while zoomed, keyed by photo path
+    @Published private(set) var multiFullRes: [String: IRImage] = [:]
 
     /// Called to enter review mode with the given photos. Set by AppState.
     var onReview: (([PhotoItem]) -> Void)?
@@ -36,6 +40,7 @@ class PreviewViewModel: ObservableObject {
 
     private var loadingTask: Task<Void, Never>?
     private var fullResTask: Task<Void, Never>?
+    private var multiFullResTask: Task<Void, Never>?
 
     init(previewsCacheManager: PhotoCacheManager, fullResCacheManager: PhotoCacheManager) {
         self.previewsCacheManager = previewsCacheManager
@@ -50,8 +55,12 @@ class PreviewViewModel: ObservableObject {
         guard photos.count <= 1 else {
             images = nil
             isLoading = false
+            if isMultiZoomed {
+                loadMultiFullRes()
+            }
             return
         }
+        exitMultiZoom()
         isLoading = true
 
         loadingTask = Task(priority: .userInitiated) { [photos] in
@@ -86,6 +95,54 @@ class PreviewViewModel: ObservableObject {
     func toggleExifExpanded() {
         exifIsExpanded.toggle()
         appPrefs.set(exifIsExpanded, forKey: .exifExpanded)
+    }
+
+    // MARK: - Zoom for multiple photos (synced pan, see MacFitGridView)
+
+    func toggleMultiZoom() {
+        guard (photos?.count ?? 0) > 1 else {
+            return
+        }
+        if isMultiZoomed {
+            exitMultiZoom()
+        } else {
+            isMultiZoomed = true
+            loadMultiFullRes()
+        }
+    }
+
+    func exitMultiZoom() {
+        multiFullResTask?.cancel()
+        multiFullResTask = nil
+        isMultiZoomed = false
+        isLoadingMultiFullRes = false
+        multiFullRes = [:]
+    }
+
+    /// Loads the full resolution of the displayed photos one by one, dropping the ones no longer displayed.
+    private func loadMultiFullRes() {
+        multiFullResTask?.cancel()
+        let photos = self.photos ?? []
+        let wanted = Set(photos.map(\.path))
+        multiFullRes = multiFullRes.filter { wanted.contains($0.key) }
+        let missing = photos.filter { multiFullRes[$0.path] == nil }
+        guard !missing.isEmpty else {
+            isLoadingMultiFullRes = false
+            return
+        }
+        isLoadingMultiFullRes = true
+        multiFullResTask = Task {
+            for photo in missing {
+                let image = await fullResCacheManager.getImage(for: photo)
+                guard !Task.isCancelled else {
+                    return
+                }
+                if let image {
+                    multiFullRes[photo.path] = image
+                }
+            }
+            isLoadingMultiFullRes = false
+        }
     }
 
     func exitZoom() {
@@ -148,6 +205,7 @@ class PreviewViewModel: ObservableObject {
     }
 
     func reset() {
+        exitMultiZoom()
         photos = nil
         loadingTask?.cancel()
         loadingTask = nil

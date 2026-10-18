@@ -1,0 +1,91 @@
+//
+//  MacFitGridCoordinator.swift
+//  Imagin Raw
+//
+//  Created by Cristian Baluta on 18/10/2026.
+//
+
+import AppKit
+
+@MainActor
+final class MacFitGridCoordinator: NSObject, NSCollectionViewDataSource {
+    var photos: [PhotoItem] = []
+    var cacheManager: PhotoCacheManager?
+    weak var collectionView: NSCollectionView?
+    weak var layout: MacFitGridLayout?
+    // Accessed from the nonisolated deinit only to remove the observer
+    nonisolated(unsafe) private var observer: NSObjectProtocol?
+
+    /// Re-layout whenever the visible area changes (window resize, split view drag...).
+    func observe(_ scrollView: NSScrollView) {
+        scrollView.contentView.postsFrameChangedNotifications = true
+        observer = NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification,
+                                                          object: scrollView.contentView,
+                                                          queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.layout?.invalidateLayout()
+            }
+        }
+    }
+
+    deinit {
+        if let observer {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    func numberOfSections(in collectionView: NSCollectionView) -> Int {
+        1
+    }
+
+    func collectionView(_ collectionView: NSCollectionView, numberOfItemsInSection section: Int) -> Int {
+        photos.count
+    }
+
+    func collectionView(_ collectionView: NSCollectionView,
+                        itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
+        let item = collectionView.makeItem(withIdentifier: MacFitImageCell.identifier, for: indexPath)
+        if let cell = item as? MacFitImageCell, let cacheManager, indexPath.item < photos.count {
+            let photo = photos[indexPath.item]
+            cell.configure(with: photo,
+                           cacheManager: cacheManager,
+                           zoomImage: zoomImage(for: photo),
+                           mousePosition: mousePosition,
+                           onMouseMoved: { [weak self] position in
+                               self?.handleMouseMoved(position)
+                           })
+        }
+        return item
+    }
+
+    // MARK: Synced zoom
+
+    var isZoomed = false
+    var fullResImages: [String: IRImage] = [:]
+    private var mousePosition = CGPoint(x: 0.5, y: 0.5)
+
+    private func zoomImage(for photo: PhotoItem) -> IRImage? {
+        isZoomed ? fullResImages[photo.path] : nil
+    }
+
+    private var visibleCells: [MacFitImageCell] {
+        (collectionView?.visibleItems() ?? []).compactMap { $0 as? MacFitImageCell }
+    }
+
+    func refreshZoom() {
+        for cell in visibleCells {
+            guard let photo = cell.currentPhoto else {
+                continue
+            }
+            cell.setZoom(image: zoomImage(for: photo), position: mousePosition)
+        }
+    }
+
+    private func handleMouseMoved(_ position: CGPoint) {
+        guard isZoomed else {
+            return
+        }
+        mousePosition = position
+        visibleCells.forEach { $0.setMousePosition(position) }
+    }
+}

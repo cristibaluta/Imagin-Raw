@@ -49,6 +49,9 @@ struct PreviewBottomBar: View {
                         zoomButton
                         separator
                         exportButton
+                    } else if (viewModel.photos?.count ?? 0) > 1 {
+                        separator
+                        zoomButton
                     }
                 }
                 .frame(height: 40)
@@ -66,30 +69,36 @@ struct PreviewBottomBar: View {
 
     @ViewBuilder
     private var zoomButton: some View {
-        Button(action: {
-            if viewModel.fullResImage != nil {
+        let isMulti = (viewModel.photos?.count ?? 0) > 1
+        let isActive = isMulti ? viewModel.isMultiZoomed : viewModel.fullResImage != nil
+        let isLoading = isMulti ? viewModel.isLoadingMultiFullRes : viewModel.isLoadingFullRes
+
+        return Button(action: {
+            if isMulti {
+                viewModel.toggleMultiZoom()
+            } else if viewModel.fullResImage != nil {
                 viewModel.exitZoom()
             } else {
                 viewModel.loadFullResolution()
             }
         }) {
             ZStack {
-                if viewModel.isLoadingFullRes {
+                if isLoading {
                     ProgressView()
                         .controlSize(.small)
                         .frame(width: 14, height: 14)
                 } else {
-                    Image(systemName: viewModel.fullResImage != nil ? "minus.magnifyingglass" : "plus.magnifyingglass")
+                    Image(systemName: isActive ? "minus.magnifyingglass" : "plus.magnifyingglass")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(viewModel.fullResImage != nil ? .accentColor : .secondary)
+                        .foregroundColor(isActive ? .accentColor : .secondary)
                 }
             }
             .frame(width: 20, height: 20)
             .padding(.horizontal, 10)
         }
         .buttonStyle(PlainButtonStyle())
-        .disabled(viewModel.isLoadingFullRes)
-        .help(viewModel.fullResImage != nil ? "Exit zoom (Z)" : "Zoom to 100% (Z)")
+        .disabled(!isMulti && isLoading)
+        .help(isActive ? "Exit zoom (Z)" : "Zoom to 100% (Z)")
     }
 
     @ViewBuilder

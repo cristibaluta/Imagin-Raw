@@ -38,8 +38,13 @@ struct PhotosPreviewView: View {
     private var previewBody: some View {
         VStack(spacing: 0) {
             MacFitGridView(photos: viewModel.photos ?? [],
-                           cacheManager: viewModel.previewsCacheManager)
+                           cacheManager: viewModel.previewsCacheManager,
+                           isZoomed: viewModel.isMultiZoomed,
+                           fullResImages: viewModel.multiFullRes)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onReceive(NotificationCenter.default.publisher(for: .toggleZoom)) { _ in
+                    viewModel.toggleMultiZoom()
+                }
 
             // Exif bar
             bottomBar
