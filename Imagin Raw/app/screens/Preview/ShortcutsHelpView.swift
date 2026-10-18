@@ -56,7 +56,7 @@ struct ShortcutsHelpView: View {
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     Text("Z       Zoom in/out")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("Space   Review mode")
+                    Text("Space/F Review mode")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     Text("S       Toggle Sidebar")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
