@@ -18,7 +18,8 @@ typealias IRRect = NSRect
 typealias IRColor = NSColor
 typealias IRFont = NSFont
 
-//extension NSImage: @unchecked @retroactive Sendable {}
+// Compatibility with Xcode 16. TODO: delete when not needed anymore
+extension NSImage: @unchecked @retroactive Sendable {}
 
 #elseif os(iOS)
 
