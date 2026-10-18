@@ -55,6 +55,9 @@ struct MacThumbGridView: NSViewRepresentable {
         let photosChanged     = photoIDs(from: coord.photos) != photoIDs(from: photos)
         let sizeChanged       = coord.itemSize != itemSize || coord.cellHeight != cellHeight
         let selectedPhotosChanged = coord.selectedPhotos != selectedPhotos
+        // Same photos in the same order, but some metadata changed (rating, label, state...)
+        let photosContentChanged = !photosChanged
+            && coord.photos.flatMap(\.photos) != photos.flatMap(\.photos)
 
         coord.delegate = delegate
         coord.photos = photos
@@ -76,7 +79,7 @@ struct MacThumbGridView: NSViewRepresentable {
         if photosChanged {
             collectionView.reloadData()
         }
-        if selectedPhotosChanged {
+        if selectedPhotosChanged || photosContentChanged {
 //            let latestMap  = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
 //            let oldPhotoMap = Dictionary(uniqueKeysWithValues: coord.photos.map { ($0.id, $0) })
 
