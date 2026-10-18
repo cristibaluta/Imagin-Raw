@@ -547,6 +547,16 @@ class ThumbGridViewModel: ObservableObject {
                     toggleGridType()
                     return true
                 }
+                if (chars == "f" || chars == "F") && !mods.contains(.command) {
+                    if !selectedPhotos.isEmpty {
+                        onReviewSelected?(selectedPhotos)
+                        if let window = NSApp.keyWindow ?? NSApp.mainWindow,
+                           !window.styleMask.contains(.fullScreen) {
+                            window.toggleFullScreen(nil)
+                        }
+                    }
+                    return true
+                }
 
                 // This actions are applied to the photo hovered in the preview, or to selectedPhotos
                 let targets = hoveredPhotoProvider?().map { [$0] } ?? selectedPhotos
