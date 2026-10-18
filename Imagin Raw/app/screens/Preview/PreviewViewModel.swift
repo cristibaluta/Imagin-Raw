@@ -31,6 +31,8 @@ class PreviewViewModel: ObservableObject {
     var onRatingChanged: ((PhotoItem, Int) -> Void)?
     var onApprove: ((PhotoItem) -> Void)?
     var onReject: ((PhotoItem) -> Void)?
+    /// Removes a photo from the preview (deselects it) keeping the page size. Set by AppState.
+    var onRemove: ((PhotoItem) -> Void)?
 
     /// Picks up rating/label/state changes of the displayed photos from the latest `allPhotos`.
     func refreshMetadata(from allPhotos: [PhotoItem]) {

@@ -13,6 +13,7 @@ struct MacFitCellActions {
     var onRating: (PhotoItem, Int) -> Void
     var onApprove: (PhotoItem) -> Void
     var onReject: (PhotoItem) -> Void
+    var onRemove: (PhotoItem) -> Void
 }
 
 final class MacFitImageCell: NSCollectionViewItem {
@@ -49,6 +50,7 @@ final class MacFitImageCell: NSCollectionViewItem {
                    cacheManager: PhotoCacheManager,
                    zoomImage: IRImage?,
                    mousePosition: CGPoint,
+                   canRemove: Bool,
                    actions: MacFitCellActions) {
         _ = self.view
         container.onMouseMoved = actions.onMouseMoved
@@ -74,10 +76,15 @@ final class MacFitImageCell: NSCollectionViewItem {
                 actions.onReject(photo)
             }
         }
+        overlay.onRemove = { [weak self] in
+            if let photo = self?.currentPhoto {
+                actions.onRemove(photo)
+            }
+        }
         setZoom(image: zoomImage, position: mousePosition)
 
         let isSamePhoto = currentPhoto?.id == photo.id
-        update(photo: photo)
+        update(photo: photo, canRemove: canRemove)
         guard !isSamePhoto else {
             return
         }
@@ -94,8 +101,9 @@ final class MacFitImageCell: NSCollectionViewItem {
     }
 
     /// Refreshes the overlay (rating, label, state) without reloading the image.
-    func update(photo: PhotoItem) {
+    func update(photo: PhotoItem, canRemove: Bool) {
         currentPhoto = photo
+        overlay.canRemove = canRemove
         overlay.configure(with: photo)
         overlay.needsLayout = true
 

@@ -52,6 +52,7 @@ final class MacFitGridCoordinator: NSObject, NSCollectionViewDataSource {
                            cacheManager: cacheManager,
                            zoomImage: zoomImage(for: photo),
                            mousePosition: mousePosition,
+                           canRemove: photos.count > 1,
                            actions: MacFitCellActions(
                                onMouseMoved: { [weak self] position in
                                    self?.handleMouseMoved(position)
@@ -67,6 +68,9 @@ final class MacFitGridCoordinator: NSObject, NSCollectionViewDataSource {
                                },
                                onReject: { [weak self] photo in
                                    self?.onReject?(photo)
+                               },
+                               onRemove: { [weak self] photo in
+                                   self?.onRemove?(photo)
                                }))
         }
         return item
@@ -78,12 +82,13 @@ final class MacFitGridCoordinator: NSObject, NSCollectionViewDataSource {
     var onRatingChanged: ((PhotoItem, Int) -> Void)?
     var onApprove: ((PhotoItem) -> Void)?
     var onReject: ((PhotoItem) -> Void)?
+    var onRemove: ((PhotoItem) -> Void)?
 
     /// Pushes updated metadata of the displayed photos to the visible cells.
     func refreshPhotos() {
         for cell in visibleCells {
             if let id = cell.currentPhoto?.id, let photo = photos.first(where: { $0.id == id }) {
-                cell.update(photo: photo)
+                cell.update(photo: photo, canRemove: photos.count > 1)
             }
         }
     }

@@ -623,6 +623,17 @@ class ThumbGridViewModel: ObservableObject {
         return PageInfo(index: first / pageSize, count: (flat.count + pageSize - 1) / pageSize)
     }
 
+    /// Removes a photo from the selection (and so from the preview) without changing the page size,
+    /// so the next page still shows the original number of photos.
+    func deselectPhoto(_ photo: PhotoItem) {
+        guard selectedPhotos.count > 1 else {
+            return
+        }
+        isPaging = true
+        selectedPhotos.removeAll { $0.id == photo.id }
+        isPaging = false
+    }
+
     /// Selects the next (+1) or previous (-1) page. The first/last pages contain only the remaining photos.
     @discardableResult
     func goToPage(offset: Int) -> Bool {

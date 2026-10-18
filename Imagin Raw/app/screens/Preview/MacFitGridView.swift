@@ -29,6 +29,7 @@ struct MacFitGridView: NSViewRepresentable {
     var onRatingChanged: ((PhotoItem, Int) -> Void)?
     var onApprove: ((PhotoItem) -> Void)?
     var onReject: ((PhotoItem) -> Void)?
+    var onRemove: ((PhotoItem) -> Void)?
 
     func makeCoordinator() -> MacFitGridCoordinator {
         MacFitGridCoordinator()
@@ -86,6 +87,7 @@ struct MacFitGridView: NSViewRepresentable {
         coord.onRatingChanged = onRatingChanged
         coord.onApprove = onApprove
         coord.onReject = onReject
+        coord.onRemove = onRemove
         coord.setPosition(panPosition)
         layout.spacing = spacing
         layout.padding = padding

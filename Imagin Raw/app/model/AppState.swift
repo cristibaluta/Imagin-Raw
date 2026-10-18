@@ -137,6 +137,9 @@ class AppState: ObservableObject {
         previewViewModel.onReject = { [weak self] photo in
             self?.thumbsGridViewModel.toggleRejectedState(for: [photo])
         }
+        previewViewModel.onRemove = { [weak self] photo in
+            self?.thumbsGridViewModel.deselectPhoto(photo)
+        }
         thumbsGridViewModel.hoveredPhotoProvider = { [weak self] in
             self?.previewViewModel.hoveredPhoto
         }

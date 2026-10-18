@@ -13,8 +13,20 @@ final class MacFitCellOverlay: NSView {
     var onRatingChanged: ((Int) -> Void)?
     var onApprove: (() -> Void)?
     var onReject: (() -> Void)?
+    var onRemove: (() -> Void)?
+    /// The remove button is shown only when more than one photo is displayed.
+    var canRemove = true {
+        didSet {
+            if oldValue != canRemove {
+                removeBar.isHidden = !canRemove
+                needsLayout = true
+            }
+        }
+    }
 
     private let bar = NSView()
+    private let removeBar = NSView()
+    private let removeButton = NSButton()
     private let filenameLabel = NSTextField(labelWithString: "")
     private let starView = MacStarRatingView()
     private let approveButton = NSButton()
@@ -59,6 +71,18 @@ final class MacFitCellOverlay: NSView {
         rejectButton.toolTip = "Reject (X)"
         bar.addSubview(approveButton)
         bar.addSubview(rejectButton)
+
+        removeBar.wantsLayer = true
+        removeBar.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.55).cgColor
+        addSubview(removeBar)
+        configure(button: removeButton, symbol: "xmark", action: #selector(removeTapped))
+        removeButton.contentTintColor = .white
+        removeButton.toolTip = "Remove from preview"
+        removeBar.addSubview(removeButton)
+    }
+
+    @objc private func removeTapped() {
+        onRemove?()
     }
 
     private func configure(button: NSButton, symbol: String, action: Selector) {
@@ -116,12 +140,17 @@ final class MacFitCellOverlay: NSView {
         let maxLabelW = max(0, bounds.width - 16 - fixedW)
         let labelW = min(filenameLabel.frame.width + 8, maxLabelW)
         let pillW = fixedW + labelW
+        let removeGap: CGFloat = 6
+        let removeW: CGFloat = canRemove ? pillH + removeGap : 0
+        let groupX = (bounds.width - pillW - removeW) / 2
+        let pillY = bounds.height - pillH - bottomPadding
 
-        bar.frame = CGRect(x: (bounds.width - pillW) / 2,
-                           y: bounds.height - pillH - bottomPadding,
-                           width: pillW,
-                           height: pillH)
+        bar.frame = CGRect(x: groupX, y: pillY, width: pillW, height: pillH)
         bar.layer?.cornerRadius = pillH / 2
+
+        removeBar.frame = CGRect(x: groupX + pillW + removeGap, y: pillY, width: pillH, height: pillH)
+        removeBar.layer?.cornerRadius = pillH / 2
+        removeButton.frame = CGRect(x: (pillH - 14) / 2, y: (pillH - 14) / 2, width: 14, height: 14)
 
         var x = hPad
         filenameLabel.frame = CGRect(x: x, y: (pillH - 16) / 2, width: labelW, height: 16)
@@ -139,6 +168,6 @@ final class MacFitCellOverlay: NSView {
     /// Only the bar's controls take clicks; everything else passes through.
     override func hitTest(_ point: NSPoint) -> NSView? {
         let hit = super.hitTest(point)
-        return (hit === self || hit === bar) ? nil : hit
+        return (hit === self || hit === bar || hit === removeBar) ? nil : hit
     }
 }

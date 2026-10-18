@@ -52,7 +52,8 @@ struct PhotosPreviewView: View {
                            onHoverChanged: { viewModel.hoveredPhoto = $0 },
                            onRatingChanged: { viewModel.onRatingChanged?($0, $1) },
                            onApprove: { viewModel.onApprove?($0) },
-                           onReject: { viewModel.onReject?($0) })
+                           onReject: { viewModel.onReject?($0) },
+                           onRemove: { viewModel.onRemove?($0) })
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .bottomTrailing) {
                     if viewModel.isMultiZoomed,
