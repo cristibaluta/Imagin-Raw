@@ -23,6 +23,7 @@ final class MacFitImageCell: NSCollectionViewItem {
     private let fitImageView = NSImageView()
     private let zoomView = MacZoomImageView(frame: .zero)
     private let overlay = MacFitCellOverlay()
+    private let stateBorder = NSView()
     private var loadTask: Task<Void, Never>?
     private(set) var currentPhoto: PhotoItem?
 
@@ -32,7 +33,9 @@ final class MacFitImageCell: NSCollectionViewItem {
         if #available(macOS 14.0, *) {
             fitImageView.preferredImageDynamicRange = .high
         }
-        for sub in [fitImageView, zoomView, overlay] {
+        stateBorder.wantsLayer = true
+        stateBorder.layer?.borderWidth = 0
+        for sub in [fitImageView, zoomView, stateBorder, overlay] {
             sub.frame = container.bounds
             sub.autoresizingMask = [.width, .height]
             container.addSubview(sub)
@@ -95,6 +98,18 @@ final class MacFitImageCell: NSCollectionViewItem {
         currentPhoto = photo
         overlay.configure(with: photo)
         overlay.needsLayout = true
+
+        // Border representing the approved / rejected state
+        let color: NSColor?
+        if photo.state == .rejected {
+            color = PhotoLabel.rejected.nsColor
+        } else if photo.xmp?.label == PhotoLabel.approved.rawValue {
+            color = PhotoLabel.approved.nsColor
+        } else {
+            color = nil
+        }
+        stateBorder.layer?.borderColor = color?.cgColor
+        stateBorder.layer?.borderWidth = color == nil ? 0 : 4
     }
 
     /// Shows the full resolution image panned by `position`, or the fitted preview when `image` is nil.
@@ -121,6 +136,7 @@ final class MacFitImageCell: NSCollectionViewItem {
         loadTask = nil
         currentPhoto = nil
         overlay.isHidden = true
+        stateBorder.layer?.borderWidth = 0
         fitImageView.image = nil
         setZoom(image: nil, position: CGPoint(x: 0.5, y: 0.5))
     }
