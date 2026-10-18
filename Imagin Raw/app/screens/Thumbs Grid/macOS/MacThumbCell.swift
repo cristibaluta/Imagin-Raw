@@ -254,10 +254,27 @@ final class MacThumbCell: NSCollectionViewItem {
             starView?.rating = rating
             starView?.colorScheme = colorScheme
             starView?.frame = CGRect(x: 0, y: labelY - starH - 2, width: w, height: starH)
-            starView?.isHidden = rating == 0
-        } else {
-            starView?.isHidden = true
         }
+        updateStarVisibility()
+    }
+
+    /// Single place deciding star visibility: shown when rated, or when the mouse is over the cell.
+    private func updateStarVisibility() {
+        guard let photo = currentPhoto,
+              photo.isRaw || JpegMetadataWriter.isSupported(photo.url) else {
+            starView?.isHidden = true
+            return
+        }
+        starView?.isHidden = photo.effectiveRating == 0 && !isMouseInside
+    }
+
+    /// Derived from the actual pointer position, so it stays correct across reconfigure/reuse.
+    private var isMouseInside: Bool {
+        guard let window = view.window else {
+            return false
+        }
+        let point = view.convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        return view.bounds.contains(point)
     }
 
     private func actualImageRect(in frame: CGRect) -> CGRect {
@@ -379,11 +396,11 @@ extension MacThumbCell: NSMenuDelegate {
 
 extension MacThumbCell {
     override func mouseEntered(with event: NSEvent) {
-        starView?.isHidden = currentPhoto.map { !($0.isRaw || JpegMetadataWriter.isSupported($0.url)) } ?? true
+        updateStarVisibility()
     }
 
     override func mouseExited(with event: NSEvent) {
-        starView?.isHidden = (currentPhoto?.effectiveRating ?? 0) == 0
+        updateStarVisibility()
     }
 
     override func mouseDown(with event: NSEvent) {
