@@ -49,6 +49,9 @@ class ThumbGridViewModel: ObservableObject {
     @Published var exportJob: ExportJPEGJob? = nil
 
     var onReviewSelected: ((ReviewGroupItem?) -> Void)?
+    /// Returns the photo hovered in the preview, if any. Rating/label/approve/reject keys target it
+    /// instead of the selected photos.
+    var hoveredPhotoProvider: (() -> PhotoItem?)?
 
     /// Set before loading a folder to auto-select a specific photo once it appears in the grid.
     var pendingSelectURL: URL? = nil {
@@ -545,24 +548,25 @@ class ThumbGridViewModel: ObservableObject {
                     return true
                 }
 
-                // This actions are applied only to selectedPhotos
-                if selectedPhotos.isEmpty {
+                // This actions are applied to the photo hovered in the preview, or to selectedPhotos
+                let targets = hoveredPhotoProvider?().map { [$0] } ?? selectedPhotos
+                if targets.isEmpty {
                     return false
                 }
 
                 if chars == "a" || chars == "A" {
-                    applyLabel(.approved, to: selectedPhotos)
+                    applyLabel(.approved, to: targets)
                     return true
                 }
                 if chars == "c" || chars == "C" {
-                    toggleCopyState(for: selectedPhotos)
+                    toggleCopyState(for: targets)
                     return true
                 }
                 if chars == "x" || chars == "X" {
                     if mods.contains(.option) {
                         selectedLabels = selectedLabels.contains(.rejected) ? [] : [.rejected]
                     } else {
-                        toggleRejectedState(for: selectedPhotos)
+                        toggleRejectedState(for: targets)
                     }
                     return true
                 }
@@ -574,7 +578,7 @@ class ThumbGridViewModel: ObservableObject {
                             selectedRatings.insert(r)
                         }
                     } else {
-                        applyRating(r, to: selectedPhotos)
+                        applyRating(r, to: targets)
                     }
                     return true
                 }
@@ -591,12 +595,12 @@ class ThumbGridViewModel: ObservableObject {
                             selectedLabels.insert(label)
                         }
                     } else {
-                        applyLabel(label, to: selectedPhotos)
+                        applyLabel(label, to: targets)
                     }
                     return true
                 }
                 if chars == "-" {
-                    removeLabelsAndRatings(from: selectedPhotos)
+                    removeLabelsAndRatings(from: targets)
                     return true
                 }
                 return false

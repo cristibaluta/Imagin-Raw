@@ -48,7 +48,11 @@ struct PhotosPreviewView: View {
                            panPosition: panPosition,
                            isPanLocked: isMinimapActive,
                            onPanChanged: { panPosition = $0 },
-                           onViewportChanged: { if viewport != $0 { viewport = $0 } })
+                           onViewportChanged: { if viewport != $0 { viewport = $0 } },
+                           onHoverChanged: { viewModel.hoveredPhoto = $0 },
+                           onRatingChanged: { viewModel.onRatingChanged?($0, $1) },
+                           onApprove: { viewModel.onApprove?($0) },
+                           onReject: { viewModel.onReject?($0) })
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .bottomTrailing) {
                     if viewModel.isMultiZoomed,

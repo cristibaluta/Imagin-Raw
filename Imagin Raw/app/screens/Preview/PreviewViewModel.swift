@@ -25,6 +25,28 @@ class PreviewViewModel: ObservableObject {
     var onReview: (([PhotoItem]) -> Void)?
     /// Called to move to the next (+1) / previous (-1) page of photos. Set by AppState.
     var onPageChange: ((Int) -> Void)?
+    /// Photo currently under the mouse in the grid, nil when none. Key shortcuts target it.
+    var hoveredPhoto: PhotoItem?
+    /// Per-photo actions triggered from the hover overlay. Set by AppState.
+    var onRatingChanged: ((PhotoItem, Int) -> Void)?
+    var onApprove: ((PhotoItem) -> Void)?
+    var onReject: ((PhotoItem) -> Void)?
+
+    /// Picks up rating/label/state changes of the displayed photos from the latest `allPhotos`.
+    func refreshMetadata(from allPhotos: [PhotoItem]) {
+        guard let photos, !photos.isEmpty else {
+            return
+        }
+        let ids = Set(photos.map(\.id))
+        var latest: [UUID: PhotoItem] = [:]
+        for p in allPhotos where ids.contains(p.id) {
+            latest[p.id] = p
+        }
+        let updated = photos.map { latest[$0.id] ?? $0 }
+        if updated != photos {
+            self.photos = updated
+        }
+    }
     /// Page of the displayed photos, nil when unknown.
     @Published var pageInfo: PageInfo?
 
@@ -205,6 +227,7 @@ class PreviewViewModel: ObservableObject {
     }
 
     func reset() {
+        hoveredPhoto = nil
         exitMultiZoom()
         photos = nil
         loadingTask?.cancel()

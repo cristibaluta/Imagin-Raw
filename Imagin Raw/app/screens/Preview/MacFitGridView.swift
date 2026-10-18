@@ -25,6 +25,10 @@ struct MacFitGridView: NSViewRepresentable {
     var isPanLocked: Bool = false
     var onPanChanged: ((CGPoint) -> Void)?
     var onViewportChanged: ((CGSize) -> Void)?
+    var onHoverChanged: ((PhotoItem?) -> Void)?
+    var onRatingChanged: ((PhotoItem, Int) -> Void)?
+    var onApprove: ((PhotoItem) -> Void)?
+    var onReject: ((PhotoItem) -> Void)?
 
     func makeCoordinator() -> MacFitGridCoordinator {
         MacFitGridCoordinator()
@@ -78,15 +82,21 @@ struct MacFitGridView: NSViewRepresentable {
         coord.onPositionChanged = onPanChanged
         coord.isPanLocked = isPanLocked
         coord.onViewportChanged = onViewportChanged
+        coord.onHoverChanged = onHoverChanged
+        coord.onRatingChanged = onRatingChanged
+        coord.onApprove = onApprove
+        coord.onReject = onReject
         coord.setPosition(panPosition)
         layout.spacing = spacing
         layout.padding = padding
 
         if idsChanged {
+            onHoverChanged?(nil)
             layout.aspects = photos.map(\.fitAspectRatio)
             cv.reloadData()
             cv.scroll(.zero)
         } else {
+            coord.refreshPhotos()
             if metricsChanged {
                 layout.invalidateLayout()
             }

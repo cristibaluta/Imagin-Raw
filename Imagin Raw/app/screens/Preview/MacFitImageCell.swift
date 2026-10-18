@@ -7,6 +7,14 @@
 
 import AppKit
 
+struct MacFitCellActions {
+    var onMouseMoved: (CGPoint) -> Void
+    var onHover: (PhotoItem?) -> Void
+    var onRating: (PhotoItem, Int) -> Void
+    var onApprove: (PhotoItem) -> Void
+    var onReject: (PhotoItem) -> Void
+}
+
 final class MacFitImageCell: NSCollectionViewItem {
 
     static let identifier = NSUserInterfaceItemIdentifier("MacFitImageCell")
@@ -14,6 +22,7 @@ final class MacFitImageCell: NSCollectionViewItem {
     private let container = MacFitCellView()
     private let fitImageView = NSImageView()
     private let zoomView = MacZoomImageView(frame: .zero)
+    private let overlay = MacFitCellOverlay()
     private var loadTask: Task<Void, Never>?
     private(set) var currentPhoto: PhotoItem?
 
@@ -23,12 +32,13 @@ final class MacFitImageCell: NSCollectionViewItem {
         if #available(macOS 14.0, *) {
             fitImageView.preferredImageDynamicRange = .high
         }
-        for sub in [fitImageView, zoomView] {
+        for sub in [fitImageView, zoomView, overlay] {
             sub.frame = container.bounds
             sub.autoresizingMask = [.width, .height]
             container.addSubview(sub)
         }
         zoomView.isHidden = true
+        overlay.isHidden = true
         view = container
     }
 
@@ -36,16 +46,39 @@ final class MacFitImageCell: NSCollectionViewItem {
                    cacheManager: PhotoCacheManager,
                    zoomImage: IRImage?,
                    mousePosition: CGPoint,
-                   onMouseMoved: @escaping (CGPoint) -> Void) {
+                   actions: MacFitCellActions) {
         _ = self.view
-        container.onMouseMoved = onMouseMoved
+        container.onMouseMoved = actions.onMouseMoved
+        container.onHover = { [weak self] inside in
+            guard let self else {
+                return
+            }
+            self.overlay.isHidden = !inside
+            actions.onHover(inside ? self.currentPhoto : nil)
+        }
+        overlay.onRatingChanged = { [weak self] rating in
+            if let photo = self?.currentPhoto {
+                actions.onRating(photo, rating)
+            }
+        }
+        overlay.onApprove = { [weak self] in
+            if let photo = self?.currentPhoto {
+                actions.onApprove(photo)
+            }
+        }
+        overlay.onReject = { [weak self] in
+            if let photo = self?.currentPhoto {
+                actions.onReject(photo)
+            }
+        }
         setZoom(image: zoomImage, position: mousePosition)
 
-        guard currentPhoto?.id != photo.id else {
+        let isSamePhoto = currentPhoto?.id == photo.id
+        update(photo: photo)
+        guard !isSamePhoto else {
             return
         }
         loadTask?.cancel()
-        currentPhoto = photo
         fitImageView.image = nil
 
         loadTask = Task { [weak self] in
@@ -55,6 +88,13 @@ final class MacFitImageCell: NSCollectionViewItem {
             }
             self.fitImageView.image = image
         }
+    }
+
+    /// Refreshes the overlay (rating, label, state) without reloading the image.
+    func update(photo: PhotoItem) {
+        currentPhoto = photo
+        overlay.configure(with: photo)
+        overlay.needsLayout = true
     }
 
     /// Shows the full resolution image panned by `position`, or the fitted preview when `image` is nil.
@@ -80,6 +120,7 @@ final class MacFitImageCell: NSCollectionViewItem {
         loadTask?.cancel()
         loadTask = nil
         currentPhoto = nil
+        overlay.isHidden = true
         fitImageView.image = nil
         setZoom(image: nil, position: CGPoint(x: 0.5, y: 0.5))
     }

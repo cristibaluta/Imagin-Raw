@@ -10,6 +10,7 @@ import AppKit
 /// Cell root view: reports the normalized mouse position (0...1, origin top-left).
 final class MacFitCellView: NSView {
     var onMouseMoved: ((CGPoint) -> Void)?
+    var onHover: ((Bool) -> Void)?
     private var trackingArea: NSTrackingArea?
 
     override func updateTrackingAreas() {
@@ -18,11 +19,19 @@ final class MacFitCellView: NSView {
             removeTrackingArea(trackingArea)
         }
         let area = NSTrackingArea(rect: .zero,
-                                  options: [.mouseMoved, .activeInKeyWindow, .inVisibleRect],
+                                  options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
                                   owner: self,
                                   userInfo: nil)
         addTrackingArea(area)
         trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        onHover?(true)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        onHover?(false)
     }
 
     override func mouseMoved(with event: NSEvent) {

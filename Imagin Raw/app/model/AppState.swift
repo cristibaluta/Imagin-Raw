@@ -127,6 +127,25 @@ class AppState: ObservableObject {
             self?.thumbsGridViewModel.buildReviewGroupItemFromPhotos(photos)
         }
 
+        // Hover overlay actions in the preview apply to the hovered photo only
+        previewViewModel.onRatingChanged = { [weak self] photo, rating in
+            self?.thumbsGridViewModel.applyRating(rating, to: [photo])
+        }
+        previewViewModel.onApprove = { [weak self] photo in
+            self?.thumbsGridViewModel.applyLabel(.approved, to: [photo])
+        }
+        previewViewModel.onReject = { [weak self] photo in
+            self?.thumbsGridViewModel.toggleRejectedState(for: [photo])
+        }
+        thumbsGridViewModel.hoveredPhotoProvider = { [weak self] in
+            self?.previewViewModel.hoveredPhoto
+        }
+        thumbsGridViewModel.$filteredAndSortedPhotos
+            .sink { [weak self] photos in
+                self?.previewViewModel.refreshMetadata(from: photos)
+            }
+            .store(in: &cancellables)
+
         thumbsGridViewModel.onReviewSelected = { [weak self] reviewGroupItem in
             self?.reviewGroup = reviewGroupItem
             if let group = reviewGroupItem {

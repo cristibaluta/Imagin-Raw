@@ -52,11 +52,40 @@ final class MacFitGridCoordinator: NSObject, NSCollectionViewDataSource {
                            cacheManager: cacheManager,
                            zoomImage: zoomImage(for: photo),
                            mousePosition: mousePosition,
-                           onMouseMoved: { [weak self] position in
-                               self?.handleMouseMoved(position)
-                           })
+                           actions: MacFitCellActions(
+                               onMouseMoved: { [weak self] position in
+                                   self?.handleMouseMoved(position)
+                               },
+                               onHover: { [weak self] photo in
+                                   self?.onHoverChanged?(photo)
+                               },
+                               onRating: { [weak self] photo, rating in
+                                   self?.onRatingChanged?(photo, rating)
+                               },
+                               onApprove: { [weak self] photo in
+                                   self?.onApprove?(photo)
+                               },
+                               onReject: { [weak self] photo in
+                                   self?.onReject?(photo)
+                               }))
         }
         return item
+    }
+
+    // MARK: Hover actions
+
+    var onHoverChanged: ((PhotoItem?) -> Void)?
+    var onRatingChanged: ((PhotoItem, Int) -> Void)?
+    var onApprove: ((PhotoItem) -> Void)?
+    var onReject: ((PhotoItem) -> Void)?
+
+    /// Pushes updated metadata of the displayed photos to the visible cells.
+    func refreshPhotos() {
+        for cell in visibleCells {
+            if let id = cell.currentPhoto?.id, let photo = photos.first(where: { $0.id == id }) {
+                cell.update(photo: photo)
+            }
+        }
     }
 
     // MARK: Synced zoom
