@@ -69,25 +69,18 @@ struct ReviewView: View {
                 return .handled
             }
             .onKeyPress(characters: CharacterSet(charactersIn: "12345")) { press in
-                guard let photo = viewModel.hoveredPhoto,
-                      let rating = Int(String(press.characters)) else {
+                guard let rating = Int(String(press.characters)) else {
                     return .ignored
                 }
-                viewModel.handleRating(rating, for: photo)
+                viewModel.rateTargets(rating)
                 return .handled
             }
             .onKeyPress(characters: CharacterSet(charactersIn: "aA")) { _ in
-                guard let photo = viewModel.hoveredPhoto else {
-                    return .ignored
-                }
-                viewModel.handleApprove(for: photo)
+                viewModel.approveTargets()
                 return .handled
             }
             .onKeyPress(characters: CharacterSet(charactersIn: "xX")) { _ in
-                guard let photo = viewModel.hoveredPhoto else {
-                    return .ignored
-                }
-                viewModel.handleToggleDelete(for: photo)
+                viewModel.toggleDeleteTargets()
                 return .handled
             }
             .onAppear {

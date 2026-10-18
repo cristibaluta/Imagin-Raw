@@ -166,6 +166,36 @@ class ReviewViewModel: ObservableObject {
         updateLocalPhoto(newPhoto)
     }
 
+    /// Hovered photo, or all photos when the mouse is outside any of them.
+    private var targetPhotos: [PhotoItem] {
+        if let photo = hoveredPhoto {
+            return [photo]
+        }
+        return photos
+    }
+
+    func rateTargets(_ rating: Int) {
+        for photo in targetPhotos {
+            handleRating(rating, for: photo)
+        }
+    }
+
+    func approveTargets() {
+        let targets = targetPhotos
+        let allApproved = targets.allSatisfy { $0.xmp?.label == "Approved" }
+        for photo in targets where allApproved || photo.xmp?.label != "Approved" {
+            handleApprove(for: photo)
+        }
+    }
+
+    func toggleDeleteTargets() {
+        let targets = targetPhotos
+        let allRejected = targets.allSatisfy { $0.state == .rejected }
+        for photo in targets where allRejected || photo.state != .rejected {
+            handleToggleDelete(for: photo)
+        }
+    }
+
     /// Removes the photo from the review (and from the selection when reviewing a page), keeping at least one photo.
     func handleRemove(for photo: PhotoItem) {
         guard photos.count > 1 else {
