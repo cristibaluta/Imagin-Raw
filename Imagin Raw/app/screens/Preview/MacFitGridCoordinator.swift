@@ -24,6 +24,7 @@ final class MacFitGridCoordinator: NSObject, NSCollectionViewDataSource {
                                                           queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.layout?.invalidateLayout()
+                self?.reportViewport()
             }
         }
     }
@@ -79,6 +80,30 @@ final class MacFitGridCoordinator: NSObject, NSCollectionViewDataSource {
             }
             cell.setZoom(image: zoomImage(for: photo), position: mousePosition)
         }
+        reportViewport()
+    }
+
+    var onPositionChanged: ((CGPoint) -> Void)?
+    var onViewportChanged: ((CGSize) -> Void)?
+
+    /// Applies a position coming from outside (minimap).
+    func setPosition(_ position: CGPoint) {
+        guard position != mousePosition else {
+            return
+        }
+        mousePosition = position
+        visibleCells.forEach { $0.setMousePosition(position) }
+    }
+
+    /// Reports the visible fraction of the first photo's zoomed image.
+    func reportViewport() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isZoomed, let first = self.photos.first,
+                  let cell = self.visibleCells.first(where: { $0.currentPhoto?.id == first.id }) else {
+                return
+            }
+            self.onViewportChanged?(cell.zoomVisibleFraction)
+        }
     }
 
     private func handleMouseMoved(_ position: CGPoint) {
@@ -86,6 +111,7 @@ final class MacFitGridCoordinator: NSObject, NSCollectionViewDataSource {
             return
         }
         mousePosition = position
+        onPositionChanged?(position)
         visibleCells.forEach { $0.setMousePosition(position) }
     }
 }

@@ -19,6 +19,10 @@ struct MacFitGridView: NSViewRepresentable {
     /// show it at 100%, panned in sync by moving the mouse over any cell.
     var isZoomed: Bool = false
     var fullResImages: [String: IRImage] = [:]
+    /// Normalized pan position (0...1), driven externally (e.g. minimap).
+    var panPosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
+    var onPanChanged: ((CGPoint) -> Void)?
+    var onViewportChanged: ((CGSize) -> Void)?
 
     func makeCoordinator() -> MacFitGridCoordinator {
         MacFitGridCoordinator()
@@ -69,6 +73,9 @@ struct MacFitGridView: NSViewRepresentable {
         coord.photos = photos
         coord.isZoomed = isZoomed
         coord.fullResImages = fullResImages
+        coord.onPositionChanged = onPanChanged
+        coord.onViewportChanged = onViewportChanged
+        coord.setPosition(panPosition)
         layout.spacing = spacing
         layout.padding = padding
 
@@ -83,6 +90,9 @@ struct MacFitGridView: NSViewRepresentable {
             if zoomChanged {
                 coord.refreshZoom()
             }
+        }
+        if isZoomed {
+            coord.reportViewport()
         }
     }
 }

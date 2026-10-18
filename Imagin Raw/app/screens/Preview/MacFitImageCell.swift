@@ -67,6 +67,8 @@ final class MacFitImageCell: NSCollectionViewItem {
         fitImageView.isHidden = image != nil
     }
 
+    var zoomVisibleFraction: CGSize { zoomView.visibleFraction }
+
     func setMousePosition(_ position: CGPoint) {
         if !zoomView.isHidden {
             zoomView.position = position

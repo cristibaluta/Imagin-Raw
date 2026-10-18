@@ -29,6 +29,15 @@ final class MacZoomImageView: NSView {
         }
     }
 
+    /// Fraction of the image (per axis) currently visible, 0...1.
+    var visibleFraction: CGSize {
+        guard pixelSize.width > 0, pixelSize.height > 0 else {
+            return CGSize(width: 1, height: 1)
+        }
+        return CGSize(width: min(1, bounds.width / pixelSize.width),
+                      height: min(1, bounds.height / pixelSize.height))
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true

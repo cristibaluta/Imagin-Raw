@@ -14,6 +14,9 @@ struct PhotosPreviewView: View {
     @State private var showPDFExportPanel = false
     @State private var showVideoExportPanel = false
 
+    @State private var panPosition = CGPoint(x: 0.5, y: 0.5)
+    @State private var viewport = CGSize(width: 1, height: 1)
+
     @State private var showExportPanel = false
     @State private var gridType = GridType(rawValue: appPrefs.string(.gridType)) ?? .small
 
@@ -40,8 +43,19 @@ struct PhotosPreviewView: View {
             MacFitGridView(photos: viewModel.photos ?? [],
                            cacheManager: viewModel.previewsCacheManager,
                            isZoomed: viewModel.isMultiZoomed,
-                           fullResImages: viewModel.multiFullRes)
+                           fullResImages: viewModel.multiFullRes,
+                           panPosition: panPosition,
+                           onPanChanged: { panPosition = $0 },
+                           onViewportChanged: { if viewport != $0 { viewport = $0 } })
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .bottomTrailing) {
+                    if viewModel.isMultiZoomed,
+                       let first = viewModel.photos?.first,
+                       let image = viewModel.multiFullRes[first.path] {
+                        ZoomMinimapView(image: image, viewport: viewport, position: $panPosition)
+                            .padding(12)
+                    }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: .toggleZoom)) { _ in
                     viewModel.toggleMultiZoom()
                 }
