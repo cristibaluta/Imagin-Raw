@@ -16,6 +16,7 @@ struct PhotosPreviewView: View {
 
     @State private var panPosition = CGPoint(x: 0.5, y: 0.5)
     @State private var viewport = CGSize(width: 1, height: 1)
+    @State private var isMinimapActive = false
 
     @State private var showExportPanel = false
     @State private var gridType = GridType(rawValue: appPrefs.string(.gridType)) ?? .small
@@ -45,6 +46,7 @@ struct PhotosPreviewView: View {
                            isZoomed: viewModel.isMultiZoomed,
                            fullResImages: viewModel.multiFullRes,
                            panPosition: panPosition,
+                           isPanLocked: isMinimapActive,
                            onPanChanged: { panPosition = $0 },
                            onViewportChanged: { if viewport != $0 { viewport = $0 } })
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -52,7 +54,8 @@ struct PhotosPreviewView: View {
                     if viewModel.isMultiZoomed,
                        let first = viewModel.photos?.first,
                        let image = viewModel.multiFullRes[first.path] {
-                        ZoomMinimapView(image: image, viewport: viewport, position: $panPosition)
+                        ZoomMinimapView(image: image, viewport: viewport, position: $panPosition,
+                                          isInteracting: $isMinimapActive)
                             .padding(12)
                     }
                 }

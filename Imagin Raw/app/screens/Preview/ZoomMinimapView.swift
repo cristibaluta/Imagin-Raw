@@ -13,6 +13,15 @@ struct ZoomMinimapView: View {
     let viewport: CGSize
     /// Normalized pan position (0...1)
     @Binding var position: CGPoint
+    /// True while the pointer hovers or drags the minimap
+    @Binding var isInteracting: Bool
+
+    @State private var hovering = false
+    @State private var dragging = false
+
+    private func updateInteracting() {
+        isInteracting = hovering || dragging
+    }
 
     private let maxSize = CGSize(width: 180, height: 140)
 
@@ -46,14 +55,31 @@ struct ZoomMinimapView: View {
         .overlay(Rectangle().stroke(Color.white.opacity(0.6), lineWidth: 1))
         .shadow(radius: 4)
         .contentShape(Rectangle())
+        .onHover { inside in
+            hovering = inside
+            updateInteracting()
+        }
+        .onDisappear {
+            hovering = false
+            dragging = false
+            updateInteracting()
+        }
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
+                    if !dragging {
+                        dragging = true
+                        updateInteracting()
+                    }
                     let freeW = size.width - rectW
                     let freeH = size.height - rectH
                     let x = freeW > 0.5 ? (value.location.x - rectW / 2) / freeW : 0.5
                     let y = freeH > 0.5 ? (value.location.y - rectH / 2) / freeH : 0.5
                     position = CGPoint(x: min(1, max(0, x)), y: min(1, max(0, y)))
+                }
+                .onEnded { _ in
+                    dragging = false
+                    updateInteracting()
                 }
         )
     }

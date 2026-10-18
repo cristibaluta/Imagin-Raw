@@ -21,6 +21,8 @@ struct MacFitGridView: NSViewRepresentable {
     var fullResImages: [String: IRImage] = [:]
     /// Normalized pan position (0...1), driven externally (e.g. minimap).
     var panPosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
+    /// When true, mouse movement over the photos doesn't pan (e.g. pointer is on the minimap).
+    var isPanLocked: Bool = false
     var onPanChanged: ((CGPoint) -> Void)?
     var onViewportChanged: ((CGSize) -> Void)?
 
@@ -74,6 +76,7 @@ struct MacFitGridView: NSViewRepresentable {
         coord.isZoomed = isZoomed
         coord.fullResImages = fullResImages
         coord.onPositionChanged = onPanChanged
+        coord.isPanLocked = isPanLocked
         coord.onViewportChanged = onViewportChanged
         coord.setPosition(panPosition)
         layout.spacing = spacing

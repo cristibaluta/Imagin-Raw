@@ -84,6 +84,7 @@ final class MacFitGridCoordinator: NSObject, NSCollectionViewDataSource {
     }
 
     var onPositionChanged: ((CGPoint) -> Void)?
+    var isPanLocked = false
     var onViewportChanged: ((CGSize) -> Void)?
 
     /// Applies a position coming from outside (minimap).
@@ -107,7 +108,7 @@ final class MacFitGridCoordinator: NSObject, NSCollectionViewDataSource {
     }
 
     private func handleMouseMoved(_ position: CGPoint) {
-        guard isZoomed else {
+        guard isZoomed, !isPanLocked else {
             return
         }
         mousePosition = position
