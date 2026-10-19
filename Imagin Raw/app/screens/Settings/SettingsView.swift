@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var showCacheConfirmation = false
     @State private var cacheSize: String = "Calculating..."
     @State private var selectedTheme: String = appPrefs.string(.theme)
+    @State private var selectedPreview: String = appPrefs.string(.previewSize)
 
     var body: some View {
         VStack(spacing: 20) {
@@ -34,6 +35,27 @@ struct SettingsView: View {
                 .onChange(of: selectedTheme) { _, value in
                     appPrefs.set(value, forKey: .theme)
                     NotificationCenter.default.post(name: .colorSchemeDidChange, object: nil)
+                }
+            }
+
+            Divider()
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Preview Size")
+                        .font(.headline)
+                    Text("Restart the app to apply. Fit Screen matches your screen height.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Picker("", selection: $selectedPreview) {
+                    Text("1024 px").tag("s1024")
+                    Text("Fit Screen").tag("large")
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 180)
+                .onChange(of: selectedPreview) { _, value in
+                    appPrefs.set(value, forKey: .previewSize)
                 }
             }
 

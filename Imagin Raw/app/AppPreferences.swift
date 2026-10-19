@@ -15,6 +15,7 @@ enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
 
     // MARK: - Preview
     case showAFPoint    = "ShowAFPoint"
+    case previewSize    = "PreviewSize"
     case alignToTopLeft = "ImageAlignmentTopLeft"
     case exportRatio    = "ExportAspectRatio"
     case exportPadding  = "ExportPadding"
@@ -58,6 +59,7 @@ enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
         switch self {
             case .theme:                    return "system"
             case .showAFPoint:              return false
+            case .previewSize:              return "large"
             case .alignToTopLeft:           return false
             case .exportRatio:              return ExportAspectRatio.r4x5.rawValue
             case .exportPadding:            return 0.0

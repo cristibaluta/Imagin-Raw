@@ -23,7 +23,7 @@ class AppState: ObservableObject {
     #endif
 
     let thumbnailsCacheManager = PhotoCacheManager(thumbSize: .s256)
-    let previewsCacheManager = PhotoCacheManager(thumbSize: .s1024)
+    let previewsCacheManager = PhotoCacheManager(thumbSize: ThumbSize.selectedPreview)
     let fullResCacheManager = PhotoCacheManager(thumbSize: .full)
 
     let fileSystemModel: FileSystemModel

@@ -7,6 +7,11 @@
 
 import Foundation
 import CryptoKit
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 private actor MemoryCache {
     private let cache = NSCache<NSString, NSData>()
@@ -58,12 +63,38 @@ private actor AccessLogs {
 enum ThumbSize: Int {
     case s256 = 256
     case s1024 = 1024
+    case large = 2048 // Medium value; actual size is computed to fit the screen height
     case full = 0
+
+    /// Value used for the preference storage
+    var preferenceValue: String {
+        switch self {
+            case .s256: return "s256"
+            case .s1024: return "s1024"
+            case .large: return "large"
+            case .full: return "full"
+        }
+    }
+
+    init(preferenceValue: String) {
+        switch preferenceValue {
+            case "s256": self = .s256
+            case "large": self = .large
+            case "full": self = .full
+            default: self = .s1024
+        }
+    }
+
+    /// The preview size currently chosen by the user in settings
+    static var selectedPreview: ThumbSize {
+        ThumbSize(preferenceValue: appPrefs.string(.previewSize))
+    }
 
     var cacheLimit: Int64 {
         switch self {
             case .s256: return 256 * 1024 * 1024 // 256Mb
             case .s1024: return 1 * 1024 * 1024 * 1024 // 1Gb
+            case .large: return 2 * 1024 * 1024 * 1024 // 2Gb
             case .full: return 0
         }
     }
@@ -72,9 +103,23 @@ enum ThumbSize: Int {
         switch self {
             case .s256: return 3000
             case .s1024: return 100
+            case .large: return 100
             case .full: return 20
         }
     }
+}
+
+/// Screen height in pixels
+private func screenHeightInPixels() -> CGFloat {
+    #if os(macOS)
+    let screen = NSScreen.main ?? NSScreen.screens.first
+    guard let screen else {
+        return 2048
+    }
+    return (screen.frame.height * screen.backingScaleFactor).rounded()
+    #else
+    return UIScreen.main.nativeBounds.height.rounded()
+    #endif
 }
 
 final class PhotoCacheManager: Sendable {
@@ -83,12 +128,21 @@ final class PhotoCacheManager: Sendable {
 
     private let cacheDirectory: URL
     private let thumbSize: ThumbSize
+    /// The actual max pixel size of the generated image, decided by this manager
+    private let targetSize: CGFloat
 
     init(thumbSize: ThumbSize) {
         self.thumbSize = thumbSize
+        switch thumbSize {
+            case .large:
+                targetSize = screenHeightInPixels()
+            default:
+                targetSize = CGFloat(thumbSize.rawValue)
+        }
         memoryCache = MemoryCache(cacheLimit: thumbSize.inMemoryLimit)
         let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        cacheDirectory = cachesDir.appendingPathComponent("ro.imagin.raw/\(thumbSize.rawValue)")
+        let dirName = thumbSize == .large ? "large_\(Int(targetSize))" : "\(thumbSize.rawValue)"
+        cacheDirectory = cachesDir.appendingPathComponent("ro.imagin.raw/\(dirName)")
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         Task {
             await evictDiskCacheIfNeeded()
@@ -106,9 +160,9 @@ final class PhotoCacheManager: Sendable {
         if photo.hasGainMap && thumbSize != .s256 {
             switch thumbSize {
                 case .s256:
-                    return await source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
-                case .s1024:
-                    return await source.loadPreview(targetSize: CGFloat(thumbSize.rawValue))
+                    return await source.loadThumbnail(targetSize: targetSize)
+                case .s1024, .large:
+                    return await source.loadPreview(targetSize: targetSize)
                 case .full:
                     return source.loadFullRes()
             }
@@ -131,9 +185,9 @@ final class PhotoCacheManager: Sendable {
         let image: IRImage?
         switch thumbSize {
             case .s256:
-                image = await source.loadThumbnail(targetSize: CGFloat(thumbSize.rawValue))
-            case .s1024:
-                image = await source.loadPreview(targetSize: CGFloat(thumbSize.rawValue))
+                image = await source.loadThumbnail(targetSize: targetSize)
+            case .s1024, .large:
+                image = await source.loadPreview(targetSize: targetSize)
             case .full:
                 image = source.loadFullRes()
         }
