@@ -41,27 +41,6 @@ struct SettingsView: View {
             Divider()
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Preview Size")
-                        .font(.headline)
-                    Text("Restart the app to apply. Fit Screen matches your screen height.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-                Picker("", selection: $selectedPreview) {
-                    Text("1024 px").tag("s1024")
-                    Text("Fit Screen").tag("large")
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 180)
-                .onChange(of: selectedPreview) { _, value in
-                    appPrefs.set(value, forKey: .previewSize)
-                }
-            }
-
-            Divider()
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
                     Text("Reset All Preferences")
                         .font(.headline)
                 }
@@ -76,6 +55,33 @@ struct SettingsView: View {
                     }
                 } message: {
                     Text("Are you sure? This will reset all settings to defaults.")
+                }
+            }
+
+            Divider()
+
+            // Preview size
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Preview Size")
+                        .font(.headline)
+                    Text(previewDescription)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Restart the app to apply.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Picker("", selection: $selectedPreview) {
+                    Text("1024 px").tag("s1024")
+                    Text("Large").tag("large")
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 180)
+                .onChange(of: selectedPreview) { _, value in
+                    appPrefs.set(value, forKey: .previewSize)
                 }
             }
 
@@ -111,6 +117,15 @@ struct SettingsView: View {
         .frame(width: 550)
         .onAppear {
             calculateCacheSize()
+        }
+    }
+
+    private var previewDescription: String {
+        switch selectedPreview {
+            case "large":
+                return "Creates an image sized to fit this screen's height. The image is extracted from the RAW file; if the embedded preview is smaller than the screen, the smaller size is used."
+            default:
+                return "Creates an image of 1024 px on the largest side."
         }
     }
 
