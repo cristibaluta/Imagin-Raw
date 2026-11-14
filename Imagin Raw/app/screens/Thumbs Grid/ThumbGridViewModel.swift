@@ -429,32 +429,42 @@ class ThumbGridViewModel: ObservableObject {
         guard let first = photos.first else {
             return
         }
-        // 1. Get the index of the first photo to delete
-        let index = filteredAndSortedPhotos.firstIndex { $0.id == first.id }
-
-        // 2. Move selected photos to trash
         let photosToDelete = selectedPhotos.contains(first)
             ? selectedPhotos
             : photos
+        let deletedIDs = Set(photosToDelete.map(\.id))
+
+        // 1. Pick the photo to show next: the first one after the deleted ones,
+        //    or the closest one before them when they were at the end.
+        let flat = groupedPhotos.flatMap(\.photos)
+        var nextPhoto: PhotoItem?
+        if let firstIndex = flat.firstIndex(where: { deletedIDs.contains($0.id) }) {
+            nextPhoto = flat[firstIndex...].first { !deletedIDs.contains($0.id) }
+                ?? flat[..<firstIndex].last { !deletedIDs.contains($0.id) }
+        }
+
+        // 2. Move the photos to trash
         trashService.movePhotosToTrash(photosToDelete)
 
-        // 3. Remove from models
-        selectedPhotos.removeAll()
-        let remainingPhotos = (photosModel?.photos ?? []).filter { !photosToDelete.contains($0) }
+        // 3. Select the next photo right away so the preview never shows a deleted photo
+        if let nextPhoto {
+            selectedPhotos = [nextPhoto]
+        } else {
+            selectedPhotos.removeAll()
+        }
+
+        // 4. Remove from models
+        let remainingPhotos = (photosModel?.photos ?? []).filter { !deletedIDs.contains($0.id) }
         // TODO: photosmodel will also trigger a filterAndSortPhotos
         photosModel?.photos = remainingPhotos
-        // 4. Rebuild the model
+        // 5. Rebuild the model
         // TODO: Is this needed? Is this causing the UI reload when deleting a photo?
         filterAndSortPhotos()
 
-        // 5. Find the next closest index after the photos were deleted
-        if let index, index < filteredAndSortedPhotos.count {
-//            let nextIndex = min(index, filteredAndSortedPhotos.count - 1)
-//            let nextPhoto = filteredAndSortedPhotos[nextIndex]
-//            selectedPhotos = [nextPhoto]
-//            lastSelectedIndexPath = nextIndex
+        if let nextPhoto {
+            lastSelectedIndexPath = indexPath(for: nextPhoto)
+            pendingScrollPhotoId = nextPhoto.id
         } else {
-            selectedPhotos.removeAll()
             lastSelectedIndexPath = nil
         }
     }
@@ -493,6 +503,14 @@ class ThumbGridViewModel: ObservableObject {
             return false
         }
 
+        // Shortcuts the user can change in Settings > Shortcuts come first
+        if let action = ShortcutStore.shared.action(for: event) {
+            return perform(action,
+                           onToggleSidebar: onToggleSidebar,
+                           onReviewSelected: onReviewSelected)
+        }
+
+        let mods = event.modifierFlags
         switch key {
             case .leftArrow where pageSize > 1, .rightArrow where pageSize > 1:
                 // Jump by 'number of selected photos'
@@ -509,76 +527,30 @@ class ThumbGridViewModel: ObservableObject {
                            ? filteredAndSortedPhotos.filter { selectedPhotos.contains($0) }
                            : selectedPhotos)
                 return true
-            case .space:
+            case .delete where mods.intersection([.command, .option, .control, .shift]).isEmpty:
+                // Plain Delete always rejects
                 if !selectedPhotos.isEmpty {
-                    onReviewSelected?(selectedPhotos)
-                }
-                return true
-            case .delete:
-                if !selectedPhotos.isEmpty {
-                    event.modifierFlags.contains(.command)
-                        ? movePhotosToTrash(selectedPhotos)
-                        : toggleRejectedState(for: selectedPhotos)
+                    toggleRejectedState(for: selectedPhotos)
                 }
                 return true
             default:
-                let mods = event.modifierFlags
                 if mods.contains(.command) && chars == "a" {
                     selectAll()
                     return true
                 }
-                if mods.contains(.option) && chars == "c" {
-                    quickCopy(photos: selectedPhotos)
+                if mods.contains(.command) && chars == "z" {
+                    undoLastTrash()
                     return true
                 }
-                if chars == "z" {
-                    if mods.contains(.command) {
-                        undoLastTrash()
-                    } else {
-                        NotificationCenter.default.post(name: .toggleZoom, object: nil)
-                    }
-                    return true
-                }
-                if chars == "s" || chars == "S" {
-                    onToggleSidebar?()
-                    return true
-                }
-                if chars == "g" || chars == "G" {
-                    toggleGridType()
-                    return true
-                }
-                if (chars == "f" || chars == "F") && !mods.contains(.command) {
-                    if !selectedPhotos.isEmpty {
-                        onReviewSelected?(selectedPhotos)
-                        if let window = NSApp.keyWindow ?? NSApp.mainWindow,
-                           !window.styleMask.contains(.fullScreen) {
-                            window.toggleFullScreen(nil)
-                        }
-                    }
+                if mods.contains(.option) && (chars == "x" || chars == "X") {
+                    selectedLabels = selectedLabels.contains(.rejected) ? [] : [.rejected]
                     return true
                 }
 
                 // This actions are applied to the photo hovered in the preview, or to selectedPhotos
-                let targets = hoveredPhotoProvider?().map { [$0] } ?? selectedPhotos
+                let targets = shortcutTargets
                 if targets.isEmpty {
                     return false
-                }
-
-                if chars == "a" || chars == "A" {
-                    applyLabel(.approved, to: targets)
-                    return true
-                }
-                if chars == "c" || chars == "C" {
-                    toggleCopyState(for: targets)
-                    return true
-                }
-                if chars == "x" || chars == "X" {
-                    if mods.contains(.option) {
-                        selectedLabels = selectedLabels.contains(.rejected) ? [] : [.rejected]
-                    } else {
-                        toggleRejectedState(for: targets)
-                    }
-                    return true
                 }
                 if let r = Int(chars), r >= 1 && r <= 5 {
                     if mods.contains(.option) {
@@ -609,16 +581,70 @@ class ThumbGridViewModel: ObservableObject {
                     }
                     return true
                 }
-                if chars == "-" {
-                    removeLabelsAndRatings(from: targets)
-                    return true
-                }
                 return false
         }
         #else
         return false
         #endif
     }
+
+    #if os(macOS)
+    /// The photo hovered in the preview, or the selected photos.
+    private var shortcutTargets: [PhotoItem] {
+        hoveredPhotoProvider?().map { [$0] } ?? selectedPhotos
+    }
+
+    /// Runs an action bound in Settings > Shortcuts.
+    private func perform(_ action: ShortcutAction,
+                         onToggleSidebar: (() -> Void)?,
+                         onReviewSelected: (([PhotoItem]) -> Void)?) -> Bool {
+        switch action {
+            case .approve, .reject, .markForCopy, .removeLabels:
+                let targets = shortcutTargets
+                guard !targets.isEmpty else {
+                    return false
+                }
+                switch action {
+                    case .approve:      applyLabel(.approved, to: targets)
+                    case .reject:       toggleRejectedState(for: targets)
+                    case .markForCopy:  toggleCopyState(for: targets)
+                    default:            removeLabelsAndRatings(from: targets)
+                }
+                return true
+            case .moveToTrash:
+                if !selectedPhotos.isEmpty {
+                    movePhotosToTrash(selectedPhotos)
+                }
+                return true
+            case .quickCopy:
+                quickCopy(photos: selectedPhotos)
+                return true
+            case .zoom:
+                NotificationCenter.default.post(name: .toggleZoom, object: nil)
+                return true
+            case .review:
+                if !selectedPhotos.isEmpty {
+                    onReviewSelected?(selectedPhotos)
+                }
+                return true
+            case .reviewFullScreen:
+                if !selectedPhotos.isEmpty {
+                    onReviewSelected?(selectedPhotos)
+                    if let window = NSApp.keyWindow ?? NSApp.mainWindow,
+                       !window.styleMask.contains(.fullScreen) {
+                        window.toggleFullScreen(nil)
+                    }
+                }
+                return true
+            case .toggleSidebar:
+                onToggleSidebar?()
+                return true
+            case .toggleGridType:
+                toggleGridType()
+                return true
+        }
+    }
+    #endif
 
     // MARK: - Pagination
 

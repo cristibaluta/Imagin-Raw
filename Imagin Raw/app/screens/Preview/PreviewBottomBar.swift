@@ -76,10 +76,8 @@ struct PreviewBottomBar: View {
         Button(action: {
             if isMulti {
                 viewModel.toggleMultiZoom()
-            } else if viewModel.fullResImage != nil {
-                viewModel.exitZoom()
             } else {
-                viewModel.loadFullResolution()
+                viewModel.toggleZoom()
             }
         }) {
             ZStack {

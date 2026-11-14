@@ -29,7 +29,8 @@ struct PhotoPreviewView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
         .overlay {
-            if viewModel.isLoadingFullRes {
+            // Only when nothing zoomed is on screen yet; the zoom button shows a small spinner too
+            if viewModel.isLoadingFullRes && viewModel.fullResImage == nil {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle())
                     .scaleEffect(1.5)
@@ -59,11 +60,7 @@ struct PhotoPreviewView: View {
         //            }
         //        }
         .onReceive(NotificationCenter.default.publisher(for: .toggleZoom)) { _ in
-            if viewModel.fullResImage != nil {
-                viewModel.exitZoom()
-            } else if !viewModel.isLoadingFullRes {
-                viewModel.loadFullResolution()
-            }
+            viewModel.toggleZoom()
         }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
             gridType = GridType(rawValue: appPrefs.string(.gridType)) ?? .small
@@ -76,7 +73,10 @@ struct PhotoPreviewView: View {
             // Photo
             if let fullRes = viewModel.fullResImage {
                 #if os(macOS)
-                ZoomPanView(image: fullRes)
+                ZoomPanView(image: fullRes,
+                            focusPoint: viewModel.faceCenter,
+                            pixelSizeOverride: viewModel.zoomPixelSize,
+                            scale: $viewModel.zoomScale)
                 #endif
             } else if let nsImage = viewModel.images?.first {
                 GeometryReader { geo in

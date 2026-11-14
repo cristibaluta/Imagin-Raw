@@ -38,7 +38,7 @@ struct ReviewPhotoCard: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             // Background
-            Color(red: 41/255, green: 41/255, blue: 41/255)
+            ThemeColors.reviewCardBackground
 
             // Image content
             #if os(macOS)

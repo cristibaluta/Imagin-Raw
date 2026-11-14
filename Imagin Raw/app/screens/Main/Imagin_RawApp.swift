@@ -83,12 +83,8 @@ struct ImaginRawApp: App {
     @State private var theme: String = appPrefs.string(.theme)
     @Environment(\.openWindow) private var openWindow
 
-    private var colorScheme: ColorScheme? {
-        switch theme {
-            case "light": return .light
-            case "dark":  return .dark
-            default:      return nil
-        }
+    private var colorScheme: ColorScheme {
+        (AppTheme(rawValue: theme) ?? .darker).colorScheme
     }
 
     init() {
@@ -101,9 +97,7 @@ struct ImaginRawApp: App {
         WindowGroup(for: ImaginRawSession.ID.self) { $sessionID in
             MainView(sessionID: sessionID)
                 .preferredColorScheme(colorScheme)
-                .background(Color.adaptive(light: NSColor(white: 0.85, alpha: 1.0),
-                                           dark: NSColor(white: 0.25, alpha: 1.0),
-                                           colorScheme: colorScheme))
+                .background(ThemeColors.mainBackground)
                 .id(contentViewID)
                 .onReceive(NotificationCenter.default.publisher(for: .preferencesDidReset)) { _ in
                     theme = appPrefs.string(.theme)

@@ -12,6 +12,8 @@ enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
 
     // MARK: - Appearance
     case theme = "AppTheme"
+    case zoomToFace = "ZoomToFace"
+    case customShortcuts = "CustomShortcuts"
 
     // MARK: - Preview
     case showAFPoint    = "ShowAFPoint"
@@ -57,7 +59,9 @@ enum AppPreference: String, RCPreferencesProtocol, CaseIterable {
 
     func defaultValue() -> Any {
         switch self {
-            case .theme:                    return "system"
+            case .theme:                    return "darker"
+            case .zoomToFace:               return true
+            case .customShortcuts:          return ""
             case .showAFPoint:              return false
             case .previewSize:              return "large"
             case .alignToTopLeft:           return false

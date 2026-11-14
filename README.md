@@ -2,6 +2,17 @@
 
 A lightweight, native macOS application for browsing, culling, and organizing RAW photos - built as a more efficient alternative to Adobe Bridge.
 
+> **This is a modified fork** of [cristibaluta/Imagin-Raw](https://github.com/cristibaluta/Imagin-Raw). All credit for the app goes to the original author. Changes in this fork:
+>
+> - **Darker look** – Appearance is Light, Darker (Spotify-style near-black) or Black.
+> - **Scroll to zoom** – while zoomed (Z), scroll or pinch to zoom from fit to 400%.
+> - **Stay zoomed between photos** – the arrow keys move to the next photo without leaving zoom, with no flash back to the full view.
+> - **Zoom to faces** – zooming centers on the largest face, found with macOS's built-in Core Image face detector (on-device, no internet). Can be turned off in Settings.
+> - **Custom shortcuts** – Settings > Shortcuts lets you change the keys for Approve, Reject, Move to Trash, Zoom, Review and more.
+> - **Move to Trash selects the next photo** instead of showing "Failed to load image".
+>
+> These changes were made with the help of Claude Opus 5.5.
+
 ![Main Interface](screenshots/main.jpg)
 
 ## Architecture

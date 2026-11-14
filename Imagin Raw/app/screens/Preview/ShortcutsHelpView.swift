@@ -8,6 +8,10 @@
 import SwiftUI
 
 struct ShortcutsHelpView: View {
+    #if os(macOS)
+    @ObservedObject private var store = ShortcutStore.shared
+    #endif
+
     var body: some View {
         VStack(spacing: 30) {
             Spacer()
@@ -26,50 +30,44 @@ struct ShortcutsHelpView: View {
             }
 
             HStack(alignment: .top, spacing: 30) {
-                // col 1
+                // col 1: fixed keys
                 VStack(alignment: .leading) {
-                    Text("1 - 5   Rating")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("6 - 0   Labels")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("-       Remove Label")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text(" ")
-                    Text("A       Approve")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("X       Reject")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    line("1 - 5", "Rating")
+                    line("6 - 0", "Labels")
+                    line("⌥ 1 - 5", "Filter by Rating")
+                    line("⌥ 6 - 0", "Filter by Label")
+                    line("⌥ X", "Filter by Rejected")
+                    line("⌘ Z", "Undo Move to Trash")
+                    line("Scroll", "Zoom closer/farther")
                 }
-                .frame(width: 200)
+                .frame(width: 260)
 
-                // col 2
+                // col 2: keys you can change in Settings > Shortcuts
                 VStack(alignment: .leading) {
-                    Text("⌥ 1 - 5 Filter by Rating")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("⌥ 6 - 0 Filter by Label")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("⌥ X     Filter by Rejected")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("⌘ Del   Move to Trash")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("⌘ Z     Undo Move to Trash")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("Z       Zoom in/out")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("Space/F Review mode")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("S       Toggle Sidebar")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    Text("G       Toggle Grid type")
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    #if os(macOS)
+                    ForEach(ShortcutAction.allCases, id: \.self) { action in
+                        if let shortcut = store.shortcut(for: action) {
+                            line(shortcut.displayName, action.title)
+                        }
+                    }
+                    #endif
                 }
                 .frame(width: 260)
             }
-            Text("Note: In Review Mode you can label & rate photos while you hover and press the keys.")
+            Text("Change shortcuts in Settings (⌘,) > Shortcuts. In Review Mode you can label & rate photos while you hover and press the keys.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
             Spacer()
         }
+    }
+
+    private func line(_ keys: String, _ title: String) -> some View {
+        HStack(spacing: 0) {
+            Text(keys)
+                .frame(width: 80, alignment: .leading)
+            Text(title)
+        }
+        .font(.system(size: 13, weight: .semibold, design: .monospaced))
     }
 }

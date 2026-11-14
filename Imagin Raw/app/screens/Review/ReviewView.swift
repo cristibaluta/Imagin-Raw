@@ -38,7 +38,7 @@ struct ReviewView: View {
                        onReject: { viewModel.handleToggleDelete(for: $0) },
                        onRemove: { viewModel.handleRemove(for: $0) })
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(IRColor.windowBackgroundColor))
+            .background(ThemeColors.panelBackground)
             .overlay(alignment: .bottomTrailing) {
                 if viewModel.isZoomed,
                    let first = viewModel.photos.first,
@@ -56,8 +56,19 @@ struct ReviewView: View {
             .focusable()
             .focusEffectDisabled()
             .focused($isFocused)
-            .onKeyPress(characters: CharacterSet(charactersIn: "zZ")) { _ in
-                viewModel.toggleZoom()
+            .onKeyPress(phases: .down) { _ in
+                // Shortcuts from Settings > Shortcuts
+                guard let event = NSApp.currentEvent,
+                      let action = ShortcutStore.shared.action(for: event) else {
+                    return .ignored
+                }
+                switch action {
+                    case .zoom:    viewModel.toggleZoom()
+                    case .approve: viewModel.approveTargets()
+                    case .reject:  viewModel.toggleDeleteTargets()
+                    case .review:  appState.reviewGroup = nil
+                    default:       return .ignored
+                }
                 return .handled
             }
             .onKeyPress(.escape) {
@@ -73,14 +84,6 @@ struct ReviewView: View {
                     return .ignored
                 }
                 viewModel.rateTargets(rating)
-                return .handled
-            }
-            .onKeyPress(characters: CharacterSet(charactersIn: "aA")) { _ in
-                viewModel.approveTargets()
-                return .handled
-            }
-            .onKeyPress(characters: CharacterSet(charactersIn: "xX")) { _ in
-                viewModel.toggleDeleteTargets()
                 return .handled
             }
             .onAppear {

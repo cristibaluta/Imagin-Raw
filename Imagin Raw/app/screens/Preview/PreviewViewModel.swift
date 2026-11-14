@@ -11,6 +11,17 @@ class PreviewViewModel: ObservableObject {
     @Published private(set) var fullResImage: IRImage?
     @Published private(set) var isLoading = false
     @Published private(set) var isLoadingFullRes = false
+    /// Zoom level of the single photo zoom, 1 = 100%. Kept while moving between photos.
+    @Published var zoomScale: CGFloat = 1
+    /// Center of the largest face in the zoomed photo (normalized, origin top-left), nil when none.
+    @Published private(set) var faceCenter: CGPoint?
+    /// While `fullResImage` is a stand-in (the small preview shown zoomed until the full
+    /// resolution loads), the full resolution pixel size it should be drawn at. nil otherwise.
+    @Published private(set) var zoomPixelSize: CGSize?
+    /// Long side in pixels of the last full resolution image, to size the next stand-in the same way.
+    private var lastFullResLongSide: CGFloat?
+    /// True while zoomed in (or loading the zoom) on a single photo.
+    var isSingleZoomActive: Bool { fullResImage != nil || isLoadingFullRes }
     @Published private(set) var alignToTopLeft: Bool = appPrefs.bool(.alignToTopLeft)
     @Published private(set) var exifIsExpanded: Bool = appPrefs.bool(.exifExpanded)
     @Published var showVideoEditor: Bool = false
@@ -63,6 +74,7 @@ class PreviewViewModel: ObservableObject {
     private let fullResCacheManager: PhotoCacheManager
 
     private var loadingTask: Task<Void, Never>?
+    private var loadedSinglePhotoID: UUID?
     private var fullResTask: Task<Void, Never>?
     private var multiFullResTask: Task<Void, Never>?
 
@@ -72,6 +84,11 @@ class PreviewViewModel: ObservableObject {
     }
 
     func loadPhotos(_ photos: [PhotoItem]) {
+        // Nothing selected (e.g. the last photo was moved to trash): show the empty state
+        guard !photos.isEmpty else {
+            reset()
+            return
+        }
         self.photos = photos
         loadingTask?.cancel()
 
@@ -79,12 +96,32 @@ class PreviewViewModel: ObservableObject {
         guard photos.count <= 1 else {
             images = nil
             isLoading = false
+            exitZoom()
+            loadedSinglePhotoID = nil
             if isMultiZoomed {
                 loadMultiFullRes()
             }
             return
         }
         exitMultiZoom()
+
+        // Stay zoomed when moving to another photo; the new photo's full resolution is loaded below
+        let isSamePhoto = photos.first?.id == loadedSinglePhotoID
+        let stayZoomed = isSingleZoomActive
+        loadedSinglePhotoID = photos.first?.id
+        if !isSamePhoto {
+            if stayZoomed, let photo = photos.first {
+                // Keep the current zoomed image on screen until the new one is ready (no flash)
+                startZoomLoad(for: photo)
+            } else {
+                fullResTask?.cancel()
+                fullResTask = nil
+                fullResImage = nil
+                zoomPixelSize = nil
+                faceCenter = nil
+                isLoadingFullRes = false
+            }
+        }
         isLoading = true
 
         loadingTask = Task(priority: .userInitiated) { [photos] in
@@ -173,7 +210,19 @@ class PreviewViewModel: ObservableObject {
         fullResTask?.cancel()
         fullResTask = nil
         fullResImage = nil
+        zoomPixelSize = nil
+        faceCenter = nil
         isLoadingFullRes = false
+        zoomScale = 1
+    }
+
+    /// Zooms the single photo in, or out when already zoomed (or loading the zoom).
+    func toggleZoom() {
+        if isSingleZoomActive {
+            exitZoom()
+        } else {
+            loadFullResolution()
+        }
     }
 
     func loadFullResolution() {
@@ -183,17 +232,72 @@ class PreviewViewModel: ObservableObject {
         guard fullResImage == nil && !isLoadingFullRes else {
             return
         }
+        startZoomLoad(for: photo)
+    }
 
+    /// Zooms into `photo`: first shows its small preview drawn at full size (instant),
+    /// then swaps in the full resolution when it has loaded.
+    private func startZoomLoad(for photo: PhotoItem) {
+        fullResTask?.cancel()
         isLoadingFullRes = true
 
+        let findFace = appPrefs.bool(.zoomToFace)
         fullResTask = Task {
+            // 1. Preview: find the face on it and show it as a stand-in
+            var face: CGPoint?
+            if let preview = await previewsCacheManager.getImage(for: photo) {
+                guard !Task.isCancelled else {
+                    return
+                }
+                let cg = preview.cgImage(forProposedRect: nil, context: nil, hints: nil)
+                if findFace, let cg {
+                    nonisolated(unsafe) let image = cg
+                    face = await Task.detached(priority: .userInitiated) {
+                        FaceFinder.largestFaceCenter(in: image)
+                    }.value
+                    guard !Task.isCancelled else {
+                        return
+                    }
+                }
+                if let cg, let size = standInPixelSize(for: photo, previewWidth: CGFloat(cg.width),
+                                                       previewHeight: CGFloat(cg.height)) {
+                    self.faceCenter = face
+                    self.zoomPixelSize = size
+                    self.fullResImage = preview
+                }
+            }
+
+            // 2. Full resolution
             let image = await fullResCacheManager.getImage(for: photo)
             guard !Task.isCancelled else {
                 return
             }
+            if let image, let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                self.lastFullResLongSide = CGFloat(max(cg.width, cg.height))
+            }
+            self.faceCenter = face
+            self.zoomPixelSize = nil
             self.fullResImage = image
             self.isLoadingFullRes = false
         }
+    }
+
+    /// Size to draw the preview at so it lines up with the full resolution image that will replace it.
+    private func standInPixelSize(for photo: PhotoItem, previewWidth: CGFloat, previewHeight: CGFloat) -> CGSize? {
+        guard previewWidth > 0, previewHeight > 0 else {
+            return nil
+        }
+        let exifLongSide = photo.exif.flatMap { exif -> CGFloat? in
+            guard let w = exif.width, let h = exif.height, w > 0, h > 0 else {
+                return nil
+            }
+            return CGFloat(max(w, h))
+        }
+        guard let longSide = lastFullResLongSide ?? exifLongSide else {
+            return nil
+        }
+        let scale = longSide / max(previewWidth, previewHeight)
+        return CGSize(width: previewWidth * scale, height: previewHeight * scale)
     }
 
     /// Shows the PDF editor, closing the video editor if it is open.
@@ -238,6 +342,9 @@ class PreviewViewModel: ObservableObject {
         fullResTask = nil
         images = nil
         fullResImage = nil
+        zoomPixelSize = nil
+        faceCenter = nil
+        loadedSinglePhotoID = nil
         isLoading = false
         isLoadingFullRes = false
     }

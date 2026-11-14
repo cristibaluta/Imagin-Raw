@@ -71,7 +71,7 @@ struct SidebarView: View {
                 .padding(.vertical, 5)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(IRColor.windowBackgroundColor))
+                        .fill(ThemeColors.panelBackground)
                         .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
                 )
                 .padding(.horizontal, 10)
@@ -141,7 +141,7 @@ struct SidebarView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
         }
-        .background(Color(IRColor.underPageBackgroundColor))
+        .background(ThemeColors.sidebarBackground)
         .fileImporter(isPresented: $showingFolderPicker,
                       allowedContentTypes: [.folder],
                       allowsMultipleSelection: false) { result in

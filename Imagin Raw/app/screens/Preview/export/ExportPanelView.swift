@@ -172,7 +172,7 @@ struct ExportPanelView: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color(IRColor.windowBackgroundColor))
+                .fill(ThemeColors.panelBackground)
                 .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 4)
         )
     }

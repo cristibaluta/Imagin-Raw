@@ -158,8 +158,7 @@ final class MacThumbCell: NSCollectionViewItem {
     }
 
     private var cellBackgroundColor: NSColor {
-        let isDark = colorScheme == .dark
-        return NSColor(white: isDark ? 0.15 : 0.65, alpha: 1)
+        ThemeColors.thumbCellBackground(isDark: colorScheme == .dark)
     }
 
     private func configureLayers() {

@@ -12,10 +12,22 @@ struct SettingsView: View {
     @State private var showResetConfirmation = false
     @State private var showCacheConfirmation = false
     @State private var cacheSize: String = "Calculating..."
-    @State private var selectedTheme: String = appPrefs.string(.theme)
+    @State private var selectedTheme: String = AppTheme.current.rawValue
+    @State private var zoomToFace: Bool = appPrefs.bool(.zoomToFace)
     @State private var selectedPreview: String = appPrefs.string(.previewSize)
 
     var body: some View {
+        TabView {
+            generalTab
+                .tabItem { Label("General", systemImage: "gearshape") }
+            ShortcutsSettingsView()
+                .padding(30)
+                .frame(width: 550)
+                .tabItem { Label("Shortcuts", systemImage: "keyboard") }
+        }
+    }
+
+    private var generalTab: some View {
         VStack(spacing: 20) {
 
             // Theme
@@ -26,9 +38,9 @@ struct SettingsView: View {
                 }
                 Spacer()
                 Picker("", selection: $selectedTheme) {
-                    Text("System").tag("system")
-                    Text("Light").tag("light")
-                    Text("Dark").tag("dark")
+                    ForEach(AppTheme.allCases, id: \.rawValue) { theme in
+                        Text(theme.title).tag(theme.rawValue)
+                    }
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 180)
@@ -56,6 +68,26 @@ struct SettingsView: View {
                 } message: {
                     Text("Are you sure? This will reset all settings to defaults.")
                 }
+            }
+
+            Divider()
+
+            // Zoom to face
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Zoom to Faces")
+                        .font(.headline)
+                    Text("When zooming a photo, center on the largest face. Uses the Mac's built-in face detector, no AI model or internet. Move the mouse to pan away.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Toggle("", isOn: $zoomToFace)
+                    .toggleStyle(.switch)
+                    .onChange(of: zoomToFace) { _, value in
+                        appPrefs.set(value, forKey: .zoomToFace)
+                    }
             }
 
             Divider()
@@ -107,11 +139,6 @@ struct SettingsView: View {
                     Text("Are you sure? All cached thumbnails will be deleted.")
                 }
             }
-
-            Divider()
-
-            // Shortcuts
-            ShortcutsHelpView()
         }
         .padding(30)
         .frame(width: 550)
